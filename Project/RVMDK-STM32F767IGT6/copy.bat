@@ -1,0 +1,1 @@
+copy platform_cmx_conf.h ..\..\MEukaron\Include\Platform\CortexM\platform_cmx_conf.h
