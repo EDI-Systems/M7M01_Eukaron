@@ -1,4 +1,4 @@
-# Prerequisites
+﻿# Prerequisites
 *.d
 
 # Object files
@@ -53,7 +53,7 @@ dkms.conf
 
 # Unneeded history and documents
 Documents/**
-!Documents/M5P1_轻量级实时操作系统使用说明书.pdf
+!Documents/M7M1_微内核实时操作系统_技术手册.pdf
 
 # Keil specific
 Project/**/Debug/**
