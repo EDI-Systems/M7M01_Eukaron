@@ -1,6 +1,6 @@
 # MuEukaryon
 
-**RME** is a complicated general-purpose operating system which focuses on many advanced features, such as multi-core scalability, mixed-criticality, real-time and reliability. This operating system can be much more **complicated** than any other OSes, especilly when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Don't try to understand everything if you don't have to.   
+**RME** is a complicated general-purpose operating system which focuses on many advanced features, such as multi-core scalability, mixed-criticality, real-time and reliability. This operating system can be much more **complicated** than any other OSes, especially when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Don't try to understand everything if you don't have to.   
 It is also possible to use RME as a hypervisor, or use it as a container host. 
 
 Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
