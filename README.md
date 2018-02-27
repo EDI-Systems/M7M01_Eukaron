@@ -93,6 +93,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 
 ### Typical performance figures for all supported architectures
 **Single-core microcontrollers**
+
 |Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
 |:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
 |Cortex-M4    |Keil uVision 5|TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
@@ -110,6 +111,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 **Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles.**  
 
 **Multi-core MPU-based processors**
+
 |Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
 |:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
 |Cortex-R5    |CCS7          |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
@@ -123,6 +125,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 **Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles.**  
 
 **Multi-core application processors (aka. Desktop/server processors)**
+
 |Machine      |Toolchain     |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
 |:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
 |Cortex-A7  x4|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
