@@ -10,12 +10,12 @@
       <TargetName>M7M1</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060300::V5.06 update 3 (build 300)::ARMCC</pCCUsed>
+      <pCCUsed>5060183::V5.06 update 2 (build 183)::ARMCC</pCCUsed>
       <TargetOption>
         <TargetCommonOption>
           <Device>STM32F767IGTx</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F7xx_DFP.2.7.0</PackID>
+          <PackID>Keil.STM32F7xx_DFP.2.9.0</PackID>
           <PackURL>http://www.keil.com/pack</PackURL>
           <Cpu>IRAM(0x20020000,0x60000) IRAM2(0x20000000,0x20000) IROM(0x08000000,0x100000) IROM2(0x00200000,0x100000) CPUTYPE("Cortex-M7") FPU3(DFPU) CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
@@ -330,12 +330,11 @@
             <vShortWch>0</vShortWch>
             <v6Lto>0</v6Lto>
             <v6WtE>0</v6WtE>
-            <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
               <Define>STM32F767xx,USE_HAL_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Inc;..\..\..\..\Library\STM32F7xx_HAL_Driver\Core;..\..\MEukaron\Include;..\..\..\..\Library\STM32F7xx_HAL_Driver\Inc\Conf</IncludePath>
+              <IncludePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Inc;..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Core;..\..\MEukaron\Include;..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Inc\Conf</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -348,7 +347,6 @@
             <NoWarn>0</NoWarn>
             <uSurpInc>0</uSurpInc>
             <useXO>0</useXO>
-            <uClangAs>0</uClangAs>
             <VariousControls>
               <MiscControls></MiscControls>
               <Define></Define>
@@ -369,7 +367,7 @@
             <ScatterFile>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\platform_STM32F767IG.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
-            <Misc>--keep=M7M2_Init --keep=VM1</Misc>
+            <Misc>--keep=M7M2_Init --keep=VM1 --keep=rtthread</Misc>
             <LinkerInputFile></LinkerInputFile>
             <DisabledWarnings>6329,6314</DisabledWarnings>
           </LDads>
@@ -468,7 +466,6 @@
                 <vShortWch>2</vShortWch>
                 <v6Lto>2</v6Lto>
                 <v6WtE>2</v6WtE>
-                <v6Rtti>2</v6Rtti>
                 <VariousControls>
                   <MiscControls></MiscControls>
                   <Define></Define>
@@ -486,7 +483,6 @@
                 <NoWarn>2</NoWarn>
                 <uSurpInc>2</uSurpInc>
                 <useXO>2</useXO>
-                <uClangAs>2</uClangAs>
                 <VariousControls>
                   <MiscControls></MiscControls>
                   <Define></Define>
@@ -498,64 +494,64 @@
           </GroupOption>
           <Files>
             <File>
-              <FileName>startup_stm32f767xx.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Core\startup_stm32f767xx.s</FilePath>
-            </File>
-            <File>
               <FileName>system_stm32f7xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Core\system_stm32f7xx.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Core\system_stm32f7xx.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_pwr_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_pwr_ex.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_pwr_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_rcc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_rcc.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_rcc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_cortex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_cortex.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_cortex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_gpio.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_gpio.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_tim.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_tim.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_tim.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_tim_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_tim_ex.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_tim_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_dma.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_dma.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_dma.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_dma_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_dma_ex.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_dma_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_uart.c</FilePath>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>startup_stm32f767xx.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>..\..\..\M0P0_Library\STM32F7xx_HAL_Driver\Core\startup_stm32f767xx.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -571,6 +567,60 @@
               <FileName>VM1.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\M5P1_MuProkaron\Project\RVMDK-STM32F767IGT6-RVM\Debug\Output\VM1.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>2</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>0</v6Lto>
+                    <v6WtE>0</v6WtE>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>rtthread.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\M5P2(R)_RT-Thread\rt-thread\bsp\stm32f767-alientek\rtthread.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,14 +1,42 @@
-# MuEukaryon
+<h1 align="center">
+	<img width="300" src="https://raw.githubusercontent.com/EDI-Systems/M7M1_MuEukaron/master/Documents/Demo/logo.png" alt="logo">
+</h1>
 
-**RME** is a complicated general-purpose operating system which focuses on many advanced features, such as multi-core scalability, mixed-criticality, real-time and reliability. This operating system can be much more **complicated** than any other OSes, especially when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Don't try to understand everything if you don't have to.   
-It is also possible to use RME as a hypervisor, or use it as a container host. 
+# Unity OS (RME)
+
+**RME** is a general-purpose operating system which focuses on many advanced features. This operating system can be much more **complicated** and **advanced** than any other OSes, especially when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Some mechanics can be more confusing than that of the _Linux_ kernel! Don't try to understand everything if you don't have to.
+    The advanced features that are intrinsic to this operating system includes:
+    - Capability-based mutable protection domains;
+    - Massive scalability and parallelism;
+    - Fault-tolerance and infiltration resilience;
+    - User-level flattened hierachical scheduling;
+    - Container-based paravirtualization;
+    - Non-volatile memory (NVM) based systems;
+    - Real-time mixed-criticality, and so on.
 
 Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or **[modified MIT license](MODMIT.md)**. **Commercial** licenses are also available upon request.
 
 For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
 
-## Introduction to capability-based systems
+## Introduction to capability-based multi-core systems
+
+### What is are capabilities?
+    Capabilities were a kind of certificate initially introduced into multi-user computer systems to control access permissions. It is an unforgeable token that points to some resource and carries the power to allow operations to the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be viewed as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.
+    We guarantee the safety of the system by the three rules listed hereinafter:
+    - Capabilities cannot be modified at user-level;
+    - Capabilities can only be transfered between different processes with well-defined interfaces;
+    - Capabilities will only be given to processes that can operate on the corresponding resources.
+
+### Why do we need capability-based systems?
+    The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable characters indicating what powers the general should have, and which army can they command, thus safely hands the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
+
+### Wouldn't the microkernel design harm system execution efficiency?
+    Short answer: No.
+    Long answer: If designed carefully and correctly (especially the communication mechanisms), it would instead increase efficiency in multiple aspects, because the fast-paths are much more optimized now.
+
+### How is it possible that the system is lock-free?
+    This is made possible by extensively applying lock-free data structures and atomic operations. 
 
 ## Quick Demo
 ### Capability table operations
