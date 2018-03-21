@@ -30,11 +30,11 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 &ensp;&ensp;&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable characters indicating what powers the general should have, and which army can they command, thus safely hands the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
 
 ### Wouldn't the microkernel design harm system execution efficiency?
-&ensp;&ensp;&ensp;&ensp;Short answer: No.  
-&ensp;&ensp;&ensp;&ensp;Long answer: If designed carefully and correctly (especially the communication mechanisms), it would instead increase efficiency in multiple aspects, because the fast-paths are much more optimized now.
+&ensp;&ensp;&ensp;&ensp;Short answer: **No**.  
+&ensp;&ensp;&ensp;&ensp;Long answer: If designed carefully and correctly (especially the communication mechanisms), it would instead **increase efficiency** in multiple aspects, because the fast-paths are much more agressively optimized now.
 
 ### How is it possible that the system is lock-free?
-&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. 
+&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to the 
 
 ## Quick Demo
 ### Capability table operations
