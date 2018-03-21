@@ -4,17 +4,17 @@
 
 # Unity OS (RME)
 
-**RME** is a general-purpose operating system which focuses on many advanced features. This operating system can be much more **complicated** and **advanced** than any other OSes, especially when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Some mechanics can be more confusing than that of the _Linux_ kernel! Don't try to understand everything if you don't have to.
-    The advanced features that are intrinsic to this operating system includes:
-    - Capability-based mutable protection domains;
-    - Massive scalability and parallelism;
-    - Fault-tolerance and infiltration resilience;
-    - User-level flattened hierachical scheduling;
-    - Container-based paravirtualization;
-    - Non-volatile memory (NVM) based systems;
-    - Real-time mixed-criticality, and so on.
+&ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system can be much more **complicated** and **advanced** than any other OSes, especially when compared to _FreeRTOS_, _RT-Thread_ or _VxWorks_. Some mechanics can be more confusing than that of the _Linux_ kernel! Don't try to understand everything if you don't have to.
+&ensp;&ensp;&ensp;&ensp;The advanced features that are intrinsic to this operating system includes:
+- Capability-based mutable protection domains;
+- Massive scalability and parallelism;
+- Fault-tolerance and infiltration resilience;
+- User-level flattened hierachical scheduling;
+- Container-based paravirtualization;
+- Non-volatile memory (NVM) based systems;
+- Real-time mixed-criticality, and so on.
 
-Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
+&ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or **[modified MIT license](MODMIT.md)**. **Commercial** licenses are also available upon request.
 
 For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
