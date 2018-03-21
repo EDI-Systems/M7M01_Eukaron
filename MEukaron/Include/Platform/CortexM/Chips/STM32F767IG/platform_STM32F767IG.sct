@@ -86,7 +86,7 @@ VM1 0x08020000 0x00010000
     ; Init process code segment - 64kB
     VM1_CODE 0x08020000 0x00010000
     {
-        VM1.o                    (+RO)
+        rtthread.o                    (+RO)
     }
 }
 ; End Segment:PROCESS1 ********************************************************

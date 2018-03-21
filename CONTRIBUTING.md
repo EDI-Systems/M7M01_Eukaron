@@ -1,16 +1,16 @@
-# Contributing to RMP
+# Contributing to RME
 
 :+1::tada: Thank you for your interest in contribuing to this stuff! :tada::+1:
 
-The following is a set of guidelines for contributing to RMP and its packages, which are hosted in the [EDI Organization](http://github.com/EDI-Systems) on GitHub. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+The following is a set of guidelines for contributing to RME and its packages, which are hosted in the [EDI Organization](http://github.com/EDI-Systems) on GitHub. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
 
 #### Table Of Contents
 
 [Code of Conduct](#code-of-conduct)
 
 [What should I know before I get started?](#what-should-i-know-before-i-get-started)
-  * [RMP and Packages](#rmp-and-packages)
-  * [RMP Design Decisions](#design-decisions)
+  * [RME and Packages](#RME-and-packages)
+  * [RME Design Decisions](#design-decisions)
 
 [How Can I Contribute?](#how-can-i-contribute)
   * [Reporting Bugs](#reporting-bugs)
@@ -32,16 +32,16 @@ This project and everyone participating in it is governed by the [EDI Code of Co
 
 ## What should I know before I get started?
 
-### RMP and Packages
+### RME and Packages
 
-RMP is an intentionally small open source RTOS and does not provide advanced features like kernel object management or dynamic memory allocation. It should not have package dependencies, except for the libraries that are provided by the manufacturer. If external libraries are needed for a specific project, it is the user's duty to add such packages to the system.  
-RMP is not meant to compete with FreeRTOS, RT-Thread or uC/OS. If you just need a small, fast yet reliable kernel, RMP is your best choice, especially when you need to run an RTOS as the guest RTOS on **[M7M2](https://github.com/EDI-Systems/M7M2_MuAmmonite)/[M7M1](https://github.com/EDI-Systems/M7M1_MuEukaron)**.
+RME is an General-Purpose Advanced OS that sticks to a microkernel approach. It focuses on multi-core scalability, It should not have package dependencies, except for the libraries that are provided by the manufacturer. If external libraries are needed for a specific project, it is the user's duty to add such packages to the system.  
+RME is not meant to compete with FreeRTOS, RT-Thread or uC/OS. If you just need a small, fast yet reliable kernel, RME is your best choice, especially when you need to run an RTOS as the guest RTOS on **[M7M2](https://github.com/EDI-Systems/M7M2_MuAmmonite)/[M7M1](https://github.com/EDI-Systems/M7M1_MuEukaron)**.
 
 ### Design Decisions
 
 Different from most operating systems, only the most used arcitectures are supported, such as the Cortex-M, Cortex-R, MIPS and MSP430. Other architectures are on the decline, and will disappear in a couple of years, hence they are not supported.
-Unlike FreeRTOS and RT-Thread, RMP is designed by intention to contain no pre-included packages. This simplifies the system and is without extra hassle.
-Also, the RMP kernel's IPC is very lightweight, very concise by design. Only two kinds are supported, mailbox and counting semaphore. This also makes it easy to formally verify the system against a extremely high standard, e.g. EAL7+.
+Unlike FreeRTOS and RT-Thread, RME is designed by intention to contain no pre-included packages. This simplifies the system and is without extra hassle.
+Also, the RME kernel's IPC is very lightweight, very concise by design. Only two kinds are supported, mailbox and counting semaphore. This also makes it easy to formally verify the system against a extremely high standard, e.g. EAL7+.
 
 ## How Can I Contribute?
 
@@ -57,26 +57,26 @@ Explain the problem and include additional details to help maintainers reproduce
 * **Describe the behavior you observed after following the steps** and point out what exactly is the problem with that behavior.
 * **Explain which behavior you expected to see instead and why.**
 * **Include screenshots and animated GIFs** of the console or the system board, if possible, which show you following the described steps and clearly demonstrate the problem.
-* **If you're reporting that RMP crashed**, include a full memory dump in *.hex file. Many toolchains, such as Keil or GDB, generate these files.
+* **If you're reporting that RME crashed**, include a full memory dump in *.hex file. Many toolchains, such as Keil or GDB, generate these files.
 * **If the problem is related to performance or memory**, include these profiling figures with your report.
 * **If the problem wasn't triggered by a specific step**, describe what you were doing before the problem happened and share more information using the guidelines below.
 
 Provide more context by answering these questions:
 
 * **Can you reproduce the problem?**
-* **Did the problem start happening recently** (e.g. after updating to a new version of RMP) or was this always a problem?
-* If the problem started happening recently, **can you reproduce the problem in an older version of RMP?** What's the most recent version in which the problem doesn't happen? You can download older versions of RMP from [the releases page](http://github.com/EDI-Systems/M5P1_MuProkaron/releases).
+* **Did the problem start happening recently** (e.g. after updating to a new version of RME) or was this always a problem?
+* If the problem started happening recently, **can you reproduce the problem in an older version of RME?** What's the most recent version in which the problem doesn't happen? You can download older versions of RME from [the releases page](http://github.com/EDI-Systems/M5P1_MuProkaron/releases).
 * **Can you reliably reproduce the issue?** If not, provide details about how often the problem happens and under which conditions it normally happens, especially if there is external interference.
 
 Include details about your configuration and environment:
 
-* **Which version of RMP are you using?** 
+* **Which version of RME are you using?** 
 * **What's the name and version of the hosting OS you're using**?
-* **Are you compiling RMP in a virtual machine?** If so, which VM software are you using and which operating systems and versions are used for the host and the guest?
+* **Are you compiling RME in a virtual machine?** If so, which VM software are you using and which operating systems and versions are used for the host and the guest?
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion for RMP, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion :pencil: and find related suggestions :mag_right:.
+This section guides you through submitting an enhancement suggestion for RME, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion :pencil: and find related suggestions :mag_right:.
 
 #### How Do I Submit A (Good) Enhancement Suggestion?
 
@@ -86,9 +86,9 @@ Enhancement suggestions are tracked as [GitHub issues](https://guides.github.com
 * **Provide a step-by-step description of the suggested enhancement** in as many details as possible.
 * **Provide specific examples to demonstrate the steps**. Include copy/pasteable snippets which you use in those examples, as [Markdown code blocks](https://help.github.com/articles/markdown-basics/#multiple-lines).
 * **Describe the current behavior** and **explain which behavior you expected to see instead** and why.
-* **Explain why this enhancement would be useful** to most RMP users and isn't something that can or should be implemented as a standalone package.
+* **Explain why this enhancement would be useful** to most RME users and isn't something that can or should be implemented as a standalone package.
 * **List some other RTOSes or applications where this enhancement exists.**
-* **Specify which version of RMP and toolchain you're using.**
+* **Specify which version of RME and toolchain you're using.**
 
 
 ### Pull Requests

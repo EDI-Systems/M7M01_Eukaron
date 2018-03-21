@@ -5,7 +5,7 @@
 ;Description : The Cortex-M assembly support of the RME RTOS.
 ;*****************************************************************************/
 
-;/*The ARM Cortex-M3/4/7 Structure*********************************************
+;/* The ARM Cortex-M3/4/7 Structure *******************************************
 ;R0-R7:General purpose registers that are accessible. 
 ;R8-R12:general purpose registers that can only be reached by 32-bit instructions.
 ;R13:SP/SP_process/SP_main    Stack pointer
