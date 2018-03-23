@@ -127,7 +127,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>DLGTARM</Key>
-          <Name>(1010=298,116,718,673,0)(1007=105,137,292,412,0)(1008=689,417,1065,653,0)(1009=120,153,364,701,0)(1012=422,211,897,525,0)</Name>
+          <Name>(1010=298,116,718,673,0)(1007=105,137,292,412,0)(1008=689,417,1065,653,0)(1009=120,153,364,701,0)(1012=497,232,972,546,0)</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -182,7 +182,7 @@
         <Mm>
           <WinNumber>1</WinNumber>
           <SubType>2</SubType>
-          <ItemText>0x200309C8</ItemText>
+          <ItemText>0x0802157C</ItemText>
           <AccSizeX>0</AccSizeX>
         </Mm>
       </MemoryWindow1>
