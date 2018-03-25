@@ -36,29 +36,28 @@ KERNEL 0x08000000 0x00010000
         .ANY                           (+RO)
     }
     
-    ; Kernel stack segment - 8kB
-    KERNEL_STACK 0x20000000 0x00002000
+    ; Kernel stack segment - 4kB
+    KERNEL_STACK 0x20000000 0x00001000
     {
         startup_stm32f767xx.o          (HEAP)
         startup_stm32f767xx.o          (STACK)
     }
     
     ; Initial kernel data segment - 8kB 
-    KERNEL_INIT 0x20002000 0x00002000
+    KERNEL_INIT 0x20001000 0x00002000
     {
         .ANY                           (+RW +ZI)
     }
     
-    ; Dynamically managed kernel data segment - 48kB
-    KERNEL_DATA 0x20004000 EMPTY 0x0000C000
+    ; Dynamically managed kernel data segment - 52kB
+    KERNEL_DATA 0x20003000 EMPTY 0x0000D000
     {
         
     }
-    
     ; The data section of the processes - The rest of the memory
-    PROC_DATA 0x20010000 0x00070000
+    PROC_DATA 0x20010000 EMPTY 0x00070000
     {
-        benchmark.o                    (+RW +ZI)
+
     }
 }
 ; End Segment:KERNEL **********************************************************
@@ -79,20 +78,20 @@ INIT 0x08010000 0x00010000
 ; End Segment:INIT ************************************************************
 
 ; Begin Segment:VM ************************************************************
-; Description : The .text segment of the first virtual machine.
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
 ; *****************************************************************************
-VM 0x08020000 0x00010000
+VM 0x08020000 0x000C0000
 {
     ; Init process code segment - 64kB
-    VM_CODE 0x08020000 0x00010000
+    VM_CODE 0x08020000 0x000C0000
     {
         VM*.o                         (+RO)
-        rtthread.o                    (+RO)
     }
 }
-; End Segment:PROCESS1 ********************************************************
+; End Segment:VM **************************************************************
 
 ; End Of File *****************************************************************
 
 ; Copyright (C) Evo-Devo Instrum. All rights reserved *************************
-

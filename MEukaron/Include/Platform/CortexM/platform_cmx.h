@@ -119,6 +119,8 @@ typedef s32 ret_t;
 #define RME_BOOT_INIT_TIMER                  6
 /* The initial fault endpoint */
 #define RME_BOOT_INIT_FAULT                  7
+/* The initial default endpoint for all other interrupts - this will directly go to the INTD. */
+#define RME_BOOT_INIT_INT                    8
 
 /* Booting capability layout */
 #define RME_CMX_CPT              ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
@@ -366,6 +368,20 @@ struct __RME_CMX_MPU_Data
     ptr_t State;
     struct __RME_CMX_MPU_Entry Data[8];
 };
+
+/* Interrupt flags - this type of flags will only appear on MPU-based systems */
+struct __RME_CMX_Flag_Set
+{
+    ptr_t Lock;
+    ptr_t Group;
+    ptr_t Flags[32];
+};
+
+struct __RME_CMX_Flags
+{
+    struct __RME_CMX_Flag_Set Set0;
+    struct __RME_CMX_Flag_Set Set1;
+};
 /*****************************************************************************/
 /* __PLATFORM_CMX_H_STRUCTS__ */
 #endif
@@ -425,6 +441,7 @@ static ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_CMX_Pgtbl_Meta* Meta, ptr_t Op
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
+EXTERN void __RME_CMX_WFI(void);
 /* Atomics */
 __EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
 __EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);
@@ -463,7 +480,9 @@ __EXTERN__ ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg)
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
                                          ptr_t Param1, ptr_t Param2);
 /* Fault handler */
-__EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Regs);
+__EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg);
+/* Generic interrupt handler */
+__EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num);
 /* Page table operations */
 EXTERN void ___RME_CMX_MPU_Set(ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(ptr_t Pgtbl);

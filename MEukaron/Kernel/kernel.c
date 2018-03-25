@@ -291,8 +291,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_KERN:
         {
             Retval=_RME_Kern_Act(Captbl, Reg                    /* struct RME_Reg_Struct* Reg */,
-                                         RME_PARAM_D1(Param[0]) /* cid_t Cap_Kern */,
-                                         RME_PARAM_D0(Param[0]) /* ptr_t Func_ID */,
+                                         Capid                  /* cid_t Cap_Kern */,
+                                         Param[0]               /* ptr_t Func_ID */,
                                          Param[1]               /* ptr_t Param1 */,
                                          Param[2]               /* ptr_t Param2 */);
             RME_SWITCH_RETURN(Reg,Retval);
