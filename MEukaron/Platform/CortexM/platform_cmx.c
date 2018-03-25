@@ -188,15 +188,15 @@ ptr_t __RME_Boot(void)
     Cur_Addr=RME_KMEM_VA_START;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_BOOT_CAPTBL,Cur_Addr,64)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(64));
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_BOOT_CAPTBL,Cur_Addr,18)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(18));
     
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
                Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_8));
-    /* Other memory regions will be directly added, because we do not protect them in the init */
+    /* Other memory regions will be directly added, because we do not protect them in the init process */
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x20000000, 1, RME_PGTBL_ALL_PERM)==0);
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x40000000, 2, RME_PGTBL_ALL_PERM)==0);
@@ -225,6 +225,14 @@ ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_FAULT, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
+    /* Create the initial kernel endpoint for all other interrupts */
+    RME_Int_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_INT, Cur_Addr)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    
+    /* Clean up the region for interrupts */
+    _RME_Clear((void*)RME_CMX_INT_FLAG_ADDR,sizeof(struct __RME_CMX_Flags));
+    
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0)==0);
@@ -235,9 +243,6 @@ ptr_t __RME_Boot(void)
     /* Enable the MPU & interrupt */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,ptr_t));
     __RME_Enable_Int();
-    /* These are for watching the sizes */
-    Cur_Addr=RME_THD_SIZE;
-    Cur_Addr=RME_PROC_SIZE;
     /* Boot into the init thread */
     __RME_Enter_User_Mode(RME_CMX_INIT_ENTRY, RME_CMX_INIT_STACK);
     return 0;
@@ -501,7 +506,41 @@ Return      : ptr_t - The value that the function returned.
 ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID,
                               ptr_t Param1, ptr_t Param2)
 {
-    /* Currently empty */
+    /* It must be interrupt-related operations */
+    if(Func_ID<240)
+    {
+        if(Param1==RME_CMX_INT_OP)
+        {
+            if(Param2==RME_CMX_INT_ENABLE)
+            {
+                NVIC_DisableIRQ((IRQn_Type)Func_ID);
+                /* When the IRQ is newly enabled, we set its priority to as low as the rest as always */
+                NVIC_SetPriority((IRQn_Type)Func_ID, 0xFF);
+                NVIC_EnableIRQ((IRQn_Type)Func_ID);
+            }
+            else
+                NVIC_DisableIRQ((IRQn_Type)Func_ID);
+            
+            __RME_Set_Syscall_Retval(Reg,0);
+            return 0;
+        }
+        else if(Param1==RME_CMX_INT_PRIO)
+        {
+            /* Only changing the subpriority is allowed. main priority is as low as the rest */
+            NVIC_SetPriority((IRQn_Type)Func_ID,((0xFF<<(RME_CMX_NVIC_GROUPING+1))|Param2)&0xFF);
+            __RME_Set_Syscall_Retval(Reg,0);
+            return 0;
+        }
+    }
+    else if(Func_ID==240)
+    {
+        /* Wait for interrupt to happen */
+        __RME_CMX_WFI();
+        __RME_Set_Syscall_Retval(Reg,0);
+        return 0;
+    }
+    
+    /* If it gets here, we must have failed */
     return RME_ERR_PGT_OPFAIL;
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
@@ -764,11 +803,11 @@ void __RME_Pgtbl_Set(ptr_t Pgtbl)
 /* Begin Function:__RME_CMX_Fault_Handler *************************************
 Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
               faults.
-Input       : struct RME_Reg_Struct* Regs - The register set when entering the handler.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler..
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Regs)
+void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
 {
     ptr_t Cur_HFSR;
     ptr_t Cur_CFSR;
@@ -778,7 +817,7 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Regs)
     struct __RME_CMX_Pgtbl_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
-    RME_ASSERT((Regs->LR&RME_CMX_EXC_RET_RET_USER)!=0);
+    RME_ASSERT((Reg->LR&RME_CMX_EXC_RET_RET_USER)!=0);
     
     /* Get the address of this faulty address, and what caused this fault */
     Cur_HFSR=SCB->HFSR;
@@ -800,26 +839,26 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Regs)
     
     /* Can we cover from this? */
     if(((Cur_CFSR&RME_CMX_FAULT_FATAL)!=0)||((Cur_CFSR&RME_CMX_MFSR_MMARVALID)==0))
-        __RME_Thd_Fatal(Regs);
+        __RME_Thd_Fatal(Reg);
     else
     {
         /* See if the fault address can be found in our current page table, and
          * if it is there, we only care about the flags */
         __RME_Thd_Inv_Top_Proc(RME_Cur_Thd[RME_CPUID()], &Proc);
         if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
-            __RME_Thd_Fatal(Regs);
+            __RME_Thd_Fatal(Reg);
         else
         {
             /* This fault involves instruction fetch, and that page would not allow this */
             if(((Cur_CFSR&RME_CMX_MFSR_IACCVIOL)!=0)&&((Flags&RME_PGTBL_EXECUTE)==0))
-                __RME_Thd_Fatal(Regs);
+                __RME_Thd_Fatal(Reg);
             else
             {
                 /* This must be a dynamic page. Or there must be something wrong in the kernel */
                 RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
                 /* Try to update the dynamic page */
                 if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
-                    __RME_Thd_Fatal(Regs);
+                    __RME_Thd_Fatal(Reg);
             }
         }
     }
@@ -828,6 +867,35 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Regs)
     SCB->CFSR=(ptr_t)(-1);
 }
 /* End Function:__RME_CMX_Fault_Handler **************************************/
+
+/* Begin Function:__RME_CMX_Generic_Handler ***********************************
+Description : The generic interrupt handler of RME for Cortex-M.
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              ptr_t Int_Num - The interrupt number.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : None.
+******************************************************************************/
+void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num)
+{
+    struct __RME_CMX_Flag_Set* Flags;
+
+#ifdef RME_CMX_VECT_HOOK
+    /* Do in-kernel processing first */
+    RME_CMX_VECT_HOOK(Int_Num);
+#endif
+    
+    /* Choose a data structure that is not locked at the moment */
+    if(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0.Lock==0)
+        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0);
+    else
+        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set1);
+    
+    /* Set the flags for this interrupt source */
+    Flags->Group|=(((ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
+    Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
+    _RME_Kern_Snd(Reg, RME_Int_Sig[RME_CPUID()]);
+}
+/* End Function:__RME_CMX_Generic_Handler ************************************/
 
 /* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the

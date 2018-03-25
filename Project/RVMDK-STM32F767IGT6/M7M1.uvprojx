@@ -548,11 +548,6 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\system_stm32f7xx.c</FilePath>
             </File>
-            <File>
-              <FileName>startup_stm32f767xx.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\arm\startup_stm32f767xx.s</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

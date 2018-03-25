@@ -221,10 +221,12 @@ static ret_t __RME_Low_Level_Check(void);
 __EXTERN__ ptr_t RME_Timestamp;
 /* Current thread per CPU */
 __EXTERN__ struct RME_Thd_Struct* RME_Cur_Thd[RME_CPU_NUM];
-/* Kernel tick timer per CPU */
+/* Kernel tick timer endpoint per CPU */
 __EXTERN__ struct RME_Sig_Struct* RME_Tick_Sig[RME_CPU_NUM];
-/* Kernel fault vector per CPU */
+/* Kernel fault vector endpoint per CPU */
 __EXTERN__ struct RME_Sig_Struct* RME_Fault_Sig[RME_CPU_NUM];
+/* Default interrupt vector endpoint per CPU */
+__EXTERN__ struct RME_Sig_Struct* RME_Int_Sig[RME_CPU_NUM];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
