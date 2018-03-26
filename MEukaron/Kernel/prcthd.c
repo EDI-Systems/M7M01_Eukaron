@@ -178,10 +178,10 @@ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
     struct RME_Thd_Struct* Thd;
     ptr_t CPUID;
     
-    CPUID=RME_CPUID();
     /* Attempt to return from the invocation */
     if(_RME_Inv_Ret(Reg)!=0)
     {
+        CPUID=RME_CPUID();
         /* Return failure, we are not in an invocation. Kill the thread */
         Thd=RME_Cur_Thd[CPUID];
         /* Are we attempting to kill the init threads? If yes, panic */
@@ -193,13 +193,13 @@ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
         Thd=_RME_Run_High(CPUID);
         Thd->Sched.State=RME_THD_RUNNING;
         RME_Cur_Thd[CPUID]=Thd;
+    
+        /* Send a signal to the fault receive endpoint. This endpoint is per-core */
+        _RME_Kern_Snd(Reg, RME_Fault_Sig[CPUID]);
     }
     /* Return successful, set the return value as "failure due to fault" */
     else
         __RME_Set_Syscall_Retval(Reg,RME_ERR_SIV_FAULT);
-    
-    /* Send a signal to the fault receive endpoint. This endpoint is per-core */
-    _RME_Kern_Snd(Reg, RME_Fault_Sig[CPUID]);
         
     return 0;
 }
@@ -561,6 +561,7 @@ ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_P
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Proc* Proc_Del;
     ptr_t Type_Ref;
+
     /* Used for deletion */
     struct RME_Proc_Struct* Object;
     
