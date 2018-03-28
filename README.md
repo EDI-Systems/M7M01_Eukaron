@@ -4,6 +4,8 @@
 
 # Unity OS (RME)
 
+点击 **[这里](README_CN.md)** 查看中文版。
+
 &ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system support many advanced features not found in any other OSes, e.g. _FreeRTOS_, _RT-Thread_ or _VxWorks_. On multiple cores, it is as scalable as the Linux kernel. When using the system, the best way is to pull ready-made ports and even binaries from the repository rather than to port or configure by yourself. The advanced features that are intrinsic to this operating system includes:
 - Capability-based mutable protection domains;
 - Massive scalability and parallelism;
