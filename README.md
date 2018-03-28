@@ -42,7 +42,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
     - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
     - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS), a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
     - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread), a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
-    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII), a port of the famous [uC/OS III](https://www.micrium.com/) to RVM, with all frameworks retained. (You should have a uC/OS III commercial license to use this port in products).
+    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII), a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
     - [RVM/MicroPython](https://github.com/EDI-Systems/micropython), a port of the popular [MicroPython](https://micropython.org/) to RVM.
     - [RVM/Lua](https://github.com/EDI-Systems/lua), a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
     - [RVM/Duktape](https://github.com/EDI-Systems/duktape), a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
