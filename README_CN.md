@@ -18,23 +18,23 @@
 
 &emsp;&emsp;对于那些由微控制器厂商提供的硬件抽象层软件包，请到 **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** 软件仓库自行下载。
 
-## Introduction to capability-based multi-core systems
+## 基于权能的多核系统简介
 
-### What are capabilities?
-&ensp;&ensp;&ensp;&ensp;Capabilities were a kind of certificate initially introduced into multi-user computer systems to control access permissions. It is an unforgeable token that points to some resource and carries the power to allow operations to the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be viewed as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system by the three rules:
-- Capabilities cannot be modified at user-level;
-- Capabilities can only be transfered between different processes with well-defined interfaces;
-- Capabilities will only be given to processes that can operate on the corresponding resources.
+### 权能是什么？
+&emsp;&emsp;权能是一种最早在多用户计算机系统中引入的用来控制访问权限的凭证。它是一种不可伪造的用来唯一标识某种资源以及允许对该资源所进行的操作的的凭证。比如，Unix的文件描述符就是一种权能；Windows的访问权限也是一种权能。从某种意义上讲，权能就是一个指向某种资源的胖指针。我们使用如下三条原则来保证系统的安全性：
+- 权能是不可伪造和不可在用户态擅自修改的；
+- 进程只能用良好定义的授权接口获取权能；
+- 权能只会被给予那些系统设计时负责管理该资源的进程。
 
-### Why do we need capability-based systems?
-&ensp;&ensp;&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable (or at least, very difficult to fake) alphabets or characters indicating what powers the general should have, and which army can they command, thus safely handing the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
+### 我们为什么需要基于权能的系统？
+&emsp;&emsp;使用权能来进行权限控制是个很老的点子了。几千年以前，皇帝和国王们制作一种特别的符文，用来授予他们的将军调兵遣将的能力。通常而言，这些符文包含了不可复制的（或者极其难以复制的）文字，上面规定了哪一支或哪一种部队可以被调动。这样，皇帝就能把管理军队的任务安全地交给将军。同样地，基于权能的操作系统能够极为巧妙地提供非常细粒度的权限管理。系统中的所有权限都由权能管理，这样就可以由用户级程序来定义具体的系统策略，因此比传统的Unix系统的灵活性要好得多。其他的好处还包括强化的安全边界，错误隔离和容易进行形式化分析。
 
-### Wouldn't the microkernel design harm system execution efficiency?
-&ensp;&ensp;&ensp;&ensp;Short answer: **No**.  
-&ensp;&ensp;&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more aggressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
+### 微内核设计不会拖累执行效率吗？
+&emsp;&emsp;简而言之： ** 不会 **。  
+&emsp;&emsp;详细解释：如果系统 **被设计的很好，并且使用方法也正确** 的话（尤其指通信机制），微内核设计实际上有助于在多个方面 **提高系统的效率** ，因为那些经常被访问的路径现在相当于被特别地大大优化了。实际上，在某些架构上，RME的线程切换效率和中断响应速度比RT-Linux能够快出整整40倍。当用户态库的时间消耗也被计算在内时，结果仍然比RT-Linux好整整25倍。
 
-### How is it possible that the system is lock-free?
-&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
+### 系统是如何做到无锁的？
+&emsp;&emsp;这是通过大量使用无锁数据结构和原子操作做到的。有关无锁操作和原子操作的更多知识请查看 [这篇文章](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
 
 ## Available system components
 - [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
