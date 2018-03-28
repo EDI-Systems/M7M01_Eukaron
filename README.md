@@ -27,114 +27,52 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 - Capabilities will only be given to processes that can operate on the corresponding resources.
 
 ### Why do we need capability-based systems?
-&ensp;&ensp;&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable characters indicating what powers the general should have, and which army can they command, thus safely hands the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
+&ensp;&ensp;&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable (or at least, very difficult to fake) alphabets or characters indicating what powers the general should have, and which army can they command, thus safely handing the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
 
 ### Wouldn't the microkernel design harm system execution efficiency?
 &ensp;&ensp;&ensp;&ensp;Short answer: **No**.  
-&ensp;&ensp;&ensp;&ensp;Long answer: If designed carefully and correctly (especially the communication mechanisms), it would instead **increase efficiency** in multiple aspects, because the fast-paths are much more agressively optimized now.
+&ensp;&ensp;&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more agressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
 
 ### How is it possible that the system is lock-free?
-&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to the 
+&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
 
-## Quick Demo
-### Capability table operations
-**Create a capability table**
-```C
- 
-```
-**Delegation from one capability table to another**
-```C
+## Available system components
+- [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
+    - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite), the microcontroller-oriented user-level library for RME.
+    - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
+    - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS), a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
+    - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread), a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
+    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII), a port of the famous [uC/OS III](https://www.micrium.com/) to RVM, with all frameworks retained. (You should have a uC/OS III commercial license to use this port in products).
+    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython), a port of the popular [MicroPython](https://micropython.org/) to RVM.
+    - [RVM/Lua](https://github.com/EDI-Systems/lua), a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
+    - [RVM/Duktape](https://github.com/EDI-Systems/duktape), a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
+    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
 
-```
-**Revoking a delegated capability**
-```C
+- UVM, which is a multi-core processor oriented virtual machine monitor capable of supporting full-virtualization and container-based virtualization with unprecedented performance.
+    - UVM/Lib, the microprocessor-oriented user-level library for RME.
+    - UVM/FV, the full virtualization platform constructed with UVM, which comes with similar functionalities as Virtual Box.
 
-```
-**Deleting a capability table**
-```C
+## List of system calls
 
-```
-
-### Page table operations
-**Create a page table**
-```C
-
-```
-
-**Map a page**
-```C
-
-```
-
-**Unmap a page**
-```C
-
-```
-
-**Construct a page table into another**
-```C
-
-```
-
-**Destruct a page table from its parent**
-```C
-
-```
-
-**Delete a page table**
-```C
-
-```
-
-### Process/thread operations
-**Create a process**
-```C
-
-```
-
-**Create a thread, and its initialization**
-```C
-
-```
-
-**Delete a thread**
-```C
-
-```
-
-**Delete a process**
-```C
-
-```
-
-### Doing synchronous invocation
-![Semaphore](https://raw.githubusercontent.com/EDI-Systems/M5P1_MuProkaron/master/Documents/Demo/Semaphore.gif)
-```C
-    
-```
-
-### Sending & receiving from signal endpoints
-![Semaphore](https://raw.githubusercontent.com/EDI-Systems/M5P1_MuProkaron/master/Documents/Demo/Semaphore.gif)
-```C
-    
-```
 
 ### Typical performance figures for all supported architectures
 **Single-core microcontrollers**
 
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
-|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
-|Cortex-M4    |Keil uVision 5|TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-M4    |GCC           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-M7    |Keil uVision 5|TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-M7    |GCC           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-R4    |Keil uVision 5|TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-R4    |GCC           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|MIPS M14k    |XC32-GCC      |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
+|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
+|Cortex-M4    |Keil uVision 5|     |    |     |     |     |    |    |    |
+|Cortex-M7    |Keil uVision 5|     |    |     |     |     |    |    |    |
+|Cortex-R4    |TI CCS 7      |     |    |     |     |     |    |    |    |
+|Cortex-R5    |TI CCS 7      |     |    |     |     |     |    |    |    |
+|MIPS M14k    |XC32-GCC      |     |    |     |     |     |    |    |    |
+
+<!-- |Cortex-M4    |GCC           |     |    |     |     |     |    |    |    | -->
+<!-- |Cortex-M7    |GCC           |     |    |     |     |     |    |    |    | -->
+<!-- |Cortex-R4    |GCC           |     |    |     |     |     |    |    |    | -->
 
 - Cortex-M4 is evaluated with STM32F405RGT6.
 - Cortex-M7 is evaluated with STM32F767IGT6.
-- Cortex-R4 is evaluated with TBD.
+- Cortex-R4 is evaluated with TMS570.
 - MIPS M14k is evaluated with PIC32MZEFM100.
 **Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles.**  
 
@@ -175,8 +113,7 @@ Asnd1: Intra-process asynchronous send.
 Asnd2: Inter-process asynchronous send. 
 Sinv: Synchronous invocation entering time. 
 Sret: Synchronous invocation returning time. 
-Isnd1: Intra-process interrupt sending time.  
-Isnd2: Inter-process interrupt sending time.  
+Isnd: Intra-process interrupt sending time.
 
 ## Getting Started
 
