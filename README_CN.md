@@ -9,14 +9,14 @@
 - 高度的可扩展性（Scalability）和并行性（parallelism）；
 - 容错性（fault-tolerance）和抗攻击性（infiltration resilience）；
 - 用户态平铺层次化调度（hierachical scheduling）；
-- 基于容器（container）的准虚拟化（paravirtualization）技术;
+- 基于容器（container）的准虚拟化（paravirtualization）技术；
 - 非易失性内存（Non-volatile memory，NVM）技术；
 - 实时（real-time）多核混合关键度（mixed-criticality）系统等等。
 
-&ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
-This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or **[modified MIT license](MODMIT.md)**. **Commercial** licenses are also available upon request.
+&emsp;&emsp;如果想要参与开发，请阅读 **[参与](CONTRIBUTING.md)** 和 **[规范](CODE_OF_CONDUCT.md)** 两个指导文档。如果要提交拉取请求，请使用 **[拉取请求模板](PULL_REQUEST_TEMPLATE.md)** 。
+本软件采用 **三种不同的授权** ：你可以选择 **[LGPL v3](LICENSE.md)** ，也可以选择 **[经修改的MIT协议](MODMIT.md)** 。 如果有特殊需求， 也可以联系我们请求**商业授权**。
 
-&ensp;&ensp;&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
+&emsp;&emsp;对于那些由微控制器厂商提供的硬件抽象层软件包，请到 **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** 软件仓库自行下载。
 
 ## Introduction to capability-based multi-core systems
 
