@@ -31,7 +31,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 
 ### Wouldn't the microkernel design harm system execution efficiency?
 &ensp;&ensp;&ensp;&ensp;Short answer: **No**.  
-&ensp;&ensp;&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more agressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
+&ensp;&ensp;&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more aggressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
 
 ### How is it possible that the system is lock-free?
 &ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
@@ -62,9 +62,11 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
 |Cortex-M4    |Keil uVision 5|     |    |     |     |     |    |    |    |
 |Cortex-M7    |Keil uVision 5|     |    |     |     |     |    |    |    |
-|Cortex-R4    |TI CCS 7      |     |    |     |     |     |    |    |    |
-|Cortex-R5    |TI CCS 7      |     |    |     |     |     |    |    |    |
+|Cortex-R4    |TI CCS7       |     |    |     |     |     |    |    |    |
+|Cortex-R5    |TI CCS7       |     |    |     |     |     |    |    |    |
 |MIPS M14k    |XC32-GCC      |     |    |     |     |     |    |    |    |
+
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
 
 <!-- |Cortex-M4    |GCC           |     |    |     |     |     |    |    |    | -->
 <!-- |Cortex-M7    |GCC           |     |    |     |     |     |    |    |    | -->
@@ -72,48 +74,49 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 
 - Cortex-M4 is evaluated with STM32F405RGT6.
 - Cortex-M7 is evaluated with STM32F767IGT6.
-- Cortex-R4 is evaluated with TMS570.
+- Cortex-R4 is evaluated with TMS570LS0432.
+- Cortex-R5 is evaluated with TMS570LC4357.
 - MIPS M14k is evaluated with PIC32MZEFM100.
-**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles.**  
 
 **Multi-core MPU-based processors**
 
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
-|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
-|Cortex-R5    |CCS7          |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-R5    |GCC           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-R7    |TBD           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-R8    |TBD           |TBT  |TBT |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
+|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
+|Cortex-R7    |TBD           |     |    |     |     |     |    |    |    |
+|Cortex-R8    |TBD           |     |    |     |     |     |    |    |    |
+|TMS320C66X   |TI CCS7       |     |    |     |     |     |    |    |    |
 
-- Cortex-R5 is evaluated with TMS570.
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
+
 - Cortex-R7 is evaluated with TBD.
 - Cortex-R8 is evaluated with TBD.
-**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles.**  
+- TMS320C66X is evaluated with TMS320C6678.
 
 **Multi-core application processors (aka. Desktop/server processors)**
 
-|Machine      |Toolchain     |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd1|Isnd2|
-|:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:---:|:---:|
-|Cortex-A7  x4|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|Cortex-A53 x4|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|X86-64(I) x18|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|X86-64(NI)x32|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
-|X86-64(A) x16|GCC           |TBT  |TBT  |TBT  |TBT  |TBT  |TBT |TBT |TBT  |TBT  |
+|Machine      |Toolchain     |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:--:|
+|Cortex-A7  x4|GCC           |     |     |     |     |     |    |    |    |
+|Cortex-A53 x4|GCC           |     |     |     |     |     |    |    |    |
+|X86-64(I) x18|GCC           |     |     |     |     |     |    |    |    |
+|X86-64(NI)x32|GCC           |     |     |     |     |     |    |    |    |
+|X86-64(A) x16|GCC           |     |     |     |     |     |    |    |    |
+
+&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
 
 - Cortex-A7 is evaluated with BCM2836, the exact chip used on Raspberry Pi 2.
 - Cortex-A53 is evaluated with BCM2837, the exact chip used on Raspberry Pi 3.
 - X86-64(I) is evaluated with a machine with 1x I9-7980XE processor and 128GB memory.
 - X86-64(NI) is evaluated with a machine with 4x Xeon X7560 processor and 4x8GB memory.
-- X86-64(A) is evaluated with a machine with Ryzen 1950X processor and 128GB memory.
+- X86-64(A) is evaluated with a machine with Ryzen 1950X processor and 128GB memory. 
 
-**.text and .data consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. The .text and .data measurements include all the necessary software packages and drivers.**  
-
-Yield: The time to yield between different threads.  
-Asnd1: Intra-process asynchronous send.
-Asnd2: Inter-process asynchronous send. 
-Sinv: Synchronous invocation entering time. 
-Sret: Synchronous invocation returning time. 
-Isnd: Intra-process interrupt sending time.
+&ensp;&ensp;&ensp;&ensp;In the 3 tables above, all compiler options are the highest optimization (usually -O3) and optimized for time. 
+- Yield: The time to yield between different threads.  
+- Asnd1: Intra-process asynchronous send.
+- Asnd2: Inter-process asynchronous send. 
+- Sinv: Synchronous invocation entering time. 
+- Sret: Synchronous invocation returning time. 
+- Isnd: Intra-process interrupt sending time.
 
 ## Getting Started
 
