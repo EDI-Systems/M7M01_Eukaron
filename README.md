@@ -86,7 +86,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |Cortex-R8    |TBD           |     |    |     |     |     |    |    |    |
 |TMS320C66X   |TI CCS7       |     |    |     |     |     |    |    |    |
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
 
 - Cortex-R7 is evaluated with TBD.
 - Cortex-R8 is evaluated with TBD.
@@ -102,7 +102,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |X86-64(NI)x32|GCC           |     |     |     |     |     |    |    |    |
 |X86-64(A) x16|GCC           |     |     |     |     |     |    |    |    |
 
-&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
+&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
 
 - Cortex-A7 is evaluated with BCM2836, the exact chip used on Raspberry Pi 2.
 - Cortex-A53 is evaluated with BCM2837, the exact chip used on Raspberry Pi 3.
@@ -124,7 +124,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-You need **_Cortex-M or Cortex-R or MIPS or X86_** hardware to run the tests. This RTOS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
+You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
 Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports some Cortex-Ms and Cortex-Rs as well, though without protection support.
 
 ### Compilation
@@ -141,7 +141,6 @@ To run the sample programs, simply download them into the development board and 
 
 **For application processors**
 Boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). Follow the instructions and play with it!
-
 
 ## Deployment
 
@@ -168,4 +167,4 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 This project is licensed under the GPLv3 License - see the [LICENSE.md](LICENSE.md) file for details. However, commercial licenses are also available.
 
 ## EDI Project Information
-Mutate - Mesazoa - Eukaron (M7M1 R2T1)
+Mutate - Mesazoa - Eukaron (M7M1 R3T1)
