@@ -45,17 +45,17 @@ Click **[HERE](README.md)** for English version.
     - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)，RMP在RME上的一个全功能移植。
     - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS)，广为应用的[FreeRTOS](https://www.freertos.org/)在RVM上的一个全功能移植。
     - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)，颇有前景的[RT-Thread](https://www.rt-thread.org/)在RVM上的一个全功能移植，包括其所有框架。
-    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)，a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
-    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython)，a port of the popular [MicroPython](https://micropython.org/) to RVM.
-    - [RVM/Lua](https://github.com/EDI-Systems/lua)，a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
-    - [RVM/Duktape](https://github.com/EDI-Systems/duktape)，a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
-    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)，a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
+    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)，著名的[uC/OS III](https://www.micrium.com/)在RVM上的一个移植。如果要在产品中使用该系统，那么你应当持有该系统的商业许可。
+    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython)，广为应用的[MicroPython](https://micropython.org/)在RVM上的一个移植。
+    - [RVM/Lua](https://github.com/EDI-Systems/lua)，广为应用的[Lua](https://www.lua.org/)在RVM上的一个移植。
+    - [RVM/Duktape](https://github.com/EDI-Systems/duktape)，新出现的[JavaScript](https://github.com/svaarala/duktape)在RVM上的一个移植。
+    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)，一个包含了[lwip](https://savannah.nongnu.org/projects/lwip/)、[fatfs](http://elm-chan.org/fsw/ff/00index_e.html)和[emWin](https://www.segger.com/products/user-interface/emwin/)的[RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)的RVM移植。要在产品中使用该系统，那么你应当持有相应的商业许可。
 
-- UVM, which is a multi-core processor oriented virtual machine monitor capable of supporting full-virtualization and container-based virtualization with unprecedented performance.
-    - UVM/Lib, the microprocessor-oriented user-level library for RME.
-    - UVM/FV, the full virtualization platform constructed with UVM, which comes with similar functionalities as Virtual Box.
+- UVM，一个面向应用处理器和服务器的虚拟机监视器，能够以前所未有的性能实现全虚拟化和基于容器的半虚拟化。
+    - UVM/Lib，一份RME的微处理器用户态库。
+    - UVM/FV，一个基于UVM的全虚拟化平台，可实现类似Virtual Box的功能。
 
-## List of system calls
+## 系统调用列表
 
 
 ### Typical performance figures for all supported architectures
