@@ -68,9 +68,10 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |Cortex-R4    |TI CCS7       |     |    |     |     |     |    |    |    |
 |Cortex-R5    |TI CCS7       |     |    |     |     |     |    |    |    |
 |MIPS M14k    |XC32-GCC      |     |    |     |     |     |    |    |    |
+  
+*Cortex-R4 and Cortex-R5 are listed here as single-core architectures because their main selling point is CPU redundancy, thus from the viewpoint of the programmer they behave as if they have only one core. Dual-core mode of these two processors are not supported.  
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**  
-&ensp;&ensp;&ensp;&ensp;**Cortex-R4 and Cortex-R5 are listed here as single-core architectures because their main selling point is CPU redundancy, thus from the viewpoint of the programmer they behave as if they have only one core. Dual-core mode of these two processors are not supported.**
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
 
 <!-- |Cortex-M4    |GCC           |     |    |     |     |     |    |    |    | -->
 <!-- |Cortex-M7    |GCC           |     |    |     |     |     |    |    |    | -->
