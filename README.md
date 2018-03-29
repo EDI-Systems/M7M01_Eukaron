@@ -7,13 +7,13 @@
 点击 **[这里](README_CN.md)** 查看中文版。
 
 &ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system support many advanced features not found in any other OSes, e.g. _FreeRTOS_, _RT-Thread_ or _VxWorks_. On multiple cores, it is as scalable as the Linux kernel. When using the system, the best way is to pull ready-made ports and even binaries from the repository rather than to port or configure by yourself. The advanced features that are intrinsic to this operating system includes:
-- Capability-based mutable protection domains;
-- Massive scalability and parallelism;
-- Fault-tolerance and attack resilience;
-- User-level flattened hierachical scheduling;
-- Container-based paravirtualization;
-- Non-volatile memory (NVM) based systems;
-- Real-time multi-core mixed-criticality systems, and so on.
+- [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based mutable protection domains;
+- Massive [scalability](https://en.wikipedia.org/wiki/Scalability) and [parallelism](https://en.wikipedia.org/wiki/Parallel_computing);
+- [Fault-tolerance](https://en.wikipedia.org/wiki/Fault_tolerance) and [attack resilience](https://en.wikipedia.org/wiki/Resilience_(network));
+- User-level [hierachical scheduling](https://en.wikipedia.org/wiki/Hierarchical_control_system);
+- [Full virtualization](https://en.wikipedia.org/wiki/Full_virtualization) and [container](https://en.wikipedia.org/wiki/Operating-system-level_virtualization)-based [paravirtualization](https://en.wikipedia.org/wiki/Paravirtualization);
+- [Non-volatile memory (NVM)](https://en.wikipedia.org/wiki/Non-volatile_memory) based systems;
+- Real-time multi-core [mixed-criticality](https://en.wikipedia.org/wiki/Mixed_criticality) systems, and so on.
 
 &ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or **[modified MIT license](MODMIT.md)**. **Commercial** licenses are also available upon request.
