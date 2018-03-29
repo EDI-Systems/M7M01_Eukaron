@@ -40,16 +40,16 @@ Click **[HERE](README.md)** for English version.
 
 ## 现有的系统组件
 &emsp;&emsp;所有的现有系统组件列于下表。如果提供了github链接，那么该组件现在就是可用的。  
-- [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
-    - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite), the microcontroller-oriented user-level library for RME.
-    - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
-    - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS), a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
-    - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread), a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
-    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII), a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
-    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython), a port of the popular [MicroPython](https://micropython.org/) to RVM.
-    - [RVM/Lua](https://github.com/EDI-Systems/lua), a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
-    - [RVM/Duktape](https://github.com/EDI-Systems/duktape), a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
-    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
+- [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)，一个面向微控制器的虚拟机监视器，可以在一个MCU上运行多个RTOS。它最多可以在1MB片上内存中运行多达64个虚拟机。
+    - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite)，一份RME的微控制器用户态库。
+    - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)，RMP在RME上的一个全功能移植。
+    - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS)，广为应用的[FreeRTOS](https://www.freertos.org/)在RVM上的一个全功能移植。
+    - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)，颇有前景的[RT-Thread](https://www.rt-thread.org/)在RVM上的一个全功能移植，包括其所有框架。
+    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)，a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
+    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython)，a port of the popular [MicroPython](https://micropython.org/) to RVM.
+    - [RVM/Lua](https://github.com/EDI-Systems/lua)，a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
+    - [RVM/Duktape](https://github.com/EDI-Systems/duktape)，a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
+    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)，a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
 
 - UVM, which is a multi-core processor oriented virtual machine monitor capable of supporting full-virtualization and container-based virtualization with unprecedented performance.
     - UVM/Lib, the microprocessor-oriented user-level library for RME.
