@@ -7,7 +7,7 @@
 Click **[HERE](README.md)** for English version.
 
 &emsp;&emsp;**RME** 是一个支持很多高级功能的系统内核. 这个系统支持许多其他系统如 _FreeRTOS_ 、 _RT-Thread_ 和 _VxWorks_ 等不支持的复杂高级功能，在多核方面则具备和 _Linux_ 一样极佳的可扩展性。在使用时，无需了解系统的方方面面，仅需要使用我们提供好的移植甚至二进制即可。本系统的一些高级功能包括：
-- 基于权能（capability）的可变保护域；
+- 基于[权能](https://en.wikipedia.org/wiki/Capability-based_security)（capability）的可变保护域；
 - 高度的可扩展性（Scalability）和并行性（parallelism）；
 - 容错性（fault-tolerance）和抗攻击性（infiltration resilience）；
 - 用户态平铺层次化调度（hierachical scheduling）；
