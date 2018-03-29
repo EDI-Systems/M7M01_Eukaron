@@ -39,6 +39,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 &ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
 
 ## Available system components
+&ensp;&ensp;&ensp;&ensp;All available components are listed below. If a github link is provided, the component is available for now.  
 - [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
     - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite), the microcontroller-oriented user-level library for RME.
     - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
