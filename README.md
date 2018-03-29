@@ -15,6 +15,8 @@
 - [Non-volatile memory (NVM)](https://en.wikipedia.org/wiki/Non-volatile_memory) based systems;
 - Real-time multi-core [mixed-criticality](https://en.wikipedia.org/wiki/Mixed_criticality) systems, and so on.
 
+&ensp;&ensp;&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
+
 &ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or **[modified MIT license](MODMIT.md)**. **Commercial** licenses are also available upon request.
 
@@ -40,16 +42,16 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 
 ## Available system components
 &ensp;&ensp;&ensp;&ensp;All available components are listed below. If a github link is provided, the component is available for now.  
-- [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
-    - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite), the microcontroller-oriented user-level library for RME.
-    - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
-    - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS), a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
-    - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread), a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
-    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII), a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
-    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython), a port of the popular [MicroPython](https://micropython.org/) to RVM.
-    - [RVM/Lua](https://github.com/EDI-Systems/lua), a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
-    - [RVM/Duktape](https://github.com/EDI-Systems/duktape), a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
-    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
+- **[RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)**, which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
+    - **[RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite)**, the microcontroller-oriented user-level library for RME.
+    - **[RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)**, a port of the simplistic RMP on RVM, with all functionalities retained.
+    - **[RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS)**, a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
+    - **[RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)**, a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
+    - **[RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)**, a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
+    - **[RVM/MicroPython](https://github.com/EDI-Systems/micropython)**, a port of the popular [MicroPython](https://micropython.org/) to RVM.
+    - **[RVM/Lua](https://github.com/EDI-Systems/lua)**, a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
+    - **[RVM/Duktape](https://github.com/EDI-Systems/duktape)**, a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
+    - **[RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)**, a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
 
 - UVM, which is a multi-core processor oriented virtual machine monitor capable of supporting full-virtualization and container-based virtualization with unprecedented performance.
     - UVM/Lib, the microprocessor-oriented user-level library for RME.

@@ -15,6 +15,8 @@ Click **[HERE](README.md)** for English version.
 - [非易失性内存](https://en.wikipedia.org/wiki/Non-volatile_memory)（Non-volatile memory，NVM）技术应用；
 - 实时（real-time）多核[混合关键度](https://en.wikipedia.org/wiki/Mixed_criticality)（mixed-criticality）系统等等。
 
+&emsp;&emsp;本系统的手册可以在 **[这里](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M5P1_%E8%BD%BB%E9%87%8F%E7%BA%A7%E5%AE%9E%E6%97%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E%E4%B9%A6.pdf)** 找到。
+
 &emsp;&emsp;如果想要参与开发，请阅读 **[参与](CONTRIBUTING.md)** 和 **[规范](CODE_OF_CONDUCT.md)** 两个指导文档。如果要提交拉取请求，请使用 **[拉取请求模板](PULL_REQUEST_TEMPLATE.md)** 。
 本软件采用 **三种不同的授权** ：你可以选择 **[LGPL v3](LICENSE.md)** ，也可以选择 **[经修改的MIT协议](MODMIT.md)** 。 如果有特殊需求， 也可以联系我们请求**商业授权**。
 
@@ -40,16 +42,16 @@ Click **[HERE](README.md)** for English version.
 
 ## 现有的系统组件
 &emsp;&emsp;所有的现有系统组件列于下表。如果提供了github链接，那么该组件现在就是可用的。  
-- [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)，一个面向微控制器的虚拟机监视器，可以在一个MCU上运行多个RTOS。它最多可以在1MB片上内存中运行多达64个虚拟机。
-    - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite)，一份RME的微控制器用户态库。
-    - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)，RMP在RME上的一个全功能移植。
-    - [RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS)，广为应用的[FreeRTOS](https://www.freertos.org/)在RVM上的一个全功能移植。
-    - [RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)，颇有前景的[RT-Thread](https://www.rt-thread.org/)在RVM上的一个全功能移植，包括其所有框架。
-    - [RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)，著名的[uC/OS III](https://www.micrium.com/)在RVM上的一个移植。如果要在产品中使用该系统，你应当持有该系统的商业许可。
-    - [RVM/MicroPython](https://github.com/EDI-Systems/micropython)，广为应用的[MicroPython](https://micropython.org/)在RVM上的一个移植。
-    - [RVM/Lua](https://github.com/EDI-Systems/lua)，广为应用的[Lua](https://www.lua.org/)在RVM上的一个移植。
-    - [RVM/Duktape](https://github.com/EDI-Systems/duktape)，新出现的[JavaScript](https://github.com/svaarala/duktape)在RVM上的一个移植。
-    - [RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)，一个包含了[lwip](https://savannah.nongnu.org/projects/lwip/)、[fatfs](http://elm-chan.org/fsw/ff/00index_e.html)和[emWin](https://www.segger.com/products/user-interface/emwin/)的[RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)的RVM移植。要在产品中使用该系统，你应当持有相应的商业许可。
+- **[RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)**，一个面向微控制器的虚拟机监视器，可以在一个MCU上运行多个RTOS。它最多可以在1MB片上内存中运行多达64个虚拟机。
+    - **[RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite)**，一份RME的微控制器用户态库。
+    - **[RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)**，RMP在RME上的一个全功能移植。
+    - **[RVM/FreeRTOS](https://github.com/EDI-Systems/FreeRTOS)**，广为应用的[FreeRTOS](https://www.freertos.org/)在RVM上的一个全功能移植。
+    - **[RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)**，颇有前景的[RT-Thread](https://www.rt-thread.org/)在RVM上的一个全功能移植，包括其所有框架。
+    - **[RVM/uCOSIII](https://github.com/EDI-Systems/uCOSIII)**，著名的[uC/OS III](https://www.micrium.com/)在RVM上的一个移植。如果要在产品中使用该系统，你应当持有该系统的商业许可。
+    - **[RVM/MicroPython](https://github.com/EDI-Systems/micropython)**，广为应用的[MicroPython](https://micropython.org/)在RVM上的一个移植。
+    - **[RVM/Lua](https://github.com/EDI-Systems/lua)**，广为应用的[Lua](https://www.lua.org/)在RVM上的一个移植。
+    - **[RVM/Duktape](https://github.com/EDI-Systems/duktape)**，新出现的[JavaScript](https://github.com/svaarala/duktape)在RVM上的一个移植。
+    - **[RVM/Essentials](https://github.com/EDI-Systems/M5P1_MuProkaron)**，一个包含了[lwip](https://savannah.nongnu.org/projects/lwip/)、[fatfs](http://elm-chan.org/fsw/ff/00index_e.html)和[emWin](https://www.segger.com/products/user-interface/emwin/)的[RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)的RVM移植。要在产品中使用该系统，你应当持有相应的商业许可。
 
 - UVM，一个面向应用处理器和服务器的虚拟机监视器，能够以前所未有的性能实现全虚拟化和基于容器的半虚拟化。
     - UVM/Lib，一份RME的微处理器用户态库。
