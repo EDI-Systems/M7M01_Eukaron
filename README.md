@@ -132,7 +132,10 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 ### Prerequisites
 
 &ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
-Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports some Cortex-Ms and Cortex-Rs as well, though without protection support.
+
+&ensp;&ensp;&ensp;&ensp;If you do not have a standalone software platform, you can also use VMMs such as VMware and Virtual Box to try out the x86-64 ISO image.
+
+&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
 
 ### Compilation
 **For MCUs**  
@@ -147,7 +150,7 @@ Other platform supports should be simple to implement, however they are not sche
 &ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
 
 **For application processors**  
-&ensp;&ensp;&ensp;&ensp;Boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). Follow the instructions and play with it!
+&ensp;&ensp;&ensp;&ensp;The boot sequence is different for different processors. For x86-64 architecture, GRUB is used as the bootloader, and you can boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). For other architectures, 
 
 ### Deployment
 **For MCUs**  

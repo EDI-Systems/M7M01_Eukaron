@@ -123,46 +123,49 @@ Click **[HERE](README.md)** for English version.
 
 ## 新手上路
 
-&ensp;&ensp;&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+&emsp;&emsp;下面的说明会帮助你在本地快速建立一个可用来评估测试本系统的工程。请参看系统的中文文档以获取更多信息。
 
 ### 准备工作
 
-&ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
-Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports some Cortex-Ms and Cortex-Rs as well, though without protection support.
+&emsp;&emsp;要运行测试，你需要一个上面列出的硬件平台。本通用操作系统主要面向高性能MCU和CPU，而并不支持低端MCU或者MPU。不要使用QEMU模拟器来测试本系统，因为QEMU有很多不完善之处，与真正的硬件行为并不一致。
+
+&emsp;&emsp;如果你没有单独的硬件平台，那么也可以使用VMware、Virtual Box等虚拟机软件运行本系统的x86-64 ISO镜像。
+
+&emsp;&emsp;对于其他平台的支持应该也是容易实现的，但是当前并没有支持计划。对于低端Cortex-M和大多数16位微控制器，，可以使用[M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _轻量级实时操作系统_；M5P1支持全部的Cortex-M和部分的Cortex-R，但是不提供内存保护。
 
 ### 编译指南
 **微控制器**  
-&ensp;&ensp;&ensp;&ensp;The **Vendor Toolchain** or **GNU Makefile** projects for various microcontrollers are available in the **_Project_** folder. Refer to the readme files in each folder for specific instructions about how to run them. However, keep in mind that some examples may need vendor-specific libraries such as the STM HAL. Some additional drivers may be required too.
+&emsp;&emsp;在 **_Project_** 文件夹下能够找到多种微控制器的移植好的 **厂商集成开发环境** 或 **Eclipse** 的工程样板。参看各个工程文件夹下的自述文件以获取更多关于如何编译和运行该工程的信息。某些工程需要额外的厂商硬件抽象层库的支持，它们可以在 **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** 软件仓库被找到。
 
 **微处理器**  
-&ensp;&ensp;&ensp;&ensp;Only GNU makefile projects will be provided, and only GCC is supported at the moment. Other compilers may also be supported as long as it conforms to the GCC conventions.
-
+&emsp;&emsp;仅有做好的GNU Makefile工程提供，而且只有GCC和Clang-LLVM工具链受支持。如果你有GCC兼容的编译器，那么也是可以支持的。
 
 ### 运行测试
 **微控制器**  
-&ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
+&emsp;&emsp;要运行测试，只要将测试下载到对应的开发板并开始单步调试即可。某些例子会采用两个LED来指示系统当前的状态，此时要填充LED的点亮和熄灭函数来运行该示例。
 
 **微处理器**   
-&ensp;&ensp;&ensp;&ensp;Boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). Follow the instructions and play with it!
+&emsp;&emsp;对于每种微处理器，启动流程都不同。对于x86-64架构，本系统使用GRUB作为其启动器，并且你可以像安装其他任何操作系统（如Ubuntu或Windows）一样安装它的Live CD；对于其他嵌入式架构则采用U-Boot作为其启动器。
 
 ### 生产部署
 **微控制器**  
-&ensp;&ensp;&ensp;&ensp;When deploying this into a production system, it is recommended that you read the manual in the **_Documents_** folder carefully to configure all options correctly. It is not recommended to configure the kernel yourself, anyway; it included too many details. Please use the default configuration file as much as possible. Also, read the user guide for the specific platform you are using.
+&emsp;&emsp;当部署本系统到生产环境时，请仔细阅读本系统自带的手册，以确保各项配置正确。本系统的手册可以在 **_Documents_** 文件夹下找到。不推荐由用户自己配置内核；它包含太多的细节。请尽量使用提供好的默认配置文件。此外，一定要阅读对应架构的用户手册。
 
 **微处理器**  
-&ensp;&ensp;&ensp;&ensp;Deploy it as if you are deploying any other operating system, or bare-metal hypervisor.
+&emsp;&emsp;使用部署其他操作系统或者虚拟机监视器的方法直接部署这个系统。
 
 ## 支持的工具链
 
 - Keil uVision 5 (armcc)
 - Code composer studio
+- MPLAB X XC32
 - GCC/Clang-LLVM
 
-&ensp;&ensp;&ensp;&ensp;Other toolchains are neither recommended nor supported at this point, though it might be possible to support them later on.
+&emsp;&emsp;其他的工具链现在不推荐或者当前不受支持，虽然要增加新的支持应该也很简单。
 
 ## 参与项目
 
-&ensp;&ensp;&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+&emsp;&emsp;请阅读[CONTRIBUTING.md](CONTRIBUTING.md)文档来获得关于行为规范和提交代码的相关信息。
 
-## EDI Project Information
-&ensp;&ensp;&ensp;&ensp;Mutate - Mesazoa - Eukaron (M7M1 R3T1)
+## EDI 工程信息
+&emsp;&emsp;演进 - 中生 - 真核 (M7M1 R3T1)
