@@ -38,7 +38,8 @@ Click **[HERE](README.md)** for English version.
 ### 系统是如何做到无锁的？
 &emsp;&emsp;这是通过大量使用无锁数据结构和原子操作做到的。有关无锁操作和原子操作的更多知识请查看 [这篇文章](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
 
-## Available system components
+## 现有的系统组件
+&emsp;&emsp;所有的现有系统组件列于下表。如果提供了github链接，那么该组件现在就是可用的。  
 - [RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite), which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
     - [RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite), the microcontroller-oriented user-level library for RME.
     - [RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron), a port of the simplistic RMP on RVM, with all functionalities retained.
