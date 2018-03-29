@@ -58,10 +58,10 @@ Click **[HERE](README.md)** for English version.
 ## 系统调用列表
 
 
-### Typical performance figures for all supported architectures
-**Single-core microcontrollers**
+### 所有受支持架构上的典型性能数据
+**单核微控制器**
 
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|架构          |工具链        |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
 |:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
 |Cortex-M4    |Keil uVision 5|     |    |     |     |     |    |    |    |
 |Cortex-M7    |Keil uVision 5|     |    |     |     |     |    |    |    |
@@ -69,35 +69,32 @@ Click **[HERE](README.md)** for English version.
 |Cortex-R5    |TI CCS7       |     |    |     |     |     |    |    |    |
 |MIPS M14k    |XC32-GCC      |     |    |     |     |     |    |    |    |
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
+&emsp;&emsp;**Flash和SRAM消耗以kB计，其他数据以CPU指令周期计。这里列出的所有值都是典型（有意义的系统配置）值而非绝对意义上的最小值，因为纯技术层面的最小配置在实际工程中很少是真正有用的。HAL库所造成的额外存储器消耗也被计算在内。在单核微控制器模型下，本系统的绝对最小值在32k ROM/16k RAM左右。**
+&emsp;&emsp;**Cortex-R4和Cortex-R5在这里被列为单核架构，因为它们的主要卖点是CPU冗余。因此从开发者的视角看来，它们的行为和单核系统一致。Cortex-R4和Cortex-R5上的双核模式不被RME支持。**
 
-<!-- |Cortex-M4    |GCC           |     |    |     |     |     |    |    |    | -->
-<!-- |Cortex-M7    |GCC           |     |    |     |     |     |    |    |    | -->
-<!-- |Cortex-R4    |GCC           |     |    |     |     |     |    |    |    | -->
+- Cortex-M4平台使用STM32F405RGT6进行评估。
+- Cortex-M7平台使用STM32F767IGT6进行评估。
+- Cortex-R4平台使用TMS570LS0432进行评估。
+- Cortex-R5平台使用TMS570LC4357进行评估。
+- MIPS M14k平台使用PIC32MZ2048EFM100进行评估。
 
-- Cortex-M4 is evaluated with STM32F405RGT6.
-- Cortex-M7 is evaluated with STM32F767IGT6.
-- Cortex-R4 is evaluated with TMS570LS0432.
-- Cortex-R5 is evaluated with TMS570LC4357.
-- MIPS M14k is evaluated with PIC32MZEFM100.
+**多核微控制器**
 
-**Multi-core MPU-based processors**
-
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|架构          |工具链        |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
 |:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
 |Cortex-R7    |TBD           |     |    |     |     |     |    |    |    |
 |Cortex-R8    |TBD           |     |    |     |     |     |    |    |    |
 |TMS320C66X   |TI CCS7       |     |    |     |     |     |    |    |    |
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
+&emsp;&emsp;**Flash和SRAM消耗以kB计，其他数据以CPU指令周期计。HAL库所造成的额外存储器消耗也被计算在内。在多核微控制器模型下，本系统的绝对最小值在64k ROM/32k RAM左右。**
 
-- Cortex-R7 is evaluated with TBD.
-- Cortex-R8 is evaluated with TBD.
-- TMS320C66X is evaluated with TMS320C6678.
+- Cortex-R7平台使用（尚未决定）进行评估。
+- Cortex-R8平台使用（尚未决定）进行评估。
+- TMS320C66X平台使用TMS320C6678进行评估。
 
-**Multi-core application processors (aka. Desktop/server processors)**
+**多核应用微处理器（桌面和服务器处理器）**
 
-|Machine      |Toolchain     |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
+|架构          |工具链        |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
 |:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:--:|
 |Cortex-A7  x4|GCC           |     |     |     |     |     |    |    |    |
 |Cortex-A53 x4|GCC           |     |     |     |     |     |    |    |    |
@@ -105,13 +102,13 @@ Click **[HERE](README.md)** for English version.
 |X86-64(NI)x32|GCC           |     |     |     |     |     |    |    |    |
 |X86-64(A) x16|GCC           |     |     |     |     |     |    |    |    |
 
-&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
+&emsp;&emsp;**RAM消耗以MB计，其他数据以CPU时钟周期计。必要的软件包和驱动造成的额外消耗也被包括在内。在多核应用微处理器模型下，本系统的绝对最小值在4MB RAM左右。**
 
-- Cortex-A7 is evaluated with BCM2836, the exact chip used on Raspberry Pi 2.
-- Cortex-A53 is evaluated with BCM2837, the exact chip used on Raspberry Pi 3.
-- X86-64(I) is evaluated with a machine with 1x I9-7980XE processor and 128GB memory.
-- X86-64(NI) is evaluated with a machine with 4x Xeon X7560 processor and 4x8GB memory.
-- X86-64(A) is evaluated with a machine with Ryzen 1950X processor and 128GB memory. 
+- Cortex-A7平台使用BCM2836进行评估，它也是Raspberri Pi 2的主芯片。
+- Cortex-A53平台使用BCM2837进行评估，它也是Raspberri Pi 3的主芯片。
+- X86-64(I)平台使用一台具备单颗I9-7980XE处理器和128GB内存的PC进行评估。
+- X86-64(NI)平台使用一台具备四颗Xeon X7560处理器和4条8GB内存条（分别插于四个处理器上）的服务器进行评估。
+- X86-64(A)平台使用一台具备单颗Ryzen 1950X处理器和128GB内存的PC进行评估。 
 
 &ensp;&ensp;&ensp;&ensp;In the 3 tables above, all compiler options are the highest optimization (usually -O3) and optimized for time. 
 - Yield: The time to yield between different threads.  
