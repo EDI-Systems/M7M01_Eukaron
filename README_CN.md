@@ -7,13 +7,13 @@
 Click **[HERE](README.md)** for English version.
 
 &emsp;&emsp;**RME** 是一个支持很多高级功能的系统内核. 这个系统支持许多其他系统如 _FreeRTOS_ 、 _RT-Thread_ 和 _VxWorks_ 等不支持的复杂高级功能，在多核方面则具备和 _Linux_ 一样极佳的可扩展性。在使用时，无需了解系统的方方面面，仅需要使用我们提供好的移植甚至二进制即可。本系统的一些高级功能包括：
-- 基于[权能](https://en.wikipedia.org/wiki/Capability-based_security)（capability）的可变保护域；
+- 基于[权能](https://en.wikipedia.org/wiki/Capability-based_security)（capability）的可变保护域（mutable protection domain）；
 - 高度的[可扩展性](https://en.wikipedia.org/wiki/Scalability)（Scalability）和[并行性](https://en.wikipedia.org/wiki/Parallel_computing)（parallelism）；
 - [容错性](https://en.wikipedia.org/wiki/Fault_tolerance)（fault-tolerance）和[抗攻击性](https://en.wikipedia.org/wiki/Resilience_(network))（attack resilience）；
-- 用户态平铺层次化调度（hierachical scheduling）；
-- 基于容器（container）的准虚拟化（paravirtualization）技术；
-- 非易失性内存（Non-volatile memory，NVM）技术；
-- 实时（real-time）多核混合关键度（mixed-criticality）系统等等。
+- 用户态[层次化调度](https://en.wikipedia.org/wiki/Hierarchical_control_system)（hierachical scheduling）；
+- [全虚拟化](https://en.wikipedia.org/wiki/Full_virtualization)技术和基于[容器](https://en.wikipedia.org/wiki/Operating-system-level_virtualization)（container）的[准虚拟化](https://en.wikipedia.org/wiki/Paravirtualization)（paravirtualization）技术；
+- [非易失性内存](https://en.wikipedia.org/wiki/Non-volatile_memory)（Non-volatile memory，NVM）技术应用；
+- 实时（real-time）多核[混合关键度](https://en.wikipedia.org/wiki/Mixed_criticality)（mixed-criticality）系统等等。
 
 &emsp;&emsp;如果想要参与开发，请阅读 **[参与](CONTRIBUTING.md)** 和 **[规范](CODE_OF_CONDUCT.md)** 两个指导文档。如果要提交拉取请求，请使用 **[拉取请求模板](PULL_REQUEST_TEMPLATE.md)** 。
 本软件采用 **三种不同的授权** ：你可以选择 **[LGPL v3](LICENSE.md)** ，也可以选择 **[经修改的MIT协议](MODMIT.md)** 。 如果有特殊需求， 也可以联系我们请求**商业授权**。
