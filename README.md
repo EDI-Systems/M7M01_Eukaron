@@ -116,12 +116,12 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 - X86-64(A) is evaluated with a machine with Ryzen 1950X processor and 128GB memory. 
 
 &ensp;&ensp;&ensp;&ensp;In the 3 tables above, all compiler options are the highest optimization (usually -O3) and optimized for time. 
-- Yield: The time to yield between different threads.  
-- Asnd1: Intra-process asynchronous send.
-- Asnd2: Inter-process asynchronous send. 
-- Sinv: Synchronous invocation entering time. 
-- Sret: Synchronous invocation returning time. 
-- Isnd: Intra-process interrupt sending time.
+- Yield : The time to yield between different threads.  
+- Asnd1 : Intra-process asynchronous send.
+- Asnd2 : Inter-process asynchronous send. 
+- Sinv  : Synchronous invocation entering time. 
+- Sret  : Synchronous invocation returning time. 
+- Isnd  : Interrupt asynchronous send time.
 
 ## Getting Started
 
@@ -165,10 +165,6 @@ Other platform supports should be simple to implement, however they are not sche
 ## Contributing
 
 &ensp;&ensp;&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## License
-
-&ensp;&ensp;&ensp;&ensp;This project is licensed under the GPLv3 License - see the [LICENSE.md](LICENSE.md) file for details. However, commercial licenses are also available.
 
 ## EDI Project Information
 &ensp;&ensp;&ensp;&ensp;Mutate - Mesazoa - Eukaron (M7M1 R3T1)

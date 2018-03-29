@@ -111,24 +111,24 @@ Click **[HERE](README.md)** for English version.
 - X86-64(NI)平台使用一台具备四颗Xeon X7560处理器和4条8GB内存条（分别插于四个处理器上）的服务器进行评估。
 - X86-64(A)平台使用一台具备单颗Ryzen 1950X处理器和128GB内存的PC进行评估。 
 
-&ensp;&ensp;&ensp;&ensp;In the 3 tables above, all compiler options are the highest optimization (usually -O3) and optimized for time. 
-- Yield: The time to yield between different threads.  
-- Asnd1: Intra-process asynchronous send.
-- Asnd2: Inter-process asynchronous send. 
-- Sinv: Synchronous invocation entering time. 
-- Sret: Synchronous invocation returning time. 
-- Isnd: Intra-process interrupt sending time.
+&emsp;&emsp;在上面所列的三个表格中，所有的编译器选项都被设置为最高优化（通常是-O3），而且针对运行时间进行了优化。
+- Yield   ：同一进程内部两线程间进行切换所用的时间。  
+- Asnd1   ：进程内两线程异步通信时间。  
+- Asnd2   ：进程间两线程异步通信时间。  
+- Sinv    ：线程迁移调用的进入耗时。  
+- Sret    ：线程迁移调用的退出耗时。 
+- Isnd    ：从中断发送异步信号的耗时。
 
-## Getting Started
+## 新手上路
 
 &ensp;&ensp;&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### Prerequisites
+### 准备工作
 
 &ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
 Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports some Cortex-Ms and Cortex-Rs as well, though without protection support.
 
-### Compilation
+### 编译指南
 **For MCUs**  
 &ensp;&ensp;&ensp;&ensp;The **Vendor Toolchain** or **GNU Makefile** projects for various microcontrollers are available in the **_Project_** folder. Refer to the readme files in each folder for specific instructions about how to run them. However, keep in mind that some examples may need vendor-specific libraries such as the STM HAL. Some additional drivers may be required too.
 
@@ -136,21 +136,21 @@ Other platform supports should be simple to implement, however they are not sche
 &ensp;&ensp;&ensp;&ensp;Only GNU makefile projects will be provided, and only GCC is supported at the moment. Other compilers may also be supported as long as it conforms to the GCC conventions.
 
 
-### Running the tests
+### 运行测试
 **For MCUs**  
 &ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
 
 **For application processors**  
 &ensp;&ensp;&ensp;&ensp;Boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). Follow the instructions and play with it!
 
-### Deployment
+### 生产部署
 **For MCUs**  
 &ensp;&ensp;&ensp;&ensp;When deploying this into a production system, it is recommended that you read the manual in the **_Documents_** folder carefully to configure all options correctly. It is not recommended to configure the kernel yourself, anyway; it included too many details. Please use the default configuration file as much as possible. Also, read the user guide for the specific platform you are using.
 
 **For application processors**  
 &ensp;&ensp;&ensp;&ensp;Deploy it as if you are deploying any other operating system, or bare-metal hypervisor.
 
-## Built With
+## 支持的工具链
 
 - Keil uVision 5 (armcc)
 - Code composer studio
@@ -158,13 +158,9 @@ Other platform supports should be simple to implement, however they are not sche
 
 &ensp;&ensp;&ensp;&ensp;Other toolchains are neither recommended nor supported at this point, though it might be possible to support them later on.
 
-## Contributing
+## 参与项目
 
 &ensp;&ensp;&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## License
-
-&ensp;&ensp;&ensp;&ensp;This project is licensed under the GPLv3 License - see the [LICENSE.md](LICENSE.md) file for details. However, commercial licenses are also available.
 
 ## EDI Project Information
 &ensp;&ensp;&ensp;&ensp;Mutate - Mesazoa - Eukaron (M7M1 R3T1)
