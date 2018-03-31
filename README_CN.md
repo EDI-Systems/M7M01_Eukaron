@@ -59,6 +59,43 @@ Click **[HERE](README.md)** for English version.
 
 ## 系统调用列表
 
+|系统调用                 |调用号|功能描述                                                            |
+|:---------------------:|:----:|:----------------------------------------------------------------:|
+|RME_SVC_INV_RET        |0     |从迁移调用返回                                                       |
+|RME_SVC_INV_ACT        |1     |进行迁移调用                                                        |
+|RME_SVC_SIG_SND        |2     |向信号端点发送信号                                                   |
+|RME_SVC_SIG_RCV        |3     |从信号端点接收信号                                                   |
+|RME_SVC_KERN           |4     |进行内核特殊功能函数调用                                              |
+|RME_SVC_THD_SCHED_PRIO |5     |更改某线程的优先级                                                   |
+|RME_SVC_THD_SCHED_FREE |6     |将某线程从某个CPU上释放                                               |
+|RME_SVC_THD_TIME_XFER  |7     |转移时间到某线程                                                     |
+|RME_SVC_THD_SWT        |8     |切换到某线程                                                        |
+|RME_SVC_CAPTBL_CRT     |9     |创建一个权能表                                                       |
+|RME_SVC_CAPTBL_DEL     |10    |删除一个权能表                                                       |
+|RME_SVC_CAPTBL_FRZ     |11    |冻结权能表内的某权能                                                  |
+|RME_SVC_CAPTBL_ADD     |12    |进行权能传递                                                        |
+|RME_SVC_CAPTBL_REM     |13    |移除权能表内的某权能                                                  |
+|RME_SVC_PGTBL_CRT      |14    |创建一个页目录                                                      |
+|RME_SVC_PGTBL_DEL      |15    |删除一个页目录                                                      |
+|RME_SVC_PGTBL_ADD      |16    |添加一个页表项                                                      |
+|RME_SVC_PGTBL_REM      |17    |移除一个页表项                                                      |
+|RME_SVC_PGTBL_CON      |18    |构造页表                                                           |
+|RME_SVC_PGTBL_DES      |19    |析构页表                                                           |
+|RME_SVC_PROC_CRT       |20    |创建一个进程                                                        |
+|RME_SVC_PROC_DEL       |21    |删除一个进程                                                        |
+|RME_SVC_PROC_CPT       |22    |替换进程的权能表                                                     |
+|RME_SVC_PROC_PGT       |23    |替换进程的页表                                                      |
+|RME_SVC_THD_CRT        |24    |创建一个线程                                                        |
+|RME_SVC_THD_DEL        |25    |删除一个线程                                                        |
+|RME_SVC_THD_EXEC_SET   |26    |设置线程的执行属性（入口和栈）                                         |
+|RME_SVC_THD_HYP_SET    |27    |设置线程的虚拟机属性（寄存器保存位置）                                  |
+|RME_SVC_THD_SCHED_BIND |28    |将线程绑定到某处理器                                                 |
+|RME_SVC_THD_SCHED_RCV  |29    |接收某线程的调度器信息                                               |
+|RME_SVC_SIG_CRT        |30    |创建一个信号端点                                                    |
+|RME_SVC_SIG_DEL        |31    |删除一个信号端点                                                    |
+|RME_SVC_INV_CRT        |32    |创建一个迁移调用                                                    |
+|RME_SVC_INV_DEL        |33    |删除一个迁移调用                                                    |
+|RME_SVC_INV_SET        |34    |设置迁移调用的执行属性（入口和栈）                                      |
 
 ### 所有受支持架构上的典型性能数据
 **单核微控制器**
