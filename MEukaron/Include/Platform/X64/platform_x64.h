@@ -1,18 +1,23 @@
 /******************************************************************************
-Filename   : platform_cmx.h
+Filename   : platform_x64.h
 Author     : pry
 Date       : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
-Description: The header of "platform_cmx.h".
+Description: The header of "platform_x64.c".
 ******************************************************************************/
 
 /* Defines *******************************************************************/
 #ifdef __HDR_DEFS__
-#ifndef __PLATFORM_CMX_H_DEFS__
-#define __PLATFORM_CMX_H_DEFS__
+#ifndef __PLATFORM_X64_H_DEFS__
+#define __PLATFORM_X64_H_DEFS__
 /*****************************************************************************/
 /* Basic Types ***************************************************************/
 #if(DEFINE_BASIC_TYPES==TRUE)
+
+#ifndef __S64__
+#define __S64__
+typedef signed long long s64;
+#endif
 
 #ifndef __S32__
 #define __S32__
@@ -27,6 +32,11 @@ typedef signed short s16;
 #ifndef __S8__
 #define __S8__
 typedef signed char  s8;
+#endif
+
+#ifndef __U64__
+#define __U64__
+typedef unsigned long long u64;
 #endif
 
 #ifndef __U32__
@@ -51,31 +61,31 @@ typedef unsigned char  u8;
 #ifndef __TID_T__
 #define __TID_T__
 /* The typedef for the Thread ID */
-typedef s32 tid_t;
+typedef s64 tid_t;
 #endif
 
 #ifndef __PTR_T__
 #define __PTR_T__
 /* The typedef for the pointers - This is the raw style. Pointers must be unsigned */
-typedef u32 ptr_t;
+typedef u64 ptr_t;
 #endif
 
 #ifndef __CNT_T__
 #define __CNT_T__
 /* The typedef for the count variables */
-typedef s32 cnt_t;
+typedef s64 cnt_t;
 #endif
 
 #ifndef __CID_T__
 #define __CID_T__
 /* The typedef for capability ID */
-typedef s32 cid_t;
+typedef s64 cid_t;
 #endif
 
 #ifndef __RET_T__
 #define __RET_T__
 /* The type for process return value */
-typedef s32 ret_t;
+typedef s64 ret_t;
 #endif
 /* End Extended Types ********************************************************/
 
@@ -83,25 +93,27 @@ typedef s32 ret_t;
 /* Compiler "extern" keyword setting */
 #define EXTERN                  extern
 /* Compiler "inline" keyword setting */
-#define INLINE                  __forceinline
-/* Number of CPUs in the system */
-#define RME_CPU_NUM             1
+#define INLINE                  inline
+/* Number of CPUs in the system - max. 16384 ones are supported */
+#define RME_CPU_NUM             16384
 /* The order of bits in one CPU machine word */
-#define RME_WORD_ORDER          5
+#define RME_WORD_ORDER          6
 /* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA           (RME_TRUE)
-/* Quiescence timeslice value */
-#define RME_QUIE_TIME           0
+#define RME_VA_EQU_PA           (RME_FALSE)
+/* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
+#define RME_QUIE_TIME           10
 /* Normal page directory size calculation macro */
-#define RME_PGTBL_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(ptr_t)+sizeof(struct __RME_CMX_Pgtbl_Meta))
+#define RME_PGTBL_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(ptr_t))
 /* Top-level page directory size calculation macro */
-#define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_CMX_MPU_Data))
+#define RME_PGTBL_SIZE_TOP(NUM_ORDER)   RME_PGTBL_SIZE_NOM(NUM_ORDER)
+/* Kernel stack size and address */
+#define RME_KMEM_STACK_ADDR     0xFFFFFFFF80010000ULL
 
 /* The CPU and application specific macros are here */
-#include "platform_cmx_conf.h"
+#include "platform_x64_conf.h"
 /* End System macros *********************************************************/
 
-/* Cortex-M specific macros **************************************************/
+/* X64 specific macros *******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                      0
@@ -109,24 +121,24 @@ typedef s32 ret_t;
 #define RME_BOOT_PGTBL                       1
 /* The init process */
 #define RME_BOOT_INIT_PROC                   2
-/* The init thread */
+/* The init thread - this is a pointer to a per-core captbl array */
 #define RME_BOOT_INIT_THD                    3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN                   4
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KMEM                   5
-/* The initial timer endpoint */
+/* The initial timer endpoint - this is a pointer to a per-core array */
 #define RME_BOOT_INIT_TIMER                  6
-/* The initial fault endpoint */
+/* The initial fault endpoint - this is a pointer to a per-core array */
 #define RME_BOOT_INIT_FAULT                  7
-/* The initial default endpoint for all other interrupts - this will directly go to the INTD. */
+/* The initial default endpoint for all other interrupts - this is a pointer to a per-core array */
 #define RME_BOOT_INIT_INT                    8
 
 /* Booting capability layout */
-#define RME_CMX_CPT              ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
+#define RME_X64_CPT              ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
 /* SRAM base */
-#define RME_CMX_SRAM_BASE        0x20000000
-/* For Cortex-M:
+#define RME_X64_SRAM_BASE        0x20000000
+/* For x64:
  * The layout of the page entry is:
  * [31:7] Paddr - The physical address to map this page to, or the physical
  *                address of the next layer of page table. This address is
@@ -145,149 +157,139 @@ typedef s32 ret_t;
  * [0] Present - Is this entry present?
  */
 /* Get the actual table positions */
-#define RME_CMX_PGTBL_TBL_NOM(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)/sizeof(ptr_t)))
-#define RME_CMX_PGTBL_TBL_TOP(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)+sizeof(struct __RME_CMX_MPU_Data))/sizeof(ptr_t))
+#define RME_X64_PGTBL_TBL_NOM(X)        ((X)+(sizeof(struct __RME_X64_Pgtbl_Meta)))
+#define RME_X64_PGTBL_TBL_TOP(X)        RME_X64_PGTBL_TBL_NOM(X)
 
 /* Page entry bit definitions */
-#define RME_CMX_PGTBL_PRESENT           (1<<0)
-#define RME_CMX_PGTBL_TERMINAL          (1<<1)
-#define RME_CMX_PGTBL_READONLY          (1<<2)
-#define RME_CMX_PGTBL_READWRITE         (1<<3)
-#define RME_CMX_PGTBL_EXECUTE           (1<<4)
-#define RME_CMX_PGTBL_CACHEABLE         (1<<5)
-#define RME_CMX_PGTBL_BUFFERABLE        (1<<6)
-#define RME_CMX_PGTBL_STATIC            (1<<7)
-/* The address mask for the actual page address */
-#define RME_CMX_PGTBL_PTE_ADDR(X)       ((X)&0xFFFFFFFC)
-/* The address mask for the next level page table address */
-#define RME_CMX_PGTBL_PGD_ADDR(X)       ((X)&0xFFFFFFFC)
-#define RME_CMX_PGTBL_FLAGMASK(X)       ((X)&0x00000078)
-/* Page table metadata definitions */
-#define RME_CMX_PGTBL_START(X)          ((X)&0xFFFFFFFE)
-#define RME_CMX_PGTBL_SIZEORD(X)        ((X)>>16)
-#define RME_CMX_PGTBL_NUMORD(X)         ((X)&0x0000FFFF)
-#define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
-#define RME_CMX_PGTBL_PAGENUM(X)        ((X)&0x0000FFFF)
-#define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
-#define RME_CMX_PGTBL_INC_PAGENUM(X)    ((X)+=0x00000001)
-#define RME_CMX_PGTBL_DEC_PAGENUM(X)    ((X)-=0x00000001)
-#define RME_CMX_PGTBL_INC_DIRNUM(X)     ((X)+=0x00010000)
-#define RME_CMX_PGTBL_DEC_DIRNUM(X)     ((X)-=0x00010000)
-/* MPU operation flag */
-#define RME_CMX_MPU_CLR                 (0)
-#define RME_CMX_MPU_UPD                 (1)
-/* MPU definitions */
-/* Extract address for/from MPU */
-#define RME_CMX_MPU_ADDR(X)             ((X)&0xFFFFFFE0)
-/* Get info from MPU */
-#define RME_CMX_MPU_SZORD(X)            ((((X)&0x3F)>>1)-2)
-/* Write info to MPU */
-#define RME_CMX_MPU_VALID               (1<<4)
-#define RME_CMX_MPU_SRDCLR              (0x0000FF00)
-#define RME_CMX_MPU_XN                  (1<<28)
-#define RME_CMX_MPU_RO                  (2<<24)
-#define RME_CMX_MPU_RW                  (3<<24)
-#define RME_CMX_MPU_CACHEABLE           (1<<17)
-#define RME_CMX_MPU_BUFFERABLE          (1<<16)
-#define RME_CMX_MPU_REGIONSIZE(X)       ((X+2)<<1)
-#define RME_CMX_MPU_SZENABLE            (1)
+/* No execution */
+#define RME_X64_MMU_NX                  (((ptr_t)1)<<63)
+/* Present */
+#define RME_X64_MMU_P                   (((ptr_t)1)<<0)
+/* Is it read-only or writable? */
+#define RME_X64_MMU_RW                  (((ptr_t)1)<<1)
+/* Is it user or system? */
+#define RME_X64_MMU_US                  (((ptr_t)1)<<2)
+/* Is it write-through? */
+#define RME_X64_MMU_PWT                 (((ptr_t)1)<<3)
+/* Can we cache it? */
+#define RME_X64_MMU_PCD                 (((ptr_t)1)<<4)
+/* Is this accessed? */
+#define RME_X64_MMU_A                   (((ptr_t)1)<<5)
+/* Is this page dirty? */
+#define RME_X64_MMU_D                   (((ptr_t)1)<<6)
+/* The page-attribute table bit for 4k pages */
+#define RME_X64_MMU_PTE_PAT             (((ptr_t)1)<<7)
+/* The super-page bit */
+#define RME_X64_MMU_PDE_SUP             (((ptr_t)1)<<7)
+/* The global page bit - use this for all kernel memories */
+#define RME_X64_MMU_G                   (((ptr_t)1)<<8)
+/* The page-attribute table bit for other page sizes */
+#define RME_X64_MMU_PDE_PAT             (((ptr_t)1)<<12)
+/* The generic address mask */
+#define RME_X64_MMU_ADDR(X)             ((X)&0x8FFFFFFFFF000)
+
+/* MMU definitions */
+/* Write info to MMU */
+#define RME_X64_CR3_PCD                 (1<<4)
+#define RME_X64_CR3_PWT                 (1<<3)
+
 /* Cortex-M (ARMv8) EXC_RETURN values */
-#define RME_CMX_EXC_RET_BASE            (0xFFFFFF80)
+#define RME_X64_EXC_RET_BASE            (0xFFFFFF80)
 /* Whether we are returning to secure stack. 1 means yes, 0 means no */
-#define RME_CMX_EXC_RET_SECURE_STACK    (1<<6)
+#define RME_X64_EXC_RET_SECURE_STACK    (1<<6)
 /* Whether the callee registers are automatically pushed to user stack. 1 means yes, 0 means no */
-#define RME_CMX_EXC_RET_CALLEE_SAVE     (1<<5)
+#define RME_X64_EXC_RET_CALLEE_SAVE     (1<<5)
 /* Whether the stack frame is standard(contains no FPU data). 1 means yes, 0 means no */
-#define RME_CMX_EXC_RET_STD_FRAME       (1<<4)
+#define RME_X64_EXC_RET_STD_FRAME       (1<<4)
 /* Are we returning to user mode? 1 means yes, 0 means no */
-#define RME_CMX_EXC_RET_RET_USER        (1<<3)
+#define RME_X64_EXC_RET_RET_USER        (1<<3)
 /* Are we returning to PSP? 1 means yes, 0 means no */
-#define RME_CMX_EXC_RET_RET_PSP         (1<<2)
+#define RME_X64_EXC_RET_RET_PSP         (1<<2)
 /* Is this interrupt taken to a secured domain? 1 means yes, 0 means no */
-#define RME_CMX_EXC_INT_SECURE_DOMAIN   (1<<0)
+#define RME_X64_EXC_INT_SECURE_DOMAIN   (1<<0)
 /* FPU type definitions */
-#define RME_CMX_FPU_NONE                (0)
-#define RME_CMX_FPU_VFPV4               (1)
-#define RME_CMX_FPU_FPV5_SP             (2)
-#define RME_CMX_FPU_FPV5_DP             (3)
+#define RME_X64_FPU_NONE                (0)
+#define RME_X64_FPU_VFPV4               (1)
+#define RME_X64_FPU_FPV5_SP             (2)
+#define RME_X64_FPU_FPV5_DP             (3)
 
 /* Some useful SCB definitions */
-#define RME_CMX_SHCSR_USGFAULTENA       (1<<18)
-#define RME_CMX_SHCSR_BUSFAULTENA       (1<<17)
-#define RME_CMX_SHCSR_MEMFAULTENA       (1<<16)
+#define RME_X64_SHCSR_USGFAULTENA       (1<<18)
+#define RME_X64_SHCSR_BUSFAULTENA       (1<<17)
+#define RME_X64_SHCSR_MEMFAULTENA       (1<<16)
 /* MPU definitions */
-#define RME_CMX_MPU_PRIVDEF             0x00000004
+#define RME_X64_MPU_PRIVDEF             0x00000004
 /* NVIC definitions */
-#define RME_CMX_NVIC_GROUPING_P7S1      0
-#define RME_CMX_NVIC_GROUPING_P6S2      1
-#define RME_CMX_NVIC_GROUPING_P5S3      2
-#define RME_CMX_NVIC_GROUPING_P4S4      3
-#define RME_CMX_NVIC_GROUPING_P3S5      4
-#define RME_CMX_NVIC_GROUPING_P2S6      5
-#define RME_CMX_NVIC_GROUPING_P1S7      6
-#define RME_CMX_NVIC_GROUPING_P0S8      7
+#define RME_X64_NVIC_GROUPING_P7S1      0
+#define RME_X64_NVIC_GROUPING_P6S2      1
+#define RME_X64_NVIC_GROUPING_P5S3      2
+#define RME_X64_NVIC_GROUPING_P4S4      3
+#define RME_X64_NVIC_GROUPING_P3S5      4
+#define RME_X64_NVIC_GROUPING_P2S6      5
+#define RME_X64_NVIC_GROUPING_P1S7      6
+#define RME_X64_NVIC_GROUPING_P0S8      7
 /* Fault definitions */
 /* The NMI is active */
-#define RME_CMX_ICSR_NMIPENDSET         (((ptr_t)1)<<31)
+#define RME_X64_ICSR_NMIPENDSET         (((ptr_t)1)<<31)
 /* Debug event has occurred. The Debug Fault Status Register has been updated */
-#define RME_CMX_HFSR_DEBUGEVT           (((ptr_t)1)<<31)
+#define RME_X64_HFSR_DEBUGEVT           (((ptr_t)1)<<31)
 /* Processor has escalated a configurable-priority exception to HardFault */
-#define RME_CMX_HFSR_FORCED             (1<<30)
+#define RME_X64_HFSR_FORCED             (1<<30)
 /* Vector table read fault has occurred */
-#define RME_CMX_HFSR_VECTTBL            (1<<1)
+#define RME_X64_HFSR_VECTTBL            (1<<1)
 /* Divide by zero */
-#define RME_CMX_UFSR_DIVBYZERO          (1<<25)
+#define RME_X64_UFSR_DIVBYZERO          (1<<25)
 /* Unaligned load/store access */
-#define RME_CMX_UFSR_UNALIGNED          (1<<24)
+#define RME_X64_UFSR_UNALIGNED          (1<<24)
 /* No such coprocessor */
-#define RME_CMX_UFSR_NOCP               (1<<19)
+#define RME_X64_UFSR_NOCP               (1<<19)
 /* Invalid vector return LR or PC value */
-#define RME_CMX_UFSR_INVPC              (1<<18)
+#define RME_X64_UFSR_INVPC              (1<<18)
 /* Invalid IT instruction or related instructions */
-#define RME_CMX_UFSR_INVSTATE           (1<<17)
+#define RME_X64_UFSR_INVSTATE           (1<<17)
 /* Invalid IT instruction or related instructions */
-#define RME_CMX_UFSR_UNDEFINSTR         (1<<16)
+#define RME_X64_UFSR_UNDEFINSTR         (1<<16)
 /* The Bus Fault Address Register is valid */
-#define RME_CMX_BFSR_BFARVALID          (1<<15)
+#define RME_X64_BFSR_BFARVALID          (1<<15)
 /* The bus fault happened during FP lazy stacking */
-#define RME_CMX_BFSR_LSPERR             (1<<13)
+#define RME_X64_BFSR_LSPERR             (1<<13)
 /* A derived bus fault has occurred on exception entry */
-#define RME_CMX_BFSR_STKERR             (1<<12)
+#define RME_X64_BFSR_STKERR             (1<<12)
 /* A derived bus fault has occurred on exception return */
-#define RME_CMX_BFSR_UNSTKERR           (1<<11)
+#define RME_X64_BFSR_UNSTKERR           (1<<11)
 /* Imprecise data access error has occurred */
-#define RME_CMX_BFSR_IMPRECISERR        (1<<10)
+#define RME_X64_BFSR_IMPRECISERR        (1<<10)
 /* A precise data access error has occurred, and the processor 
  * has written the faulting address to the BFAR */
-#define RME_CMX_BFSR_PRECISERR          (1<<9)
+#define RME_X64_BFSR_PRECISERR          (1<<9)
 /* A bus fault on an instruction prefetch has occurred. The 
  * fault is signaled only if the instruction is issued */
-#define RME_CMX_BFSR_IBUSERR            (1<<8)
+#define RME_X64_BFSR_IBUSERR            (1<<8)
 /* The Memory Mnagement Fault Address Register have valid contents */
-#define RME_CMX_MFSR_MMARVALID          (1<<7)
+#define RME_X64_MFSR_MMARVALID          (1<<7)
 /* A MemManage fault occurred during FP lazy state preservation */
-#define RME_CMX_MFSR_MLSPERR            (1<<5)
+#define RME_X64_MFSR_MLSPERR            (1<<5)
 /* A derived MemManage fault occurred on exception entry */
-#define RME_CMX_MFSR_MSTKERR            (1<<4)
+#define RME_X64_MFSR_MSTKERR            (1<<4)
 /* A derived MemManage fault occurred on exception return */
-#define RME_CMX_MFSR_MUNSTKERR          (1<<3)
+#define RME_X64_MFSR_MUNSTKERR          (1<<3)
 /* Data access violation. The MMFAR shows the data address that
  * the load or store tried to access */
-#define RME_CMX_MFSR_DACCVIOL           (1<<1)
+#define RME_X64_MFSR_DACCVIOL           (1<<1)
 /* MPU or Execute Never (XN) default memory map access violation on an
  * instruction fetch has occurred. The fault is signalled only if the
  * instruction is issued */
-#define RME_CMX_MFSR_IACCVIOL           (1<<0)
+#define RME_X64_MFSR_IACCVIOL           (1<<0)
 
 /* These faults cannot be recovered and will lead to termination immediately */
-#define RME_CMX_FAULT_FATAL             (RME_CMX_UFSR_DIVBYZERO|RME_CMX_UFSR_UNALIGNED| \
-                                         RME_CMX_UFSR_NOCP|RME_CMX_UFSR_INVPC| \
-                                         RME_CMX_UFSR_INVSTATE|RME_CMX_UFSR_UNDEFINSTR| \
-                                         RME_CMX_BFSR_LSPERR|RME_CMX_BFSR_STKERR| \
-                                         RME_CMX_BFSR_UNSTKERR|RME_CMX_BFSR_IMPRECISERR| \
-                                         RME_CMX_BFSR_PRECISERR|RME_CMX_BFSR_IBUSERR)
+#define RME_X64_FAULT_FATAL             (RME_X64_UFSR_DIVBYZERO|RME_X64_UFSR_UNALIGNED| \
+                                         RME_X64_UFSR_NOCP|RME_X64_UFSR_INVPC| \
+                                         RME_X64_UFSR_INVSTATE|RME_X64_UFSR_UNDEFINSTR| \
+                                         RME_X64_BFSR_LSPERR|RME_X64_BFSR_STKERR| \
+                                         RME_X64_BFSR_UNSTKERR|RME_X64_BFSR_IMPRECISERR| \
+                                         RME_X64_BFSR_PRECISERR|RME_X64_BFSR_IBUSERR)
 /*****************************************************************************/
-/* __PLATFORM_CMX_H_DEFS__ */
+/* __PLATFORM_X64_H_DEFS__ */
 #endif
 /* __HDR_DEFS__ */
 #endif
@@ -295,95 +297,136 @@ typedef s32 ret_t;
 
 /* Structs *******************************************************************/
 #ifdef __HDR_STRUCTS__
-#ifndef __PLATFORM_CMX_H_STRUCTS__
-#define __PLATFORM_CMX_H_STRUCTS__
+#ifndef __PLATFORM_X64_H_STRUCTS__
+#define __PLATFORM_X64_H_STRUCTS__
 /* We used structs in the header */
 
 /* Use defines in these headers */
 #define __HDR_DEFS__
 #undef __HDR_DEFS__
 /*****************************************************************************/
-/* The register set struct - R0-R3, R12, PC, LR, xPSR is automatically pushed.
- * Here we need LR to decide EXC_RETURN, that's why it is here */
+/* The 6 registers that are used to pass arguments are RDI, RSI, RDX, RCX, R8, R9.
+ * Note that this is different from Micro$oft: M$ use RCX, RDX, R8, R9. The return
+ * value is always located at RAX. /
 struct RME_Reg_Struct
 {
-    ptr_t SP;
-    ptr_t R4;
-    ptr_t R5;
-    ptr_t R6;
-    ptr_t R7;
+    ptr_t RAX;
+    ptr_t RBX;
+    ptr_t RCX;
+    ptr_t RDX;
+    ptr_t RSI;
+    ptr_t RDI;
+    ptr_t RBP;
+    ptr_t RSP;
     ptr_t R8;
     ptr_t R9;
     ptr_t R10;
     ptr_t R11;
-    ptr_t LR;
+    ptr_t R12;
+    ptr_t R13;
+    ptr_t R14;
+    ptr_t R15;
+    ptr_t RFLAGS;
 };
 
-/* The coprocessor register set structure. In Cortex-M, if there is a 
- * single-precision FPU, then the FPU S0-S15 is automatically pushed */
+/* The coprocessor register set structure. MMX and SSE */
 struct RME_Cop_Struct
 {
-    ptr_t S16;
-    ptr_t S17;
-    ptr_t S18;
-    ptr_t S19;
-    ptr_t S20;
-    ptr_t S21;
-    ptr_t S22;
-    ptr_t S23;
-    ptr_t S24;
-    ptr_t S25;
-    ptr_t S26;
-    ptr_t S27;
-    ptr_t S28;
-    ptr_t S29;
-    ptr_t S30;
-    ptr_t S31;
-};
-
-struct __RME_CMX_MPU_Entry
-{
-    ptr_t MPU_RBAR;
-    ptr_t MPU_RASR;
-};
-
-struct __RME_CMX_Pgtbl_Meta
-{
-    /* The MPU setting is always in the top level. This is a pointer to the top level */
-    ptr_t Toplevel;
-    /* The start mapping address of this page table */
-    ptr_t Start_Addr;
-    /* The size/num order of this level */
-    ptr_t Size_Num_Order;
-    /* The child directory/page number in this level */
-    ptr_t Dir_Page_Count;
-    /* The page flags at this level. If any pages are mapped in, it must conform
-     * to the same attributes as the older pages */
-    ptr_t Page_Flags;
-};
-
-struct __RME_CMX_MPU_Data
-{
-    /* [31:16] Static [15:0] Present */
-    ptr_t State;
-    struct __RME_CMX_MPU_Entry Data[8];
+	/* MMX registers first */
+	ptr_t FPR_MMX0[2];
+	ptr_t FPR_MMX1[2];
+	ptr_t FPR_MMX2[2];
+	ptr_t FPR_MMX3[2];
+	ptr_t FPR_MMX4[2];
+	ptr_t FPR_MMX5[2];
+	ptr_t FPR_MMX6[2];
+	ptr_t FPR_MMX7[2];
+	/* SSE registers follow */
+#if(RME_X64_AVX==RME_FALSE)
+	ptr_t XMM0[2];
+	ptr_t XMM1[2];
+	ptr_t XMM2[2];
+	ptr_t XMM3[2];
+	ptr_t XMM4[2];
+	ptr_t XMM5[2];
+	ptr_t XMM6[2];
+	ptr_t XMM7[2];
+	ptr_t XMM8[2];
+	ptr_t XMM9[2];
+	ptr_t XMM10[2];
+	ptr_t XMM11[2];
+	ptr_t XMM12[2];
+	ptr_t XMM13[2];
+	ptr_t XMM14[2];
+	ptr_t XMM15[2];
+#elif(RME_X64_AVX==RME_AVX)
+	ptr_t XYMM0[4];
+	ptr_t XYMM1[4];
+	ptr_t XYMM2[4];
+	ptr_t XYMM3[4];
+	ptr_t XYMM4[4];
+	ptr_t XYMM5[4];
+	ptr_t XYMM6[4];
+	ptr_t XYMM7[4];
+	ptr_t XYMM8[4];
+	ptr_t XYMM9[4];
+	ptr_t XYMM10[4];
+	ptr_t XYMM11[4];
+	ptr_t XYMM12[4];
+	ptr_t XYMM13[4];
+	ptr_t XYMM14[4];
+	ptr_t XYMM15[4];
+#elif(RME_X64_AVX==RME_AVX512)
+	ptr_t XYZMM0[8];
+	ptr_t XYZMM1[8];
+	ptr_t XYZMM2[8];
+	ptr_t XYZMM3[8];
+	ptr_t XYZMM4[8];
+	ptr_t XYZMM5[8];
+	ptr_t XYZMM6[8];
+	ptr_t XYZMM7[8];
+	ptr_t XYZMM8[8];
+	ptr_t XYZMM9[8];
+	ptr_t XYZMM10[8];
+	ptr_t XYZMM11[8];
+	ptr_t XYZMM12[8];
+	ptr_t XYZMM13[8];
+	ptr_t XYZMM14[8];
+	ptr_t XYZMM15[8];
+	ptr_t XYZMM16[8];
+	ptr_t XYZMM17[8];
+	ptr_t XYZMM18[8];
+	ptr_t XYZMM19[8];
+	ptr_t XYZMM20[8];
+	ptr_t XYZMM21[8];
+	ptr_t XYZMM22[8];
+	ptr_t XYZMM23[8];
+	ptr_t XYZMM24[8];
+	ptr_t XYZMM25[8];
+	ptr_t XYZMM26[8];
+	ptr_t XYZMM27[8];
+	ptr_t XYZMM28[8];
+	ptr_t XYZMM29[8];
+	ptr_t XYZMM30[8];
+	ptr_t XYZMM31[8];
+#endif
 };
 
 /* Interrupt flags - this type of flags will only appear on MPU-based systems */
-struct __RME_CMX_Flag_Set
+struct __RME_X64_Flag_Set
 {
     ptr_t Lock;
     ptr_t Group;
     ptr_t Flags[32];
 };
 
-struct __RME_CMX_Flags
+struct __RME_X64_Flags
 {
-    struct __RME_CMX_Flag_Set Set0;
-    struct __RME_CMX_Flag_Set Set1;
+    struct __RME_X64_Flag_Set Set0;
+    struct __RME_X64_Flag_Set Set1;
 };
 /*****************************************************************************/
-/* __PLATFORM_CMX_H_STRUCTS__ */
+/* __PLATFORM_X64_H_STRUCTS__ */
 #endif
 /* __HDR_STRUCTS__ */
 #endif
@@ -391,8 +434,8 @@ struct __RME_CMX_Flags
 
 /* Private Global Variables **************************************************/
 #if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __PLATFORM_CMX_MEMBERS__
-#define __PLATFORM_CMX_MEMBERS__
+#ifndef __PLATFORM_X64_MEMBERS__
+#define __PLATFORM_X64_MEMBERS__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEFS__
@@ -413,12 +456,13 @@ struct __RME_CMX_Flags
 /* Private C Function Prototypes *********************************************/ 
 /*****************************************************************************/
 static ptr_t ___RME_Pgtbl_MPU_Gen_RASR(ptr_t* Table, ptr_t Flags, ptr_t Entry_Size_Order);
-static ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_CMX_MPU_Data* Top_MPU, 
+static ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_X64_MPU_Data* Top_MPU,
                                     ptr_t Start_Addr, ptr_t Size_Order);
-static ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_CMX_MPU_Data* Top_MPU, 
+static ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_X64_MPU_Data* Top_MPU,
                                   ptr_t Start_Addr, ptr_t Size_Order,
                                   ptr_t MPU_RASR, ptr_t Static_Flag);
-static ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_CMX_Pgtbl_Meta* Meta, ptr_t Op_Flag);
+
+static ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_X64_Pgtbl_Meta* Meta, ptr_t Op_Flag);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -441,7 +485,7 @@ static ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_CMX_Pgtbl_Meta* Meta, ptr_t Op
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
-EXTERN void __RME_CMX_WFI(void);
+EXTERN void __RME_X64_WFI(void);
 /* Atomics */
 __EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
 __EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);
@@ -451,8 +495,8 @@ EXTERN ptr_t __RME_MSB_Get(ptr_t Val);
 /* Debugging */
 __EXTERN__ ptr_t __RME_Putchar(char Char);
 /* Coprocessor */
-EXTERN void ___RME_CMX_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
-EXTERN void ___RME_CMX_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
+EXTERN void ___RME_X64_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
+EXTERN void ___RME_X64_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(ptr_t Stack);
 EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr);
@@ -480,11 +524,11 @@ __EXTERN__ ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg)
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
                                          ptr_t Param1, ptr_t Param2);
 /* Fault handler */
-__EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num);
+__EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num);
 /* Page table operations */
-EXTERN void ___RME_CMX_MPU_Set(ptr_t MPU_Meta);
+EXTERN void ___RME_X64_MPU_Set(ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(ptr_t Pgtbl);
 __EXTERN__ ptr_t __RME_Pgtbl_Kmem_Init(void);
 __EXTERN__ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order);
@@ -501,7 +545,7 @@ __EXTERN__ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, p
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __PLATFORM_CMX_MEMBERS__ */
+/* __PLATFORM_X64_MEMBERS__ */
 #endif
 /* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
 #endif
