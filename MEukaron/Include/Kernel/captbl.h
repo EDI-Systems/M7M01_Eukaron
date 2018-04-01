@@ -31,7 +31,7 @@ Description : The header of type table.
 #define RME_CAP_SIG                 8
 
 /* This capability is currently freezed, and new operations cannot be initiated on it */
-#define RME_CAP_FROZEN              (1<<((sizeof(ptr_t)*6)-1))
+#define RME_CAP_FROZEN              (((ptr_t)1)<<((sizeof(ptr_t)*6)-1))
 
 /* Capability size macro */
 #define RME_CAP_SIZE                (8*sizeof(ptr_t))
@@ -51,7 +51,7 @@ Description : The header of type table.
  */
 #define RME_CAP_REF_MASK           (RME_MASK_END((sizeof(ptr_t)*6)-2))
 #define RME_CAP_MAXREF             (RME_CAP_REF_MASK>>1)
-#define RME_CAP_TYPEREF(TYPE,REF)  (((TYPE)<<(sizeof(ptr_t)*6))|(REF))
+#define RME_CAP_TYPEREF(TYPE,REF)  ((((ptr_t)(TYPE))<<(sizeof(ptr_t)*6))|(REF))
 #define RME_CAP_TYPE(X)            ((X)>>(sizeof(ptr_t)*6))
 #define RME_CAP_REF(X)             ((X)&RME_CAP_REF_MASK)
 /* Is this cap quiescent? Yes-1, No-0 */

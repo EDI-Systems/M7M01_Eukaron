@@ -1218,6 +1218,8 @@ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
     if(((Table[Pos]&RME_CMX_PGTBL_PRESENT)==0)||((Table[Pos]&RME_CMX_PGTBL_TERMINAL)!=0))
         return RME_ERR_PGT_OPFAIL;
     
+    Src_Meta=(struct __RME_CMX_Pgtbl_Meta*)RME_CMX_PGTBL_PGD_ADDR(Table[Pos]);
+
     /* Check if the directory still have child directories */
     if(RME_CMX_PGTBL_DIRNUM(Src_Meta->Dir_Page_Count)!=0)
         return RME_ERR_PGT_OPFAIL;

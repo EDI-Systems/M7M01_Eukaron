@@ -160,8 +160,10 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Pgtbl* Pgtbl_Child;
     /* The total size order of the child table */
     ptr_t Child_Size_Ord;
+#if(RME_VA_EQU_PA==RME_TRUE)
     /* The start mapping address in the parent */
     ptr_t Parent_Map_Addr;
+#endif
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent);
@@ -553,8 +555,10 @@ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Pgtbl* Pgtbl_Child;
     /* The total size order of the child table */
     ptr_t Child_Size_Ord;
+#if(RME_VA_EQU_PA==RME_TRUE)
     /* The start mapping address in the parent */
     ptr_t Parent_Map_Addr;
+#endif
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent);
