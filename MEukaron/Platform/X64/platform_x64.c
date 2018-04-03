@@ -100,10 +100,210 @@ Return      : ptr_t - Always 0.
 ******************************************************************************/
 ptr_t __RME_Putchar(char Char)
 {
-    RME_X64_PUTCHAR(Char);
+	volatile cnt_t Count;
+
+	if(RME_X64_UART_Present==0)
+		return 0;
+
+	/* Figure out what is this for */
+	for(Count=0;(Count<65535)&&((__RME_X64_In(RME_X64_COM1+5)&0x20)==0);Count++);
+
+	__RME_X64_Out(RME_X64_COM1, Char);
+
     return 0;
 }
 /* End Function:__RME_Putchar ************************************************/
+
+void __RME_X64_UART_Init(void)
+{
+	// Turn off the FIFO
+	__RME_X64_Out(RME_X64_COM1+2, 0);
+
+	// 9600 baud, 8 data bits, 1 stop bit, parity off.
+	__RME_X64_Out(RME_X64_COM1+3, 0x80);    // Unlock divisor
+	__RME_X64_Out(RME_X64_COM1+0, 115200/9600);
+	__RME_X64_Out(RME_X64_COM1+1, 0);
+	__RME_X64_Out(RME_X64_COM1+3, 0x03);    // Lock divisor, 8 data bits.
+	__RME_X64_Out(RME_X64_COM1+4, 0);
+
+    // If status is 0xFF, no serial port.
+    if(__RME_X64_In(RME_X64_COM1+5)==0xFF)
+    	RME_X64_UART_Present=0;
+    else
+    	RME_X64_UART_Present=1;
+}
+
+// 5.2.5.3
+#define SIG_RDSP "RSD PTR "
+struct acpi_rdsp {
+  uchar signature[8];
+  uchar checksum;
+  uchar oem_id[6];
+  uchar revision;
+  uint32 rsdt_addr_phys;
+  uint32 length;
+  uint64 xsdt_addr_phys;
+  uchar xchecksum;
+  uchar reserved[3];
+} __attribute__((__packed__));
+
+// 5.2.6
+struct acpi_desc_header {
+  uchar signature[4];
+  uint32 length;
+  uchar revision;
+  uchar checksum;
+  uchar oem_id[6];
+  uchar oem_tableid[8];
+  uint32 oem_revision;
+  uchar creator_id[4];
+  uint32 creator_revision;
+} __attribute__((__packed__));
+
+// 5.2.7
+struct acpi_rsdt {
+  struct acpi_desc_header header;
+  uint32 entry[0];
+} __attribute__((__packed__));
+
+#define TYPE_LAPIC 0
+#define TYPE_IOAPIC 1
+#define TYPE_INT_SRC_OVERRIDE 2
+#define TYPE_NMI_INT_SRC 3
+#define TYPE_LAPIC_NMI 4
+
+// 5.2.12 Multiple APIC Description Table
+#define SIG_MADT "APIC"
+struct acpi_madt {
+  struct acpi_desc_header header;
+  uint32 lapic_addr_phys;
+  uint32 flags;
+  uchar table[0];
+} __attribute__((__packed__));
+
+// 5.2.12.2
+#define APIC_LAPIC_ENABLED 1
+struct madt_lapic {
+  uchar type;
+  uchar length;
+  uchar acpi_id;
+  uchar apic_id;
+  uint32 flags;
+} __attribute__((__packed__));
+
+// 5.2.12.3
+struct madt_ioapic {
+  uchar type;
+  uchar length;
+  uchar id;
+  uchar reserved;
+  uint32 addr;
+  uint32 interrupt_base;
+} __attribute__((__packed__));
+
+#if X64
+#define PHYSLIMIT 0x80000000
+#else
+#define PHYSLIMIT 0x0E000000
+#endif
+
+int acpiinit(void) {
+  unsigned n, count;
+  struct acpi_rdsp *rdsp;
+  struct acpi_rsdt *rsdt;
+  struct acpi_madt *madt = 0;
+
+  rdsp = find_rdsp();
+  if (rdsp->rsdt_addr_phys > PHYSLIMIT)
+    goto notmapped;
+  rsdt = p2v(rdsp->rsdt_addr_phys);
+  count = (rsdt->header.length - sizeof(*rsdt)) / 4;
+  for (n = 0; n < count; n++) {
+    struct acpi_desc_header *hdr = p2v(rsdt->entry[n]);
+    if (rsdt->entry[n] > PHYSLIMIT)
+      goto notmapped;
+#if DEBUG
+    uchar sig[5], id[7], tableid[9], creator[5];
+    memmove(sig, hdr->signature, 4); sig[4] = 0;
+    memmove(id, hdr->oem_id, 6); id[6] = 0;
+    memmove(tableid, hdr->oem_tableid, 8); tableid[8] = 0;
+    memmove(creator, hdr->creator_id, 4); creator[4] = 0;
+    cprintf("acpi: %s %s %s %x %s %x\n",
+      sig, id, tableid, hdr->oem_revision,
+      creator, hdr->creator_revision);
+#endif
+    if (!memcmp(hdr->signature, SIG_MADT, 4))
+      madt = (void*) hdr;
+  }
+
+  return acpi_config_smp(madt);
+
+notmapped:
+  cprintf("acpi: tables above 0x%x not mapped.\n", PHYSLIMIT);
+  return -1;
+}
+
+static int acpi_config_smp(struct acpi_madt *madt) {
+  uint32 lapic_addr;
+  uint nioapic = 0;
+  uchar *p, *e;
+
+  if (!madt)
+    return -1;
+  if (madt->header.length < sizeof(struct acpi_madt))
+    return -1;
+
+  lapic_addr = madt->lapic_addr_phys;
+
+  p = madt->table;
+  e = p + madt->header.length - sizeof(struct acpi_madt);
+
+  while (p < e) {
+    uint len;
+    if ((e - p) < 2)
+      break;
+    len = p[1];
+    if ((e - p) < len)
+      break;
+    switch (p[0]) {
+    case TYPE_LAPIC: {
+      struct madt_lapic *lapic = (void*) p;
+      if (len < sizeof(*lapic))
+        break;
+      if (!(lapic->flags & APIC_LAPIC_ENABLED))
+        break;
+      cprintf("acpi: cpu#%d apicid %d\n", ncpu, lapic->apic_id);
+      cpus[ncpu].id = ncpu;
+      cpus[ncpu].apicid = lapic->apic_id;
+      ncpu++;
+      break;
+    }
+    case TYPE_IOAPIC: {
+      struct madt_ioapic *ioapic = (void*) p;
+      if (len < sizeof(*ioapic))
+        break;
+      cprintf("acpi: ioapic#%d @%x id=%d base=%d\n",
+        nioapic, ioapic->addr, ioapic->id, ioapic->interrupt_base);
+      if (nioapic) {
+        cprintf("warning: multiple ioapics are not supported");
+      } else {
+        ioapicid = ioapic->id;
+      }
+      nioapic++;
+      break;
+    }
+    }
+    p += len;
+  }
+
+  if (ncpu) {
+    ismp = 1;
+    lapic = IO2V(((uintp)lapic_addr));
+    return 0;
+  }
+
+  return -1;
+}
 
 /* Begin Function:__RME_Low_Level_Init ****************************************
 Description : Initialize the low-level hardware. Currently this function works on
@@ -114,6 +314,29 @@ Return      : ptr_t - Always 0.
 ******************************************************************************/
 ptr_t __RME_Low_Level_Init(void)
 {
+	/* We are here now ! */
+	__RME_X64_UART_Init();
+	/* Serial init seems to be good */
+	RME_Print_String("nice job here");
+
+	/* Need some stuff to finish their */
+
+	/* Read APIC tables and see what's there, detect the configurations. Now we are not NUMA-aware. See what's the output? */
+
+	/* Initialize the memory stuff, as the configuration shows */
+
+	/* Initialize all other non per-CPU data structures */
+
+	/* Initialize all vector tables */
+
+	/* Initialize PIC,LAPIC,IOAPIC - there's no uniprocessor systems anymore */
+
+	/* Initialize the timer and start its interrupt routing */
+
+	/* Send IPI, and then other processors follow up, by creating their own kernel objects
+	 * simutaneously so we boot up in parallel */
+
+	/* Boot is finished */
 
     return 0;
 }
