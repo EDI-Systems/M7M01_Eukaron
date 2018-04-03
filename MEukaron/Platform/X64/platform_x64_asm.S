@@ -33,7 +33,12 @@ Stack_Addr:     .fill    0x100
                 /* Kernel main function wrapper */
                 .global         _RME_Kmain
                 /* Entering of the user mode */
-                .global        __RME_Enter_User_Mode
+                .global         __RME_Enter_User_Mode
+                /* X64 specific stuff */
+                /* Input from a port */
+                .global         __RME_X64_In
+                /* Output to a port */
+                .global         __RME_X64_Out
 /* End Exports ***************************************************************/
 
 /* Begin Imports *************************************************************/
@@ -202,6 +207,44 @@ wrmsr:
 
 /* End Handlers **************************************************************/
 
+/* Begin Function:__RME_X64_In ************************************************
+Description    : The function for outputting something to an I/O port.
+Input          : ptr_t Port - The port to output to.
+                 ptr_t Data - The data to send to that port.
+Output         : None.
+Return         : None.
+Register Usage : None.
+******************************************************************************/
+__RME_X64_In:
+                 PUSH            %RDX
+                 PUSH            %RAX
+                 MOV             %RDI,%RDX
+                 MOV             %RSI,%RAX
+                 INB             (%DX),%AL
+                 POP             %RDX
+                 POP             %RAX
+                 RET
+/* End Function:__RME_X64_In *************************************************/
+
+/* Begin Function:__RME_X64_Out ***********************************************
+Description    : The function for outputting something to an I/O port.
+Input          : ptr_t Port - The port to output to.
+                 ptr_t Data - The data to send to that port.
+Output         : None.
+Return         : None.
+Register Usage : None.
+******************************************************************************/
+__RME_X64_Out:
+                 PUSH            %RDX
+                 PUSH            %RAX
+                 MOV             %RDI,%RDX
+                 MOV             %RSI,%RAX
+                 OUTB            %AL,(%DX)
+                 POP             %RDX
+                 POP             %RAX
+                 RET
+/* End Function:__RME_X64_Out ************************************************/
+
 /* Begin Function:__RME_Disable_Int *******************************************
 Description    : The function for disabling all interrupts.
 Input          : None.
@@ -209,7 +252,6 @@ Output         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_Disable_Int:
-                JMP  .
                 /* Disable all interrupts (I is primask, F is faultmask.) */
                 RET
 /* End Function:__RME_Disable_Int ********************************************/
@@ -244,8 +286,7 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 _RME_Kmain:
-                 MOV      %RCX,%RSP
-                 JMP .
+                 MOV      %RDI,%RSP
                  JMP      RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 

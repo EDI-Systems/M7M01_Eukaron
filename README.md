@@ -208,5 +208,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 
 &ensp;&ensp;&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
+&ensp;&ensp;&ensp;&ensp;We wish to thank the developers of [Composite](https://github.com/gwsystems/composite) system which is developed at George Washington University, and we also wish to thank the developers of [Fiasco.OC](https://os.inf.tu-dresden.de/fiasco) system which is developed at TU Dresden. 
+
 ## EDI Project Information
 &ensp;&ensp;&ensp;&ensp;Mutate - Mesazoa - Eukaron (M7M1 R3T1)

@@ -288,6 +288,9 @@ typedef s64 ret_t;
                                          RME_X64_BFSR_LSPERR|RME_X64_BFSR_STKERR| \
                                          RME_X64_BFSR_UNSTKERR|RME_X64_BFSR_IMPRECISERR| \
                                          RME_X64_BFSR_PRECISERR|RME_X64_BFSR_IBUSERR)
+
+/* Hardware definitions */
+#define RME_X64_COM1                    0x3F8
 /*****************************************************************************/
 /* __PLATFORM_X64_H_DEFS__ */
 #endif
@@ -307,7 +310,7 @@ typedef s64 ret_t;
 /*****************************************************************************/
 /* The 6 registers that are used to pass arguments are RDI, RSI, RDX, RCX, R8, R9.
  * Note that this is different from Micro$oft: M$ use RCX, RDX, R8, R9. The return
- * value is always located at RAX. /
+ * value is always located at RAX. */
 struct RME_Reg_Struct
 {
     ptr_t RAX;
@@ -449,7 +452,7 @@ struct __RME_X64_Flags
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
-
+static ptr_t RME_X64_UART_Present;
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -542,6 +545,10 @@ __EXTERN__ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t P
 __EXTERN__ ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos, ptr_t* Paddr, ptr_t* Flags);
 __EXTERN__ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl,
                                   ptr_t* Map_Vaddr, ptr_t* Paddr, ptr_t* Size_Order, ptr_t* Num_Order, ptr_t* Flags);
+
+/* X64 specific */
+EXTERN ptr_t __RME_X64_In(ptr_t Port);
+EXTERN void __RME_X64_Out(ptr_t Port, ptr_t Data);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
