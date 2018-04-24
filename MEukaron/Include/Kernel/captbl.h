@@ -367,7 +367,9 @@ struct RME_Cap_Captbl
 
 /* Public C Function Prototypes **********************************************/
 /*****************************************************************************/
-__EXTERN__ ret_t _RME_Captbl_Boot_Crt(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num);
+__EXTERN__ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num);
+__EXTERN__ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
+                                      cid_t Cap_Crt, ptr_t Vaddr, ptr_t Entry_Num);
 __EXTERN__ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, 
                                  cid_t Cap_Kmem, cid_t Cap_Crt, ptr_t Vaddr, ptr_t Entry_Num);
 __EXTERN__ ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Del, cid_t Cap_Del);

@@ -188,7 +188,7 @@ ptr_t __RME_Boot(void)
     Cur_Addr=RME_KMEM_VA_START;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_BOOT_CAPTBL,Cur_Addr,18)==0);
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,18)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(18));
     
     /* Create the page table for the init process, and map in the page alloted for it */
@@ -213,7 +213,13 @@ ptr_t __RME_Boot(void)
     
     /* Create the initial kernel function capability, and kernel memory capability */
     RME_ASSERT(_RME_Kern_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
-    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KMEM)==0);
+    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_CMX_CPT, 
+                                  RME_BOOT_CAPTBL, 
+                                  RME_BOOT_INIT_KMEM,
+                                  RME_KMEM_VA_START,
+                                  RME_KMEM_VA_START+RME_KMEM_SIZE-1,
+                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC|
+                                  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_Tick_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
@@ -899,7 +905,7 @@ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num)
 
 /* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
-              top-level page tables. In STM32, we do not need to add such pages.
+              top-level page tables. In Cortex-M, we do not need to add such pages.
 Input       : None.
 Output      : None.
 Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.

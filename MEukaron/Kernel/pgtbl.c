@@ -578,10 +578,11 @@ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     /* See if the child table falls within one slot of the parent table */
     Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
                    RME_PGTBL_SIZEORD(Pgtbl_Child->Size_Num_Order);
+
+#if(RME_VA_EQU_PA==RME_TRUE)
+    /* Path-compression option available */
     if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
         return RME_ERR_PGT_ADDR;
-    
-#if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
                     RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
@@ -589,6 +590,10 @@ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
         return RME_ERR_PGT_ADDR;
     if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>
        (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
+        return RME_ERR_PGT_ADDR;
+#else
+    /* If this is the case, then we force no path compression */
+    if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)!=Child_Size_Ord)
         return RME_ERR_PGT_ADDR;
 #endif
     /* Actually do the mapping - This work is passed down to the driver layer. 

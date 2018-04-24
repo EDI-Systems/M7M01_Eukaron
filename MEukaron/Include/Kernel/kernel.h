@@ -125,15 +125,15 @@ do \
 { \
     if((X)==0) \
     { \
-        RME_PRINTK_S("\r\n***\r\nKernel panic - not syncing:\r\n"); \
-        RME_PRINTK_S(__FILE__); \
-        RME_PRINTK_S(" , Line "); \
+        RME_PRINTK_S((s8*)"\r\n***\r\nKernel panic - not syncing:\r\n"); \
+        RME_PRINTK_S((s8*)__FILE__); \
+        RME_PRINTK_S((s8*)" , Line "); \
         RME_PRINTK_I(__LINE__); \
-        RME_PRINTK_S("\r\n"); \
-        RME_PRINTK_S(__DATE__); \
-        RME_PRINTK_S(" , "); \
-        RME_PRINTK_S(__TIME__); \
-        RME_PRINTK_S("\r\n"); \
+        RME_PRINTK_S((s8*)"\r\n"); \
+        RME_PRINTK_S((s8*)__DATE__); \
+        RME_PRINTK_S((s8*)" , "); \
+        RME_PRINTK_S((s8*)__TIME__); \
+        RME_PRINTK_S((s8*)"\r\n"); \
         while(1); \
     } \
 } \
@@ -237,14 +237,17 @@ __EXTERN__ struct RME_Sig_Struct* RME_Int_Sig[RME_CPU_NUM];
 __EXTERN__ ret_t RME_Kmain(void);
 /* Increase counter */
 __EXTERN__ ptr_t _RME_Timestamp_Inc(cnt_t Value);
-/* Clear memory */
+/* Memory helpers */
 __EXTERN__ void _RME_Clear(void* Addr, ptr_t Size);
+__EXTERN__ ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, ptr_t Num);
+__EXTERN__ void _RME_Memcpy(void* Dst, void* Src, ptr_t Num);
 /* Kernel capability */
 __EXTERN__ ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kern);
 __EXTERN__ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                                cid_t Cap_Kern, ptr_t Func_ID, ptr_t Param1, ptr_t Param2);
 /* Kernel memory capability */
-__EXTERN__ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kmem);
+__EXTERN__ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
+                                    cid_t Cap_Kmem, ptr_t Start, ptr_t End, ptr_t Flags);
 /* System call handler */
 __EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
 /* Timer interrupt handler */

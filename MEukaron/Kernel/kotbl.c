@@ -29,18 +29,21 @@ Description : The kernel object table for the RME RTOS.
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
-/* Begin Function:_RME_Kotbl_Mark *********************************************
-Description : Populate the kernel object bitmap contiguously.
-Input       : None
+/* Begin Function:_RME_Kotbl_Init *********************************************
+Description : Initialize the kernel object table according to the size of the table.
+Input       : ptr_t Words - the number of words in the table.
 Output      : None.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t _RME_Kotbl_Init(void)
+ret_t _RME_Kotbl_Init(ptr_t Words)
 {
     ptr_t Count;
     
+    if(Words<RME_KOTBL_WORD_NUM)
+        return -1;
+    
     /* Zero out the whole table */
-    for(Count=0;Count<RME_KOTBL_WORD_NUM;Count++)
+    for(Count=0;Count<Words;Count++)
         RME_Kotbl[Count]=0;
     
     return 0;
@@ -73,9 +76,9 @@ ret_t _RME_Kotbl_Mark(ptr_t Kaddr, ptr_t Size)
     /* Check if the marking is well aligned */
     if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1))!=0)
         return RME_ERR_KOT_BMP;
-    /* Check if the marking is within range */
-    if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
-        return RME_ERR_KOT_BMP;
+    /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
+    /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
+        return RME_ERR_KOT_BMP; */
     
     /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;
@@ -179,9 +182,9 @@ ret_t _RME_Kotbl_Erase(ptr_t Kaddr, ptr_t Size)
     if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1))!=0)
         return RME_ERR_KOT_BMP;
     
-    /* Check if the marking is within range */
-    if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
-        return RME_ERR_KOT_BMP;
+    /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
+    /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
+        return RME_ERR_KOT_BMP; */
     
     /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;

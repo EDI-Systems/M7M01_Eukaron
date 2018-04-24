@@ -182,13 +182,19 @@ Description : The header of the RME RTOS. This header defines the error codes,
 
 /* Special Definitions *******************************************************/
 /* Generic page table flags */
+/* This page allows to be read */
 #define RME_PGTBL_READ               (1<<0)
+/* This page allows to be written */
 #define RME_PGTBL_WRITE              (1<<1)
+/* This page allows execution */
 #define RME_PGTBL_EXECUTE            (1<<2)
+/* This page is cacheable */
 #define RME_PGTBL_CACHEABLE          (1<<3)
+/* This page is bufferable (write-back can be used instead of write-through) */
 #define RME_PGTBL_BUFFERABLE         (1<<4)
+/* This page is pinned in TLB */
 #define RME_PGTBL_STATIC             (1<<5)
-
+/* All the permissions are set */
 #define RME_PGTBL_ALL_PERM           (RME_PGTBL_READ|RME_PGTBL_WRITE|RME_PGTBL_EXECUTE| \
                                       RME_PGTBL_CACHEABLE|RME_PGTBL_BUFFERABLE|RME_PGTBL_STATIC)
                                         
@@ -225,6 +231,44 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_SIZE_1G            (30)
 #define RME_PGTBL_SIZE_2G            (31)
 #define RME_PGTBL_SIZE_4G            (32)
+#define RME_PGTBL_SIZE_8G            (33)
+#define RME_PGTBL_SIZE_16G           (34)
+#define RME_PGTBL_SIZE_32G           (35)
+#define RME_PGTBL_SIZE_64G           (36)
+#define RME_PGTBL_SIZE_128G          (37)
+#define RME_PGTBL_SIZE_256G          (38)
+#define RME_PGTBL_SIZE_512G          (39)
+#define RME_PGTBL_SIZE_1T            (40)
+#define RME_PGTBL_SIZE_2T            (41)
+#define RME_PGTBL_SIZE_4T            (42)
+#define RME_PGTBL_SIZE_8T            (43)
+#define RME_PGTBL_SIZE_16T           (44)
+#define RME_PGTBL_SIZE_32T           (45)
+#define RME_PGTBL_SIZE_64T           (46)
+#define RME_PGTBL_SIZE_128T          (47)
+#define RME_PGTBL_SIZE_256T          (48)
+#define RME_PGTBL_SIZE_512T          (49)
+#define RME_PGTBL_SIZE_1P            (50)
+#define RME_PGTBL_SIZE_2P            (51)
+#define RME_PGTBL_SIZE_4P            (52)
+#define RME_PGTBL_SIZE_8P            (53)
+#define RME_PGTBL_SIZE_16P           (54)
+#define RME_PGTBL_SIZE_32P           (55)
+#define RME_PGTBL_SIZE_64P           (56)
+#define RME_PGTBL_SIZE_128P          (57)
+#define RME_PGTBL_SIZE_256P          (58)
+#define RME_PGTBL_SIZE_512P          (59)
+#define RME_PGTBL_SIZE_1E            (60)
+#define RME_PGTBL_SIZE_2E            (61)
+#define RME_PGTBL_SIZE_4E            (62)
+#define RME_PGTBL_SIZE_8E            (63)
+#define RME_PGTBL_SIZE_16E           (64)
+#define RME_PGTBL_SIZE_32E           (65)
+#define RME_PGTBL_SIZE_64E           (66)
+#define RME_PGTBL_SIZE_128E          (67)
+#define RME_PGTBL_SIZE_256E          (68)
+#define RME_PGTBL_SIZE_512E          (69)
+#define RME_PGTBL_SIZE_1Z            (70)
 
 /* Generic page table entry number definitions */
 #define RME_PGTBL_NUM_2             (1)

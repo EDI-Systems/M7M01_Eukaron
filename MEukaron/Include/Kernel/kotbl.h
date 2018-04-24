@@ -88,7 +88,7 @@ static ptr_t RME_Kotbl[RME_KOTBL_WORD_NUM];
 
 /* Public C Function Prototypes **********************************************/
 /*****************************************************************************/
-__EXTERN__ ret_t _RME_Kotbl_Init(void);
+__EXTERN__ ret_t _RME_Kotbl_Init(ptr_t Words);
 __EXTERN__ ret_t _RME_Kotbl_Mark(ptr_t Kaddr, ptr_t Size);
 __EXTERN__ ret_t _RME_Kotbl_Erase(ptr_t Kaddr, ptr_t Size);
 /*****************************************************************************/
