@@ -1,26 +1,29 @@
 /* Simple linker script for the JOS kernel.
    See the GNU ld 'info' manual ("info ld") to learn the syntax. */
 
+/* It seemed that we cannot directly link kernel to that address as it forces a custom gcc. So what's the plot? */
+
+/* Map kernel to 0xFFFFFFFF80000000, with all its text segments. the Kotbl starts from there too. */
 /* OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386") */
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(_start)
 
-mboot_load_addr = 0x00100000;
+__RME_X64_Mboot_Load_Addr = 0x00100000;
 
 SECTIONS
-{
+{   
 	/* Link the kernel at this address: "." means the current address */
-        /* Must be equal to KERNLINK */
-	. = 0xFFFFFFFF80100000; 
+    /* Must be equal to KERNLINK */
+	. = 0xFFFFFFFF80100000;
 
 	PROVIDE(begin = .);
 
-	.text : AT(mboot_load_addr) {
+	.text : AT(__RME_X64_Mboot_Load_Addr) {
 	    *platform_x64_asm.o(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
 		*(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
 	}
-
+	
 	PROVIDE(etext = .);	/* Define the 'etext' symbol to this value */
 
 	.rodata : {
@@ -46,21 +49,34 @@ SECTIONS
 	. = ALIGN(0x1000);
 
 	PROVIDE(edata = .);
+	
+    . = ALIGN(0x1000);
 
 	.bss : {
-		*(.bss)
+		*captbl.o(.bss)
+        *kernel.o(.bss)
+        *pgtbl.o(.bss)
+        *prcthd.o(.bss)
+        *siginv.o(.bss)
+        *platform_x64.o(.bss)
+        *platform_x64_asm.o(.bss)
 		*(COMMON)
 	}
 
-	. = ALIGN(0x1000);
-
 	PROVIDE(end = .);
+	
+    /* This mapping starts from 16MB, and includes all the kernel memory
+     * that should not be touched by grub. We init it when we run our kernel */
+	. = 0xFFFFFFFF81000000;
+    .noinit : {
+        *kotbl.o(.bss)
+    }
 
 	/DISCARD/ : {
 		*(.eh_frame .rela.eh_frame .note.GNU-stack)
 	}
 }
 
-mboot_load_end = mboot_load_addr + (edata - begin);
-mboot_bss_end = mboot_load_addr + (end - begin);
-mboot_entry_addr = mboot_load_addr + (Mboot_Entry - begin);
+__RME_X64_Mboot_Load_End = __RME_X64_Mboot_Load_Addr + (edata - begin);
+__RME_X64_Mboot_BSS_End = __RME_X64_Mboot_Load_Addr + (end - begin);
+__RME_X64_Mboot_Entry_Addr = __RME_X64_Mboot_Load_Addr + (__RME_X64_Mboot_Entry - begin);

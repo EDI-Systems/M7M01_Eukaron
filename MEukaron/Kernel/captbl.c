@@ -94,11 +94,10 @@ Use            Use            It is OK.
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
-/* Begin Function:_RME_Captbl_Boot_Crt ****************************************
-Description : Create a boot-time capability table. This will be the first capability
-              table created in the system. This function is guaranteed to be successful
-              because there is only one core doing the job, and is only used at system 
-              startup.
+/* Begin Function:_RME_Captbl_Boot_Init ***************************************
+Description : Create the first boot-time capability table. This will be the first
+              capability table created in the system. This function must be called
+              at system startup first before setting up any other kernel objects.
               This function does not ask for kernel memory capability.
 Input       : cid_t Cap_Captbl - The capability slot that you want this newly created
                                  capability table capability to be in. 1-Level.
@@ -106,14 +105,14 @@ Input       : cid_t Cap_Captbl - The capability slot that you want this newly cr
               ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Captbl_Boot_Crt(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
+ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
 {
     cnt_t Count;
     struct RME_Cap_Captbl* Captbl;
     
     /* See if the entry number is too big */
-    if(Entry_Num>RME_CAPID_2L)
-        return RME_ERR_CAP_RANGE;
+    if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
+            return RME_ERR_CAP_RANGE;
     
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
@@ -137,22 +136,21 @@ ret_t _RME_Captbl_Boot_Crt(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
     
     return Cap_Captbl;
 }
-/* End Function:_RME_Captbl_Boot_Crt *****************************************/
+/* End Function:_RME_Captbl_Boot_Init ****************************************/
 
-/* Begin Function:_RME_Captbl_Crt *********************************************
-Description : Create a capability table at the memory segment designated. The table
-              must be located in a memory segment that is designated as kernel memory.
+/* Begin Function:_RME_Captbl_Boot_Crt *********************************************
+Description : Create a boot-time capability table at the memory segment designated.
+              This function does not ask for kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
                                      the cap to new captbl. 2-Level.
-              cid_t Cap_Kmem - The kernel memory capability. 2-Level.
               cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
               ptr_t Vaddr - The virtual address to store the capability table.
               ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, 
-                      cid_t Cap_Kmem, cid_t Cap_Crt, ptr_t Vaddr, ptr_t Entry_Num)
+ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
+                           cid_t Cap_Crt, ptr_t Vaddr, ptr_t Entry_Num)
 {
     cnt_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
@@ -160,17 +158,14 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     struct RME_Cap_Captbl* Captbl_Crt;
     ptr_t Type_Ref;
     
-    /* See if the entry number is too big, or the Cap_Crt is a 2-layered cap */
+    /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
         return RME_ERR_CAP_RANGE;
     
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
-    /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_CAPTBL,Vaddr,RME_CAPTBL_SIZE(Entry_Num));
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
@@ -198,6 +193,69 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* At last, write into slot the correct information, and clear the frozen bit */
     Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
     
+    return 0;
+}
+/* End Function:_RME_Captbl_Boot_Crt *****************************************/
+
+/* Begin Function:_RME_Captbl_Crt *********************************************
+Description : Create a capability table at the memory segment designated. The table
+              must be located in a memory segment that is designated as kernel memory.
+Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+              cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
+                                     the cap to new captbl. 2-Level.
+              cid_t Cap_Kmem - The kernel memory capability. 2-Level.
+              cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
+              ptr_t Vaddr - The virtual address to store the capability table.
+              ptr_t Entry_Num - The number of capabilities in the capability table.
+Return      : ret_t - If successful, 0; or an error code.
+******************************************************************************/
+ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
+                      cid_t Cap_Kmem, cid_t Cap_Crt, ptr_t Vaddr, ptr_t Entry_Num)
+{
+    cnt_t Count;
+    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Kmem* Kmem_Op;
+    struct RME_Cap_Captbl* Captbl_Crt;
+    ptr_t Type_Ref;
+
+    /* See if the entry number is too big */
+    if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
+        return RME_ERR_CAP_RANGE;
+
+    /* Get the cap location that we care about */
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op);
+    /* Check if the target captbl is not frozen and allows such operations */
+    RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
+    /* See if the creation is valid for this kmem range */
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_CAPTBL,Vaddr,RME_CAPTBL_SIZE(Entry_Num));
+
+    /* Get the cap slot */
+    RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
+    /* Take the slot if possible */
+    RME_CAPTBL_OCCUPY(Captbl_Crt,Type_Ref);
+    /* Try to mark this area as populated */
+    if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
+    {
+        /* Failure. Set the Type_Ref back to 0 and abort the creation process */
+        Captbl->Head.Type_Ref=0;
+        return RME_ERR_CAP_KOTBL;
+    }
+
+    /* Done. We start creation of the capability table. Clear header as well */
+    for(Count=0;Count<Entry_Num;Count++)
+        RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
+
+    /* Set the cap's parameters according to what we have just created */
+    Captbl_Crt->Head.Parent=0;
+    Captbl_Crt->Head.Object=Vaddr;
+    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ|
+                           RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
+                           RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
+    Captbl_Crt->Entry_Num=Entry_Num;
+    /* At last, write into slot the correct information, and clear the frozen bit */
+    Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
+
     return 0;
 }
 /* End Function:_RME_Captbl_Crt **********************************************/

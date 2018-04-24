@@ -7,14 +7,6 @@ Description: The configuration file for X64 supercomputer profile.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
-/* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START            0x20003000
-/* The size of the kernel object virtual memory */
-#define RME_KMEM_SIZE                0xD000
-/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_START             0x20020000
-/* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_SIZE                 0x60000
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KMEM_SLOT_ORDER          4
 /* The maximum number of preemption priority levels in the system.

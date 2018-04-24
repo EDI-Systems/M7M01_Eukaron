@@ -41,7 +41,8 @@ Description : The system call processing path, debugging primitives and kernel
 /* End Includes **************************************************************/
 
 /* Begin Function:_RME_Clear **************************************************
-Description : Memset a memory area to zero.
+Description : Memset a memory area to zero. This is not fast due to byte operations;
+              this is not meant for large memory.
 Input       : void* Addr - The address to clear.
               ptr_t Size - The size to clear.
 Output      : None.
@@ -49,28 +50,60 @@ Return      : None.
 ******************************************************************************/
 void _RME_Clear(void* Addr, ptr_t Size)
 {
-    ptr_t* Word_Inc;
-    u8* Byte_Inc;
-    ptr_t Words;
-    ptr_t Bytes;
-    
-    /* On processors not that fast, copy by word is really important */
-    Word_Inc=(ptr_t*)Addr;
-    for(Words=Size/sizeof(ptr_t);Words>0;Words--)
-    {
-        *Word_Inc=0;
-        Word_Inc++;
-    }
-    
-    /* Get the final bytes */
-    Byte_Inc=(u8*)Word_Inc;
-    for(Bytes=Size%sizeof(ptr_t);Bytes>0;Bytes--)
-    {
-        *Byte_Inc=0;
-        Byte_Inc++;
-    }
+	cnt_t Count;
+
+    for(Count=0;Count<Size;Count++)
+    	((u8*)Addr)[Count]=0;
 }
 /* End Function:_RME_Clear ***************************************************/
+
+/* Begin Function:_RME_Memcmp *************************************************
+Description : Compare two memory segments to see if they are equal. This is not
+              fast due to byte operations; this is not meant for large memory.
+Input       : const void* Ptr1 - The first memory region.
+              const void* Ptr2 - The second memory region.
+              ptr_t Num - The number of bytes to compare.
+Output      : None.
+Return      : ret_t - If Ptr1>Ptr2, then return a positive value; else a negative
+                      value. If Ptr1==Ptr2, then return 0;
+******************************************************************************/
+ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, ptr_t Num)
+{
+    u8* Dst;
+    u8* Src;
+    cnt_t Count;
+
+    Dst=(u8*)Ptr1;
+    Src=(u8*)Ptr2;
+
+    for(Count=0;Count<Num;Count++)
+    {
+    	if(Dst[Count]!=Src[Count])
+    		return Dst[Count]-Src[Count];
+    }
+
+    return 0;
+}
+/* End Function:_RME_Memcmp **************************************************/
+
+/* Begin Function:_RME_Memcpy *************************************************
+Description : Copy one segment of memory to another segment. This is not fast
+              due to byte operations; this is not meant for large memory.
+Input       : void* Dst - The first memory region.
+              void* Src - The second memory region.
+              ptr_t Num - The number of bytes to compare.
+              ptr_t Size - The size to clear.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_Memcpy(void* Dst, void* Src, ptr_t Num)
+{
+    cnt_t Count;
+
+    for(Count=0;Count<Num;Count++)
+        ((u8*)Dst)[Count]=((u8*)Src)[Count];
+}
+/* End Function:_RME_Memcpy **************************************************/
 
 /* Begin Function:_RME_Timestamp_Inc ******************************************
 Description : This function is used in the drivers to update the timestamp value.
@@ -172,13 +205,19 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Captbl - The capability to the captbl that may contain the cap
                                  to kernel function. 2-Level.
               cid_t Cap_Kmem - The capability to the kernel memory. 1-Level.
+              ptr_t Start - The start address of the kernel memory, aligned to kotbl granularity.
+              ptr_t End - The end address of the kernel memory, aligned to kotbl granularity, then -1.
+              ptr_t Flags - The operation flags for this kernel memory.
 Output      : None.
 Return      : ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
-ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kmem)
+ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
+		                 cid_t Cap_Kmem, ptr_t Start, ptr_t End, ptr_t Flags)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Crt;
+    ptr_t Kmem_Start;
+    ptr_t Kmem_End;
     ptr_t Type_Ref;
     
     /* Get the cap location that we care about */
@@ -191,16 +230,25 @@ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t 
     /* Take the slot if possible */
     RME_CAPTBL_OCCUPY(Kmem_Crt,Type_Ref);
     
+    /* Align addresses */
+#if(RME_KMEM_SLOT_ORDER>6)
+    Kmem_End=RME_ROUND_DOWN(End+1,RME_KMEM_SLOT_ORDER);
+    Kmem_Start=RME_ROUND_UP(Start,RME_KMEM_SLOT_ORDER);
+#else
+    Kmem_End=RME_ROUND_DOWN(End+1,6);
+    Kmem_Start=RME_ROUND_UP(Start,6);
+#endif
+    /* Must at least allow creation of something */
+    RME_ASSERT(Flags!=0);
+
     Kmem_Crt->Head.Parent=0;
     /* The kernel memory capability does not have an object */
     Kmem_Crt->Head.Object=0;
     /* Fill in the flags, start and end */
-    Kmem_Crt->Head.Flags=RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL| \
-                         RME_KMEM_FLAG_PROC|RME_KMEM_FLAG_THD| \
-                         RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV;
+    Kmem_Crt->Head.Flags=Flags;
     /* Extra flags */
-    Kmem_Crt->Start=RME_KMEM_VA_START;
-    Kmem_Crt->End=RME_KMEM_VA_START+RME_KMEM_SIZE-1;
+    Kmem_Crt->Start=Kmem_Start;
+    Kmem_Crt->End=Kmem_End-1;
     /* Creation complete */
     Kmem_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_KMEM,1);
     return 0;
@@ -632,8 +680,8 @@ ret_t RME_Kmain(void)
     /* Initialize the kernel page tables */
     __RME_Pgtbl_Kmem_Init();
     
-    /* Initialize the kernel object allocation table */
-    _RME_Kotbl_Init();
+    /* Initialize the kernel object allocation table - default init */
+    _RME_Kotbl_Init(RME_KOTBL_WORD_NUM);
     /* Initialize system calls, and kernel timestamp counter */
     _RME_Syscall_Init();
     /* Initialize process/threads control module */

@@ -35,13 +35,13 @@
 								<option id="gnu.c.compiler.option.dialect.flags.200031733" name="Other dialect flags" superClass="gnu.c.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-m64 -mcmodel=kernel -nostdlib" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1953577183" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
-							<tool command="ld -Map RME.map" id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1674100226" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
+							<tool command="ld -Map RME.map -mcmodel=kernel" id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1674100226" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
 								<option id="gnu.c.link.option.nostart.2064984551" name="Do not use standard start files (-nostartfiles)" superClass="gnu.c.link.option.nostart" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<option id="gnu.c.link.option.nodeflibs.1473036420" name="Do not use default libraries (-nodefaultlibs)" superClass="gnu.c.link.option.nodeflibs" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="gnu.c.link.option.noshared.1488936486" name="No shared libraries (-static)" superClass="gnu.c.link.option.noshared" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<option id="gnu.c.link.option.nostdlibs.1204431225" name="No startup or default libs (-nostdlib)" superClass="gnu.c.link.option.nostdlibs" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<option id="gnu.c.link.option.ldflags.1572154496" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="-m elf_x86_64 -T ${workspace_loc:/${ProjName}}/../../../MEukaron/Include/Platform/X64/platform_x64.ld" valueType="string"/>
-								<option id="gnu.c.link.option.other.1798198858" name="Other options (-Xlinker [option])" superClass="gnu.c.link.option.other" useByScannerDiscovery="false" valueType="stringList"/>
+								<option id="gnu.c.link.option.other.1798198858" name="Other options (-Xlinker [option])" superClass="gnu.c.link.option.other" useByScannerDiscovery="false"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.243046064" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -54,8 +54,18 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<folderInfo id="cdt.managedbuild.config.gnu.exe.debug.640244492.1086515080" name="/" resourcePath="Debug/Boot">
+						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.debug.158758069" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.debug" unusedChildren="">
+							<tool id="cdt.managedbuild.tool.gnu.archiver.base.616372145" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base.725883033"/>
+							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1641484891" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.887484169"/>
+							<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1686025410" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1420527623"/>
+							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.842748086" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1674100226"/>
+							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1533552496" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1573916690"/>
+							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.debug.1943978350" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.debug.1181653348"/>
+						</toolChain>
+					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="Debug/Boot" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

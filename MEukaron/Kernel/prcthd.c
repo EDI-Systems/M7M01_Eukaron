@@ -1524,7 +1524,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
                               -1, the kernel will pickup whatever thread that have
                               the highest priority and have time to run. 
               ptr_t Full_Yield - This is a flag to indicate whether this is a full yield.
-                                 If it is, the kernel will kill all the time alloted on 
+                                 If it is, the kernel will kill all the time allocated for 
                                  this thread.
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
