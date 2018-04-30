@@ -91,7 +91,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
     /* Take the slot if possible */
     RME_CAPTBL_OCCUPY(Pgtbl_Crt,Type_Ref);
-    
+
     /* Try to populate the area - Are we creating the top level? */
     if(Top_Flag!=0)
     {  
@@ -109,7 +109,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
             return RME_ERR_CAP_KOTBL;
         }
     }
-    
+
     Pgtbl_Crt->Head.Parent=0;
     Pgtbl_Crt->Head.Object=Vaddr;
     /* Set the property of the page table to only act as source and creating process */
@@ -192,6 +192,7 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
        (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
         return RME_ERR_PGT_ADDR;
 #endif
+
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child)!=0)
@@ -229,18 +230,18 @@ ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl,
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op);    
     /* Check if the target captbl is not frozen, but don't check their properties */
     RME_CAP_CHECK(Pgtbl_Op,0);
-    
+
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if we force identical mapping */
     if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Start_Addr)))
         return RME_ERR_PGT_ADDR; 
 #endif
-    
+
     /* See if the mapping range and the granularity is allowed */
     if(((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0)||
        ((Paddr&RME_MASK_END(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)-1))!=0))
         return RME_ERR_PGT_ADDR;
-    
+
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Page_Map(Pgtbl_Op, Paddr, Pos, Flags)!=0)

@@ -251,6 +251,7 @@ __EXTERN__ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Cap
 /* System call handler */
 __EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
 /* Timer interrupt handler */
+__EXTERN__ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg);
 __EXTERN__ void _RME_Tick_Handler(struct RME_Reg_Struct* Reg);
 /* Debugging helpers */
 __EXTERN__ cnt_t RME_Print_Uint(ptr_t Uint);

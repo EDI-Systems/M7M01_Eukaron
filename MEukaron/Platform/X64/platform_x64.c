@@ -95,7 +95,7 @@ Description : Scan for a valid RDSP structure in the given physical memory segme
 Input       : ptr_t Base - The base address of the physical memory segment.
               ptr_t Base - The length of the memory segment.
 Output      : None.
-Return      : struct RME_X64_ACPI_RDSP_Desc* - The descriptor address.
+Return      : struct RME_X64_ACPI_RDSP_Desc* - The descriptor physical address.
 ******************************************************************************/
 struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(ptr_t Base, ptr_t Len)
 {
@@ -250,8 +250,8 @@ ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
             }
             /* This is interrupt override information */
             case RME_X64_MADT_INT_SRC_OVERRIDE:
-			{
-				OVERRIDE=(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record*)Ptr;
+            {
+                OVERRIDE=(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record*)Ptr;
                 if(Length<sizeof(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record))
                     break;
                 RME_PRINTK_S("\n\rACPI: OVERRIDE Bus ");
@@ -263,8 +263,8 @@ ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
                 RME_PRINTK_S(", Flags ");
                 RME_Print_Int(OVERRIDE->MPS_Int_Flags);
 
-				break;
-			}
+                break;
+            }
             /* All other types are ignored */
             default:break;
         }
@@ -338,17 +338,16 @@ ret_t __RME_X64_ACPI_Init(void)
 
     /* Try to find RDSP */
     RDSP=__RME_X64_RDSP_Find();
-    /* See if the RSDT's physical memory range is out of limit */
-    if(RDSP->RSDT_Addr_Phys>0x80000000ULL)
-        return -1;
+    RME_PRINTK_S("\r\nRDSP address: ");
+    RME_PRINTK_U(RDSP);
     /* Find the RSDT */
     RSDT=(struct RME_X64_ACPI_RSDT_Hdr*)RME_X64_PA2VA(RDSP->RSDT_Addr_Phys);
+    RME_PRINTK_S("\r\nRSDT address: ");
+    RME_PRINTK_U(RSDT);
     Table_Num=(RSDT->Header.Length-sizeof(struct RME_X64_ACPI_RSDT_Hdr))>>2;
 
     for(Count=0;Count<Table_Num;Count++)
     {
-        if(RSDT->Entry[Count]>0x80000000ULL)
-            return -1;
         /* See what did we find */
         Header=(struct RME_X64_ACPI_Desc_Hdr*)RME_X64_PA2VA(RSDT->Entry[Count]);
         __RME_X64_ACPI_Debug(Header);
@@ -415,9 +414,9 @@ void __RME_X64_Mem_Init(ptr_t MMap_Addr, ptr_t MMap_Length)
         __RME_List_Ins(&(RME_X64_Mem[Info_Cnt].Head),Trav_Ptr->Prev,Trav_Ptr);
 
         /* Just print them then */
-        RME_PRINTK_S("\n\rPHYSMEM:");
+        RME_PRINTK_S("\n\rPhysical memory: 0x");
         RME_Print_Uint(MMap->addr);
-        RME_PRINTK_S(", ");
+        RME_PRINTK_S(", 0x");
         RME_Print_Uint(MMap->len);
         RME_PRINTK_S(", ");
         RME_Print_Uint(MMap->type);
@@ -453,6 +452,8 @@ void __RME_X64_Mem_Init(ptr_t MMap_Addr, ptr_t MMap_Length)
         MMap_Cnt+=((struct __RME_X64_Mem*)(Trav_Ptr))->Length;
         Trav_Ptr=Trav_Ptr->Next;
     }
+    RME_PRINTK_S("\n\rTotal physical memory: 0x");
+    RME_Print_Uint(MMap_Cnt);
 
     /* At least 256MB memory required on x64 architecture */
     RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGTBL_SIZE_256M));
@@ -534,14 +535,14 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_PIC_Init(void)
 {
-	/* Mask all interrupts */
-	__RME_X64_Out(RME_X64_PIC1+1, 0xFF);
-	__RME_X64_Out(RME_X64_PIC2+1, 0xFF);
+    /* Mask all interrupts */
+    __RME_X64_Out(RME_X64_PIC1+1, 0xFF);
+    __RME_X64_Out(RME_X64_PIC2+1, 0xFF);
 
     /* Set up master (8259A-1) */
-	__RME_X64_Out(RME_X64_PIC1, 0x11);
-	__RME_X64_Out(RME_X64_PIC1+1, RME_X64_INT_USER(0));
-	__RME_X64_Out(RME_X64_PIC1+1, 1<<2);
+    __RME_X64_Out(RME_X64_PIC1, 0x11);
+    __RME_X64_Out(RME_X64_PIC1+1, RME_X64_INT_USER(0));
+    __RME_X64_Out(RME_X64_PIC1+1, 1<<2);
     __RME_X64_Out(RME_X64_PIC1+1, 0x3);
 
     /* Set up slave (8259A-2) */
@@ -554,11 +555,11 @@ void __RME_X64_PIC_Init(void)
     __RME_X64_Out(RME_X64_PIC1, 0x0A);
 
     __RME_X64_Out(RME_X64_PIC2, 0x68);
-	__RME_X64_Out(RME_X64_PIC2, 0x0A);
+    __RME_X64_Out(RME_X64_PIC2, 0x0A);
 
-	/* Mask all interrupts - we do not use the PIC at all */
-	__RME_X64_Out(RME_X64_PIC1+1, 0xFF);
-	__RME_X64_Out(RME_X64_PIC2+1, 0xFF);
+    /* Mask all interrupts - we do not use the PIC at all */
+    __RME_X64_Out(RME_X64_PIC1+1, 0xFF);
+    __RME_X64_Out(RME_X64_PIC2+1, 0xFF);
 }
 /* End Function:__RME_X64_PIC_Init *******************************************/
 
@@ -626,9 +627,9 @@ void __RME_X64_IOAPIC_Init(void)
     RME_PRINTK_S("\n\rIOAPIC ID is: ");
     RME_PRINTK_I(IOAPIC_ID);
 
-	/* Disable all interrupts */
-	for(Count=0;Count<=Max_Int;Count++)
-		__RME_X64_IOAPIC_Int_Disable(Count);
+    /* Disable all interrupts */
+    for(Count=0;Count<=Max_Int;Count++)
+        __RME_X64_IOAPIC_Int_Disable(Count);
 }
 /* End Function:__RME_X64_IOAPIC_Init ****************************************/
 
@@ -641,10 +642,10 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_IOAPIC_Int_Enable(ptr_t IRQ, ptr_t CPUID)
 {
-	/* Mark interrupt edge-triggered, active high, enabled, and routed to the
-	 * given cpunum, which happens to be that cpu's APIC ID. */
-	RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1),RME_X64_INT_USER(IRQ));
-	RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1)+1,CPUID<<24);
+    /* Mark interrupt edge-triggered, active high, enabled, and routed to the
+     * given cpunum, which happens to be that cpu's APIC ID. */
+    RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1),RME_X64_INT_USER(IRQ));
+    RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1)+1,CPUID<<24);
 }
 /* End Function:__RME_X64_IOAPIC_Int_Enable **********************************/
 
@@ -656,10 +657,10 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_IOAPIC_Int_Disable(ptr_t IRQ)
 {
-	/* Mark interrupt edge-triggered, active high, enabled, and routed to the
-	 * given cpunum, which happens to be that cpu's APIC ID. */
-	RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1),RME_X64_IOAPIC_INT_DISABLED|RME_X64_INT_USER(IRQ));
-	RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1)+1,0);
+    /* Mark interrupt edge-triggered, active high, enabled, and routed to the
+     * given cpunum, which happens to be that cpu's APIC ID. */
+    RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1),RME_X64_IOAPIC_INT_DISABLED|RME_X64_INT_USER(IRQ));
+    RME_X64_IOAPIC_WRITE(RME_X64_IOAPIC_REG_TABLE+(IRQ<<1)+1,0);
 }
 /* End Function:__RME_X64_IOAPIC_Int_Disable *********************************/
 
@@ -691,24 +692,24 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_SMP_Init(void)
 {
-	u8* Code;
-	cnt_t Count;
-	u16* Warm_Reset;
+    u8* Code;
+    cnt_t Count;
+    u16* Warm_Reset;
 
     /* Write entry code to unused memory at 0x7000 */
-	Code=RME_X64_PA2VA(0x7000);
-	for(Count=0;Count<sizeof(RME_X64_Boot_Code);Count++)
-		Code[Count]=RME_X64_Boot_Code[Count];
+    Code=RME_X64_PA2VA(0x7000);
+    for(Count=0;Count<sizeof(RME_X64_Boot_Code);Count++)
+        Code[Count]=RME_X64_Boot_Code[Count];
 
-	/* Start the CPUs one by one - the first one is ourself */
-	RME_X64_CPU_Cnt=1;
-	for(Count=1;Count<RME_X64_Num_CPU;Count++)
-	{
-		RME_PRINTK_S("\n\rBooting CPU ");
-		RME_PRINTK_I(Count);
-		/* Temporary stack */
-		*(u32*)(Code-4)=0x8000;
-		*(u32*)(Code-8)=RME_X64_TEXT_VA2PA(__RME_X64_SMP_Boot_32);
+    /* Start the CPUs one by one - the first one is ourself */
+    RME_X64_CPU_Cnt=1;
+    for(Count=1;Count<RME_X64_Num_CPU;Count++)
+    {
+        RME_PRINTK_S("\n\rBooting CPU ");
+        RME_PRINTK_I(Count);
+        /* Temporary stack */
+        *(u32*)(Code-4)=0x8000;
+        *(u32*)(Code-8)=RME_X64_TEXT_VA2PA(__RME_X64_SMP_Boot_32);
         *(ptr_t*)(Code-16)=RME_X64_KSTACK(Count);
 
         /* Initialize CMOS shutdown code to 0AH */
@@ -722,11 +723,11 @@ void __RME_X64_SMP_Init(void)
         /* Send INIT (level-triggered) interrupt to reset other CPU */
         RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, RME_X64_CPU_Info[Count].LAPIC_ID<<24);
         RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_INIT|
-        		                                 RME_X64_LAPIC_ICRLO_LEVEL|
-												 RME_X64_LAPIC_ICRLO_ASSERT);
+                                                 RME_X64_LAPIC_ICRLO_LEVEL|
+                                                 RME_X64_LAPIC_ICRLO_ASSERT);
         RME_X64_UDELAY(200);
         RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_INIT|
-        		                                 RME_X64_LAPIC_ICRLO_LEVEL);
+                                                 RME_X64_LAPIC_ICRLO_LEVEL);
         RME_X64_UDELAY(10000);
 
         /* Send startup IPI twice according to Intel manuals */
@@ -737,9 +738,9 @@ void __RME_X64_SMP_Init(void)
         RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_STARTUP|(0x7000>>12));
         RME_X64_UDELAY(200);
 
-		/* Wait for CPU to finish its own initialization */
-		while(RME_X64_CPU_Info->Boot_Done==0);
-		RME_X64_CPU_Cnt++;
+        /* Wait for CPU to finish its own initialization */
+        while(RME_X64_CPU_Info->Boot_Done==0);
+        RME_X64_CPU_Cnt++;
     }
 }
 /* End Function:__RME_X64_SMP_Init *******************************************/
@@ -776,9 +777,9 @@ Return      : None.
 ******************************************************************************/
 ptr_t __RME_SMP_Low_Level_Init(void)
 {
-	while(1);
+    while(1);
     /* Initialize all vector tables */
-	__RME_X64_CPU_Local_Init();
+    __RME_X64_CPU_Local_Init();
 
     /* Initialize interrupt controllers (PIC, LAPIC, IOAPIC) */
     __RME_X64_LAPIC_Init();
@@ -810,16 +811,17 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_CPU_Local_Init(void)
 {
-	volatile u16 Desc[5];
-	struct RME_X64_IDT_Entry* IDT_Table;
-	ptr_t* GDT_Table;
+    volatile u16 Desc[5];
+    struct RME_X64_IDT_Entry* IDT_Table;
+    struct RME_X64_CPUID_Entry* CPUID_Entry;
+    ptr_t* GDT_Table;
     ptr_t TSS_Table;
     cnt_t Count;
 
     IDT_Table=(ptr_t*)(RME_X64_Layout.PerCPU_Start+RME_X64_CPU_Cnt*2*RME_POW2(RME_PGTBL_SIZE_4K));
     /* Clean up the whole IDT */
     for(Count=0;Count<256;Count++)
-    	IDT_Table[Count].Type_Attr=0;
+        IDT_Table[Count].Type_Attr=0;
 
     /* Install the vectors - only the INT3 is trap (for debugging), all other ones are interrupt */
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_DE, RME_X64_IDT_VECT, __RME_X64_FAULT_DE_Handler);
@@ -828,6 +830,7 @@ void __RME_X64_CPU_Local_Init(void)
     RME_X64_SET_IDT(IDT_Table, RME_X64_TRAP_BP, RME_X64_IDT_TRAP, __RME_X64_TRAP_BP_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_TRAP_OF, RME_X64_IDT_VECT, __RME_X64_TRAP_OF_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_BR, RME_X64_IDT_VECT, __RME_X64_FAULT_BR_Handler);
+    RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_UD, RME_X64_IDT_VECT, __RME_X64_FAULT_UD_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_NM, RME_X64_IDT_VECT, __RME_X64_FAULT_NM_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_ABORT_DF, RME_X64_IDT_VECT, __RME_X64_ABORT_DF_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_ABORT_OLD_MF, RME_X64_IDT_VECT, __RME_X64_ABORT_OLD_MF_Handler);
@@ -842,9 +845,149 @@ void __RME_X64_CPU_Local_Init(void)
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_XM, RME_X64_IDT_VECT, __RME_X64_FAULT_XM_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_VE, RME_X64_IDT_VECT, __RME_X64_FAULT_VE_Handler);
 
-    /* We are using the same vector here. Later on will be changed to their specific handlers */
-    for(Count=0;Count<256-32;Count++)
-        RME_X64_SET_IDT(IDT_Table, RME_X64_INT_USER(Count),RME_X64_IDT_VECT,__RME_X64_INT_USER_Handler);
+    /* Install user handlers */
+    RME_X64_USER_IDT(IDT_Table, 32); RME_X64_USER_IDT(IDT_Table, 33);
+    RME_X64_USER_IDT(IDT_Table, 34); RME_X64_USER_IDT(IDT_Table, 35);
+    RME_X64_USER_IDT(IDT_Table, 36); RME_X64_USER_IDT(IDT_Table, 37);
+    RME_X64_USER_IDT(IDT_Table, 38); RME_X64_USER_IDT(IDT_Table, 39);
+
+    RME_X64_USER_IDT(IDT_Table, 40); RME_X64_USER_IDT(IDT_Table, 41);
+    RME_X64_USER_IDT(IDT_Table, 42); RME_X64_USER_IDT(IDT_Table, 43);
+    RME_X64_USER_IDT(IDT_Table, 44); RME_X64_USER_IDT(IDT_Table, 45);
+    RME_X64_USER_IDT(IDT_Table, 46); RME_X64_USER_IDT(IDT_Table, 47);
+    RME_X64_USER_IDT(IDT_Table, 48); RME_X64_USER_IDT(IDT_Table, 49);
+
+    RME_X64_USER_IDT(IDT_Table, 50); RME_X64_USER_IDT(IDT_Table, 51);
+    RME_X64_USER_IDT(IDT_Table, 52); RME_X64_USER_IDT(IDT_Table, 53);
+    RME_X64_USER_IDT(IDT_Table, 54); RME_X64_USER_IDT(IDT_Table, 55);
+    RME_X64_USER_IDT(IDT_Table, 56); RME_X64_USER_IDT(IDT_Table, 57);
+    RME_X64_USER_IDT(IDT_Table, 58); RME_X64_USER_IDT(IDT_Table, 59);
+
+    RME_X64_USER_IDT(IDT_Table, 60); RME_X64_USER_IDT(IDT_Table, 61);
+    RME_X64_USER_IDT(IDT_Table, 62); RME_X64_USER_IDT(IDT_Table, 63);
+    RME_X64_USER_IDT(IDT_Table, 64); RME_X64_USER_IDT(IDT_Table, 65);
+    RME_X64_USER_IDT(IDT_Table, 66); RME_X64_USER_IDT(IDT_Table, 67);
+    RME_X64_USER_IDT(IDT_Table, 68); RME_X64_USER_IDT(IDT_Table, 69);
+
+    RME_X64_USER_IDT(IDT_Table, 70); RME_X64_USER_IDT(IDT_Table, 71);
+    RME_X64_USER_IDT(IDT_Table, 72); RME_X64_USER_IDT(IDT_Table, 73);
+    RME_X64_USER_IDT(IDT_Table, 74); RME_X64_USER_IDT(IDT_Table, 75);
+    RME_X64_USER_IDT(IDT_Table, 76); RME_X64_USER_IDT(IDT_Table, 77);
+    RME_X64_USER_IDT(IDT_Table, 78); RME_X64_USER_IDT(IDT_Table, 79);
+
+    RME_X64_USER_IDT(IDT_Table, 80); RME_X64_USER_IDT(IDT_Table, 81);
+    RME_X64_USER_IDT(IDT_Table, 82); RME_X64_USER_IDT(IDT_Table, 83);
+    RME_X64_USER_IDT(IDT_Table, 84); RME_X64_USER_IDT(IDT_Table, 85);
+    RME_X64_USER_IDT(IDT_Table, 86); RME_X64_USER_IDT(IDT_Table, 87);
+    RME_X64_USER_IDT(IDT_Table, 88); RME_X64_USER_IDT(IDT_Table, 89);
+
+    RME_X64_USER_IDT(IDT_Table, 90); RME_X64_USER_IDT(IDT_Table, 91);
+    RME_X64_USER_IDT(IDT_Table, 92); RME_X64_USER_IDT(IDT_Table, 93);
+    RME_X64_USER_IDT(IDT_Table, 94); RME_X64_USER_IDT(IDT_Table, 95);
+    RME_X64_USER_IDT(IDT_Table, 96); RME_X64_USER_IDT(IDT_Table, 97);
+    RME_X64_USER_IDT(IDT_Table, 98); RME_X64_USER_IDT(IDT_Table, 99);
+
+    RME_X64_USER_IDT(IDT_Table, 100); RME_X64_USER_IDT(IDT_Table, 101);
+    RME_X64_USER_IDT(IDT_Table, 102); RME_X64_USER_IDT(IDT_Table, 103);
+    RME_X64_USER_IDT(IDT_Table, 104); RME_X64_USER_IDT(IDT_Table, 105);
+    RME_X64_USER_IDT(IDT_Table, 106); RME_X64_USER_IDT(IDT_Table, 107);
+    RME_X64_USER_IDT(IDT_Table, 108); RME_X64_USER_IDT(IDT_Table, 109);
+
+    RME_X64_USER_IDT(IDT_Table, 110); RME_X64_USER_IDT(IDT_Table, 111);
+    RME_X64_USER_IDT(IDT_Table, 112); RME_X64_USER_IDT(IDT_Table, 113);
+    RME_X64_USER_IDT(IDT_Table, 114); RME_X64_USER_IDT(IDT_Table, 115);
+    RME_X64_USER_IDT(IDT_Table, 116); RME_X64_USER_IDT(IDT_Table, 117);
+    RME_X64_USER_IDT(IDT_Table, 118); RME_X64_USER_IDT(IDT_Table, 119);
+
+    RME_X64_USER_IDT(IDT_Table, 120); RME_X64_USER_IDT(IDT_Table, 121);
+    RME_X64_USER_IDT(IDT_Table, 122); RME_X64_USER_IDT(IDT_Table, 123);
+    RME_X64_USER_IDT(IDT_Table, 124); RME_X64_USER_IDT(IDT_Table, 125);
+    RME_X64_USER_IDT(IDT_Table, 126); RME_X64_USER_IDT(IDT_Table, 127);
+    RME_X64_USER_IDT(IDT_Table, 128); RME_X64_USER_IDT(IDT_Table, 129);
+
+    RME_X64_USER_IDT(IDT_Table, 130); RME_X64_USER_IDT(IDT_Table, 131);
+    RME_X64_USER_IDT(IDT_Table, 132); RME_X64_USER_IDT(IDT_Table, 133);
+    RME_X64_USER_IDT(IDT_Table, 134); RME_X64_USER_IDT(IDT_Table, 135);
+    RME_X64_USER_IDT(IDT_Table, 136); RME_X64_USER_IDT(IDT_Table, 137);
+    RME_X64_USER_IDT(IDT_Table, 138); RME_X64_USER_IDT(IDT_Table, 139);
+
+    RME_X64_USER_IDT(IDT_Table, 140); RME_X64_USER_IDT(IDT_Table, 141);
+    RME_X64_USER_IDT(IDT_Table, 142); RME_X64_USER_IDT(IDT_Table, 143);
+    RME_X64_USER_IDT(IDT_Table, 144); RME_X64_USER_IDT(IDT_Table, 145);
+    RME_X64_USER_IDT(IDT_Table, 146); RME_X64_USER_IDT(IDT_Table, 147);
+    RME_X64_USER_IDT(IDT_Table, 148); RME_X64_USER_IDT(IDT_Table, 149);
+
+    RME_X64_USER_IDT(IDT_Table, 150); RME_X64_USER_IDT(IDT_Table, 151);
+    RME_X64_USER_IDT(IDT_Table, 152); RME_X64_USER_IDT(IDT_Table, 153);
+    RME_X64_USER_IDT(IDT_Table, 154); RME_X64_USER_IDT(IDT_Table, 155);
+    RME_X64_USER_IDT(IDT_Table, 156); RME_X64_USER_IDT(IDT_Table, 157);
+    RME_X64_USER_IDT(IDT_Table, 158); RME_X64_USER_IDT(IDT_Table, 159);
+
+    RME_X64_USER_IDT(IDT_Table, 160); RME_X64_USER_IDT(IDT_Table, 161);
+    RME_X64_USER_IDT(IDT_Table, 162); RME_X64_USER_IDT(IDT_Table, 163);
+    RME_X64_USER_IDT(IDT_Table, 164); RME_X64_USER_IDT(IDT_Table, 165);
+    RME_X64_USER_IDT(IDT_Table, 166); RME_X64_USER_IDT(IDT_Table, 167);
+    RME_X64_USER_IDT(IDT_Table, 168); RME_X64_USER_IDT(IDT_Table, 169);
+
+    RME_X64_USER_IDT(IDT_Table, 170); RME_X64_USER_IDT(IDT_Table, 171);
+    RME_X64_USER_IDT(IDT_Table, 172); RME_X64_USER_IDT(IDT_Table, 173);
+    RME_X64_USER_IDT(IDT_Table, 174); RME_X64_USER_IDT(IDT_Table, 175);
+    RME_X64_USER_IDT(IDT_Table, 176); RME_X64_USER_IDT(IDT_Table, 177);
+    RME_X64_USER_IDT(IDT_Table, 178); RME_X64_USER_IDT(IDT_Table, 179);
+
+    RME_X64_USER_IDT(IDT_Table, 180); RME_X64_USER_IDT(IDT_Table, 181);
+    RME_X64_USER_IDT(IDT_Table, 182); RME_X64_USER_IDT(IDT_Table, 183);
+    RME_X64_USER_IDT(IDT_Table, 184); RME_X64_USER_IDT(IDT_Table, 185);
+    RME_X64_USER_IDT(IDT_Table, 186); RME_X64_USER_IDT(IDT_Table, 187);
+    RME_X64_USER_IDT(IDT_Table, 188); RME_X64_USER_IDT(IDT_Table, 189);
+
+    RME_X64_USER_IDT(IDT_Table, 190); RME_X64_USER_IDT(IDT_Table, 191);
+    RME_X64_USER_IDT(IDT_Table, 192); RME_X64_USER_IDT(IDT_Table, 193);
+    RME_X64_USER_IDT(IDT_Table, 194); RME_X64_USER_IDT(IDT_Table, 195);
+    RME_X64_USER_IDT(IDT_Table, 196); RME_X64_USER_IDT(IDT_Table, 197);
+    RME_X64_USER_IDT(IDT_Table, 198); RME_X64_USER_IDT(IDT_Table, 199);
+
+    RME_X64_USER_IDT(IDT_Table, 200); RME_X64_USER_IDT(IDT_Table, 201);
+    RME_X64_USER_IDT(IDT_Table, 202); RME_X64_USER_IDT(IDT_Table, 203);
+    RME_X64_USER_IDT(IDT_Table, 204); RME_X64_USER_IDT(IDT_Table, 205);
+    RME_X64_USER_IDT(IDT_Table, 206); RME_X64_USER_IDT(IDT_Table, 207);
+    RME_X64_USER_IDT(IDT_Table, 208); RME_X64_USER_IDT(IDT_Table, 209);
+
+    RME_X64_USER_IDT(IDT_Table, 210); RME_X64_USER_IDT(IDT_Table, 211);
+    RME_X64_USER_IDT(IDT_Table, 212); RME_X64_USER_IDT(IDT_Table, 213);
+    RME_X64_USER_IDT(IDT_Table, 214); RME_X64_USER_IDT(IDT_Table, 215);
+    RME_X64_USER_IDT(IDT_Table, 216); RME_X64_USER_IDT(IDT_Table, 217);
+    RME_X64_USER_IDT(IDT_Table, 218); RME_X64_USER_IDT(IDT_Table, 219);
+
+    RME_X64_USER_IDT(IDT_Table, 220); RME_X64_USER_IDT(IDT_Table, 221);
+    RME_X64_USER_IDT(IDT_Table, 222); RME_X64_USER_IDT(IDT_Table, 223);
+    RME_X64_USER_IDT(IDT_Table, 224); RME_X64_USER_IDT(IDT_Table, 225);
+    RME_X64_USER_IDT(IDT_Table, 226); RME_X64_USER_IDT(IDT_Table, 227);
+    RME_X64_USER_IDT(IDT_Table, 228); RME_X64_USER_IDT(IDT_Table, 229);
+
+    RME_X64_USER_IDT(IDT_Table, 230); RME_X64_USER_IDT(IDT_Table, 231);
+    RME_X64_USER_IDT(IDT_Table, 232); RME_X64_USER_IDT(IDT_Table, 233);
+    RME_X64_USER_IDT(IDT_Table, 234); RME_X64_USER_IDT(IDT_Table, 235);
+    RME_X64_USER_IDT(IDT_Table, 236); RME_X64_USER_IDT(IDT_Table, 237);
+    RME_X64_USER_IDT(IDT_Table, 238); RME_X64_USER_IDT(IDT_Table, 239);
+
+    RME_X64_USER_IDT(IDT_Table, 240); RME_X64_USER_IDT(IDT_Table, 241);
+    RME_X64_USER_IDT(IDT_Table, 242); RME_X64_USER_IDT(IDT_Table, 243);
+    RME_X64_USER_IDT(IDT_Table, 244); RME_X64_USER_IDT(IDT_Table, 245);
+    RME_X64_USER_IDT(IDT_Table, 246); RME_X64_USER_IDT(IDT_Table, 247);
+    RME_X64_USER_IDT(IDT_Table, 248); RME_X64_USER_IDT(IDT_Table, 249);
+
+    RME_X64_USER_IDT(IDT_Table, 250); RME_X64_USER_IDT(IDT_Table, 251);
+    RME_X64_USER_IDT(IDT_Table, 252); RME_X64_USER_IDT(IDT_Table, 253);
+    RME_X64_USER_IDT(IDT_Table, 254); RME_X64_USER_IDT(IDT_Table, 255);
+
+    /* Replace systick handler with customized ones - spurious interrupts
+     * and IPIs are handled in the general interrupt path. SysTick handler
+     * is only processed by the first processor, so we don't register it
+     * for other auxiliary processors */
+    if(RME_X64_CPU_Cnt==0)
+    	RME_X64_SET_IDT(IDT_Table, RME_X64_INT_SYSTICK, RME_X64_IDT_VECT, SysTick_Handler);
+    RME_X64_SET_IDT(IDT_Table, RME_X64_INT_SMP_SYSTICK, RME_X64_IDT_VECT, SysTick_SMP_Handler);
 
     /* Load the IDT */
     Desc[0]=RME_POW2(RME_PGTBL_SIZE_4K)-1;
@@ -857,19 +1000,19 @@ void __RME_X64_CPU_Local_Init(void)
     GDT_Table=(ptr_t*)(RME_X64_Layout.PerCPU_Start+(RME_X64_CPU_Cnt*2+1)*RME_POW2(RME_PGTBL_SIZE_4K));
     TSS_Table=(ptr_t)(RME_X64_Layout.PerCPU_Start+(RME_X64_CPU_Cnt*2+1)*RME_POW2(RME_PGTBL_SIZE_4K)+16*sizeof(ptr_t));
 
-	/* Dummy entry */
+    /* Dummy entry */
     GDT_Table[0]=0x0000000000000000ULL;
-	/* Kernel code, DPL=0, R/X */
+    /* Kernel code, DPL=0, R/X */
     GDT_Table[1]=0x0020980000000000ULL;
-	/* User code, DPL=3, R/X */
-    GDT_Table[2]=0x0020F80000000000ULL;
-	/* Kernel data, DPL=0, W */
-    GDT_Table[3]=0x0000920000000000ULL;
-	/* Unused entry - x86 convention */
-    GDT_Table[4]=0x0000000000000000ULL;
-	/* User data, DPL=3, W */
+    /* Kernel data, DPL=0, W */
+    GDT_Table[2]=0x0000920000000000ULL;
+    /* Unused entry - x86 convention */
+    GDT_Table[3]=0x0000000000000000ULL;
+    /* User code, DPL=3, R/X */
+    GDT_Table[4]=0x0020F80000000000ULL;
+    /* User data, DPL=3, W */
     GDT_Table[5]=0x0000F20000000000ULL;
-	/* TSS */
+    /* TSS */
     GDT_Table[6]=(0x0067)|((TSS_Table&0xFFFFFFULL)<<16)|(0x0089ULL<<40)|(((TSS_Table>>24)&0xFFULL)<<56);
     GDT_Table[7]=(TSS_Table>>32);
 
@@ -885,10 +1028,35 @@ void __RME_X64_CPU_Local_Init(void)
     ((u32*)TSS_Table)[2]=RME_X64_KSTACK(RME_X64_CPU_Cnt)>>32;
     /* IO Map Base = End of TSS (What's this?) */
     ((u32*)TSS_Table)[16]=0x00680000;
-
     __RME_X64_TSS_Load(6*sizeof(ptr_t));
+
+    /* Place the extra per-cpu data there as well and load the GS register's base */
+    CPUID_Entry=(struct RME_X64_CPUID_Entry*)(RME_X64_Layout.PerCPU_Start+
+    		                                (RME_X64_CPU_Cnt+1)*2*RME_POW2(RME_PGTBL_SIZE_4K)-sizeof(struct RME_X64_CPUID_Entry));
+    CPUID_Entry->CPUID=RME_X64_CPU_Cnt;
+    CPUID_Entry->Kernel_SP=RME_X64_KSTACK(RME_X64_CPU_Cnt);
+    CPUID_Entry->Temp_User_SP=0;
+    /* Set the base of GS to this memory */
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_KERNEL_GS_BASE, (ptr_t)IDT_Table);
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_GS_BASE, (ptr_t)IDT_Table);
+    /* Set up SYSCALL/SYSRET parameters */
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_LSTAR, (ptr_t)SVC_Handler);
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_FMASK, ~RME_X64_RFLAGS_IF);
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_STAR, (((ptr_t)RME_X64_SEG_USER_CODE)<<48)|(((ptr_t)RME_X64_SEG_KERNEL_CODE)<<32));
 }
 /* End Function:__RME_X64_CPU_Local_Init *************************************/
+
+/* Begin Function:__RME_Pgtbl_Set *********************************************
+Description : Set the processor's page table.
+Input       : ptr_t Pgtbl - The virtual address of the page table.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_Pgtbl_Set(ptr_t Pgtbl)
+{
+	__RME_X64_Pgtbl_Set(RME_X64_VA2PA(Pgtbl));
+}
+/* End Function:__RME_Pgtbl_Set **********************************************/
 
 /* Begin Function:__RME_Boot **************************************************
 Description : Boot the first process in the system.
@@ -899,94 +1067,173 @@ Return      : ptr_t - Always 0.
 ptr_t __RME_Boot(void)
 {
     ptr_t Cur_Addr;
+    cnt_t Count;
+    ptr_t Phys_Addr;
+    ptr_t Page_Ptr;
 
-	/* Initialize our own CPU-local data structures */
-	RME_X64_CPU_Cnt=0;
-	__RME_X64_CPU_Local_Init();
+    /* Initialize our own CPU-local data structures */
+    RME_X64_CPU_Cnt=0;
+    __RME_X64_CPU_Local_Init();
 
-	/* Initialize interrupt controllers (PIC, LAPIC, IOAPIC) */
-	__RME_X64_LAPIC_Init();
-	__RME_X64_PIC_Init();
-	__RME_X64_IOAPIC_Init();
+    /* Initialize interrupt controllers (PIC, LAPIC, IOAPIC) */
+    __RME_X64_LAPIC_Init();
+    __RME_X64_PIC_Init();
+    __RME_X64_IOAPIC_Init();
 
-	/* Initialize the timer and start its interrupt routing */
+    /* Initialize the timer and start its interrupt routing */
     __RME_X64_Timer_Init();
 
     /* Enable timer interrupts */
-    __RME_X64_IOAPIC_Int_Enable(2,0);
+    //__RME_X64_IOAPIC_Int_Enable(2,0);
     /* Start other processors, if there are any */
     //__RME_X64_SMP_Init();
 
     /* Create all initial tables in Kmem1, which is sure to be present */
     Cur_Addr=RME_X64_Layout.Kmem1_Start;
+    RME_PRINTK_S("\r\nKotbl registration start offset: 0x");
+    RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
 
-    /* Create the capability table for the init process - always 8 */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,8)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(8));
+    /* Create the capability table for the init process - always 16 */
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,16)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(16));
 
-    /* Create the capability table for initial page tables - now we are only.
+    /* Create the capability table for initial page tables - now we are only
      * adding 2MB pages. There will be 1 PML4, 16 PDP, and 16*512=8192 PGD.
      * This should provide support for up to 4TB of memory, which will be sufficient
      * for at least a decade. These data structures will eat 32MB of memory, which
      * is fine */
     RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_PGTBL, Cur_Addr, 1+16+8192)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(8));
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(1+16+8192));
 
-    ret_t ;
+    /* Align the address to 4096 to prepare for page table creation */
+    Cur_Addr=RME_ROUND_UP(Cur_Addr,12);
+    /* Create PML4 */
+    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PML4,
+                                   Cur_Addr, 0, RME_PGTBL_TOP, RME_PGTBL_SIZE_512G, RME_PGTBL_NUM_512)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_512));
+    /* Create all our 16 PDPs, and cons them into the PML4 */
+    for(Count=0;Count<16;Count++)
+    {
+        RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PDP(Count),
+                                       Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_1G, RME_PGTBL_NUM_512)==0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
+        RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4), Count,
+        		                       RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count)))==0);
+    }
 
-    /* Map all the memory that we have into it */
+    /* Create 8192 PDEs, and cons them into their respective PDPs */
+    for(Count=0;Count<8192;Count++)
+	{
+		RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PDE(Count),
+									   Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_2M, RME_PGTBL_NUM_512)==0);
+		Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
+		RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
+									   RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Count)))==0);
+	}
 
-    /* Create the page table for the init process, and map in the page alloted for it */
-    /* The top-level page table - covers 4G address range. Now this is fixed */
-    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL,
-               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_8));
-    /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x20000000, 1, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x40000000, 2, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x60000000, 3, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0x80000000, 4, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0xA0000000, 5, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0xC0000000, 6, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_CMX_CPT, RME_BOOT_PGTBL, 0xE0000000, 7, RME_PGTBL_ALL_PERM)==0);
+    /* Map all the memory that we have into it. Maybe we need a percentile - delay this until the user level.
+     * Just map all pages in. This will incoporate multiple final lookups so it might be slow, but this is
+     * startup anyway so it is fine. 1GB*8*128=8TB. */
+    Page_Ptr=0;
+    for(Count=0;Count<RME_X64_Layout.Kmem1_Size;Count+=RME_POW2(RME_PGTBL_SIZE_2M))
+    {
+    	Phys_Addr=RME_X64_VA2PA(RME_X64_Layout.Kmem1_Start)+Count;
+    	RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Page_Ptr>>9)),
+    			                       Phys_Addr, Page_Ptr&0x1FF, RME_PGTBL_ALL_PERM)==0);
+        Page_Ptr++;
+    }
+    RME_PRINTK_S("\r\nKmem1 pages: 0x");
+    RME_PRINTK_U(Page_Ptr);
+    RME_PRINTK_S(", [0x0, 0x");
+    RME_PRINTK_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M)-1);
+    RME_PRINTK_S("]");
+
+    /* Map the Kmem2 in - don't want lookups, we know where they are. Offset by 2048 because they are mapped above 4G */
+    RME_PRINTK_S("\r\nKmem2 pages: 0x");
+    RME_PRINTK_U(RME_X64_Layout.Kmem2_Size/RME_POW2(RME_PGTBL_SIZE_2M));
+    RME_PRINTK_S(", [0x");
+    RME_PRINTK_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M));
+    RME_PRINTK_S(", 0x");
+    for(Count=2048;Count<(RME_X64_Layout.Kmem2_Size/RME_POW2(RME_PGTBL_SIZE_2M)+2048);Count++)
+    {
+    	Phys_Addr=RME_X64_PA2VA(RME_X64_MMU_ADDR(RME_X64_Kpgt.PDP[Count>>18][(Count>>9)&0x1FF]));
+		Phys_Addr=RME_X64_MMU_ADDR(((ptr_t*)Phys_Addr)[Count&0x1FF]);
+    	RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Page_Ptr>>9)),
+    			                       Phys_Addr, Page_Ptr&0x1FF, RME_PGTBL_ALL_PERM)==0);
+		Page_Ptr++;
+    }
+    RME_PRINTK_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M)-1);
+    RME_PRINTK_S("]");
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Proc_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC,
-                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL, Cur_Addr)==0);
+                                  RME_BOOT_CAPTBL, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4), Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PROC_SIZE);
 
-    /* Create the initial kernel function capability, and kernel memory capability */
+    /* Create the initial kernel function capability */
     RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
-    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KMEM)==0);
 
-    /* Create the initial kernel endpoint for timer ticks */
-    RME_Tick_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    /* Create a capability table for initial kernel memory capabilities. We need one for Kmem1, and another one for Kmem2 */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_KMEM, Cur_Addr, 2)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(2));
+    /* Create Kmem1 capability - can create page tables here */
+    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT,
+                                  RME_BOOT_TBL_KMEM, 0,
+								  RME_X64_Layout.Kmem1_Start,
+    		                      RME_X64_Layout.Kmem1_Start+RME_X64_Layout.Kmem1_Size,
+								  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC|
+								  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
+    /* Create Kmem2 capability - cannot create page tables here */
+    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT,
+                                  RME_BOOT_TBL_KMEM, 1,
+								  RME_X64_Layout.Kmem2_Start,
+    		                      RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size,
+								  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PROC|
+								  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
 
-    /* Create the initial kernel endpoint for thread faults */
-    RME_Fault_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_FAULT, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    /* Create the initial kernel endpoints for timer ticks */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_TIMER, Cur_Addr, RME_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_CPU_NUM));
+    for(Count=0;Count<RME_CPU_NUM;Count++)
+    {
+		RME_Tick_Sig[Count]=(struct RME_Sig_Struct*)Cur_Addr;
+		RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_TIMER, Count, Cur_Addr)==0);
+		Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    }
 
-    /* Create the initial kernel endpoint for all other interrupts */
-    RME_Int_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_INT, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    /* Create the initial kernel endpoints for thread faults */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_FAULT, Cur_Addr, RME_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_CPU_NUM));
+    for(Count=0;Count<RME_CPU_NUM;Count++)
+    {
+		RME_Fault_Sig[Count]=(struct RME_Sig_Struct*)Cur_Addr;
+		RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_FAULT, Count, Cur_Addr)==0);
+		Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    }
+
+    /* Create the initial kernel endpoints for all other interrupts */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_INT, Cur_Addr, RME_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_CPU_NUM));
+    for(Count=0;Count<RME_CPU_NUM;Count++)
+    {
+		RME_Int_Sig[Count]=(struct RME_Sig_Struct*)Cur_Addr;
+		RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
+		Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    }
 
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Thd_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PROC, Cur_Addr, 0)==0);
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_THD, Cur_Addr, RME_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_CPU_NUM));
+    RME_ASSERT(_RME_Thd_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_THD, 0, RME_BOOT_INIT_PROC, Cur_Addr, 0)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+    RME_PRINTK_S("Here");
+    RME_PRINTK_S("\r\nKotbl registration end offset: 0x");
+    RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
 
-    /* Before we go into user level, make sure that the kernel object allocation is within the limits */
-    RME_ASSERT(Cur_Addr<RME_CMX_KMEM_BOOT_FRONTIER);
-    /* Enable the MPU & interrupt */
+    /* Change page tables */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,ptr_t));
-    __RME_Enable_Int();
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_CMX_INIT_ENTRY, RME_CMX_INIT_STACK);
+    __RME_Enter_User_Mode(RME_X64_INIT_ENTRY, RME_X64_INIT_STACK);
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
@@ -1016,19 +1263,6 @@ void __RME_Shutdown(void)
     RME_ASSERT(RME_WORD_BITS!=RME_POW2(RME_WORD_ORDER));
 }
 /* End Function:__RME_Shutdown ***********************************************/
-
-/* Begin Function:__RME_CPUID_Get *********************************************
-Description : Get the CPUID. This is to identify where we are executing.
-Input       : None.
-Output      : None.
-Return      : ptr_t - The CPUID. On Cortex-M, this is certainly always 0.
-******************************************************************************/
-ptr_t __RME_CPUID_Get(void)
-{
-
-    return 0;
-}
-/* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_Get_Syscall_Param *************************************
 Description : Get the system call parameters from the stack frame.
@@ -1241,10 +1475,11 @@ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID,
 Description : The fault handler of RME. In x64, this is used to handle multiple
               faults.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              ptr_t Reason - The fault source.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg)
+void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, ptr_t Reason)
 {
     /* Not handling faults */
 }
@@ -1306,7 +1541,7 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
     if((RME_X64_EXT(RME_X64_CPUID_E1_INFO_FEATURE,3)&RME_X64_E1_EDX_PDPE1GB)!=0)
     {
         /* Can use 1GB pages */
-    	RME_PRINTK_S("\n\rThis CPU have 1GB superpage support");
+        RME_PRINTK_S("\n\rThis CPU have 1GB superpage support");
         RME_X64_Kpgt.PDP[0][0]|=RME_X64_MMU_ADDR(0)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
         RME_X64_Kpgt.PDP[0][1]|=RME_X64_MMU_ADDR(RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
         RME_X64_Kpgt.PDP[0][2]|=RME_X64_MMU_ADDR(2*RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
@@ -1320,7 +1555,7 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
     }
     else
     {
-    	RME_PRINTK_S("\n\rThis CPU do not have 1GB superpage support");
+        RME_PRINTK_S("\n\rThis CPU do not have 1GB superpage support");
         /* Cannot use 1GB pages, we revert to 2MB pages used during kernel startup */
         RME_X64_Kpgt.PDP[0][0]|=0x104000|RME_X64_MMU_P;
         RME_X64_Kpgt.PDP[0][1]|=0x105000|RME_X64_MMU_P;
@@ -1391,7 +1626,7 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
                     PML4_Cnt++;
                 }
                 /* Map this PDE into the PDP */
-                RME_X64_Kpgt.PDP[PML4_Cnt][PDP_Cnt]|=RME_X64_MMU_ADDR(RME_X64_Layout.Kmem1_Start)|RME_X64_MMU_P;
+                RME_X64_Kpgt.PDP[PML4_Cnt][PDP_Cnt]|=RME_X64_MMU_ADDR(RME_X64_VA2PA(RME_X64_Layout.Kmem1_Start))|RME_X64_MMU_P;
             }
 
             ((ptr_t*)(RME_X64_Layout.Kmem1_Start))[0]=RME_X64_MMU_ADDR(Mem->Start_Addr+Addr_Cnt)|RME_X64_MMU_KERN_PDE;
@@ -1401,17 +1636,15 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
         }
 
         Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
-
-    	RME_PRINTK_S(".");
     }
 
     /* Copy the new page tables to the temporary entries, so that we can boot SMP */
     for(PML4_Cnt=0;PML4_Cnt<256;PML4_Cnt++)
-    	((ptr_t*)RME_X64_PA2VA(0x101000))[PML4_Cnt+256]=RME_X64_Kpgt.PML4[PML4_Cnt];
+        ((ptr_t*)RME_X64_PA2VA(0x101000))[PML4_Cnt+256]=RME_X64_Kpgt.PML4[PML4_Cnt];
 
-    /* Page table allocation finished. Now need to align Kmem1 to page boundary */
-    RME_X64_Layout.Kmem1_Start=RME_ROUND_UP(RME_X64_Layout.Kmem1_Start,RME_PGTBL_SIZE_4K);
-    RME_X64_Layout.Kmem1_Size=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Size-1,RME_PGTBL_SIZE_4K);
+    /* Page table allocation finished. Now need to align Kmem1 to 2MB page boundary */
+    RME_X64_Layout.Kmem1_Start=RME_ROUND_UP(RME_X64_Layout.Kmem1_Start,RME_PGTBL_SIZE_2M);
+    RME_X64_Layout.Kmem1_Size=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Size-1,RME_PGTBL_SIZE_2M);
 
     /* All memory is mapped. Now figure out the size of kernel stacks */
     RME_X64_Layout.Kpgtbl_Size=RME_X64_Layout.Kmem1_Start-RME_X64_Layout.Kpgtbl_Start;
@@ -1419,14 +1652,14 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
     /* See if we are allocating the stack from Kmem2 or Kmem1 */
     if(RME_X64_Layout.Kmem2_Size==0)
     {
-    	RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Start+RME_X64_Layout.Kmem1_Size-1,RME_X64_KSTACK_ORDER);
-    	RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
+        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Start+RME_X64_Layout.Kmem1_Size-1,RME_X64_KSTACK_ORDER);
+        RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
         RME_X64_Layout.Kmem1_Size=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem1_Start;
     }
     else
     {
-    	RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size-1,RME_X64_KSTACK_ORDER);
-    	RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
+        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size-1,RME_X64_KSTACK_ORDER);
+        RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
         RME_X64_Layout.Kmem2_Size=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem2_Start;
     }
 
@@ -1573,7 +1806,7 @@ ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Paddr, ptr_t Po
     ptr_t X64_Flags;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr|RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* It should at least be readable */
@@ -1611,7 +1844,7 @@ ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
     ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr|RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -1646,7 +1879,7 @@ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos,
     ptr_t X64_Flags;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Parent->Start_Addr|RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Parent->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -1683,7 +1916,7 @@ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
     ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr|RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */

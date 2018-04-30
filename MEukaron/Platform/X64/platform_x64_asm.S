@@ -21,14 +21,14 @@ RAX
                 .global         __RME_Fetch_Add
                 /* Atomic and */
                 .global         __RME_Fetch_And
-                /* Load page table */
-                .global         __RME_Pgtbl_Set
                 /* Disable all interrupts */
                 .global         __RME_Disable_Int
                 /* Enable all interrupts */
                 .global         __RME_Enable_Int
                 /* Get the MSB in a word */
                 .global         __RME_MSB_Get
+                /* Get the CPU ID */
+                .global         __RME_CPUID_Get
                 /* Kernel main function wrapper */
                 .global         _RME_Kmain
                 /* Entering of the user mode */
@@ -39,6 +39,10 @@ RAX
                 .global         __RME_X64_In
                 /* Output to a port */
                 .global         __RME_X64_Out
+                /* Read MSR */
+                .global         __RME_X64_Read_MSR
+                /* Write MSR */
+                .global         __RME_X64_Write_MSR
                 /* Load GDT */
                 .global         __RME_X64_GDT_Load
                 /* Load IDT */
@@ -47,6 +51,10 @@ RAX
                 .global         __RME_X64_TSS_Load
                 /* CPUID instruction */
                 .global         __RME_X64_CPUID_Get
+                /* HALT processor to wait for interrupt */
+                .global         __RME_X64_Halt
+                /* Load page table */
+                .global         __RME_X64_Pgtbl_Set
 
                 /* Booting specific stuff */
                 .global         _start
@@ -55,11 +63,17 @@ RAX
                 .global         RME_X64_Kpgt
                 .global         __RME_X64_Kern_Boot_Stack
                 .global         __RME_X64_SMP_Boot_32
+
+                /* Fault handlers and user handlers are exported on their spot */
 /* End Exports ***************************************************************/
 
 /* Begin Imports *************************************************************/
                 /* The kernel entry of RME. This will be defined in C language. */
                 .global         RME_Kmain
+                /* The fault handler of RME. This will be defined in C language. */
+                .global         __RME_X64_Fault_Handler
+                /* The generic interrupt handler of RME. This will be defined in C language. */
+                .global         __RME_X64_Generic_Handler
                 /* The system call handler of RME. This will be defined in C language. */
                 .global         _RME_Svc_Handler
                 /* The system tick handler of RME. This will be defined in C language. */
@@ -231,53 +245,6 @@ RME_X64_Kpgt:
 __RME_X64_Kern_Boot_Stack:
 /* End Memory Init ***********************************************************/
 
-/* Begin Handlers ************************************************************/
-                 .global __RME_X64_FAULT_DE_Handler
-                 .global __RME_X64_TRAP_DB_Handler
-                 .global __RME_X64_INT_NMI_Handler
-                 .global __RME_X64_TRAP_BP_Handler
-                 .global __RME_X64_TRAP_OF_Handler
-                 .global __RME_X64_FAULT_BR_Handler
-                 .global __RME_X64_FAULT_NM_Handler
-                 .global __RME_X64_ABORT_DF_Handler
-                 .global __RME_X64_ABORT_OLD_MF_Handler
-                 .global __RME_X64_FAULT_TS_Handler
-                 .global __RME_X64_FAULT_NP_Handler
-                 .global __RME_X64_FAULT_SS_Handler
-                 .global __RME_X64_FAULT_GP_Handler
-                 .global __RME_X64_FAULT_PF_Handler
-                 .global __RME_X64_FAULT_MF_Handler
-                 .global __RME_X64_FAULT_AC_Handler
-                 .global __RME_X64_ABORT_MC_Handler
-                 .global __RME_X64_FAULT_XM_Handler
-                 .global __RME_X64_FAULT_VE_Handler
-                 .global __RME_X64_INT_USER_Handler
-
-                 /* Currently we do nothing in these handlers */
-__RME_X64_FAULT_DE_Handler:
-__RME_X64_TRAP_DB_Handler:
-__RME_X64_INT_NMI_Handler:
-__RME_X64_TRAP_BP_Handler:
-__RME_X64_TRAP_OF_Handler:
-__RME_X64_FAULT_BR_Handler:
-__RME_X64_FAULT_NM_Handler:
-__RME_X64_ABORT_DF_Handler:
-__RME_X64_ABORT_OLD_MF_Handler:
-__RME_X64_FAULT_TS_Handler:
-__RME_X64_FAULT_NP_Handler:
-__RME_X64_FAULT_SS_Handler:
-__RME_X64_FAULT_GP_Handler:
-__RME_X64_FAULT_PF_Handler:
-__RME_X64_FAULT_MF_Handler:
-__RME_X64_FAULT_AC_Handler:
-__RME_X64_ABORT_MC_Handler:
-__RME_X64_FAULT_XM_Handler:
-__RME_X64_FAULT_VE_Handler:
-__RME_X64_INT_USER_Handler:
-                 CLI
-                 JMP            .
-/* End Handlers **************************************************************/
-
 /* Begin Function:__RME_X64_In ************************************************
 Description    : The function for outputting something to an I/O port.
 Input          : ptr_t Port - The port to output to.
@@ -287,14 +254,14 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_In:
-                 PUSH            %RDX
-                 PUSH            %RAX
-                 MOV             %RDI,%RDX
-                 MOV             %RSI,%RAX
+                 PUSHQ           %RDX
+                 PUSHQ           %RAX
+                 MOVQ            %RDI,%RDX
+                 MOVQ            %RSI,%RAX
                  INB             (%DX),%AL
-                 POP             %RDX
-                 POP             %RAX
-                 RET
+                 POPQ            %RDX
+                 POPQ            %RAX
+                 RETQ
 /* End Function:__RME_X64_In *************************************************/
 
 /* Begin Function:__RME_X64_Out ***********************************************
@@ -306,15 +273,71 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_Out:
-                 PUSH            %RDX
-                 PUSH            %RAX
-                 MOV             %RDI,%RDX
-                 MOV             %RSI,%RAX
+                 PUSHQ           %RDX
+                 PUSHQ           %RAX
+                 MOVQ            %RDI,%RDX
+                 MOVQ            %RSI,%RAX
                  OUTB            %AL,(%DX)
-                 POP             %RDX
-                 POP             %RAX
-                 RET
+                 POPQ            %RDX
+                 POPQ            %RAX
+                 RETQ
 /* End Function:__RME_X64_Out ************************************************/
+
+/* Begin Function:__RME_X64_Read_MSR ******************************************
+Description    : The function for reading a MSR.
+Input          : ptr_t MSR - The MSR to read.
+Output         : None.
+Return         : ptr_t - The content of the MSR.
+Register Usage : None.
+******************************************************************************/
+__RME_X64_Read_MSR:
+                 PUSHQ           %RCX
+                 PUSHQ           %RDX
+                 MOVQ            %RDI,%RCX
+                 XORQ            %RAX,%RAX
+                 RDMSR
+                 SHLQ            $32,%RDX
+                 ADDQ            %RDX,%RAX
+                 POPQ            %RDX
+                 POPQ            %RCX
+                 RETQ
+/* End Function:__RME_X64_Read_MSR *******************************************/
+
+/* Begin Function:__RME_X64_Write_MSR *****************************************
+Description    : The function for writing a MSR.
+Input          : ptr_t MSR - The MSR to write.
+                 ptr_t Value - The value to write to it.
+Output         : None.
+Return         : None.
+Register Usage : None.
+******************************************************************************/
+__RME_X64_Write_MSR:
+                 PUSHQ           %RCX
+                 PUSHQ           %RDX
+                 PUSHQ           %RAX
+                 MOVQ            %RDI,%RCX
+                 MOVL            %ESI,%EAX
+                 MOVQ            %RSI,%RDX
+                 SHR             $32,%RDX
+                 WRMSR
+                 POPQ            %RAX
+                 POPQ            %RDX
+                 POPQ            %RCX
+                 RETQ
+/* End Function:__RME_X64_Write_MSR ******************************************/
+
+/* Begin Function:__RME_CPUID_Get *********************************************
+Description : Get the CPUID. This is to identify where we are executing. This is
+              not to be confused with __RME_X64_CPUID_Get, which is a wrapper for
+              "CPUID" instruction.
+Input       : None.
+Output      : None.
+Return      : ptr_t - The CPUID.
+******************************************************************************/
+__RME_CPUID_Get:
+                MOV              %GS:(8192-24),%RAX
+                RETQ
+/* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_X64_CPUID_Get *****************************************
 Description    : The function for outputting something to an I/O port.
@@ -329,30 +352,30 @@ Return         : ptr_t - The maximum number for CPUID instruction.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_CPUID_Get:
-                 PUSH            %R8
-                 PUSH            %R9
-                 PUSH            %RBX
-                 PUSH            %RCX
-                 PUSH            %RDX
+                 PUSHQ           %R8
+                 PUSHQ           %R9
+                 PUSHQ           %RBX
+                 PUSHQ           %RCX
+                 PUSHQ           %RDX
 
-                 MOV             %RDI,%RAX
-                 MOV             %RDX,%R8
-                 MOV             %RCX,%R9
+                 MOVQ            %RDI,%RAX
+                 MOVQ            %RDX,%R8
+                 MOVQ            %RCX,%R9
 
-                 MOV             (%RSI),%RBX
-                 MOV             (%R8),%RCX
-                 MOV             (%R9),%RDX
+                 MOVQ            (%RSI),%RBX
+                 MOVQ            (%R8),%RCX
+                 MOVQ            (%R9),%RDX
                  CPUID
-                 MOV             %RBX,(%RSI)
-                 MOV             %RCX,(%R8)
-                 MOV             %RDX,(%R9)
+                 MOVQ            %RBX,(%RSI)
+                 MOVQ            %RCX,(%R8)
+                 MOVQ            %RDX,(%R9)
 
-                 POP             %RDX
-                 POP             %RCX
-                 POP             %RBX
-                 POP             %R9
-                 POP             %R8
-                 RET
+                 POPQ            %RDX
+                 POPQ            %RCX
+                 POPQ            %RBX
+                 POPQ            %R9
+                 POPQ            %R8
+                 RETQ
 /* End Function:__RME_X64_CPUID_Get ******************************************/
 
 /* Begin Function:__RME_X64_GDT_Load ******************************************
@@ -366,7 +389,7 @@ Register Usage : None.
 ******************************************************************************/
 __RME_X64_GDT_Load:
                  LGDT            (%RDI)
-                 RET
+                 RETQ
 /* End Function:__RME_X64_GDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_IDT_Load ******************************************
@@ -379,7 +402,7 @@ Register Usage : None.
 ******************************************************************************/
 __RME_X64_IDT_Load:
                  LIDT            (%RDI)
-                 RET
+                 RETQ
 /* End Function:__RME_X64_IDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_TSS_Load ******************************************
@@ -391,7 +414,7 @@ Register Usage : None.
 ******************************************************************************/
 __RME_X64_TSS_Load:
                  LTR             %DI
-                 RET
+                 RETQ
 /* End Function:__RME_X64_TSS_Load *******************************************/
 
 /* Begin Function:__RME_Comp_Swap *********************************************
@@ -406,14 +429,15 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - If successful, 1; else 0.
 ******************************************************************************/
 __RME_Comp_Swap:
-                MOV              (%RSI),%RAX
-                LOCK CMPXCHG     %RDX,(%RDI)
-                JZ               __RME_Comp_Swap_Fail
-                MOV              $1,%RAX
-                RET
+                 MOVQ            (%RSI),%RAX
+                 LOCK CMPXCHGQ   %RDX,(%RDI)
+                 JNZ             __RME_Comp_Swap_Fail
+                 MOVQ            $1,%RAX
+                 RETQ
 __RME_Comp_Swap_Fail:
-                MOV              %RAX,(%RSI)
-                MOV              $0,%RAX
+                 MOVQ            %RAX,(%RSI)
+                 MOVQ            $0,%RAX
+                 RETQ
 /* End Function:__RME_Comp_Swap **********************************************/
 
 /* Begin Function:__RME_Fetch_Add *********************************************
@@ -425,9 +449,9 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the addition.
 ******************************************************************************/
 __RME_Fetch_Add:
-               MOV              (%RDI),%RAX
-               LOCK ADD         %RSI,(%RDI)
-               RET
+                 MOVQ            (%RDI),%RAX
+                 LOCK ADDQ       %RSI,(%RDI)
+                 RETQ
 /* End Function:__RME_Fetch_Add **********************************************/
 
 /* Begin Function:__RME_Fetch_And *********************************************
@@ -441,21 +465,21 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the AND operation.
 ******************************************************************************/
 __RME_Fetch_And:
-               MOV              (%RDI),%RAX
-               LOCK AND         %RSI,(%RDI)
-               RET
+               MOVQ             (%RDI),%RAX
+               LOCK ANDQ        %RSI,(%RDI)
+               RETQ
 /* End Function:__RME_Fetch_And **********************************************/
 
-/* Begin Function:__RME_Pgtbl_Set *********************************************
+/* Begin Function:__RME_X64_Pgtbl_Set *****************************************
 Description : Set the processor's page table.
 Input       : ptr_t Pgtbl - The physical address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_Pgtbl_Set:
+__RME_X64_Pgtbl_Set:
                MOV              %RDI,%CR3
-               RET
-/* End Function:__RME_Pgtbl_Set **********************************************/
+               RETQ
+/* End Function:__RME_X64_Pgtbl_Set ******************************************/
 
 /* Begin Function:__RME_Disable_Int *******************************************
 Description    : The function for disabling all interrupts.
@@ -466,7 +490,7 @@ Register Usage : None.
 __RME_Disable_Int:
                 /* Disable all interrupts */
                 CLI
-                RET
+                RETQ
 /* End Function:__RME_Disable_Int ********************************************/
 
 /* Begin Function:__RME_Enable_Int ********************************************
@@ -478,19 +502,20 @@ Register Usage : None.
 __RME_Enable_Int:
                 /* Enable all interrupts */
                 STI
-                RET
+                RETQ
 /* End Function:__RME_Enable_Int *********************************************/
 
-/* Begin Function:__RME_CMX_WFI ***********************************************
+/* Begin Function:__RME_X64_Halt **********************************************
 Description    : Wait until a new interrupt comes, to save power.
 Input          : None.
 Output         : None.
 Register Usage : None.
 ******************************************************************************/
-__RME_CMX_WFI:
-                /* Wait for interrupt. */
-                RET
-/* End Function:__RME_CMX_WFI ************************************************/
+__RME_X64_Halt:
+                /* Wait for interrupt */
+                HLT
+                RETQ
+/* End Function:__RME_X64_Halt ***********************************************/
 
 /* Begin Function:_RME_Kmain **************************************************
 Description    : The entry address of the kernel. Never returns.
@@ -500,8 +525,8 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 _RME_Kmain:
-                 MOV      %RDI,%RSP
-                 JMP      RME_Kmain
+                 MOVQ           %RDI,%RSP
+                 JMP            RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
 /* Begin Function:__RME_MSB_Get ***********************************************
@@ -512,7 +537,10 @@ Return         : ptr_t - The MSB position.
 Register Usage : None.
 ******************************************************************************/
 __RME_MSB_Get:
-                RET
+                LZCNTQ          %RDI,%RDI
+                MOVQ            $63,%RAX
+                SUBQ            %RDI,%RAX
+                RETQ
 /* End Function:__RME_MSB_Get ************************************************/
 
 /* Begin Function:__RME_Enter_User_Mode ***************************************
@@ -524,8 +552,416 @@ Input       : R0 - The user execution startpoint.
 Output      : None.
 ******************************************************************************/
 __RME_Enter_User_Mode:
-                RET
+
+                SYSRETQ
 /* End Function:__RME_Enter_User_Mode ****************************************/
+
+/* Begin Function:Fault_Handler ***********************************************
+Description : The multi-purpose fault handler routine. This macro will in fact
+              call a C function to resolve the system service routines.
+              x86-64 use a full descending stack model. Note that this assumes that
+              the error code push is already complete, if any.
+Input       : None.
+Output      : None.
+******************************************************************************/
+                .set            KERNEL_CODE,(1*8)
+                .set            KERNEL_DATA,(2*8)
+                .set            USER_CODE,(4*8+3)
+                .set            USER_DATA,(5*8+3)
+/* Save all general-purpose registers */
+.macro          SAVE_GP_REGS
+                PUSHQ           %R15
+                PUSHQ           %R14
+                PUSHQ           %R13
+                PUSHQ           %R12
+                PUSHQ           %R11
+                PUSHQ           %R10
+                PUSHQ           %R9
+                PUSHQ           %R8
+                PUSHQ           %RBP
+                PUSHQ           %RDI
+                PUSHQ           %RSI
+                PUSHQ           %RDX
+                PUSHQ           %RCX
+                PUSHQ           %RBX
+                PUSHQ           %RAX
+                /* GS, CS, SS is known to be good, we just need FS, ES and DS */
+                MOVW            $(KERNEL_DATA),%AX
+                MOVW            %AX,%FS
+                MOVW            %AX,%ES
+                MOVW            %AX,%DS
+.endm
+/* Restore all general-purpose registers */
+.macro          RESTORE_GP_REGS
+                /* Put the kernel GS back */
+                SWAPGS
+                MOVW            $(USER_DATA),%AX
+                MOVW            %AX,%GS
+                MOVW            %AX,%FS
+                MOVW            %AX,%ES
+                MOVW            %AX,%DS
+                POPQ            %RAX
+                POPQ            %RBX
+                POPQ            %RCX
+                POPQ            %RDX
+                POPQ            %RSI
+                POPQ            %RDI
+                POPQ            %RBP
+                POPQ            %R8
+                POPQ            %R9
+                POPQ            %R10
+                POPQ            %R11
+                POPQ            %R12
+                POPQ            %R13
+                POPQ            %R14
+                POPQ            %R15
+.endm
+/* Fault handler macro */
+.macro FAULT_HANDLER NAME ERRCODE REASON
+                .global         \NAME
+\NAME:
+                SWAPGS
+.if \ERRCODE==0
+                /* Make a dummy error code */
+                PUSHQ           0
+.endif
+                /* We went into this with a INT - flag = INTNUM */
+                PUSHQ           \REASON
+                JMP             Fault_Handler
+.endm
+
+/* Fault handlers */
+FAULT_HANDLER NAME=__RME_X64_FAULT_DE_Handler ERRCODE=0 REASON=0
+FAULT_HANDLER NAME=__RME_X64_TRAP_DB_Handler ERRCODE=0 REASON=1
+FAULT_HANDLER NAME=__RME_X64_INT_NMI_Handler ERRCODE=0 REASON=2
+FAULT_HANDLER NAME=__RME_X64_TRAP_BP_Handler ERRCODE=0 REASON=3
+FAULT_HANDLER NAME=__RME_X64_TRAP_OF_Handler ERRCODE=0 REASON=4
+FAULT_HANDLER NAME=__RME_X64_FAULT_BR_Handler ERRCODE=0 REASON=5
+FAULT_HANDLER NAME=__RME_X64_FAULT_UD_Handler ERRCODE=0 REASON=6
+FAULT_HANDLER NAME=__RME_X64_FAULT_NM_Handler ERRCODE=0 REASON=7
+FAULT_HANDLER NAME=__RME_X64_ABORT_DF_Handler ERRCODE=1 REASON=8
+FAULT_HANDLER NAME=__RME_X64_ABORT_OLD_MF_Handler ERRCODE=0 REASON=9
+FAULT_HANDLER NAME=__RME_X64_FAULT_TS_Handler ERRCODE=1 REASON=10
+FAULT_HANDLER NAME=__RME_X64_FAULT_NP_Handler ERRCODE=1 REASON=11
+FAULT_HANDLER NAME=__RME_X64_FAULT_SS_Handler ERRCODE=1 REASON=12
+FAULT_HANDLER NAME=__RME_X64_FAULT_GP_Handler ERRCODE=1 REASON=13
+FAULT_HANDLER NAME=__RME_X64_FAULT_PF_Handler ERRCODE=1 REASON=14
+FAULT_HANDLER NAME=__RME_X64_FAULT_MF_Handler ERRCODE=0 REASON=16
+FAULT_HANDLER NAME=__RME_X64_FAULT_AC_Handler ERRCODE=1 REASON=17
+FAULT_HANDLER NAME=__RME_X64_ABORT_MC_Handler ERRCODE=0 REASON=18
+FAULT_HANDLER NAME=__RME_X64_FAULT_XM_Handler ERRCODE=0 REASON=19
+FAULT_HANDLER NAME=__RME_X64_FAULT_VE_Handler ERRCODE=0 REASON=20
+/* Common function body for fault handlers - reduce I-Cache usage */
+Fault_Handler:
+                SAVE_GP_REGS
+                /* Pass the stack pointer to system call handler */
+                MOVQ            %RSP,%RDI
+                MOVQ            (15*8)(%RSP),%RSI
+                CALLQ           __RME_X64_Fault_Handler
+
+                RESTORE_GP_REGS
+                ADDQ            $16,%RSP
+                IRETQ
+/* End Function:Fault_Handler ************************************************/
+
+/* Begin Function:__RME_X64_INT_USER_Handler **********************************
+Description : The General Interrupt handler routine. This will in fact call a
+              C function to resolve the system service routines.
+Input       : None.
+Output      : None.
+******************************************************************************/
+/* User generic interrupt handler macro */
+.macro USER_HANDLER NAME VECTNUM
+                .global         \NAME
+\NAME:
+                SWAPGS
+                /* Make a dummy error code */
+                PUSHQ           0
+                /* Interrupt number */
+                PUSHQ           \VECTNUM
+                JMP             User_Handler
+.endm
+/* User handlers */
+USER_HANDLER NAME=__RME_X64_USER32_Handler VECTNUM=32
+USER_HANDLER NAME=__RME_X64_USER33_Handler VECTNUM=33
+USER_HANDLER NAME=__RME_X64_USER34_Handler VECTNUM=34
+USER_HANDLER NAME=__RME_X64_USER35_Handler VECTNUM=35
+USER_HANDLER NAME=__RME_X64_USER36_Handler VECTNUM=36
+USER_HANDLER NAME=__RME_X64_USER37_Handler VECTNUM=37
+USER_HANDLER NAME=__RME_X64_USER38_Handler VECTNUM=38
+USER_HANDLER NAME=__RME_X64_USER39_Handler VECTNUM=39
+
+USER_HANDLER NAME=__RME_X64_USER40_Handler VECTNUM=40
+USER_HANDLER NAME=__RME_X64_USER41_Handler VECTNUM=41
+USER_HANDLER NAME=__RME_X64_USER42_Handler VECTNUM=42
+USER_HANDLER NAME=__RME_X64_USER43_Handler VECTNUM=43
+USER_HANDLER NAME=__RME_X64_USER44_Handler VECTNUM=44
+USER_HANDLER NAME=__RME_X64_USER45_Handler VECTNUM=45
+USER_HANDLER NAME=__RME_X64_USER46_Handler VECTNUM=46
+USER_HANDLER NAME=__RME_X64_USER47_Handler VECTNUM=47
+USER_HANDLER NAME=__RME_X64_USER48_Handler VECTNUM=48
+USER_HANDLER NAME=__RME_X64_USER49_Handler VECTNUM=49
+
+USER_HANDLER NAME=__RME_X64_USER50_Handler VECTNUM=50
+USER_HANDLER NAME=__RME_X64_USER51_Handler VECTNUM=51
+USER_HANDLER NAME=__RME_X64_USER52_Handler VECTNUM=52
+USER_HANDLER NAME=__RME_X64_USER53_Handler VECTNUM=53
+USER_HANDLER NAME=__RME_X64_USER54_Handler VECTNUM=54
+USER_HANDLER NAME=__RME_X64_USER55_Handler VECTNUM=55
+USER_HANDLER NAME=__RME_X64_USER56_Handler VECTNUM=56
+USER_HANDLER NAME=__RME_X64_USER57_Handler VECTNUM=57
+USER_HANDLER NAME=__RME_X64_USER58_Handler VECTNUM=58
+USER_HANDLER NAME=__RME_X64_USER59_Handler VECTNUM=59
+
+USER_HANDLER NAME=__RME_X64_USER60_Handler VECTNUM=60
+USER_HANDLER NAME=__RME_X64_USER61_Handler VECTNUM=61
+USER_HANDLER NAME=__RME_X64_USER62_Handler VECTNUM=62
+USER_HANDLER NAME=__RME_X64_USER63_Handler VECTNUM=63
+USER_HANDLER NAME=__RME_X64_USER64_Handler VECTNUM=64
+USER_HANDLER NAME=__RME_X64_USER65_Handler VECTNUM=65
+USER_HANDLER NAME=__RME_X64_USER66_Handler VECTNUM=66
+USER_HANDLER NAME=__RME_X64_USER67_Handler VECTNUM=67
+USER_HANDLER NAME=__RME_X64_USER68_Handler VECTNUM=68
+USER_HANDLER NAME=__RME_X64_USER69_Handler VECTNUM=69
+
+USER_HANDLER NAME=__RME_X64_USER70_Handler VECTNUM=70
+USER_HANDLER NAME=__RME_X64_USER71_Handler VECTNUM=71
+USER_HANDLER NAME=__RME_X64_USER72_Handler VECTNUM=72
+USER_HANDLER NAME=__RME_X64_USER73_Handler VECTNUM=73
+USER_HANDLER NAME=__RME_X64_USER74_Handler VECTNUM=74
+USER_HANDLER NAME=__RME_X64_USER75_Handler VECTNUM=75
+USER_HANDLER NAME=__RME_X64_USER76_Handler VECTNUM=76
+USER_HANDLER NAME=__RME_X64_USER77_Handler VECTNUM=77
+USER_HANDLER NAME=__RME_X64_USER78_Handler VECTNUM=78
+USER_HANDLER NAME=__RME_X64_USER79_Handler VECTNUM=79
+
+USER_HANDLER NAME=__RME_X64_USER80_Handler VECTNUM=80
+USER_HANDLER NAME=__RME_X64_USER81_Handler VECTNUM=81
+USER_HANDLER NAME=__RME_X64_USER82_Handler VECTNUM=82
+USER_HANDLER NAME=__RME_X64_USER83_Handler VECTNUM=83
+USER_HANDLER NAME=__RME_X64_USER84_Handler VECTNUM=84
+USER_HANDLER NAME=__RME_X64_USER85_Handler VECTNUM=85
+USER_HANDLER NAME=__RME_X64_USER86_Handler VECTNUM=86
+USER_HANDLER NAME=__RME_X64_USER87_Handler VECTNUM=87
+USER_HANDLER NAME=__RME_X64_USER88_Handler VECTNUM=88
+USER_HANDLER NAME=__RME_X64_USER89_Handler VECTNUM=89
+
+USER_HANDLER NAME=__RME_X64_USER90_Handler VECTNUM=90
+USER_HANDLER NAME=__RME_X64_USER91_Handler VECTNUM=91
+USER_HANDLER NAME=__RME_X64_USER92_Handler VECTNUM=92
+USER_HANDLER NAME=__RME_X64_USER93_Handler VECTNUM=93
+USER_HANDLER NAME=__RME_X64_USER94_Handler VECTNUM=94
+USER_HANDLER NAME=__RME_X64_USER95_Handler VECTNUM=95
+USER_HANDLER NAME=__RME_X64_USER96_Handler VECTNUM=96
+USER_HANDLER NAME=__RME_X64_USER97_Handler VECTNUM=97
+USER_HANDLER NAME=__RME_X64_USER98_Handler VECTNUM=98
+USER_HANDLER NAME=__RME_X64_USER99_Handler VECTNUM=99
+
+USER_HANDLER NAME=__RME_X64_USER100_Handler VECTNUM=100
+USER_HANDLER NAME=__RME_X64_USER101_Handler VECTNUM=101
+USER_HANDLER NAME=__RME_X64_USER102_Handler VECTNUM=102
+USER_HANDLER NAME=__RME_X64_USER103_Handler VECTNUM=103
+USER_HANDLER NAME=__RME_X64_USER104_Handler VECTNUM=104
+USER_HANDLER NAME=__RME_X64_USER105_Handler VECTNUM=105
+USER_HANDLER NAME=__RME_X64_USER106_Handler VECTNUM=106
+USER_HANDLER NAME=__RME_X64_USER107_Handler VECTNUM=107
+USER_HANDLER NAME=__RME_X64_USER108_Handler VECTNUM=108
+USER_HANDLER NAME=__RME_X64_USER109_Handler VECTNUM=109
+
+USER_HANDLER NAME=__RME_X64_USER110_Handler VECTNUM=110
+USER_HANDLER NAME=__RME_X64_USER111_Handler VECTNUM=111
+USER_HANDLER NAME=__RME_X64_USER112_Handler VECTNUM=112
+USER_HANDLER NAME=__RME_X64_USER113_Handler VECTNUM=113
+USER_HANDLER NAME=__RME_X64_USER114_Handler VECTNUM=114
+USER_HANDLER NAME=__RME_X64_USER115_Handler VECTNUM=115
+USER_HANDLER NAME=__RME_X64_USER116_Handler VECTNUM=116
+USER_HANDLER NAME=__RME_X64_USER117_Handler VECTNUM=117
+USER_HANDLER NAME=__RME_X64_USER118_Handler VECTNUM=118
+USER_HANDLER NAME=__RME_X64_USER119_Handler VECTNUM=119
+
+USER_HANDLER NAME=__RME_X64_USER120_Handler VECTNUM=120
+USER_HANDLER NAME=__RME_X64_USER121_Handler VECTNUM=121
+USER_HANDLER NAME=__RME_X64_USER122_Handler VECTNUM=122
+USER_HANDLER NAME=__RME_X64_USER123_Handler VECTNUM=123
+USER_HANDLER NAME=__RME_X64_USER124_Handler VECTNUM=124
+USER_HANDLER NAME=__RME_X64_USER125_Handler VECTNUM=125
+USER_HANDLER NAME=__RME_X64_USER126_Handler VECTNUM=126
+USER_HANDLER NAME=__RME_X64_USER127_Handler VECTNUM=127
+USER_HANDLER NAME=__RME_X64_USER128_Handler VECTNUM=128
+USER_HANDLER NAME=__RME_X64_USER129_Handler VECTNUM=129
+
+USER_HANDLER NAME=__RME_X64_USER130_Handler VECTNUM=130
+USER_HANDLER NAME=__RME_X64_USER131_Handler VECTNUM=131
+USER_HANDLER NAME=__RME_X64_USER132_Handler VECTNUM=132
+USER_HANDLER NAME=__RME_X64_USER133_Handler VECTNUM=133
+USER_HANDLER NAME=__RME_X64_USER134_Handler VECTNUM=134
+USER_HANDLER NAME=__RME_X64_USER135_Handler VECTNUM=135
+USER_HANDLER NAME=__RME_X64_USER136_Handler VECTNUM=136
+USER_HANDLER NAME=__RME_X64_USER137_Handler VECTNUM=137
+USER_HANDLER NAME=__RME_X64_USER138_Handler VECTNUM=138
+USER_HANDLER NAME=__RME_X64_USER139_Handler VECTNUM=139
+
+USER_HANDLER NAME=__RME_X64_USER140_Handler VECTNUM=140
+USER_HANDLER NAME=__RME_X64_USER141_Handler VECTNUM=141
+USER_HANDLER NAME=__RME_X64_USER142_Handler VECTNUM=142
+USER_HANDLER NAME=__RME_X64_USER143_Handler VECTNUM=143
+USER_HANDLER NAME=__RME_X64_USER144_Handler VECTNUM=144
+USER_HANDLER NAME=__RME_X64_USER145_Handler VECTNUM=145
+USER_HANDLER NAME=__RME_X64_USER146_Handler VECTNUM=146
+USER_HANDLER NAME=__RME_X64_USER147_Handler VECTNUM=147
+USER_HANDLER NAME=__RME_X64_USER148_Handler VECTNUM=148
+USER_HANDLER NAME=__RME_X64_USER149_Handler VECTNUM=149
+
+USER_HANDLER NAME=__RME_X64_USER150_Handler VECTNUM=150
+USER_HANDLER NAME=__RME_X64_USER151_Handler VECTNUM=151
+USER_HANDLER NAME=__RME_X64_USER152_Handler VECTNUM=152
+USER_HANDLER NAME=__RME_X64_USER153_Handler VECTNUM=153
+USER_HANDLER NAME=__RME_X64_USER154_Handler VECTNUM=154
+USER_HANDLER NAME=__RME_X64_USER155_Handler VECTNUM=155
+USER_HANDLER NAME=__RME_X64_USER156_Handler VECTNUM=156
+USER_HANDLER NAME=__RME_X64_USER157_Handler VECTNUM=157
+USER_HANDLER NAME=__RME_X64_USER158_Handler VECTNUM=158
+USER_HANDLER NAME=__RME_X64_USER159_Handler VECTNUM=159
+
+USER_HANDLER NAME=__RME_X64_USER160_Handler VECTNUM=160
+USER_HANDLER NAME=__RME_X64_USER161_Handler VECTNUM=161
+USER_HANDLER NAME=__RME_X64_USER162_Handler VECTNUM=162
+USER_HANDLER NAME=__RME_X64_USER163_Handler VECTNUM=163
+USER_HANDLER NAME=__RME_X64_USER164_Handler VECTNUM=164
+USER_HANDLER NAME=__RME_X64_USER165_Handler VECTNUM=165
+USER_HANDLER NAME=__RME_X64_USER166_Handler VECTNUM=166
+USER_HANDLER NAME=__RME_X64_USER167_Handler VECTNUM=167
+USER_HANDLER NAME=__RME_X64_USER168_Handler VECTNUM=168
+USER_HANDLER NAME=__RME_X64_USER169_Handler VECTNUM=169
+
+USER_HANDLER NAME=__RME_X64_USER170_Handler VECTNUM=170
+USER_HANDLER NAME=__RME_X64_USER171_Handler VECTNUM=171
+USER_HANDLER NAME=__RME_X64_USER172_Handler VECTNUM=172
+USER_HANDLER NAME=__RME_X64_USER173_Handler VECTNUM=173
+USER_HANDLER NAME=__RME_X64_USER174_Handler VECTNUM=174
+USER_HANDLER NAME=__RME_X64_USER175_Handler VECTNUM=175
+USER_HANDLER NAME=__RME_X64_USER176_Handler VECTNUM=176
+USER_HANDLER NAME=__RME_X64_USER177_Handler VECTNUM=177
+USER_HANDLER NAME=__RME_X64_USER178_Handler VECTNUM=178
+USER_HANDLER NAME=__RME_X64_USER179_Handler VECTNUM=179
+
+USER_HANDLER NAME=__RME_X64_USER180_Handler VECTNUM=180
+USER_HANDLER NAME=__RME_X64_USER181_Handler VECTNUM=181
+USER_HANDLER NAME=__RME_X64_USER182_Handler VECTNUM=182
+USER_HANDLER NAME=__RME_X64_USER183_Handler VECTNUM=183
+USER_HANDLER NAME=__RME_X64_USER184_Handler VECTNUM=184
+USER_HANDLER NAME=__RME_X64_USER185_Handler VECTNUM=185
+USER_HANDLER NAME=__RME_X64_USER186_Handler VECTNUM=186
+USER_HANDLER NAME=__RME_X64_USER187_Handler VECTNUM=187
+USER_HANDLER NAME=__RME_X64_USER188_Handler VECTNUM=188
+USER_HANDLER NAME=__RME_X64_USER189_Handler VECTNUM=189
+
+USER_HANDLER NAME=__RME_X64_USER190_Handler VECTNUM=190
+USER_HANDLER NAME=__RME_X64_USER191_Handler VECTNUM=191
+USER_HANDLER NAME=__RME_X64_USER192_Handler VECTNUM=192
+USER_HANDLER NAME=__RME_X64_USER193_Handler VECTNUM=193
+USER_HANDLER NAME=__RME_X64_USER194_Handler VECTNUM=194
+USER_HANDLER NAME=__RME_X64_USER195_Handler VECTNUM=195
+USER_HANDLER NAME=__RME_X64_USER196_Handler VECTNUM=196
+USER_HANDLER NAME=__RME_X64_USER197_Handler VECTNUM=197
+USER_HANDLER NAME=__RME_X64_USER198_Handler VECTNUM=198
+USER_HANDLER NAME=__RME_X64_USER199_Handler VECTNUM=199
+
+USER_HANDLER NAME=__RME_X64_USER200_Handler VECTNUM=200
+USER_HANDLER NAME=__RME_X64_USER201_Handler VECTNUM=201
+USER_HANDLER NAME=__RME_X64_USER202_Handler VECTNUM=202
+USER_HANDLER NAME=__RME_X64_USER203_Handler VECTNUM=203
+USER_HANDLER NAME=__RME_X64_USER204_Handler VECTNUM=204
+USER_HANDLER NAME=__RME_X64_USER205_Handler VECTNUM=205
+USER_HANDLER NAME=__RME_X64_USER206_Handler VECTNUM=206
+USER_HANDLER NAME=__RME_X64_USER207_Handler VECTNUM=207
+USER_HANDLER NAME=__RME_X64_USER208_Handler VECTNUM=208
+USER_HANDLER NAME=__RME_X64_USER209_Handler VECTNUM=209
+
+USER_HANDLER NAME=__RME_X64_USER210_Handler VECTNUM=210
+USER_HANDLER NAME=__RME_X64_USER211_Handler VECTNUM=211
+USER_HANDLER NAME=__RME_X64_USER212_Handler VECTNUM=212
+USER_HANDLER NAME=__RME_X64_USER213_Handler VECTNUM=213
+USER_HANDLER NAME=__RME_X64_USER214_Handler VECTNUM=214
+USER_HANDLER NAME=__RME_X64_USER215_Handler VECTNUM=215
+USER_HANDLER NAME=__RME_X64_USER216_Handler VECTNUM=216
+USER_HANDLER NAME=__RME_X64_USER217_Handler VECTNUM=217
+USER_HANDLER NAME=__RME_X64_USER218_Handler VECTNUM=218
+USER_HANDLER NAME=__RME_X64_USER219_Handler VECTNUM=219
+
+USER_HANDLER NAME=__RME_X64_USER220_Handler VECTNUM=220
+USER_HANDLER NAME=__RME_X64_USER221_Handler VECTNUM=221
+USER_HANDLER NAME=__RME_X64_USER222_Handler VECTNUM=222
+USER_HANDLER NAME=__RME_X64_USER223_Handler VECTNUM=223
+USER_HANDLER NAME=__RME_X64_USER224_Handler VECTNUM=224
+USER_HANDLER NAME=__RME_X64_USER225_Handler VECTNUM=225
+USER_HANDLER NAME=__RME_X64_USER226_Handler VECTNUM=226
+USER_HANDLER NAME=__RME_X64_USER227_Handler VECTNUM=227
+USER_HANDLER NAME=__RME_X64_USER228_Handler VECTNUM=228
+USER_HANDLER NAME=__RME_X64_USER229_Handler VECTNUM=229
+
+USER_HANDLER NAME=__RME_X64_USER230_Handler VECTNUM=230
+USER_HANDLER NAME=__RME_X64_USER231_Handler VECTNUM=231
+USER_HANDLER NAME=__RME_X64_USER232_Handler VECTNUM=232
+USER_HANDLER NAME=__RME_X64_USER233_Handler VECTNUM=233
+USER_HANDLER NAME=__RME_X64_USER234_Handler VECTNUM=234
+USER_HANDLER NAME=__RME_X64_USER235_Handler VECTNUM=235
+USER_HANDLER NAME=__RME_X64_USER236_Handler VECTNUM=236
+USER_HANDLER NAME=__RME_X64_USER237_Handler VECTNUM=237
+USER_HANDLER NAME=__RME_X64_USER238_Handler VECTNUM=238
+USER_HANDLER NAME=__RME_X64_USER239_Handler VECTNUM=239
+
+USER_HANDLER NAME=__RME_X64_USER240_Handler VECTNUM=240
+USER_HANDLER NAME=__RME_X64_USER241_Handler VECTNUM=241
+USER_HANDLER NAME=__RME_X64_USER242_Handler VECTNUM=242
+USER_HANDLER NAME=__RME_X64_USER243_Handler VECTNUM=243
+USER_HANDLER NAME=__RME_X64_USER244_Handler VECTNUM=244
+USER_HANDLER NAME=__RME_X64_USER245_Handler VECTNUM=245
+USER_HANDLER NAME=__RME_X64_USER246_Handler VECTNUM=246
+USER_HANDLER NAME=__RME_X64_USER247_Handler VECTNUM=247
+USER_HANDLER NAME=__RME_X64_USER248_Handler VECTNUM=248
+USER_HANDLER NAME=__RME_X64_USER249_Handler VECTNUM=249
+
+USER_HANDLER NAME=__RME_X64_USER250_Handler VECTNUM=250
+USER_HANDLER NAME=__RME_X64_USER251_Handler VECTNUM=251
+USER_HANDLER NAME=__RME_X64_USER252_Handler VECTNUM=252
+USER_HANDLER NAME=__RME_X64_USER253_Handler VECTNUM=253
+USER_HANDLER NAME=__RME_X64_USER254_Handler VECTNUM=254
+USER_HANDLER NAME=__RME_X64_USER255_Handler VECTNUM=255
+/* Common function body for generic interrupt handlers - reduce I-Cache usage */
+User_Handler:
+                SAVE_GP_REGS
+                /* Pass the stack pointer to system call handler */
+                MOVQ            %RSP,%RDI
+                MOVQ            (15*8)(%RSP),%RSI
+                CALLQ           __RME_X64_Generic_Handler
+
+                RESTORE_GP_REGS
+                ADDQ            $16,%RSP
+                IRETQ
+/* End Function:__RME_X64_INT_USER_Handler ***********************************/
+
+/* Begin Function:SysTick_SMP_Handler *****************************************
+Description : The ticker timer handler for all other processors. This is in fact
+              a handler triggered by IPI from the main processor.
+Input       : None.
+Output      : None.
+******************************************************************************/
+SysTick_SMP_Handler:
+                .global         SysTick_SMP_Handler
+                SWAPGS
+                /* Make a dummy error code */
+                PUSHQ           0
+                /* The interrupt number of SysTick is always 0xFFFF */
+                PUSHQ           0xFFFF
+                SAVE_GP_REGS
+                /* Pass the stack pointer to system call handler */
+                MOVQ            %RSP,%RDI
+                CALL            _RME_Tick_SMP_Handler
+                RESTORE_GP_REGS
+                ADDQ            $16,%RSP
+                IRETQ
+/* End Function:SysTick_SMP_Handler ******************************************/
 
 /* Begin Function:SysTick_Handler *********************************************
 Description : The System Tick Timer handler routine. This will in fact call a
@@ -534,27 +970,73 @@ Input       : None.
 Output      : None.
 ******************************************************************************/
 SysTick_Handler:
-                RET
+                .global         SysTick_Handler
+                SWAPGS
+                /* Make a dummy error code */
+                PUSHQ           0
+                /* The interrupt number of SysTick is always 0xFFFF */
+                PUSHQ           0xFFFF
+                SAVE_GP_REGS
+                /* Pass the stack pointer to system call handler */
+                MOVQ            %RSP,%RDI
+                CALL            _RME_Tick_Handler
+                RESTORE_GP_REGS
+                ADDQ            $16,%RSP
+                IRETQ
 /* End Function:SysTick_Handler **********************************************/
 
 /* Begin Function:SVC_Handler *************************************************
 Description : The SVC handler routine. This will in fact call a C function to resolve
-              the system service routines.
+              the system service routines. None of the segment registers will be
+              preserved in all paths, and you shouldn't use them at all.
+              Due to the complexity of x86-64 architecture, there are 4 cases to handle:
+              1. SYSCALL in - SYSRET out (easy case)
+              2. INT in - IRET out (easy case)
+              3. SYSCALL in - IRET out
+                 In this case, we need to forge a portion of stack data to make SYSCALL's
+                 on-stack context identical to that of INT. This requires some trivial work.
+              4. INT in - SYSRET out
+                 This case is not allowed because SYSRET always corrupts your RCX/R11,
+                 because they are used for RIP and RFLAGS restoration. Thus, we need to
+                 avoid this case and make sure that anything that INTs in can only be
+                 IRETed out. Thus, we need to save an identifier on the stack to notify the
+                 restoration stub.
 Input       : None.
 Output      : None.
 ******************************************************************************/
 SVC_Handler:
-                RET
+                .global         SVC_Handler
+                SWAPGS
+                /* Swap the pointers with the per-core kernel RSP */
+                MOVQ            %RSP,%GS:(8192-8)
+                MOVQ            %GS:(8192-16),%RSP
+                /* Simulate INT stack: High - [SS, RSP, RFLAGS, CS, RIP, ERRCODE] - Low */
+                PUSHQ           $(USER_DATA)
+                PUSHQ           %GS:(8192-8)
+                PUSHQ           %R11
+                PUSHQ           $(USER_CODE)
+                PUSHQ           %RCX
+                PUSHQ           0
+                /* We went into this from a SYSCALL - interrupt number 0x10000 */
+                PUSHQ           0x10000
+                SAVE_GP_REGS
+                /* Pass the stack pointer to system call handler */
+                MOVQ             %RSP,%RDI
+                CALLQ           _RME_Svc_Handler
+                RESTORE_GP_REGS
+                /* See if we are forced to use IRET */
+                TESTQ           $0x10000,(%RSP)
+                JZ              Use_IRET
+                /* Just move these into the registers desired */
+                MOVQ            16(%RSP),%RCX
+                MOVQ            32(%RSP),%R11
+                MOVQ            40(%RSP),%RSP
+                /* Return to user-level */
+                SYSRETQ
+Use_IRET:       /* Flag is zero, We are forced to use IRET, because this is from INT */
+                ADDQ            $16,%RSP
+                IRETQ
 /* End Function:SVC_Handler **************************************************/
-
-/* Begin Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********
-Description : The multi-purpose handler routine. This will in fact call
-              a C function to resolve the system service routines.
-Input       : None.
-Output      : None.
-******************************************************************************/
-
-/* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **********/
 
 ;/* End Of File **************************************************************/
 

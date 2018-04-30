@@ -154,7 +154,6 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
 {
     cnt_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Kmem* Kmem_Op;
     struct RME_Cap_Captbl* Captbl_Crt;
     ptr_t Type_Ref;
     
@@ -166,7 +165,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
-    
+
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
     /* Take the slot if possible */
@@ -178,7 +177,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
         Captbl->Head.Type_Ref=0;
         return RME_ERR_CAP_KOTBL;
     }
-    
+
     /* Done. We start creation of the capability table. Clear header as well */
     for(Count=0;Count<Entry_Num;Count++)
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));

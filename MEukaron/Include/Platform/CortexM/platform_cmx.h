@@ -96,6 +96,8 @@ typedef s32 ret_t;
 #define RME_PGTBL_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(ptr_t)+sizeof(struct __RME_CMX_Pgtbl_Meta))
 /* Top-level page directory size calculation macro */
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_CMX_MPU_Data))
+/* The kernel object allocation table address - original */
+#define RME_KOTBL               RME_Kotbl
 
 /* The CPU and application specific macros are here */
 #include "platform_cmx_conf.h"
