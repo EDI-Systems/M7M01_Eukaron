@@ -110,19 +110,26 @@ typedef s64 ret_t;
 /* Initial stack size and address */
 #define RME_KMEM_STACK_ADDR                  ((ptr_t)__RME_X64_Kern_Boot_Stack)
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START                    0xFFFFFFFF81000000ULL
+#define RME_KMEM_VA_START                    0xFFFF800000000000ULL
 /* The size of the kernel object virtual memory - dummy, we will detect the actual values */
 #define RME_KMEM_SIZE                        0x1000
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
 #define RME_HYP_VA_START                     0
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                         0
+/* The kernel object allocation table address - relocated */
+#define RME_KOTBL                            ((ptr_t*)0xFFFF800001000000)
 
+/* FPU type definitions */
+#define RME_X64_FPU_AVX                      (1)
+#define RME_X64_FPU_AVX512                   (2)
 /* The CPU and application specific macros are here */
 #include "platform_x64_conf.h"
 /* End System macros *********************************************************/
 
 /* X64 specific macros *******************************************************/
+/* Make 2-level capability */
+#define RME_CAPID(X,Y)                       (((X)<<(sizeof(ptr_t)*2))|(Y)|RME_CAPID_2L)
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                      0
@@ -131,7 +138,7 @@ typedef s64 ret_t;
 /* The init process */
 #define RME_BOOT_INIT_PROC                   2
 /* The init thread - this is a per-core array */
-#define RME_BOOT_INIT_THD                    3
+#define RME_BOOT_TBL_THD                     3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN                   4
 /* The initial kernel memory capability - this is a per-NUMA node array */
@@ -143,8 +150,11 @@ typedef s64 ret_t;
 /* The initial default endpoint for all other interrupts - this is a per-core array */
 #define RME_BOOT_TBL_INT                     8
 
-/* Timer frequency */
-#define RME_X64_TIMER_FREQ                   1000
+/* The initial page table indices in the RME_BOOT_TBL_PGTBL */
+#define RME_BOOT_PML4                        0
+#define RME_BOOT_PDP(X)                      (RME_BOOT_PML4+1+(X))
+#define RME_BOOT_PDE(X)                      (RME_BOOT_PDP(16)+(X))
+
 /* Booting capability layout */
 #define RME_X64_CPT                          ((struct RME_Cap_Captbl*)(RME_X64_Layout.Kmem1_Start))
 /* Kernel VA mapping base address - PML5 currently unsupported */
@@ -302,6 +312,10 @@ typedef s64 ret_t;
 #define RME_X64_FUNC(FUNC,REG)               (RME_X64_Feature.Func[FUNC][REG])
 #define RME_X64_EXT(EXT,REG)                 (RME_X64_Feature.Ext[(EXT)-RME_X64_CPUID_E0_EXT_MAX][REG])
 
+/* Vector and trap types - for trap we use vector type but allow DPL3 */
+#define RME_X64_IDT_VECT                     (0x8E)
+#define RME_X64_IDT_TRAP                     (0xEE)
+
 /* Set up a normal interrupt/trap gate descriptor. 8 is the GDT CS offset */
 #define RME_X64_SET_IDT(TABLE, VECT, TYPE_ATTR, ADDR) \
 do \
@@ -316,9 +330,12 @@ do \
 } \
 while(0)
 
-/* Vector and trap types - for trap we use vector type but allow DPL3 */
-#define RME_X64_IDT_VECT                     (0x8E)
-#define RME_X64_IDT_TRAP                     (0xEE)
+#define RME_X64_USER_IDT(TABLE, VECT) \
+do \
+{ \
+	RME_X64_SET_IDT(TABLE, VECT, RME_X64_IDT_VECT, __RME_X64_USER##VECT##_Handler); \
+} \
+while(0)
 
 /* Interrupt vector numbers */
 /* Divide error */
@@ -364,10 +381,13 @@ while(0)
 #define RME_X64_FAULT_VE                     (20)
 /* User interrupts */
 #define RME_X64_INT_USER(INT)                ((INT)+32)
+#define RME_X64_INT_SYSTICK                  RME_X64_INT_USER(2)
 
 /* User interrupts that are used by RME - map these two even further away */
-#define RME_X64_INT_SPUR                     RME_X64_INT_USER(0x80)
-#define RME_X64_INT_ERROR                    RME_X64_INT_USER(0x81)
+#define RME_X64_INT_SPUR                     RME_X64_INT_USER(0x80-32)
+#define RME_X64_INT_ERROR                    RME_X64_INT_USER(0x81-32)
+#define RME_X64_INT_IPI                      RME_X64_INT_USER(0x82-32)
+#define RME_X64_INT_SMP_SYSTICK              RME_X64_INT_USER(0x83-32)
 
 /* LAPIC offsets - maybe we should use structs later on */
 #define RME_X64_LAPIC_ID                     (0x0020/4)
@@ -443,6 +463,22 @@ do \
 	((struct RME_X64_IOAPIC_Map*)RME_X64_IOAPIC_ADDR)->Data=(DATA); \
 } \
 while(0)
+
+/* Processor RFLAGS register bits */
+#define RME_X64_RFLAGS_IF                  (1<<9)
+
+/* MSR addresses */
+#define RME_X64_MSR_IA32_GS_BASE           (0xC0000101)
+#define RME_X64_MSR_IA32_KERNEL_GS_BASE    (0xC0000102)
+#define RME_X64_MSR_IA32_STAR              (0xC0000081)
+#define RME_X64_MSR_IA32_LSTAR             (0xC0000082)
+#define RME_X64_MSR_IA32_FMASK             (0xC0000084)
+
+/* Segment definitions */
+#define RME_X64_SEG_KERNEL_CODE            (1*8)
+#define RME_X64_SEG_KERNEL_DATA            (2*8)
+#define RME_X64_SEG_USER_CODE              (4*8+3)
+#define RME_X64_SEG_USER_DATA              (5*8+3)
 
 /* Get kernel stack addresses */
 #define RME_X64_KSTACK(CPU)                (RME_X64_Layout.Stack_Start+((1+(CPU))<<RME_X64_KSTACK_ORDER))
@@ -546,7 +582,6 @@ struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record
     u16 MPS_Int_Flags;
 }  __attribute__((__packed__));
 
-
 /* IDT entry */
 struct RME_X64_IDT_Entry
 {
@@ -574,6 +609,14 @@ struct RME_X64_IOAPIC_Map
     u32 Data;
 };
 
+/* CPUID data structure */
+struct RME_X64_CPUID_Entry
+{
+	ptr_t CPUID;
+	ptr_t Kernel_SP;
+	ptr_t Temp_User_SP;
+};
+
 /* Per-CPU data structure */
 struct RME_X64_CPU_Info
 {
@@ -589,7 +632,6 @@ struct RME_X64_IOAPIC_Info
     ptr_t IOAPIC_ID;
 };
 
-
 /* The 6 registers that are used to pass arguments are RDI, RSI, RDX, RCX, R8, R9.
  * Note that this is different from Micro$oft: M$ use RCX, RDX, R8, R9. The return
  * value is always located at RAX. */
@@ -602,7 +644,6 @@ struct RME_Reg_Struct
     ptr_t RSI;
     ptr_t RDI;
     ptr_t RBP;
-    ptr_t RSP;
     ptr_t R8;
     ptr_t R9;
     ptr_t R10;
@@ -611,7 +652,14 @@ struct RME_Reg_Struct
     ptr_t R13;
     ptr_t R14;
     ptr_t R15;
+    /* If we went into this with a SYSCALL, this is 0x10000 */
+    ptr_t INT_NUM;
+    ptr_t ERROR_CODE;
+    ptr_t RIP;
+    ptr_t CS;
     ptr_t RFLAGS;
+    ptr_t RSP;
+    ptr_t SS;
 };
 
 /* The coprocessor register set structure. MMX and SSE */
@@ -627,7 +675,7 @@ struct RME_Cop_Struct
 	ptr_t FPR_MMX6[2];
 	ptr_t FPR_MMX7[2];
 	/* SSE registers follow */
-#if(RME_X64_AVX==RME_FALSE)
+#if(RME_X64_FPU_TYPE==RME_FALSE)
 	ptr_t XMM0[2];
 	ptr_t XMM1[2];
 	ptr_t XMM2[2];
@@ -644,7 +692,7 @@ struct RME_Cop_Struct
 	ptr_t XMM13[2];
 	ptr_t XMM14[2];
 	ptr_t XMM15[2];
-#elif(RME_X64_AVX==RME_AVX)
+#elif(RME_X64_FPU_TYPE==RME_X64_FPU_AVX)
 	ptr_t XYMM0[4];
 	ptr_t XYMM1[4];
 	ptr_t XYMM2[4];
@@ -661,7 +709,7 @@ struct RME_Cop_Struct
 	ptr_t XYMM13[4];
 	ptr_t XYMM14[4];
 	ptr_t XYMM15[4];
-#elif(RME_X64_AVX==RME_AVX512)
+#elif(RME_X64_FPU_TYPE==RME_X64_FPU_AVX512)
 	ptr_t XYZMM0[8];
 	ptr_t XYZMM1[8];
 	ptr_t XYZMM2[8];
@@ -988,10 +1036,13 @@ EXTERN ptr_t __RME_X64_Kern_Boot_Stack[0];
 /* X64 specific */
 EXTERN ptr_t __RME_X64_In(ptr_t Port);
 EXTERN void __RME_X64_Out(ptr_t Port, ptr_t Data);
+EXTERN ptr_t __RME_X64_Read_MSR(ptr_t MSR);
+EXTERN void __RME_X64_Write_MSR(ptr_t MSR, ptr_t Value);
 EXTERN void __RME_X64_GDT_Load(ptr_t* GDTR);
 EXTERN void __RME_X64_IDT_Load(ptr_t* IDTR);
 EXTERN void __RME_X64_TSS_Load(ptr_t TSS);
 EXTERN ptr_t __RME_X64_CPUID_Get(ptr_t EAX, ptr_t* EBX, ptr_t* ECX, ptr_t* EDX);
+EXTERN void __RME_X64_Pgtbl_Set(ptr_t Pgtbl);
 /* Boot glue */
 EXTERN void __RME_X64_SMP_Boot_32(void);
 /* Vectors */
@@ -1001,6 +1052,7 @@ EXTERN void __RME_X64_INT_NMI_Handler(void);
 EXTERN void __RME_X64_TRAP_BP_Handler(void);
 EXTERN void __RME_X64_TRAP_OF_Handler(void);
 EXTERN void __RME_X64_FAULT_BR_Handler(void);
+EXTERN void __RME_X64_FAULT_UD_Handler(void);
 EXTERN void __RME_X64_FAULT_NM_Handler(void);
 EXTERN void __RME_X64_ABORT_DF_Handler(void);
 EXTERN void __RME_X64_ABORT_OLD_MF_Handler(void);
@@ -1014,8 +1066,258 @@ EXTERN void __RME_X64_FAULT_AC_Handler(void);
 EXTERN void __RME_X64_ABORT_MC_Handler(void);
 EXTERN void __RME_X64_FAULT_XM_Handler(void);
 EXTERN void __RME_X64_FAULT_VE_Handler(void);
-EXTERN void __RME_X64_INT_USER_Handler(void);
-/* Interrupts */
+/* Systick&SVC handler */
+EXTERN void SysTick_Handler(void);
+EXTERN void SysTick_SMP_Handler(void);
+EXTERN void SVC_Handler(void);
+/* User handlers */
+EXTERN void __RME_X64_USER32_Handler(void);
+EXTERN void __RME_X64_USER33_Handler(void);
+EXTERN void __RME_X64_USER34_Handler(void);
+EXTERN void __RME_X64_USER35_Handler(void);
+EXTERN void __RME_X64_USER36_Handler(void);
+EXTERN void __RME_X64_USER37_Handler(void);
+EXTERN void __RME_X64_USER38_Handler(void);
+EXTERN void __RME_X64_USER39_Handler(void);
+
+EXTERN void __RME_X64_USER40_Handler(void);
+EXTERN void __RME_X64_USER41_Handler(void);
+EXTERN void __RME_X64_USER42_Handler(void);
+EXTERN void __RME_X64_USER43_Handler(void);
+EXTERN void __RME_X64_USER44_Handler(void);
+EXTERN void __RME_X64_USER45_Handler(void);
+EXTERN void __RME_X64_USER46_Handler(void);
+EXTERN void __RME_X64_USER47_Handler(void);
+EXTERN void __RME_X64_USER48_Handler(void);
+EXTERN void __RME_X64_USER49_Handler(void);
+
+EXTERN void __RME_X64_USER50_Handler(void);
+EXTERN void __RME_X64_USER51_Handler(void);
+EXTERN void __RME_X64_USER52_Handler(void);
+EXTERN void __RME_X64_USER53_Handler(void);
+EXTERN void __RME_X64_USER54_Handler(void);
+EXTERN void __RME_X64_USER55_Handler(void);
+EXTERN void __RME_X64_USER56_Handler(void);
+EXTERN void __RME_X64_USER57_Handler(void);
+EXTERN void __RME_X64_USER58_Handler(void);
+EXTERN void __RME_X64_USER59_Handler(void);
+
+EXTERN void __RME_X64_USER60_Handler(void);
+EXTERN void __RME_X64_USER61_Handler(void);
+EXTERN void __RME_X64_USER62_Handler(void);
+EXTERN void __RME_X64_USER63_Handler(void);
+EXTERN void __RME_X64_USER64_Handler(void);
+EXTERN void __RME_X64_USER65_Handler(void);
+EXTERN void __RME_X64_USER66_Handler(void);
+EXTERN void __RME_X64_USER67_Handler(void);
+EXTERN void __RME_X64_USER68_Handler(void);
+EXTERN void __RME_X64_USER69_Handler(void);
+
+EXTERN void __RME_X64_USER70_Handler(void);
+EXTERN void __RME_X64_USER71_Handler(void);
+EXTERN void __RME_X64_USER72_Handler(void);
+EXTERN void __RME_X64_USER73_Handler(void);
+EXTERN void __RME_X64_USER74_Handler(void);
+EXTERN void __RME_X64_USER75_Handler(void);
+EXTERN void __RME_X64_USER76_Handler(void);
+EXTERN void __RME_X64_USER77_Handler(void);
+EXTERN void __RME_X64_USER78_Handler(void);
+EXTERN void __RME_X64_USER79_Handler(void);
+
+EXTERN void __RME_X64_USER80_Handler(void);
+EXTERN void __RME_X64_USER81_Handler(void);
+EXTERN void __RME_X64_USER82_Handler(void);
+EXTERN void __RME_X64_USER83_Handler(void);
+EXTERN void __RME_X64_USER84_Handler(void);
+EXTERN void __RME_X64_USER85_Handler(void);
+EXTERN void __RME_X64_USER86_Handler(void);
+EXTERN void __RME_X64_USER87_Handler(void);
+EXTERN void __RME_X64_USER88_Handler(void);
+EXTERN void __RME_X64_USER89_Handler(void);
+
+EXTERN void __RME_X64_USER90_Handler(void);
+EXTERN void __RME_X64_USER91_Handler(void);
+EXTERN void __RME_X64_USER92_Handler(void);
+EXTERN void __RME_X64_USER93_Handler(void);
+EXTERN void __RME_X64_USER94_Handler(void);
+EXTERN void __RME_X64_USER95_Handler(void);
+EXTERN void __RME_X64_USER96_Handler(void);
+EXTERN void __RME_X64_USER97_Handler(void);
+EXTERN void __RME_X64_USER98_Handler(void);
+EXTERN void __RME_X64_USER99_Handler(void);
+
+EXTERN void __RME_X64_USER100_Handler(void);
+EXTERN void __RME_X64_USER101_Handler(void);
+EXTERN void __RME_X64_USER102_Handler(void);
+EXTERN void __RME_X64_USER103_Handler(void);
+EXTERN void __RME_X64_USER104_Handler(void);
+EXTERN void __RME_X64_USER105_Handler(void);
+EXTERN void __RME_X64_USER106_Handler(void);
+EXTERN void __RME_X64_USER107_Handler(void);
+EXTERN void __RME_X64_USER108_Handler(void);
+EXTERN void __RME_X64_USER109_Handler(void);
+
+EXTERN void __RME_X64_USER110_Handler(void);
+EXTERN void __RME_X64_USER111_Handler(void);
+EXTERN void __RME_X64_USER112_Handler(void);
+EXTERN void __RME_X64_USER113_Handler(void);
+EXTERN void __RME_X64_USER114_Handler(void);
+EXTERN void __RME_X64_USER115_Handler(void);
+EXTERN void __RME_X64_USER116_Handler(void);
+EXTERN void __RME_X64_USER117_Handler(void);
+EXTERN void __RME_X64_USER118_Handler(void);
+EXTERN void __RME_X64_USER119_Handler(void);
+
+EXTERN void __RME_X64_USER120_Handler(void);
+EXTERN void __RME_X64_USER121_Handler(void);
+EXTERN void __RME_X64_USER122_Handler(void);
+EXTERN void __RME_X64_USER123_Handler(void);
+EXTERN void __RME_X64_USER124_Handler(void);
+EXTERN void __RME_X64_USER125_Handler(void);
+EXTERN void __RME_X64_USER126_Handler(void);
+EXTERN void __RME_X64_USER127_Handler(void);
+EXTERN void __RME_X64_USER128_Handler(void);
+EXTERN void __RME_X64_USER129_Handler(void);
+
+EXTERN void __RME_X64_USER130_Handler(void);
+EXTERN void __RME_X64_USER131_Handler(void);
+EXTERN void __RME_X64_USER132_Handler(void);
+EXTERN void __RME_X64_USER133_Handler(void);
+EXTERN void __RME_X64_USER134_Handler(void);
+EXTERN void __RME_X64_USER135_Handler(void);
+EXTERN void __RME_X64_USER136_Handler(void);
+EXTERN void __RME_X64_USER137_Handler(void);
+EXTERN void __RME_X64_USER138_Handler(void);
+EXTERN void __RME_X64_USER139_Handler(void);
+
+EXTERN void __RME_X64_USER140_Handler(void);
+EXTERN void __RME_X64_USER141_Handler(void);
+EXTERN void __RME_X64_USER142_Handler(void);
+EXTERN void __RME_X64_USER143_Handler(void);
+EXTERN void __RME_X64_USER144_Handler(void);
+EXTERN void __RME_X64_USER145_Handler(void);
+EXTERN void __RME_X64_USER146_Handler(void);
+EXTERN void __RME_X64_USER147_Handler(void);
+EXTERN void __RME_X64_USER148_Handler(void);
+EXTERN void __RME_X64_USER149_Handler(void);
+
+EXTERN void __RME_X64_USER150_Handler(void);
+EXTERN void __RME_X64_USER151_Handler(void);
+EXTERN void __RME_X64_USER152_Handler(void);
+EXTERN void __RME_X64_USER153_Handler(void);
+EXTERN void __RME_X64_USER154_Handler(void);
+EXTERN void __RME_X64_USER155_Handler(void);
+EXTERN void __RME_X64_USER156_Handler(void);
+EXTERN void __RME_X64_USER157_Handler(void);
+EXTERN void __RME_X64_USER158_Handler(void);
+EXTERN void __RME_X64_USER159_Handler(void);
+
+EXTERN void __RME_X64_USER160_Handler(void);
+EXTERN void __RME_X64_USER161_Handler(void);
+EXTERN void __RME_X64_USER162_Handler(void);
+EXTERN void __RME_X64_USER163_Handler(void);
+EXTERN void __RME_X64_USER164_Handler(void);
+EXTERN void __RME_X64_USER165_Handler(void);
+EXTERN void __RME_X64_USER166_Handler(void);
+EXTERN void __RME_X64_USER167_Handler(void);
+EXTERN void __RME_X64_USER168_Handler(void);
+EXTERN void __RME_X64_USER169_Handler(void);
+
+EXTERN void __RME_X64_USER170_Handler(void);
+EXTERN void __RME_X64_USER171_Handler(void);
+EXTERN void __RME_X64_USER172_Handler(void);
+EXTERN void __RME_X64_USER173_Handler(void);
+EXTERN void __RME_X64_USER174_Handler(void);
+EXTERN void __RME_X64_USER175_Handler(void);
+EXTERN void __RME_X64_USER176_Handler(void);
+EXTERN void __RME_X64_USER177_Handler(void);
+EXTERN void __RME_X64_USER178_Handler(void);
+EXTERN void __RME_X64_USER179_Handler(void);
+
+EXTERN void __RME_X64_USER180_Handler(void);
+EXTERN void __RME_X64_USER181_Handler(void);
+EXTERN void __RME_X64_USER182_Handler(void);
+EXTERN void __RME_X64_USER183_Handler(void);
+EXTERN void __RME_X64_USER184_Handler(void);
+EXTERN void __RME_X64_USER185_Handler(void);
+EXTERN void __RME_X64_USER186_Handler(void);
+EXTERN void __RME_X64_USER187_Handler(void);
+EXTERN void __RME_X64_USER188_Handler(void);
+EXTERN void __RME_X64_USER189_Handler(void);
+
+EXTERN void __RME_X64_USER190_Handler(void);
+EXTERN void __RME_X64_USER191_Handler(void);
+EXTERN void __RME_X64_USER192_Handler(void);
+EXTERN void __RME_X64_USER193_Handler(void);
+EXTERN void __RME_X64_USER194_Handler(void);
+EXTERN void __RME_X64_USER195_Handler(void);
+EXTERN void __RME_X64_USER196_Handler(void);
+EXTERN void __RME_X64_USER197_Handler(void);
+EXTERN void __RME_X64_USER198_Handler(void);
+EXTERN void __RME_X64_USER199_Handler(void);
+
+EXTERN void __RME_X64_USER200_Handler(void);
+EXTERN void __RME_X64_USER201_Handler(void);
+EXTERN void __RME_X64_USER202_Handler(void);
+EXTERN void __RME_X64_USER203_Handler(void);
+EXTERN void __RME_X64_USER204_Handler(void);
+EXTERN void __RME_X64_USER205_Handler(void);
+EXTERN void __RME_X64_USER206_Handler(void);
+EXTERN void __RME_X64_USER207_Handler(void);
+EXTERN void __RME_X64_USER208_Handler(void);
+EXTERN void __RME_X64_USER209_Handler(void);
+
+EXTERN void __RME_X64_USER210_Handler(void);
+EXTERN void __RME_X64_USER211_Handler(void);
+EXTERN void __RME_X64_USER212_Handler(void);
+EXTERN void __RME_X64_USER213_Handler(void);
+EXTERN void __RME_X64_USER214_Handler(void);
+EXTERN void __RME_X64_USER215_Handler(void);
+EXTERN void __RME_X64_USER216_Handler(void);
+EXTERN void __RME_X64_USER217_Handler(void);
+EXTERN void __RME_X64_USER218_Handler(void);
+EXTERN void __RME_X64_USER219_Handler(void);
+
+EXTERN void __RME_X64_USER220_Handler(void);
+EXTERN void __RME_X64_USER221_Handler(void);
+EXTERN void __RME_X64_USER222_Handler(void);
+EXTERN void __RME_X64_USER223_Handler(void);
+EXTERN void __RME_X64_USER224_Handler(void);
+EXTERN void __RME_X64_USER225_Handler(void);
+EXTERN void __RME_X64_USER226_Handler(void);
+EXTERN void __RME_X64_USER227_Handler(void);
+EXTERN void __RME_X64_USER228_Handler(void);
+EXTERN void __RME_X64_USER229_Handler(void);
+
+EXTERN void __RME_X64_USER230_Handler(void);
+EXTERN void __RME_X64_USER231_Handler(void);
+EXTERN void __RME_X64_USER232_Handler(void);
+EXTERN void __RME_X64_USER233_Handler(void);
+EXTERN void __RME_X64_USER234_Handler(void);
+EXTERN void __RME_X64_USER235_Handler(void);
+EXTERN void __RME_X64_USER236_Handler(void);
+EXTERN void __RME_X64_USER237_Handler(void);
+EXTERN void __RME_X64_USER238_Handler(void);
+EXTERN void __RME_X64_USER239_Handler(void);
+
+EXTERN void __RME_X64_USER240_Handler(void);
+EXTERN void __RME_X64_USER241_Handler(void);
+EXTERN void __RME_X64_USER242_Handler(void);
+EXTERN void __RME_X64_USER243_Handler(void);
+EXTERN void __RME_X64_USER244_Handler(void);
+EXTERN void __RME_X64_USER245_Handler(void);
+EXTERN void __RME_X64_USER246_Handler(void);
+EXTERN void __RME_X64_USER247_Handler(void);
+EXTERN void __RME_X64_USER248_Handler(void);
+EXTERN void __RME_X64_USER249_Handler(void);
+
+EXTERN void __RME_X64_USER250_Handler(void);
+EXTERN void __RME_X64_USER251_Handler(void);
+EXTERN void __RME_X64_USER252_Handler(void);
+EXTERN void __RME_X64_USER253_Handler(void);
+EXTERN void __RME_X64_USER254_Handler(void);
+EXTERN void __RME_X64_USER255_Handler(void);
+/* Interrupt control */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
 EXTERN void __RME_X64_WFI(void);
@@ -1038,7 +1340,7 @@ __EXTERN__ ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);
 __EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
-__EXTERN__ ptr_t __RME_CPUID_Get(void);
+EXTERN ptr_t __RME_CPUID_Get(void);
 __EXTERN__ ptr_t __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc,
                                          ptr_t* Capid, ptr_t* Param);
 __EXTERN__ ptr_t __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
@@ -1057,11 +1359,11 @@ __EXTERN__ ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg)
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
                                          ptr_t Param1, ptr_t Param2);
 /* Fault handler */
-__EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, ptr_t Reason);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num);
 /* Page table operations */
-extern void __RME_Pgtbl_Set(ptr_t Pgtbl);
+__EXTERN__ void __RME_Pgtbl_Set(ptr_t Pgtbl);
 __EXTERN__ ptr_t __RME_Pgtbl_Kmem_Init(void);
 __EXTERN__ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order);
 __EXTERN__ ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);

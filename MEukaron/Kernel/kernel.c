@@ -590,6 +590,46 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:_RME_Svc_Handler *********************************************/
 
+/* Begin Function:_RME_Tick_SMP_Handler ***************************************
+Description : The system tick timer handler of RME, on all processors except for
+              the main processor.
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : None.
+******************************************************************************/
+void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
+{
+	ptr_t CPUID;
+	struct RME_Thd_Struct* Next_Thd;
+
+	CPUID=RME_CPUID();
+	if(RME_Cur_Thd[CPUID]->Sched.Slices<RME_THD_INF_TIME)
+	{
+		/* Decrease timeslice count */
+		RME_Cur_Thd[CPUID]->Sched.Slices--;
+		/* See if the current thread's timeslice is used up */
+		if(RME_Cur_Thd[CPUID]->Sched.Slices==0)
+		{
+			/* Running out of time. Kick this guy out and pick someone else */
+			RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
+			/* Send a scheduler notification to its parent */
+			_RME_Run_Notif(RME_Cur_Thd[CPUID]);
+			_RME_Run_Del(RME_Cur_Thd[CPUID]);
+			Next_Thd=_RME_Run_High(CPUID);
+			RME_ASSERT(Next_Thd!=0);
+			Next_Thd->Sched.State=RME_THD_RUNNING;
+			/* Do a solid context switch, to the new guy */
+			_RME_Run_Swt(Reg, RME_Cur_Thd[CPUID],Next_Thd);
+			RME_Cur_Thd[CPUID]=Next_Thd;
+		}
+	}
+
+	/* Send a signal to the kernel system ticker receive endpoint. This endpoint
+	 * is per-core */
+	_RME_Kern_Snd(Reg, RME_Tick_Sig[CPUID]);
+}
+/* Begin Function:_RME_Tick_SMP_Handler ***************************************
+
 /* Begin Function:_RME_Tick_Handler *******************************************
 Description : The system tick timer handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
@@ -598,37 +638,10 @@ Return      : None.
 ******************************************************************************/
 void _RME_Tick_Handler(struct RME_Reg_Struct* Reg)
 {
-    ptr_t CPUID;
-    struct RME_Thd_Struct* Next_Thd;
-    
     /* Increase the tick count */
     RME_Timestamp++;
-    
-    CPUID=RME_CPUID();
-    if(RME_Cur_Thd[CPUID]->Sched.Slices<RME_THD_INF_TIME)
-    {
-        /* Decrease timeslice count */
-        RME_Cur_Thd[CPUID]->Sched.Slices--;
-        /* See if the current thread's timeslice is used up */
-        if(RME_Cur_Thd[CPUID]->Sched.Slices==0)
-        {
-            /* Running out of time. Kick this guy out and pick someone else */
-            RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
-            /* Send a scheduler notification to its parent */
-            _RME_Run_Notif(RME_Cur_Thd[CPUID]);
-            _RME_Run_Del(RME_Cur_Thd[CPUID]);
-            Next_Thd=_RME_Run_High(CPUID);
-            RME_ASSERT(Next_Thd!=0);
-            Next_Thd->Sched.State=RME_THD_RUNNING;
-            /* Do a solid context switch, to the new guy */
-            _RME_Run_Swt(Reg, RME_Cur_Thd[CPUID],Next_Thd);
-            RME_Cur_Thd[CPUID]=Next_Thd;
-        }
-    }
-    
-    /* Send a signal to the kernel system ticker receive endpoint. This endpoint
-     * is per-core */
-    _RME_Kern_Snd(Reg, RME_Tick_Sig[CPUID]);
+    /* Call generic handler */
+    _RME_Tick_SMP_Handler(Reg);
 }
 /* End Function:_RME_Tick_Handler ********************************************/
 
