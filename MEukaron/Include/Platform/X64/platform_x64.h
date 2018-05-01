@@ -406,8 +406,10 @@ while(0)
 #define RME_X64_LAPIC_ICRLO_DEASSERT         (0x00000000)
 #define RME_X64_LAPIC_ICRLO_LEVEL            (0x00008000)
 #define RME_X64_LAPIC_ICRLO_BCAST            (0x00080000)
+#define RME_X64_LAPIC_ICRLO_EXC_SELF         (0x000C0000)
 #define RME_X64_LAPIC_ICRLO_BUSY             (0x00001000)
 #define RME_X64_LAPIC_ICRLO_FIXED            (0x00000000)
+
 
 #define RME_X64_LAPIC_ICRHI                  (0x0310/4)
 #define RME_X64_LAPIC_TIMER                  (0x0320/4)
@@ -468,11 +470,15 @@ while(0)
 #define RME_X64_RFLAGS_IF                  (1<<9)
 
 /* MSR addresses */
+#define RME_X64_MSR_IA32_EFER              (0xC0000080)
 #define RME_X64_MSR_IA32_GS_BASE           (0xC0000101)
 #define RME_X64_MSR_IA32_KERNEL_GS_BASE    (0xC0000102)
 #define RME_X64_MSR_IA32_STAR              (0xC0000081)
 #define RME_X64_MSR_IA32_LSTAR             (0xC0000082)
 #define RME_X64_MSR_IA32_FMASK             (0xC0000084)
+
+/* MSR bits */
+#define RME_X64_MSR_IA32_EFER_SCE          (1)
 
 /* Segment definitions */
 #define RME_X64_SEG_KERNEL_CODE            (1*8)
@@ -1320,7 +1326,8 @@ EXTERN void __RME_X64_USER255_Handler(void);
 /* Interrupt control */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
-EXTERN void __RME_X64_WFI(void);
+EXTERN void __RME_X64_Halt(void);
+__EXTERN__ void __RME_X64_SMP_Tick(void);
 /* Atomics */
 __EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
 __EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);
@@ -1334,7 +1341,7 @@ EXTERN void ___RME_X64_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_X64_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(ptr_t Stack);
-EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr);
+EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr, ptr_t CPUID);
 __EXTERN__ ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);

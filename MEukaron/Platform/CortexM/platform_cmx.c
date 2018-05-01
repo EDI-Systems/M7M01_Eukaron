@@ -241,7 +241,7 @@ ptr_t __RME_Boot(void)
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PROC, Cur_Addr, 0)==0);
+                                 RME_BOOT_INIT_PROC, Cur_Addr, 0, 0)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
@@ -250,7 +250,7 @@ ptr_t __RME_Boot(void)
     __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,ptr_t));
     __RME_Enable_Int();
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_CMX_INIT_ENTRY, RME_CMX_INIT_STACK);
+    __RME_Enter_User_Mode(RME_CMX_INIT_ENTRY, RME_CMX_INIT_STACK, 0);
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
@@ -501,7 +501,7 @@ ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg)
 /* End Function:__RME_Inv_Cop_Init *******************************************/
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
-Description : Initialize the coprocessor register set for the invocation.
+Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               ptr_t Func_ID - The function ID.
               ptr_t Param1 - The first parameter.

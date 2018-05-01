@@ -1277,15 +1277,18 @@ __RME_MSB_Get
 ;Description : Entering of the user mode, after the system finish its preliminary
 ;              booting. The function shall never return. This function should only
 ;              be used to boot the first process in the system.
-;Input       : R0 - The user execution startpoint.
-;              R1 - The user stack.
+;Input       : ptr_t Entry - The user execution startpoint.
+;              ptr_t Stack - The user stack.
+;              ptr_t CPUID - The CPUID.
 ;Output      : None.                              
 ;*****************************************************************************/
 __RME_Enter_User_Mode
                 MSR       PSP,R1                       ; Set the stack pointer
                 MOV       R4,#0x03                     ; Unprevileged thread mode
                 MSR       CONTROL,R4
-                BLX       R0                           ; Branch to our target
+                MOV       R1,R0                        ; Save the entry to R1
+                MOV       R0,R2                        ; Save CPUID(always 0) to R0
+                BLX       R1                           ; Branch to our target
                 B         .                            ; Capture faults
 ;/* End Function:__RME_Enter_User_Mode ***************************************/
 

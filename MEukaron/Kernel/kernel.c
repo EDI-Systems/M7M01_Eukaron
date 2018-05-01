@@ -628,7 +628,7 @@ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
 	 * is per-core */
 	_RME_Kern_Snd(Reg, RME_Tick_Sig[CPUID]);
 }
-/* Begin Function:_RME_Tick_SMP_Handler ***************************************
+/* End Function:_RME_Tick_SMP_Handler ****************************************/
 
 /* Begin Function:_RME_Tick_Handler *******************************************
 Description : The system tick timer handler of RME.
