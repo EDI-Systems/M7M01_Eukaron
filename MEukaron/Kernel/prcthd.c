@@ -705,7 +705,11 @@ ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Proc, cid_t Cap_Pgt
 /* Begin Function:_RME_Thd_Boot_Crt *******************************************
 Description : Create a boot-time thread. The boot-time thread is per-core, and
               will have infinite budget. It have no parent, and will be bonded
-              to where the thread is created.
+              to where the thread is created. This function is the only function
+              that allows creation of a thread on behalf of other processors,
+              by passing a CPUID parameter. Therefore, it is recommended to
+              create the threads sequentially during boot-up; if you create threads
+              in parallel, be sure to only create the thread on your local core.
               This function will not ask for a kernel memory capability, and 
               the initial threads' maximum priority will be set by the system.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
@@ -715,11 +719,12 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
               ptr_t Vaddr - The physical address to store the kernel object.
               ptr_t Prio - The priority level of the thread.
+              ptr_t CPUID - The CPU to bind this thread to.
 Output      : None.
 Return      : ret_t - If successful, the Thread ID; or an error code.
 ******************************************************************************/
-ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
-                        cid_t Cap_Thd, cid_t Cap_Proc, ptr_t Vaddr, ptr_t Prio)
+ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Thd,
+		                cid_t Cap_Proc, ptr_t Vaddr, ptr_t Prio, ptr_t CPUID)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Proc* Proc_Op;
@@ -761,7 +766,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Thd_Struct->Sched.Prio=Prio;
     Thd_Struct->Sched.Max_Prio=RME_MAX_PREEMPT_PRIO-1;
     /* Bind the thread to the current CPU */
-    Thd_Struct->Sched.CPUID_Bind=RME_CPUID();
+    Thd_Struct->Sched.CPUID_Bind=CPUID;
     /* This is a marking that this thread haven't sent any notifications */
     __RME_List_Crt(&(Thd_Struct->Sched.Notif));
     __RME_List_Crt(&(Thd_Struct->Sched.Event));

@@ -13,8 +13,8 @@ Description: The configuration file for X64 supercomputer profile.
  * This parameter must be divisible by the word length - 64 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         64
 
-/* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_X64_INT_FLAG_ADDR        0x20010000
+/* Shared interrupt flag region address - not populated now */
+#define RME_X64_INT_FLAG_ADDR        0x00
 /* Init process's first thread's entry point address */
 #define RME_X64_INIT_ENTRY           0x08010001
 /* Init process's first thread's stack address */

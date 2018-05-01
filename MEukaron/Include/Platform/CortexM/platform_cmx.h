@@ -457,7 +457,7 @@ EXTERN void ___RME_CMX_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_CMX_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(ptr_t Stack);
-EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr);
+EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr, ptr_t CPUID);
 __EXTERN__ ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);

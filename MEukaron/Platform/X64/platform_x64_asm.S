@@ -80,6 +80,8 @@ RAX
                 .global         _RME_Tick_Handler
                 /* The entry of SMP after they have finished their initialization */
                 .global         __RME_SMP_Low_Level_Init
+                /* All other processor's timer interrupt handler */
+                .global         __RME_X64_SMP_Tick
 /* End Imports ***************************************************************/
 
 /* Begin Vector Table ********************************************************/
@@ -547,12 +549,20 @@ __RME_MSB_Get:
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
-Input       : R0 - The user execution startpoint.
-              R1 - The user stack.
+Input       : ptr_t Entry - The user execution startpoint.
+              ptr_t Stack - The user stack.
+              ptr_t CPUID - The CPUID.
 Output      : None.
 ******************************************************************************/
 __RME_Enter_User_Mode:
-
+                /* Entry */
+                MOVQ           %RDI,%RCX
+                /* Stack */
+                MOVQ           %RSI,%RSP
+                /* Flags - IOPL 3, IF */
+                MOVQ           $0x3200,%R11
+                /* CPUID */
+                MOVQ           %RDX,%RDI
                 SYSRETQ
 /* End Function:__RME_Enter_User_Mode ****************************************/
 
@@ -623,10 +633,10 @@ Output      : None.
                 SWAPGS
 .if \ERRCODE==0
                 /* Make a dummy error code */
-                PUSHQ           0
+                PUSHQ           $0
 .endif
                 /* We went into this with a INT - flag = INTNUM */
-                PUSHQ           \REASON
+                PUSHQ           $\REASON
                 JMP             Fault_Handler
 .endm
 
@@ -676,9 +686,9 @@ Output      : None.
 \NAME:
                 SWAPGS
                 /* Make a dummy error code */
-                PUSHQ           0
+                PUSHQ           $0
                 /* Interrupt number */
-                PUSHQ           \VECTNUM
+                PUSHQ           $\VECTNUM
                 JMP             User_Handler
 .endm
 /* User handlers */
@@ -980,6 +990,7 @@ SysTick_Handler:
                 /* Pass the stack pointer to system call handler */
                 MOVQ            %RSP,%RDI
                 CALL            _RME_Tick_Handler
+                CALL            __RME_X64_SMP_Tick
                 RESTORE_GP_REGS
                 ADDQ            $16,%RSP
                 IRETQ
@@ -1018,7 +1029,7 @@ SVC_Handler:
                 PUSHQ           %RCX
                 PUSHQ           0
                 /* We went into this from a SYSCALL - interrupt number 0x10000 */
-                PUSHQ           0x10000
+                PUSHQ           $0x10000
                 SAVE_GP_REGS
                 /* Pass the stack pointer to system call handler */
                 MOVQ             %RSP,%RDI
@@ -1028,7 +1039,9 @@ SVC_Handler:
                 TESTQ           $0x10000,(%RSP)
                 JZ              Use_IRET
                 /* Just move these into the registers desired */
-                MOVQ            16(%RSP),%RCX
+                /* CVE-2014-4699: Force canonical address */
+                MOVQ            $0x7FFFFFFFFFFF,%RCX
+                ANDQ            16(%RSP),%RCX
                 MOVQ            32(%RSP),%R11
                 MOVQ            40(%RSP),%RSP
                 /* Return to user-level */
