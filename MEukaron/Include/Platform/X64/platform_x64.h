@@ -156,7 +156,7 @@ typedef s64 ret_t;
 #define RME_BOOT_PDE(X)                      (RME_BOOT_PDP(16)+(X))
 
 /* Booting capability layout */
-#define RME_X64_CPT                          ((struct RME_Cap_Captbl*)(RME_X64_Layout.Kmem1_Start))
+#define RME_X64_CPT                          ((struct RME_Cap_Captbl*)(RME_X64_Layout.Kmem1_Start[0]))
 /* Kernel VA mapping base address - PML5 currently unsupported */
 #define RME_X64_VA_BASE                      (0xFFFF800000000000ULL)
 #define RME_X64_TEXT_VA_BASE                 (0xFFFFFFFF80000000ULL)
@@ -170,6 +170,8 @@ typedef s64 ret_t;
 /* Convert PA-VA and VA-PA in the text memory (16MB - 2GB )*/
 #define RME_X64_TEXT_PA2VA(PA)               (((ptr_t)(PA))+RME_X64_TEXT_VA_BASE)
 #define RME_X64_TEXT_VA2PA(VA)               (((ptr_t)(VA))-RME_X64_TEXT_VA_BASE)
+/* How many segments under 4G are allowed for Kmem1 - If this exceeded the kernel will just hang */
+#define RME_X64_KMEM1_MAXSEGS                32
 
 /* Kernel stact size per CPU - currently set to 1MB */
 #define RME_X64_KSTACK_ORDER                 (20)
@@ -781,8 +783,10 @@ struct RME_X64_Layout
 	ptr_t Kpgtbl_Start;
 	ptr_t Kpgtbl_Size;
 
-	ptr_t Kmem1_Start;
-	ptr_t Kmem1_Size;
+	/* We allow max. 32 trunks under 4G */
+	ptr_t Kmem1_Trunks;
+	ptr_t Kmem1_Start[RME_X64_KMEM1_MAXSEGS];
+	ptr_t Kmem1_Size[RME_X64_KMEM1_MAXSEGS];
 
 	ptr_t Hole_Start;
 	ptr_t Hole_Size;

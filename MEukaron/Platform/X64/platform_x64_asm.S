@@ -250,19 +250,16 @@ __RME_X64_Kern_Boot_Stack:
 /* Begin Function:__RME_X64_In ************************************************
 Description    : The function for outputting something to an I/O port.
 Input          : ptr_t Port - The port to output to.
-                 ptr_t Data - The data to send to that port.
 Output         : None.
-Return         : None.
+Return         : ptr_t - The data received from that port.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_In:
                  PUSHQ           %RDX
-                 PUSHQ           %RAX
                  MOVQ            %RDI,%RDX
-                 MOVQ            %RSI,%RAX
+                 MOVQ            %RAX,%RAX
                  INB             (%DX),%AL
                  POPQ            %RDX
-                 POPQ            %RAX
                  RETQ
 /* End Function:__RME_X64_In *************************************************/
 
@@ -280,8 +277,8 @@ __RME_X64_Out:
                  MOVQ            %RDI,%RDX
                  MOVQ            %RSI,%RAX
                  OUTB            %AL,(%DX)
-                 POPQ            %RDX
                  POPQ            %RAX
+                 POPQ            %RDX
                  RETQ
 /* End Function:__RME_X64_Out ************************************************/
 

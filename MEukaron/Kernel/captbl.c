@@ -160,7 +160,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
         return RME_ERR_CAP_RANGE;
-    
+
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
     /* Check if the target captbl is not frozen and allows such operations */
