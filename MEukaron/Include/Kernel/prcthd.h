@@ -256,8 +256,8 @@ __EXTERN__ ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, 
 __EXTERN__ ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Proc, cid_t Cap_Captbl);
 __EXTERN__ ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Proc, cid_t Cap_Pgtbl);
 /* Thread system calls */
-__EXTERN__ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
-                                   cid_t Cap_Thd, cid_t Cap_Proc, ptr_t Vaddr, ptr_t Prio);
+__EXTERN__ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Thd,
+                                   cid_t Cap_Proc, ptr_t Vaddr, ptr_t Prio, ptr_t CPUID);
 __EXTERN__ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kmem,
                               cid_t Cap_Thd, cid_t Cap_Proc, ptr_t Max_Prio, ptr_t Vaddr);
 __EXTERN__ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Thd);
