@@ -57,4 +57,16 @@ Documents/*
 !Documents/Demo/
 
 # Keil specific
-Project/**/Debug/**
+Project/**/Debug/*
+!Project/ECLIPSE-GCC-X64/RME/Debug/*
+*.tmp
+*.uvgui*
+*.uvopt*
+*.dep
+*.TMP
+
+# CCS specific
+Project/**/.jxbrowser-data/**
+Project/**/.metadata/**
+Project/**/.tempFiles/**
+Project/**/.jxbrowser-data/**
