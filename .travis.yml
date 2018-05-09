@@ -16,5 +16,6 @@ script:
   - sudo ls
   - cd Project/ECLIPSE-GCC-X64/RME
   - sudo chmod +x copy.sh
+  - sudo chmod +x iso.sh
   - cd Debug
   - sudo make all
