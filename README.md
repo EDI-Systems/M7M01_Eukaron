@@ -142,7 +142,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:--:|
 |Cortex-A7  x4|GCC           |     |     |     |     |     |    |    |    |
 |Cortex-A53 x4|GCC           |     |     |     |     |     |    |    |    |
-|X86-64(I) x18|GCC           |     |     |     |     |     |    |    |    |
+|X86-64(I) x18|GCC           |     |     |441  |     |     |    |    |    |
 |X86-64(NI)x32|GCC           |     |     |     |     |     |    |    |    |
 |X86-64(A) x16|GCC           |     |     |     |     |     |    |    |    |
 

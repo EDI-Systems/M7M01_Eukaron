@@ -7,243 +7,301 @@ Description : The x64 assembly support of the RME RTOS.
 ******************************************************************************/
 
 /* The X64 Structure **********************************************************
-RAX
+General-purpose registers:
+64-Bit    32-Bit   16-Bit   8-Bit High   8-Bit Low           Name
+  RAX      EAX       AX         AH           AL       Register A extended
+  RBX      EBX       BX         BH           BL       Register B extended
+  RCX      ECX       CX         CH           CL       Register C extended
+  RDX      EDX       DX         DH           DL       Register D extended
+  RBP      EBP       BP         --           BPL      Register Base Pointer
+  RSP      ESP       SP         --           SPL      Register Stack Pointer
+  RSI      ESI       SI         --           SIL      Register Source Index
+  RDI      EDI       DI         --           DIL      Register Destination Index
+  R8       R8D       R8W        --           R8L      Register 8
+  R9       R9D       R9W        --           R9L      Register 9
+  R10      R10D      R10W       --           R10L     Register 10
+  R11      R11D      R11W       --           R11L     Register 11
+  R12      R12D      R12W       --           R12L     Register 12
+  R13      R13D      R13W       --           R13L     Register 13
+  R14      R14D      R14W       --           R14L     Register 14
+  R15      R15D      R15W       --           R15L     Register 15
+  --       --        CS         --           --       Code Segment
+  --       --        DS         --           --       Data Segment
+  --       --        SS         --           --       Stack Segment
+  --       --        ES         --           --       Extra Segment
+  --       --        FS         --           --       Free Segment
+  --       --        GS         --           --       Global Segment
+  RFLAGS   EFLAGS    FLAGS      --           --       FLAGS Register
+
+x87 FPU registers: all of them are 64-bit
+  MMX0 - MMX7
+
+AVX-512 registers:
+  512-Bit            256-Bit                128-Bit
+  ZMM0**             YMM0*                  XMM0
+  ZMM1**             YMM1*                  XMM1
+  ZMM2**             YMM2*                  XMM2
+  ZMM3**             YMM3*                  XMM3
+  ZMM4**             YMM4*                  XMM4
+  ZMM5**             YMM5*                  XMM5
+  ZMM6**             YMM6*                  XMM6
+  ZMM7**             YMM7*                  XMM7
+  ZMM8**             YMM8*                  XMM8
+  ZMM9**             YMM9*                  XMM9
+  ZMM10**            YMM10*                 XMM10
+  ZMM11**            YMM11*                 XMM11
+  ZMM12**            YMM12*                 XMM12
+  ZMM13**            YMM13*                 XMM13
+  ZMM14**            YMM14*                 XMM14
+  ZMM15**            YMM15*                 XMM15
+  ZMM16**            YMM16**                XMM16**
+  ZMM17**            YMM17**                XMM17**
+  ZMM18**            YMM18**                XMM18**
+  ZMM19**            YMM19**                XMM19**
+  ZMM20**            YMM20**                XMM20**
+  ZMM21**            YMM21**                XMM21**
+  ZMM22**            YMM22**                XMM22**
+  ZMM23**            YMM23**                XMM23**
+  ZMM24**            YMM24**                XMM24**
+  ZMM25**            YMM25**                XMM25**
+  ZMM26**            YMM26**                XMM26**
+  ZMM27**            YMM27**                XMM27**
+  ZMM28**            YMM28**                XMM28**
+  ZMM29**            YMM29**                XMM29**
+  ZMM30**            YMM30**                XMM30**
+  ZMM31**            YMM31**                XMM31**
+*Present only in AVX-2
+**Present only in AVX-512
 ******************************************************************************/
 
-/* Begin Header **************************************************************/
-
-/* End Header ****************************************************************/
-
 /* Begin Exports *************************************************************/
-                /* Atomic compare and exchange */
-                .global         __RME_Comp_Swap
-                /* Atomic add */
-                .global         __RME_Fetch_Add
-                /* Atomic and */
-                .global         __RME_Fetch_And
-                /* Disable all interrupts */
-                .global         __RME_Disable_Int
-                /* Enable all interrupts */
-                .global         __RME_Enable_Int
-                /* Get the MSB in a word */
-                .global         __RME_MSB_Get
-                /* Get the CPU ID */
-                .global         __RME_CPUID_Get
-                /* Kernel main function wrapper */
-                .global         _RME_Kmain
-                /* Entering of the user mode */
-                .global         __RME_Enter_User_Mode
+    /* Atomic compare and exchange */
+    .global             __RME_Comp_Swap
+    /* Atomic add */
+    .global             __RME_Fetch_Add
+    /* Atomic and */
+    .global             __RME_Fetch_And
+    /* Disable all interrupts */
+    .global             __RME_Disable_Int
+    /* Enable all interrupts */
+    .global             __RME_Enable_Int
+    /* Get the MSB in a word */
+    .global             __RME_MSB_Get
+    /* Get the CPU ID */
+    .global             __RME_CPUID_Get
+    /* Kernel main function wrapper */
+    .global             _RME_Kmain
+    /* Entering of the user mode */
+    .global             __RME_Enter_User_Mode
 
-                /* X64 specific stuff */
-                /* Input from a port */
-                .global         __RME_X64_In
-                /* Output to a port */
-                .global         __RME_X64_Out
-                /* Read MSR */
-                .global         __RME_X64_Read_MSR
-                /* Write MSR */
-                .global         __RME_X64_Write_MSR
-                /* Load GDT */
-                .global         __RME_X64_GDT_Load
-                /* Load IDT */
-                .global         __RME_X64_IDT_Load
-                /* Load TSS */
-                .global         __RME_X64_TSS_Load
-                /* CPUID instruction */
-                .global         __RME_X64_CPUID_Get
-                /* HALT processor to wait for interrupt */
-                .global         __RME_X64_Halt
-                /* Load page table */
-                .global         __RME_X64_Pgtbl_Set
+    /* X64 specific stuff */
+    /* Input from a port */
+    .global             __RME_X64_In
+    /* Output to a port */
+    .global             __RME_X64_Out
+    /* Read MSR */
+    .global             __RME_X64_Read_MSR
+    /* Write MSR */
+    .global             __RME_X64_Write_MSR
+    /* Load GDT */
+    .global             __RME_X64_GDT_Load
+    /* Load IDT */
+    .global             __RME_X64_IDT_Load
+    /* Load TSS */
+    .global             __RME_X64_TSS_Load
+    /* CPUID instruction */
+    .global             __RME_X64_CPUID_Get
+    /* HALT processor to wait for interrupt */
+    .global             __RME_X64_Halt
+    /* Load page table */
+    .global             __RME_X64_Pgtbl_Set
+    /* Acknowledge LAPIC interrupt */
+    .global             __RME_X64_LAPIC_Ack
 
-                /* Booting specific stuff */
-                .global         _start
-                .global         __RME_X64_Mboot_Header
-                .global         __RME_X64_Mboot_Entry
-                .global         RME_X64_Kpgt
-                .global         __RME_X64_Kern_Boot_Stack
-                .global         __RME_X64_SMP_Boot_32
+    /* Booting specific stuff */
+    .global             _start
+    .global             __RME_X64_Mboot_Header
+    .global             __RME_X64_Mboot_Entry
+    .global             RME_X64_Kpgt
+    .global             __RME_X64_Kern_Boot_Stack
+    .global             __RME_X64_SMP_Boot_32
 
-                /* Fault handlers and user handlers are exported on their spot */
+    /* Fault handlers and user handlers are exported on their spot */
 /* End Exports ***************************************************************/
 
 /* Begin Imports *************************************************************/
-                /* The kernel entry of RME. This will be defined in C language. */
-                .global         RME_Kmain
-                /* The fault handler of RME. This will be defined in C language. */
-                .global         __RME_X64_Fault_Handler
-                /* The generic interrupt handler of RME. This will be defined in C language. */
-                .global         __RME_X64_Generic_Handler
-                /* The system call handler of RME. This will be defined in C language. */
-                .global         _RME_Svc_Handler
-                /* The system tick handler of RME. This will be defined in C language. */
-                .global         _RME_Tick_Handler
-                /* The entry of SMP after they have finished their initialization */
-                .global         __RME_SMP_Low_Level_Init
-                /* All other processor's timer interrupt handler */
-                .global         __RME_X64_SMP_Tick
+    /* The kernel entry of RME. This will be defined in C language. */
+    .global             RME_Kmain
+    /* The fault handler of RME. This will be defined in C language. */
+    .global             __RME_X64_Fault_Handler
+    /* The generic interrupt handler of RME. This will be defined in C language. */
+    .global             __RME_X64_Generic_Handler
+    /* The system call handler of RME. This will be defined in C language. */
+    .global             _RME_Svc_Handler
+    /* The system tick handler of RME. This will be defined in C language. */
+    .global             _RME_Tick_Handler
+    /* The entry of SMP after they have finished their initialization */
+    .global             __RME_SMP_Low_Level_Init
+    /* All other processor's timer interrupt handler */
+    .global             __RME_X64_SMP_Tick
 /* End Imports ***************************************************************/
-
-/* Begin Vector Table ********************************************************/
-
-/* End Vector Table **********************************************************/
 
 /* Begin Memory Init *********************************************************/
 /* Multiboot header that will be located at 0x100000 *************************/
-                 .section       .text
-                 .code32
-                 .align         16
+    .section            .text
+    .code32
+    .align              16
 __RME_X64_Mboot_Header:
-                 .long          0x1BADB002                    /* Magic number */
-                 .long          0x00010000                    /* Boot flags */
-                 .long          (-0x1BADB002-0x00010000)      /* Checksum */
-                 .long          __RME_X64_Mboot_Load_Addr     /* header_addr */
-                 .long          __RME_X64_Mboot_Load_Addr     /* .text addr */
-                 .long          __RME_X64_Mboot_Load_End      /* .data end addr */
-                 .long          __RME_X64_Mboot_BSS_End       /* .bss end addr */
-                 .long          __RME_X64_Mboot_Entry_Addr    /* Entry of the kernel */
+    .long               0x1BADB002                  /* Magic number */
+    .long               0x00010000                  /* Boot flags */
+    .long               (-0x1BADB002-0x00010000)    /* Checksum */
+    .long               __RME_X64_Mboot_Load_Addr   /* header_addr */
+    .long               __RME_X64_Mboot_Load_Addr   /* .text addr */
+    .long               __RME_X64_Mboot_Load_End    /* .data end addr */
+    .long               __RME_X64_Mboot_BSS_End     /* .bss end addr */
+    .long               __RME_X64_Mboot_Entry_Addr  /* Entry of the kernel */
 
 /* Initial page table ********************************************************/
-                 /* 7 pages that start from 0x101000. We can't use 1GB pages here
-                  * because we do not know whether the CPU supports that or not.
-                  * We will detect these later when we are making the kernel pages */
-                 .align         4096
-                 .space         7*4096
+    /* 7 pages that start from 0x101000. We can't use 1GB pages here
+     * because we do not know whether the CPU supports that or not.
+     * We will detect these later when we are making the kernel pages */
+    .align              4096
+    .space              7*4096
 
 /* The entry point after the bootloader finishes *****************************/
-                 .code32
-                 .align         16
+    .code32
+    .align              16
 __RME_X64_Mboot_Entry:
-                 /* EBX contains Multiboot data structure, let's relocate it to some other places */
-                 MOV            %EBX,%ESI
-                 /* Zero 7 pages for our bootstrap page tables, PML4 @ 0x101000 */
-                 CLD
-                 XOR            %EAX,%EAX
-                 MOV            $0x101000,%EDI
-                 MOV            $0x7000,%ECX
-                 REP            STOSB
-                 /* PML4[0] -> PDP-A @ 0x102000 */
-                 MOV            $(0x102000|3),%EAX
-                 MOV            %EAX,0x101000
-                 /* PML4[256] -> PDP-A @ 0x102000 */
-                 MOV            $(0x102000|3),%EAX
-                 MOV            %EAX,0x101800
-                 /* PML4[511] -> PDP-B @ 0x103000 */
-                 MOV            $(0x103000|3),%EAX
-                 MOV            %EAX,0x101FF8
-                 /* PDP-A[0] -> PDE-A @ 0x104000 */
-                 MOV            $(0x104000|3),%EAX
-                 MOV            %EAX,0x102000
-                 /* PDP-A[1] -> PDE-B @ 0x105000 */
-                 MOV            $(0x105000|3),%EAX
-                 MOV            %EAX,0x102008
-                 /* PDP-A[2] -> PDE-C @ 0x106000 */
-                 MOV            $(0x106000|3),%EAX
-                 MOV            %EAX,0x102010
-                 /* PDP-A[3] -> PDE-D @ 0x107000 unbufferable uncacheable */
-                 MOV            $(0x107000|3|0x18),%EAX
-                 MOV            %EAX,0x102018
-                 /* PDP-B[510] -> PDE-A @ 0x104000 */
-                 MOV            $(0x104000|3),%EAX
-                 MOV            %EAX,0x103FF0
-                 /* PDP-B[511] -> PDE-B @ 0x105000 */
-                 MOV            $(0x105000|3),%EAX
-                 MOV            %EAX,0x103FF8
-                 /* PDE-A/B/C/D [0..511/0...511/0..511/0..511] -> 0..4094MB */
-                 MOV            $(0x83),%EAX
-                 MOV            $0x104000,%EBX
-                 MOV            $(512*4),%ECX
+     /* EBX contains Multiboot data structure, let's relocate it to some other places */
+     MOV                %EBX,%ESI
+     /* Zero 7 pages for our bootstrap page tables, PML4 @ 0x101000 */
+     CLD
+     XOR                %EAX,%EAX
+     MOV                $0x101000,%EDI
+     MOV                $0x7000,%ECX
+     REP STOSB
+     /* PML4[0] -> PDP-A @ 0x102000 */
+     MOV                $(0x102000|3),%EAX
+     MOV                %EAX,0x101000
+     /* PML4[256] -> PDP-A @ 0x102000 */
+     MOV                $(0x102000|3),%EAX
+     MOV                %EAX,0x101800
+     /* PML4[511] -> PDP-B @ 0x103000 */
+     MOV                $(0x103000|3),%EAX
+     MOV                %EAX,0x101FF8
+     /* PDP-A[0] -> PDE-A @ 0x104000 */
+     MOV                $(0x104000|3),%EAX
+     MOV                %EAX,0x102000
+     /* PDP-A[1] -> PDE-B @ 0x105000 */
+     MOV                $(0x105000|3),%EAX
+     MOV                %EAX,0x102008
+     /* PDP-A[2] -> PDE-C @ 0x106000 */
+     MOV                $(0x106000|3),%EAX
+     MOV                %EAX,0x102010
+     /* PDP-A[3] -> PDE-D @ 0x107000 unbufferable uncacheable */
+     MOV                $(0x107000|3|0x18),%EAX
+     MOV                %EAX,0x102018
+     /* PDP-B[510] -> PDE-A @ 0x104000 */
+     MOV                $(0x104000|3),%EAX
+     MOV                %EAX,0x103FF0
+     /* PDP-B[511] -> PDE-B @ 0x105000 */
+     MOV                $(0x105000|3),%EAX
+     MOV                %EAX,0x103FF8
+     /* PDE-A/B/C/D [0..511/0...511/0..511/0..511] -> 0..4094MB */
+     MOV                $(0x83),%EAX
+     MOV                $0x104000,%EBX
+     MOV                $(512*4),%ECX
 PDE_Loop:
-                 MOV            %EAX,(%EBX)
-                 ADD            $0x200000,%EAX
-                 ADD            $0x8,%EBX
-                 DEC            %ECX
-                 JNZ            PDE_Loop
-				 /* Clear ebx for initial processor boot.
-                  * When secondary processors boot, they'll call through
-                  * __RME_X64_SMP_Boot, but with a nonzero ebx.
-                  * We'll reuse these bootstrap pagetables and GDT. */
-                 XOR            %EBX,%EBX
-                 /* SMP boot will run directly from here */
+     MOV                %EAX,(%EBX)
+     ADD                $0x200000,%EAX
+     ADD                $0x8,%EBX
+     DEC                %ECX
+     JNZ                PDE_Loop
+	 /* Clear ebx for initial processor boot.
+      * When secondary processors boot, they'll call through
+      * __RME_X64_SMP_Boot, but with a nonzero ebx.
+      * We'll reuse these bootstrap pagetables and GDT. */
+     XOR                %EBX,%EBX
+     /* SMP boot will run directly from here */
 __RME_X64_SMP_Boot_32:
-                 /* CR3 -> PML4 @ 0x101000 */
-                 MOV            $0x101000,%EAX
-                 MOV            %EAX,%CR3
-                 /* Load GDT */
-                 LGDT           (Boot_GDT_Desc-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
-                 /* Enable PAE - CR4.PAE=1 */
-                 MOV            %CR4,%EAX
-                 BTS            $5,%EAX
-                 MOV            %EAX,%CR4
-                 /* Enable long mode and no execute bit - EFER.LME=1, EFER.NXE=1 */
-                 MOV            $0xC0000080,%ECX
-                 RDMSR
-                 BTS            $8,%EAX
-                 BTS            $11,%EAX
-                 WRMSR
-                 /* Enable paging */
-                 MOV            %CR0,%EAX
-                 BTS            $31,%EAX
-                 MOV            %EAX,%CR0
-                 /* shift to 64bit segment */
-                 LJMP           $8,$(Boot_Low_64-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
+     /* CR3 -> PML4 @ 0x101000 */
+     MOV                $0x101000,%EAX
+     MOV                %EAX,%CR3
+     /* Load GDT */
+     LGDT               (Boot_GDT_Desc-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
+     /* Enable PAE - CR4.PAE=1 */
+     MOV                %CR4,%EAX
+     BTS                $5,%EAX
+     MOV                %EAX,%CR4
+     /* Enable long mode and no execute bit - EFER.LME=1, EFER.NXE=1 */
+     MOV                $0xC0000080,%ECX
+     RDMSR
+     BTS                $8,%EAX
+     BTS                $11,%EAX
+     WRMSR
+     /* Enable paging */
+     MOV                %CR0,%EAX
+     BTS                $31,%EAX
+     MOV                %EAX,%CR0
+     /* shift to 64bit segment */
+     LJMP               $8,$(Boot_Low_64-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
 
 /* Now we are in 64-bit mode *************************************************/
-                 .align         16
-                 .code64
+    .align              16
+    .code64
 Boot_Low_64:
-                 movq           $Boot_High_64,%RAX
-                 jmp            *%RAX
+    movq                $Boot_High_64,%RAX
+    jmp                 *%RAX
 _start:
 Boot_High_64:
-                 /* ensure data segment registers are sane - zero out all of them */
-                 XOR            %RAX,%RAX
-                 /* Below are all 16-bit moves */
-                 MOV            %AX,%SS
-                 MOV            %AX,%DS
-                 MOV            %AX,%ES
-                 MOV            %AX,%FS
-                 MOV            %AX,%GS
-                 /* Check to see if we're booting a secondary core */
-                 TEST           %EBX,%EBX
-                 JNZ            Boot_SMP_64
-                 /* Setup initial stack - this is hard-coded at low memory */
-                 MOV            $__RME_X64_Kern_Boot_Stack,%RAX
-                 MOV            %RAX,%RSP
-                 /* Pass the physical address of RSI to it */
-                 MOV            %RSI,%RDI
-                 JMP            main
-                 JMP            .
-Boot_SMP_64:     MOV            $0x7000,%RAX
-                 MOV            -16(%RAX),%RSP
-                 JMP            .
-                 JMP            __RME_SMP_Low_Level_Init
-                 JMP            .
+    /* ensure data segment registers are sane - zero out all of them */
+    XOR                 %RAX,%RAX
+    /* Below are all 16-bit moves */
+    MOV                 %AX,%SS
+    MOV                 %AX,%DS
+    MOV                 %AX,%ES
+    MOV                 %AX,%FS
+    MOV                 %AX,%GS
+    /* Check to see if we're booting a secondary core */
+    TEST                %EBX,%EBX
+    JNZ                 Boot_SMP_64
+    /* Setup initial stack - this is hard-coded at low memory */
+    MOV                 $__RME_X64_Kern_Boot_Stack,%RAX
+    MOV                 %RAX,%RSP
+    /* Pass the physical address of RSI to it */
+    MOV                 %RSI,%RDI
+    JMP                 main
+    JMP                 .
+Boot_SMP_64:
+    MOV                 $0x7000,%RAX
+    MOV                 -16(%RAX),%RSP
+    JMP                 __RME_SMP_Low_Level_Init
+    JMP                 .
 
-                 /* The initial gdt. Later we will have one GDT per CPU */
-                 .align         16
+    /* The initial gdt. Later we will have one GDT per CPU */
+    .align              16
 Boot_GDT:
-                 /* 0: Null descriptor */
-                 .long          0x00000000
-                 .long          0x00000000
-                 /* 1: Code, R/X, Nonconforming (transfers only possible with exceptions) */
-                 .long          0x00000000
-                 .long          0x00209800
-                 /* 2: Data, R/W, Expand Down */
-                 .long          0x00000000
-                 .long          0x00009000
+    /* 0: Null descriptor */
+    .long               0x00000000
+    .long               0x00000000
+    /* 1: Code, R/X, Nonconforming (transfers only possible with exceptions) */
+    .long               0x00000000
+    .long               0x00209800
+    /* 2: Data, R/W, Expand Down */
+    .long               0x00000000
+    .long               0x00009000
 Boot_GDT_Desc:
-                 .word          Boot_GDT_Desc-Boot_GDT-1;
-                 .quad          Boot_GDT-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr;
-                 .align         16
+    .word               Boot_GDT_Desc-Boot_GDT-1;
+    .quad               Boot_GDT-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr;
+    .align              16
 
-                 /* The kernel page table */
-                 .align         4096
+    /* The kernel page table */
+    .align              4096
 RME_X64_Kpgt:
-                 .space         8*(256+256*512)
+    .space              8*(256+256*512)
 
-                 /* The initial kernel stack */
-                 .space         8192
+    /* The initial kernel stack */
+    .space              8192
 __RME_X64_Kern_Boot_Stack:
 /* End Memory Init ***********************************************************/
 
@@ -255,12 +313,12 @@ Return         : ptr_t - The data received from that port.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_In:
-                 PUSHQ           %RDX
-                 MOVQ            %RDI,%RDX
-                 MOVQ            %RAX,%RAX
-                 INB             (%DX),%AL
-                 POPQ            %RDX
-                 RETQ
+    PUSHQ               %RDX
+    MOVQ                %RDI,%RDX
+    MOVQ                %RAX,%RAX
+    INB                 (%DX),%AL
+    POPQ                %RDX
+    RETQ
 /* End Function:__RME_X64_In *************************************************/
 
 /* Begin Function:__RME_X64_Out ***********************************************
@@ -272,14 +330,14 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_Out:
-                 PUSHQ           %RDX
-                 PUSHQ           %RAX
-                 MOVQ            %RDI,%RDX
-                 MOVQ            %RSI,%RAX
-                 OUTB            %AL,(%DX)
-                 POPQ            %RAX
-                 POPQ            %RDX
-                 RETQ
+    PUSHQ               %RDX
+    PUSHQ               %RAX
+    MOVQ                %RDI,%RDX
+    MOVQ                %RSI,%RAX
+    OUTB                %AL,(%DX)
+    POPQ                %RAX
+    POPQ                %RDX
+    RETQ
 /* End Function:__RME_X64_Out ************************************************/
 
 /* Begin Function:__RME_X64_Read_MSR ******************************************
@@ -290,16 +348,16 @@ Return         : ptr_t - The content of the MSR.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_Read_MSR:
-                 PUSHQ           %RCX
-                 PUSHQ           %RDX
-                 MOVQ            %RDI,%RCX
-                 XORQ            %RAX,%RAX
-                 RDMSR
-                 SHLQ            $32,%RDX
-                 ADDQ            %RDX,%RAX
-                 POPQ            %RDX
-                 POPQ            %RCX
-                 RETQ
+    PUSHQ               %RCX
+    PUSHQ               %RDX
+    MOVQ                %RDI,%RCX
+    XORQ                %RAX,%RAX
+    RDMSR
+    SHLQ                $32,%RDX
+    ADDQ                %RDX,%RAX
+    POPQ                %RDX
+    POPQ                %RCX
+    RETQ
 /* End Function:__RME_X64_Read_MSR *******************************************/
 
 /* Begin Function:__RME_X64_Write_MSR *****************************************
@@ -311,18 +369,18 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_Write_MSR:
-                 PUSHQ           %RCX
-                 PUSHQ           %RDX
-                 PUSHQ           %RAX
-                 MOVQ            %RDI,%RCX
-                 MOVL            %ESI,%EAX
-                 MOVQ            %RSI,%RDX
-                 SHR             $32,%RDX
-                 WRMSR
-                 POPQ            %RAX
-                 POPQ            %RDX
-                 POPQ            %RCX
-                 RETQ
+    PUSHQ               %RCX
+    PUSHQ               %RDX
+    PUSHQ               %RAX
+    MOVQ                %RDI,%RCX
+    MOVL                %ESI,%EAX
+    MOVQ                %RSI,%RDX
+    SHR                 $32,%RDX
+    WRMSR
+    POPQ                %RAX
+    POPQ                %RDX
+    POPQ                %RCX
+    RETQ
 /* End Function:__RME_X64_Write_MSR ******************************************/
 
 /* Begin Function:__RME_CPUID_Get *********************************************
@@ -334,8 +392,8 @@ Output      : None.
 Return      : ptr_t - The CPUID.
 ******************************************************************************/
 __RME_CPUID_Get:
-                MOV              %GS:(8192-24),%RAX
-                RETQ
+    MOV                 %GS:(8192-24),%RAX
+    RETQ
 /* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_X64_CPUID_Get *****************************************
@@ -351,30 +409,30 @@ Return         : ptr_t - The maximum number for CPUID instruction.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_CPUID_Get:
-                 PUSHQ           %R8
-                 PUSHQ           %R9
-                 PUSHQ           %RBX
-                 PUSHQ           %RCX
-                 PUSHQ           %RDX
+    PUSHQ               %R8
+    PUSHQ               %R9
+    PUSHQ               %RBX
+    PUSHQ               %RCX
+    PUSHQ               %RDX
 
-                 MOVQ            %RDI,%RAX
-                 MOVQ            %RDX,%R8
-                 MOVQ            %RCX,%R9
+    MOVQ                %RDI,%RAX
+    MOVQ                %RDX,%R8
+    MOVQ                %RCX,%R9
 
-                 MOVQ            (%RSI),%RBX
-                 MOVQ            (%R8),%RCX
-                 MOVQ            (%R9),%RDX
-                 CPUID
-                 MOVQ            %RBX,(%RSI)
-                 MOVQ            %RCX,(%R8)
-                 MOVQ            %RDX,(%R9)
+    MOVQ                (%RSI),%RBX
+    MOVQ                (%R8),%RCX
+    MOVQ                (%R9),%RDX
+    CPUID
+    MOVQ                %RBX,(%RSI)
+    MOVQ                %RCX,(%R8)
+    MOVQ                %RDX,(%R9)
 
-                 POPQ            %RDX
-                 POPQ            %RCX
-                 POPQ            %RBX
-                 POPQ            %R9
-                 POPQ            %R8
-                 RETQ
+    POPQ                %RDX
+    POPQ                %RCX
+    POPQ                %RBX
+    POPQ                %R9
+    POPQ                %R8
+    RETQ
 /* End Function:__RME_X64_CPUID_Get ******************************************/
 
 /* Begin Function:__RME_X64_GDT_Load ******************************************
@@ -387,8 +445,8 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_GDT_Load:
-                 LGDT            (%RDI)
-                 RETQ
+    LGDT                (%RDI)
+    RETQ
 /* End Function:__RME_X64_GDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_IDT_Load ******************************************
@@ -400,8 +458,8 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_IDT_Load:
-                 LIDT            (%RDI)
-                 RETQ
+    LIDT                (%RDI)
+    RETQ
 /* End Function:__RME_X64_IDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_TSS_Load ******************************************
@@ -412,8 +470,8 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_TSS_Load:
-                 LTR             %DI
-                 RETQ
+    LTR                 %DI
+    RETQ
 /* End Function:__RME_X64_TSS_Load *******************************************/
 
 /* Begin Function:__RME_Comp_Swap *********************************************
@@ -428,15 +486,15 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - If successful, 1; else 0.
 ******************************************************************************/
 __RME_Comp_Swap:
-                 MOVQ            (%RSI),%RAX
-                 LOCK CMPXCHGQ   %RDX,(%RDI)
-                 JNZ             __RME_Comp_Swap_Fail
-                 MOVQ            $1,%RAX
-                 RETQ
+    MOVQ                (%RSI),%RAX
+    LOCK CMPXCHGQ       %RDX,(%RDI)
+    JNZ                 __RME_Comp_Swap_Fail
+    MOVQ                $1,%RAX
+    RETQ
 __RME_Comp_Swap_Fail:
-                 MOVQ            %RAX,(%RSI)
-                 MOVQ            $0,%RAX
-                 RETQ
+    MOVQ                %RAX,(%RSI)
+    MOVQ                $0,%RAX
+    RETQ
 /* End Function:__RME_Comp_Swap **********************************************/
 
 /* Begin Function:__RME_Fetch_Add *********************************************
@@ -448,9 +506,9 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the addition.
 ******************************************************************************/
 __RME_Fetch_Add:
-                 MOVQ            (%RDI),%RAX
-                 LOCK ADDQ       %RSI,(%RDI)
-                 RETQ
+    MOVQ                (%RDI),%RAX
+    LOCK ADDQ           %RSI,(%RDI)
+    RETQ
 /* End Function:__RME_Fetch_Add **********************************************/
 
 /* Begin Function:__RME_Fetch_And *********************************************
@@ -464,9 +522,9 @@ Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the AND operation.
 ******************************************************************************/
 __RME_Fetch_And:
-               MOVQ             (%RDI),%RAX
-               LOCK ANDQ        %RSI,(%RDI)
-               RETQ
+    MOVQ                (%RDI),%RAX
+    LOCK ANDQ           %RSI,(%RDI)
+    RETQ
 /* End Function:__RME_Fetch_And **********************************************/
 
 /* Begin Function:__RME_X64_Pgtbl_Set *****************************************
@@ -476,8 +534,8 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 __RME_X64_Pgtbl_Set:
-               MOV              %RDI,%CR3
-               RETQ
+    MOV                 %RDI,%CR3
+    RETQ
 /* End Function:__RME_X64_Pgtbl_Set ******************************************/
 
 /* Begin Function:__RME_Disable_Int *******************************************
@@ -487,9 +545,9 @@ Output         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_Disable_Int:
-                /* Disable all interrupts */
-                CLI
-                RETQ
+    /* Disable all interrupts */
+    CLI
+    RETQ
 /* End Function:__RME_Disable_Int ********************************************/
 
 /* Begin Function:__RME_Enable_Int ********************************************
@@ -499,9 +557,9 @@ Output         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_Enable_Int:
-                /* Enable all interrupts */
-                STI
-                RETQ
+    /* Enable all interrupts */
+    STI
+    RETQ
 /* End Function:__RME_Enable_Int *********************************************/
 
 /* Begin Function:__RME_X64_Halt **********************************************
@@ -511,9 +569,9 @@ Output         : None.
 Register Usage : None.
 ******************************************************************************/
 __RME_X64_Halt:
-                /* Wait for interrupt */
-                HLT
-                RETQ
+    /* Wait for interrupt */
+    HLT
+    RETQ
 /* End Function:__RME_X64_Halt ***********************************************/
 
 /* Begin Function:_RME_Kmain **************************************************
@@ -524,8 +582,8 @@ Return         : None.
 Register Usage : None.
 ******************************************************************************/
 _RME_Kmain:
-                 MOVQ           %RDI,%RSP
-                 JMP            RME_Kmain
+    MOVQ                %RDI,%RSP
+    JMP                 RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
 /* Begin Function:__RME_MSB_Get ***********************************************
@@ -536,10 +594,10 @@ Return         : ptr_t - The MSB position.
 Register Usage : None.
 ******************************************************************************/
 __RME_MSB_Get:
-                LZCNTQ          %RDI,%RDI
-                MOVQ            $63,%RAX
-                SUBQ            %RDI,%RAX
-                RETQ
+    LZCNTQ              %RDI,%RDI
+    MOVQ                $63,%RAX
+    SUBQ                %RDI,%RAX
+    RETQ
 /* End Function:__RME_MSB_Get ************************************************/
 
 /* Begin Function:__RME_Enter_User_Mode ***************************************
@@ -552,15 +610,11 @@ Input       : ptr_t Entry - The user execution startpoint.
 Output      : None.
 ******************************************************************************/
 __RME_Enter_User_Mode:
-                /* Entry */
-                MOVQ           %RDI,%RCX
-                /* Stack */
-                MOVQ           %RSI,%RSP
-                /* Flags - IOPL 3, IF */
-                MOVQ           $0x3200,%R11
-                /* CPUID */
-                MOVQ           %RDX,%RDI
-                SYSRETQ
+    MOVQ                %RDI,%RCX           /* Entry */
+    MOVQ                %RSI,%RSP           /* Stack */
+    MOVQ                $0x3200,%R11        /* Flags - IOPL 3, IF */
+    MOVQ                %RDX,%RDI           /* CPUID */
+    SYSRETQ
 /* End Function:__RME_Enter_User_Mode ****************************************/
 
 /* Begin Function:Fault_Handler ***********************************************
@@ -571,70 +625,70 @@ Description : The multi-purpose fault handler routine. This macro will in fact
 Input       : None.
 Output      : None.
 ******************************************************************************/
-                .set            KERNEL_CODE,(1*8)
-                .set            KERNEL_DATA,(2*8)
-                .set            USER_CODE,(4*8+3)
-                .set            USER_DATA,(5*8+3)
+    .set                KERNEL_CODE,(1*8)
+    .set                KERNEL_DATA,(2*8)
+    .set                USER_CODE,(5*8+3)
+    .set                USER_DATA,(4*8+3)
 /* Save all general-purpose registers */
-.macro          SAVE_GP_REGS
-                PUSHQ           %R15
-                PUSHQ           %R14
-                PUSHQ           %R13
-                PUSHQ           %R12
-                PUSHQ           %R11
-                PUSHQ           %R10
-                PUSHQ           %R9
-                PUSHQ           %R8
-                PUSHQ           %RBP
-                PUSHQ           %RDI
-                PUSHQ           %RSI
-                PUSHQ           %RDX
-                PUSHQ           %RCX
-                PUSHQ           %RBX
-                PUSHQ           %RAX
-                /* GS, CS, SS is known to be good, we just need FS, ES and DS */
-                MOVW            $(KERNEL_DATA),%AX
-                MOVW            %AX,%FS
-                MOVW            %AX,%ES
-                MOVW            %AX,%DS
+.macro SAVE_GP_REGS
+    PUSHQ               %R15
+    PUSHQ               %R14
+    PUSHQ               %R13
+    PUSHQ               %R12
+    PUSHQ               %R11
+    PUSHQ               %R10
+    PUSHQ               %R9
+    PUSHQ               %R8
+    PUSHQ               %RBP
+    PUSHQ               %RDI
+    PUSHQ               %RSI
+    PUSHQ               %RDX
+    PUSHQ               %RCX
+    PUSHQ               %RBX
+    PUSHQ               %RAX
+    /* GS, CS, SS is known to be good, we just need FS, ES and DS */
+    MOVW                $(KERNEL_DATA),%AX
+    MOVW                %AX,%FS
+    MOVW                %AX,%ES
+    MOVW                %AX,%DS
 .endm
 /* Restore all general-purpose registers */
-.macro          RESTORE_GP_REGS
-                /* Put the kernel GS back */
-                SWAPGS
-                MOVW            $(USER_DATA),%AX
-                MOVW            %AX,%GS
-                MOVW            %AX,%FS
-                MOVW            %AX,%ES
-                MOVW            %AX,%DS
-                POPQ            %RAX
-                POPQ            %RBX
-                POPQ            %RCX
-                POPQ            %RDX
-                POPQ            %RSI
-                POPQ            %RDI
-                POPQ            %RBP
-                POPQ            %R8
-                POPQ            %R9
-                POPQ            %R10
-                POPQ            %R11
-                POPQ            %R12
-                POPQ            %R13
-                POPQ            %R14
-                POPQ            %R15
+.macro RESTORE_GP_REGS
+    /* Put the kernel GS back */
+    SWAPGS
+    MOVW                $(USER_DATA),%AX
+    MOVW                %AX,%GS
+    MOVW                %AX,%FS
+    MOVW                %AX,%ES
+    MOVW                %AX,%DS
+    POPQ                %RAX
+    POPQ                %RBX
+    POPQ                %RCX
+    POPQ                %RDX
+    POPQ                %RSI
+    POPQ                %RDI
+    POPQ                %RBP
+    POPQ                %R8
+    POPQ                %R9
+    POPQ                %R10
+    POPQ                %R11
+    POPQ                %R12
+    POPQ                %R13
+    POPQ                %R14
+    POPQ                %R15
 .endm
 /* Fault handler macro */
 .macro FAULT_HANDLER NAME ERRCODE REASON
-                .global         \NAME
+    .global             \NAME
 \NAME:
-                SWAPGS
+    SWAPGS
 .if \ERRCODE==0
-                /* Make a dummy error code */
-                PUSHQ           $0
+    /* Make a dummy error code */
+    PUSHQ               $0
 .endif
-                /* We went into this with a INT - flag = INTNUM */
-                PUSHQ           $\REASON
-                JMP             Fault_Handler
+    /* We went into this with a INT - flag = INTNUM */
+    PUSHQ               $\REASON
+    JMP                 Fault_Handler
 .endm
 
 /* Fault handlers */
@@ -660,15 +714,15 @@ FAULT_HANDLER NAME=__RME_X64_FAULT_XM_Handler ERRCODE=0 REASON=19
 FAULT_HANDLER NAME=__RME_X64_FAULT_VE_Handler ERRCODE=0 REASON=20
 /* Common function body for fault handlers - reduce I-Cache usage */
 Fault_Handler:
-                SAVE_GP_REGS
-                /* Pass the stack pointer to system call handler */
-                MOVQ            %RSP,%RDI
-                MOVQ            (15*8)(%RSP),%RSI
-                CALLQ           __RME_X64_Fault_Handler
+    SAVE_GP_REGS
+    /* Pass the stack pointer to system call handler */
+    MOVQ                %RSP,%RDI
+    MOVQ                (15*8)(%RSP),%RSI
+    CALLQ               __RME_X64_Fault_Handler
 
-                RESTORE_GP_REGS
-                ADDQ            $16,%RSP
-                IRETQ
+    RESTORE_GP_REGS
+    ADDQ                $16,%RSP
+    IRETQ
 /* End Function:Fault_Handler ************************************************/
 
 /* Begin Function:__RME_X64_INT_USER_Handler **********************************
@@ -679,14 +733,12 @@ Output      : None.
 ******************************************************************************/
 /* User generic interrupt handler macro */
 .macro USER_HANDLER NAME VECTNUM
-                .global         \NAME
+    .global             \NAME
 \NAME:
-                SWAPGS
-                /* Make a dummy error code */
-                PUSHQ           $0
-                /* Interrupt number */
-                PUSHQ           $\VECTNUM
-                JMP             User_Handler
+    SWAPGS
+    PUSHQ               $0                  /* Make a dummy error code */
+    PUSHQ               $\VECTNUM           /* Interrupt number */
+    JMP                 User_Handler
 .endm
 /* User handlers */
 USER_HANDLER NAME=__RME_X64_USER32_Handler VECTNUM=32
@@ -937,15 +989,15 @@ USER_HANDLER NAME=__RME_X64_USER254_Handler VECTNUM=254
 USER_HANDLER NAME=__RME_X64_USER255_Handler VECTNUM=255
 /* Common function body for generic interrupt handlers - reduce I-Cache usage */
 User_Handler:
-                SAVE_GP_REGS
-                /* Pass the stack pointer to system call handler */
-                MOVQ            %RSP,%RDI
-                MOVQ            (15*8)(%RSP),%RSI
-                CALLQ           __RME_X64_Generic_Handler
-
-                RESTORE_GP_REGS
-                ADDQ            $16,%RSP
-                IRETQ
+    SAVE_GP_REGS
+    /* Pass the stack pointer to system call handler */
+    MOVQ                %RSP,%RDI
+    MOVQ                (15*8)(%RSP),%RSI
+    CALLQ               __RME_X64_Generic_Handler
+    CALLQ               __RME_X64_LAPIC_Ack
+    RESTORE_GP_REGS
+    ADDQ                $16,%RSP
+    IRETQ
 /* End Function:__RME_X64_INT_USER_Handler ***********************************/
 
 /* Begin Function:SysTick_SMP_Handler *****************************************
@@ -955,19 +1007,20 @@ Input       : None.
 Output      : None.
 ******************************************************************************/
 SysTick_SMP_Handler:
-                .global         SysTick_SMP_Handler
-                SWAPGS
-                /* Make a dummy error code */
-                PUSHQ           0
-                /* The interrupt number of SysTick is always 0xFFFF */
-                PUSHQ           0xFFFF
-                SAVE_GP_REGS
-                /* Pass the stack pointer to system call handler */
-                MOVQ            %RSP,%RDI
-                CALL            _RME_Tick_SMP_Handler
-                RESTORE_GP_REGS
-                ADDQ            $16,%RSP
-                IRETQ
+    .global             SysTick_SMP_Handler
+    SWAPGS
+    /* Make a dummy error code */
+    PUSHQ               $0
+    /* The interrupt number of SysTick is always 0xFFFF */
+    PUSHQ               $0xFFFF
+    SAVE_GP_REGS
+    /* Pass the stack pointer to system call handler */
+    MOVQ                %RSP,%RDI
+    CALLQ               _RME_Tick_SMP_Handler
+    CALLQ               __RME_X64_LAPIC_Ack
+    RESTORE_GP_REGS
+    ADDQ                $16,%RSP
+    IRETQ
 /* End Function:SysTick_SMP_Handler ******************************************/
 
 /* Begin Function:SysTick_Handler *********************************************
@@ -977,20 +1030,21 @@ Input       : None.
 Output      : None.
 ******************************************************************************/
 SysTick_Handler:
-                .global         SysTick_Handler
-                SWAPGS
-                /* Make a dummy error code */
-                PUSHQ           0
-                /* The interrupt number of SysTick is always 0xFFFF */
-                PUSHQ           0xFFFF
-                SAVE_GP_REGS
-                /* Pass the stack pointer to system call handler */
-                MOVQ            %RSP,%RDI
-                CALL            _RME_Tick_Handler
-                CALL            __RME_X64_SMP_Tick
-                RESTORE_GP_REGS
-                ADDQ            $16,%RSP
-                IRETQ
+    .global             SysTick_Handler
+    SWAPGS
+    /* Make a dummy error code */
+    PUSHQ               $0
+    /* The interrupt number of SysTick is always 0xFFFF */
+    PUSHQ               $0xFFFF
+    SAVE_GP_REGS
+    /* Pass the stack pointer to system call handler */
+    MOVQ                %RSP,%RDI
+    CALLQ               _RME_Tick_Handler
+    CALLQ               __RME_X64_SMP_Tick
+    CALLQ               __RME_X64_LAPIC_Ack
+    RESTORE_GP_REGS
+    ADDQ                $16,%RSP
+    IRETQ
 /* End Function:SysTick_Handler **********************************************/
 
 /* Begin Function:SVC_Handler *************************************************
@@ -1013,39 +1067,41 @@ Input       : None.
 Output      : None.
 ******************************************************************************/
 SVC_Handler:
-                .global         SVC_Handler
-                SWAPGS
-                /* Swap the pointers with the per-core kernel RSP */
-                MOVQ            %RSP,%GS:(8192-8)
-                MOVQ            %GS:(8192-16),%RSP
-                /* Simulate INT stack: High - [SS, RSP, RFLAGS, CS, RIP, ERRCODE] - Low */
-                PUSHQ           $(USER_DATA)
-                PUSHQ           %GS:(8192-8)
-                PUSHQ           %R11
-                PUSHQ           $(USER_CODE)
-                PUSHQ           %RCX
-                PUSHQ           0
-                /* We went into this from a SYSCALL - interrupt number 0x10000 */
-                PUSHQ           $0x10000
-                SAVE_GP_REGS
-                /* Pass the stack pointer to system call handler */
-                MOVQ             %RSP,%RDI
-                CALLQ           _RME_Svc_Handler
-                RESTORE_GP_REGS
-                /* See if we are forced to use IRET */
-                TESTQ           $0x10000,(%RSP)
-                JZ              Use_IRET
-                /* Just move these into the registers desired */
-                /* CVE-2014-4699: Force canonical address */
-                MOVQ            $0x7FFFFFFFFFFF,%RCX
-                ANDQ            16(%RSP),%RCX
-                MOVQ            32(%RSP),%R11
-                MOVQ            40(%RSP),%RSP
-                /* Return to user-level */
-                SYSRETQ
-Use_IRET:       /* Flag is zero, We are forced to use IRET, because this is from INT */
-                ADDQ            $16,%RSP
-                IRETQ
+    .global             SVC_Handler
+    SWAPGS
+    /* Swap the pointers with the per-core kernel RSP */
+    MOVQ                %RSP,%GS:(8192-8)
+    MOVQ                %GS:(8192-16),%RSP
+    /* Simulate INT stack: High - [SS, RSP, RFLAGS, CS, RIP, ERRCODE] - Low */
+    PUSHQ               $(USER_DATA)
+    PUSHQ               %GS:(8192-8)
+    PUSHQ               %R11
+    PUSHQ               $(USER_CODE)
+    PUSHQ               %RCX
+    PUSHQ               $0
+    /* We went into this from a SYSCALL - interrupt number 0x10000 */
+    PUSHQ               $0x10000
+    SAVE_GP_REGS
+    /* Pass the stack pointer to system call handler */
+    MOVQ                %RSP,%RDI
+    CALLQ               _RME_Svc_Handler
+    RESTORE_GP_REGS
+    /* See if we are forced to use IRET */
+    TESTQ               $0x10000,(%RSP)
+    JZ                  Use_IRET
+    /* Just move these into the registers desired */
+    /* CVE-2014-4699: Force canonical address */
+    MOVQ                $0x7FFFFFFFFFFF,%RCX
+    ANDQ                16(%RSP),%RCX
+    MOVQ                32(%RSP),%R11
+    MOVQ                40(%RSP),%RSP
+    /* Return to user-level */
+    SYSRETQ
+Use_IRET:
+    /* Flag is zero, We are forced to use IRET, because this is from INT */
+    JMP .
+    ADDQ                $16,%RSP
+    IRETQ
 /* End Function:SVC_Handler **************************************************/
 
 ;/* End Of File **************************************************************/

@@ -148,7 +148,7 @@ struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(ptr_t Base, ptr_t Len)
     for(Count=0;Count<=Len-sizeof(struct RME_X64_ACPI_RDSP_Desc);Count+=4)
     {
         /* It seemed that we have found one. See if the checksum is good */
-        if(_RME_Memcmp(&Pos[Count],"RSD PTR ",8)==0)
+        if(_RME_Memcmp(&(Pos[Count]),"RSD PTR ",8)==0)
         {
             Checksum=0;
             /* 20 is the length of the first part of the table */
@@ -545,7 +545,7 @@ void __RME_X64_Mem_Init(ptr_t MMap_Addr, ptr_t MMap_Length)
     RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGTBL_SIZE_256M));
 
     /* Kernel virtual memory layout */
-    RME_X64_Layout.Kotbl_Start=RME_X64_VA_BASE+RME_X64_KOTBL_OFFSET;
+    RME_X64_Layout.Kotbl_Start=(ptr_t)RME_KOTBL;
     /* +1G in cases where we have > 3GB memory for covering the memory hole */
     Info_Cnt=(MMap_Cnt>3*RME_POW2(RME_PGTBL_SIZE_1G))?(MMap_Cnt+RME_POW2(RME_PGTBL_SIZE_1G)):MMap_Cnt;
     RME_X64_Layout.Kotbl_Size=((Info_Cnt>>RME_KMEM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
@@ -767,12 +767,12 @@ void __RME_X64_CPU_Local_Init(void)
     GDT_Table[1]=0x0020980000000000ULL;
     /* Kernel data, DPL=0, W */
     GDT_Table[2]=0x0000920000000000ULL;
-    /* Unused entry - x86 convention */
+    /* Unused entry - this is for sysret instruction's requirement */
     GDT_Table[3]=0x0000000000000000ULL;
-    /* User code, DPL=3, R/X */
-    GDT_Table[4]=0x0020F80000000000ULL;
     /* User data, DPL=3, W */
-    GDT_Table[5]=0x0000F20000000000ULL;
+    GDT_Table[4]=0x0000F20000000000ULL;
+    /* User code, DPL=3, R/X */
+    GDT_Table[5]=0x0020F80000000000ULL;
     /* TSS */
     GDT_Table[6]=(0x0067)|((TSS_Table&0xFFFFFFULL)<<16)|(0x0089ULL<<40)|(((TSS_Table>>24)&0xFFULL)<<56);
     GDT_Table[7]=(TSS_Table>>32);
@@ -805,9 +805,23 @@ void __RME_X64_CPU_Local_Init(void)
     /* Set up SYSCALL/SYSRET parameters */
     __RME_X64_Write_MSR(RME_X64_MSR_IA32_LSTAR, (ptr_t)SVC_Handler);
     __RME_X64_Write_MSR(RME_X64_MSR_IA32_FMASK, ~RME_X64_RFLAGS_IF);
-    __RME_X64_Write_MSR(RME_X64_MSR_IA32_STAR, (((ptr_t)RME_X64_SEG_USER_CODE)<<48)|(((ptr_t)RME_X64_SEG_KERNEL_CODE)<<32));
+    /* The SYSRET, when returning to user mode in 64-bit, will load the SS from +8, and CS from +16.
+     * The original place for CS is reserved for 32-bit usages and is thus not usable by 64-bit */
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_STAR, (((ptr_t)RME_X64_SEG_EMPTY)<<48)|(((ptr_t)RME_X64_SEG_KERNEL_CODE)<<32));
 }
 /* End Function:__RME_X64_CPU_Local_Init *************************************/
+
+/* Begin Function:__RME_X64_LAPIC_Ack *****************************************
+Description : Acknowledge the interrupt on LAPIC.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_LAPIC_Ack(void)
+{
+    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_EOI, 0);
+}
+/* End Function:__RME_X64_LAPIC_Ack ******************************************/
 
 /* Begin Function:__RME_X64_LAPIC_Init ****************************************
 Description : Initialize LAPIC controllers - this will be run once on everycore.
@@ -824,31 +838,30 @@ void __RME_X64_LAPIC_Init(void)
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_SVR, RME_X64_LAPIC_SVR_ENABLE|RME_X64_INT_SPUR);
 
     /* Disable local interrupt lines */
-    //RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT0, RME_X64_LAPIC_MASKED);
-    //RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT1, RME_X64_LAPIC_MASKED);
+    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT0, RME_X64_LAPIC_MASKED);
+    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT1, RME_X64_LAPIC_MASKED);
 
     /* Disable performance counter overflow interrupts when there is one */
-    //if(((RME_X64_LAPIC_READ(RME_X64_LAPIC_VER)>>16)&0xFF)>=4)
-    //    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_PCINT, RME_X64_LAPIC_MASKED);
+    if(((RME_X64_LAPIC_READ(RME_X64_LAPIC_VER)>>16)&0xFF)>=4)
+        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_PCINT, RME_X64_LAPIC_MASKED);
 
     /* Map error interrupt to IRQ_ERROR */
-    //RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ERROR, RME_X64_INT_ERROR);
+    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ERROR, RME_X64_INT_ERROR);
 
     /* Clear error status register (requires back-to-back writes) */
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ESR, 0);
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ESR, 0);
 
     /* Acknowledge any outstanding interrupts */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_EOI, 0);
+    __RME_X64_LAPIC_Ack();
 
     /* Send an Init Level De-Assert to synchronise arbitration IDs */
-    /*
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, 0);
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_BCAST|
                                              RME_X64_LAPIC_ICRLO_INIT|
                                              RME_X64_LAPIC_ICRLO_LEVEL);
     while(RME_X64_LAPIC_READ(RME_X64_LAPIC_ICRLO)&RME_X64_LAPIC_ICRLO_DELIVS);
-*/
+
     /* Enable interrupts on the APIC */
     RME_X64_LAPIC_WRITE(RME_X64_LAPIC_TPR, 0);
 }
@@ -939,7 +952,7 @@ void __RME_X64_IOAPIC_Init(void)
     RME_PRINTK_I(Max_Int);
     RME_X64_IOAPIC_READ(RME_X64_IOAPIC_REG_ID,IOAPIC_ID);
     IOAPIC_ID>>=24;
-    RME_ASSERT(IOAPIC_ID==RME_X64_IOAPIC_Info[0].IOAPIC_ID);
+    ///this is not necessarily true! RME_ASSERT(IOAPIC_ID==RME_X64_IOAPIC_Info[0].IOAPIC_ID);
     RME_PRINTK_S("\n\rIOAPIC ID is: ");
     RME_PRINTK_I(IOAPIC_ID);
 
@@ -1005,7 +1018,7 @@ void __RME_X64_SMP_Init(void)
         RME_X64_UDELAY(200);
 
         /* Wait for CPU to finish its own initialization */
-        while(RME_X64_CPU_Info->Boot_Done==0);
+        while(RME_X64_CPU_Info[RME_X64_CPU_Cnt].Boot_Done==0);
         RME_X64_CPU_Cnt++;
     }
 }
@@ -1042,10 +1055,10 @@ void __RME_X64_Timer_Init(void)
 {
     /* For timer interrupts, they will always be handled by core 1, and all the other
      * cores should receive a IPI for that, so their scheduler can look after their
-     * threads. We are using rate generation,  */
+     * threads. We are using square wave mode. */
     __RME_X64_Out(RME_X64_PIT_CMD,0x34);
-    __RME_X64_Out(RME_X64_PIT_CH0,(1193182/RME_X64_TIMER_FREQ)&0xFF);
-    __RME_X64_Out(RME_X64_PIT_CH0,((1193182/RME_X64_TIMER_FREQ)>>8)&0xFF);
+    __RME_X64_Out(RME_X64_PIT_CH0,(1193182/2/RME_X64_TIMER_FREQ)&0xFF);
+    __RME_X64_Out(RME_X64_PIT_CH0,((1193182/2/RME_X64_TIMER_FREQ)>>8)&0xFF);
 }
 /* End Function:__RME_X64_Timer_Init *****************************************/
 
@@ -1325,15 +1338,16 @@ ptr_t __RME_SMP_Low_Level_Init(void)
     __RME_X64_CPU_Local_Init();
     /* Initialize LAPIC */
     __RME_X64_LAPIC_Init();
+    CPUID=RME_CPUID();
+    RME_ASSERT(CPUID==RME_X64_CPU_Cnt);
     /* Spin until the global CPU counter is zero again, which means all the
      * booing processor initialization is done */
+    RME_X64_CPU_Info[RME_X64_CPU_Cnt].Boot_Done=1;
     while(RME_X64_CPU_Cnt!=0);
-
     /* Change page tables */
-    CPUID=RME_CPUID();
     __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,ptr_t));
-    /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_X64_INIT_ENTRY, RME_X64_INIT_STACK, CPUID);
+    /* Boot into the init thread - never returns */
+    __RME_Enter_User_Mode(0, RME_X64_USTACK(CPUID), CPUID);
     return 0;
 }
 /* End Function:__RME_SMP_Low_Level_Init *************************************/
@@ -1351,6 +1365,7 @@ ptr_t __RME_Boot(void)
     cnt_t Kmem1_Cnt;
     ptr_t Phys_Addr;
     ptr_t Page_Ptr;
+    struct RME_Cap_Captbl* Captbl;
 
     /* Initialize our own CPU-local data structures */
     RME_X64_CPU_Cnt=0;
@@ -1367,13 +1382,15 @@ ptr_t __RME_Boot(void)
     RME_PRINTK_S("\r\nTimer init");
     __RME_X64_Timer_Init();
 
-    /* Create all initial tables in Kmem1, which is sure to be present */
-    Cur_Addr=RME_X64_Layout.Kmem1_Start[0];
+    /* Create all initial tables in Kmem1, which is sure to be present. We reserve 16
+     * pages at the start to load the init process */
+    Cur_Addr=RME_X64_Layout.Kmem1_Start[0]+16*RME_POW2(RME_PGTBL_SIZE_2M);
     RME_PRINTK_S("\r\nKotbl registration start offset: 0x");
     RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
 
     /* Create the capability table for the init process - always 16 */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,16)==0);
+    Captbl=(struct RME_Cap_Captbl*)Cur_Addr;
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,16)==RME_BOOT_CAPTBL);
     Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(16));
 
     /* Create the capability table for initial page tables - now we are only
@@ -1517,17 +1534,32 @@ ptr_t __RME_Boot(void)
     RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
     RME_PRINTK_S("\r\nKmem1 frontier: 0x");
     RME_PRINTK_U(Cur_Addr);
-while(1);
+
+    /* Print sizes and halt */
+    RME_PRINTK_S("\r\nThread object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Thd_Struct)/sizeof(ptr_t));
+    RME_PRINTK_S("\r\nProcess object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Proc_Struct)/sizeof(ptr_t));
+    RME_PRINTK_S("\r\nInvocation object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Inv_Struct)/sizeof(ptr_t));
+    RME_PRINTK_S("\r\nEndpoint object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Sig_Struct)/sizeof(ptr_t));
+
     /* Start other processors, if there are any */
     __RME_X64_SMP_Init();
     /* Enable timer interrupts */
-    __RME_X64_IOAPIC_Int_Enable(2,0);
-    /* Now other processors may proceed */
-    RME_X64_CPU_Cnt=0;
+    //__RME_X64_IOAPIC_Int_Enable(2,0);
     /* Change page tables */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,ptr_t));
+    /* Load the init process to address 0x00 - It should be smaller than 2MB */
+    extern const unsigned char UVM_Init[];
+    _RME_Memcpy(0,(void*)UVM_Init,RME_POW2(RME_PGTBL_SIZE_2M));
+    /* Write nothing into the KIP now */
+    /* Now other processors may proceed */
+    RME_X64_CPU_Cnt=0;
+
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_X64_INIT_ENTRY, RME_X64_INIT_STACK, 0);
+    __RME_Enter_User_Mode(0, RME_X64_USTACK(0), 0);
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
@@ -1574,7 +1606,7 @@ ptr_t __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc, ptr_t* Cap
     *Capid=(Reg->RDI)&0xFFFFFFFF;
     Param[0]=Reg->RSI;
     Param[1]=Reg->RDX;
-    Param[2]=Reg->RCX;
+    Param[2]=Reg->R8;
     return 0;
 }
 /* End Function:__RME_Get_Syscall_Param **************************************/
@@ -1602,7 +1634,7 @@ Return      : ptr_t - The return value.
 ******************************************************************************/
 ptr_t __RME_Get_Inv_Retval(struct RME_Reg_Struct* Reg)
 {
-    return Reg->RDI;
+    return Reg->RSI;
 }
 /* End Function:__RME_Get_Inv_Retval *****************************************/
 
@@ -1614,7 +1646,7 @@ Return      : ptr_t - Always 0.
 ******************************************************************************/
 ptr_t __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
 {
-    Reg->RDI=(ptr_t)Retval;
+    Reg->RSI=(ptr_t)Retval;
     return 0;
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
@@ -1628,7 +1660,7 @@ Return      : ptr_t - Always 0.
 ******************************************************************************/
 ptr_t __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
 {
-	/* We use the SYSRET path if possible */
+	/* We use the SYSRET path on creation if possible */
 	Reg->INT_NUM=0x10000;
 	Reg->ERROR_CODE=0;
 	Reg->RIP=Entry;
@@ -1748,7 +1780,7 @@ Return      : ptr_t - Always 0.
 ******************************************************************************/
 ptr_t __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg)
 {
-    Reg->RDX=Param;
+    Reg->RSI=Param;
     return 0;
 }
 /* End Function:__RME_Inv_Reg_Init *******************************************/
@@ -1860,9 +1892,13 @@ Return      : None.
 void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num)
 {
     /* Not handling interrupts */
+	RME_PRINTK_S("\r\nGeneral int:");
+	RME_PRINTK_I(Int_Num);
+
 	switch(Int_Num)
 	{
 		/* Is this a generic IPI from other processors? */
+
 		default:break;
 	}
 }
@@ -1997,9 +2033,9 @@ ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Paddr, ptr_t Po
 
     /* Generate flags */
     if(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)
-        X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags);
+        X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
     else
-        X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_PDE_SUP;
+        X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_US;
 
     /* Try to map it in */
     Temp=0;
@@ -2066,7 +2102,7 @@ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos,
     Child_Table=RME_CAP_GETOBJ(Pgtbl_Child,ptr_t*);
 
     /* Generate the content */
-    X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_MMU_P|RME_X64_MMU_RW;
+    X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_MMU_P|RME_X64_MMU_RW|RME_X64_MMU_US;
 
     /* Try to map it in - may need to increase some count */
     Temp=0;

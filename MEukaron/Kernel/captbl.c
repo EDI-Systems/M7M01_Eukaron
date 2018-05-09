@@ -109,19 +109,20 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
 {
     cnt_t Count;
     struct RME_Cap_Captbl* Captbl;
-    
+    RME_PRINTK_S("A");
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
-            return RME_ERR_CAP_RANGE;
+    	return RME_ERR_CAP_RANGE;
     
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
         return RME_ERR_CAP_KOTBL;
-    
+    RME_PRINTK_S("B");
     /* Done. We start creation of the capability table. Clear header as well */
     for(Count=0;Count<Entry_Num;Count++)
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
-    
+
+    RME_PRINTK_S("C");
     Captbl=&(((struct RME_Cap_Captbl*)Vaddr)[Cap_Captbl]);
     /* Set the cap's parameters according to what we have just created */
     RME_CAP_CLEAR(Captbl);
@@ -133,7 +134,8 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
                        RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
                        RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
     Captbl->Entry_Num=Entry_Num;
-    
+
+    RME_PRINTK_S("E");
     return Cap_Captbl;
 }
 /* End Function:_RME_Captbl_Boot_Init ****************************************/
@@ -166,6 +168,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
 
+
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
     /* Take the slot if possible */
@@ -181,7 +184,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* Done. We start creation of the capability table. Clear header as well */
     for(Count=0;Count<Entry_Num;Count++)
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
-    
+
     /* Set the cap's parameters according to what we have just created */
     Captbl_Crt->Head.Parent=0;
     Captbl_Crt->Head.Object=Vaddr;
@@ -191,7 +194,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     Captbl_Crt->Entry_Num=Entry_Num;
     /* At last, write into slot the correct information, and clear the frozen bit */
     Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
-    
+
     return 0;
 }
 /* End Function:_RME_Captbl_Boot_Crt *****************************************/
