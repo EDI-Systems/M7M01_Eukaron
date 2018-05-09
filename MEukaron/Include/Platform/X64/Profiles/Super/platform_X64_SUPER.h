@@ -15,10 +15,6 @@ Description: The configuration file for X64 supercomputer profile.
 
 /* Shared interrupt flag region address - not populated now */
 #define RME_X64_INT_FLAG_ADDR        0x00
-/* Init process's first thread's entry point address */
-#define RME_X64_INIT_ENTRY           0x08010001
-/* Init process's first thread's stack address */
-#define RME_X64_INIT_STACK           0x2001FFF0
 /* What is the FPU type? */
 #define RME_X64_FPU_TYPE             RME_X64_FPU_AVX512
 /* Timer frequency - about 1000 ticks per second */

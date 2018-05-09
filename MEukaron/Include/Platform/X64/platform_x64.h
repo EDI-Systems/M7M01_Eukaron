@@ -22,7 +22,7 @@ typedef signed long long s64;
 
 #ifndef __S32__
 #define __S32__
-typedef signed int  s32;
+typedef signed int s32;
 #endif
 
 #ifndef __S16__
@@ -32,7 +32,7 @@ typedef signed short s16;
 
 #ifndef __S8__
 #define __S8__
-typedef signed char  s8;
+typedef signed char s8;
 #endif
 
 #ifndef __U64__
@@ -42,7 +42,7 @@ typedef unsigned long long u64;
 
 #ifndef __U32__
 #define __U32__
-typedef unsigned int  u32;
+typedef unsigned int u32;
 #endif
 
 #ifndef __U16__
@@ -52,7 +52,7 @@ typedef unsigned short u16;
 
 #ifndef __U8__
 #define __U8__
-typedef unsigned char  u8;
+typedef unsigned char u8;
 #endif
 
 #endif
@@ -156,7 +156,7 @@ typedef s64 ret_t;
 #define RME_BOOT_PDE(X)                      (RME_BOOT_PDP(16)+(X))
 
 /* Booting capability layout */
-#define RME_X64_CPT                          ((struct RME_Cap_Captbl*)(RME_X64_Layout.Kmem1_Start[0]))
+#define RME_X64_CPT                          (Captbl)
 /* Kernel VA mapping base address - PML5 currently unsupported */
 #define RME_X64_VA_BASE                      (0xFFFF800000000000ULL)
 #define RME_X64_TEXT_VA_BASE                 (0xFFFFFFFF80000000ULL)
@@ -412,7 +412,6 @@ while(0)
 #define RME_X64_LAPIC_ICRLO_BUSY             (0x00001000)
 #define RME_X64_LAPIC_ICRLO_FIXED            (0x00000000)
 
-
 #define RME_X64_LAPIC_ICRHI                  (0x0310/4)
 #define RME_X64_LAPIC_TIMER                  (0x0320/4)
 #define RME_X64_LAPIC_TIMER_X1               (0x0000000B)
@@ -429,15 +428,8 @@ while(0)
 #define RME_X64_LAPIC_TDCR                   (0x03E0/4)
 
 /* LAPIC R/W */
-#define RME_X64_LAPIC_READ(REG)              (((ptr_t*)RME_X64_LAPIC_Addr)[REG])
-#define RME_X64_LAPIC_WRITE(REG,VAL) \
-do \
-{ \
-	((u32*)RME_X64_LAPIC_Addr)[REG]=(VAL); \
-	/* Dummy read to an address that we never use */ \
-	*(volatile u32*)(RME_X64_PA2VA(0x100))=((u32*)RME_X64_LAPIC_Addr)[RME_X64_LAPIC_ID]; \
-} \
-while(0)
+#define RME_X64_LAPIC_READ(REG)              (((u32*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG])
+#define RME_X64_LAPIC_WRITE(REG,VAL)         (((u32*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG]=(VAL))
 
 /* IOAPIC address - consider supporting multiple ones */
 #define RME_X64_IOAPIC_ADDR                 (RME_X64_PA2VA(0xFEC00000))
@@ -485,11 +477,14 @@ while(0)
 /* Segment definitions */
 #define RME_X64_SEG_KERNEL_CODE            (1*8)
 #define RME_X64_SEG_KERNEL_DATA            (2*8)
-#define RME_X64_SEG_USER_CODE              (4*8+3)
-#define RME_X64_SEG_USER_DATA              (5*8+3)
+#define RME_X64_SEG_USER_CODE              (5*8+3)
+#define RME_X64_SEG_USER_DATA              (4*8+3)
+#define RME_X64_SEG_EMPTY                  (3*8+3)
 
 /* Get kernel stack addresses */
 #define RME_X64_KSTACK(CPU)                (RME_X64_Layout.Stack_Start+((1+(CPU))<<RME_X64_KSTACK_ORDER))
+/* Get boot-time user stack addresses */
+#define RME_X64_USTACK(CPU)                (RME_POW2(RME_PGTBL_SIZE_2M)+((CPU)+1)*RME_POW2(RME_PGTBL_SIZE_2K))
 /* Microsecond delay function */
 #define RME_X64_UDELAY(US)
 /*****************************************************************************/
@@ -848,23 +843,23 @@ struct __RME_X64_Kern_Pgtbl
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
 /* Is there a UART in the system? */
-static ptr_t RME_X64_UART_Exist;
+static volatile ptr_t RME_X64_UART_Exist;
 /* Where is the multiboot information located? */
-static struct multiboot_info* RME_X64_MBInfo;
+static volatile struct multiboot_info* RME_X64_MBInfo;
 /* The layout of the memory structure */
-static struct RME_X64_Layout RME_X64_Layout;
+static volatile struct RME_X64_Layout RME_X64_Layout;
 /* We currently support 256 CPUs max */
-static ptr_t RME_X64_Num_CPU;
+static volatile ptr_t RME_X64_Num_CPU;
 /* CPU counter */
-static ptr_t RME_X64_CPU_Cnt;
-static struct RME_X64_CPU_Info RME_X64_CPU_Info[RME_CPU_NUM];
+static volatile ptr_t RME_X64_CPU_Cnt;
+static volatile struct RME_X64_CPU_Info RME_X64_CPU_Info[RME_CPU_NUM];
 /* There can be max. 8 IOAPICs */
-static ptr_t RME_X64_Num_IOAPIC;
-static struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[8];
+static volatile ptr_t RME_X64_Num_IOAPIC;
+static volatile struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[8];
 /* The LAPIC address */
-static ptr_t RME_X64_LAPIC_Addr;
+static volatile ptr_t RME_X64_LAPIC_Addr;
 /* The processor features */
-struct RME_X64_Features RME_X64_Feature;
+static volatile struct RME_X64_Features RME_X64_Feature;
 
 /* Translate the flags into X64 specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
@@ -1332,6 +1327,7 @@ EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
 EXTERN void __RME_X64_Halt(void);
 __EXTERN__ void __RME_X64_SMP_Tick(void);
+__EXTERN__ void __RME_X64_LAPIC_Ack(void);
 /* Atomics */
 __EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
 __EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);

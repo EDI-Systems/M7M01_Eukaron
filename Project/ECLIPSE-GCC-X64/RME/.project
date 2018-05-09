@@ -35,6 +35,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>User</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>Kernel/captbl.c</name>
 			<type>1</type>
 			<locationURI>PARENT-3-PROJECT_LOC/MEukaron/Kernel/captbl.c</locationURI>
@@ -73,6 +78,11 @@
 			<name>Platform/platform_x64_asm.S</name>
 			<type>1</type>
 			<locationURI>PARENT-3-PROJECT_LOC/MEukaron/Platform/X64/platform_x64_asm.S</locationURI>
+		</link>
+		<link>
+			<name>User/UVM.c</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/M7M3_MuRex/Project/ECLIPSE-GCC-X64/UVM/Debug/UVM.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

@@ -336,7 +336,7 @@ ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     /* Restore next context */
     __RME_Thd_Reg_Copy(Reg, Next_Reg);
     __RME_Thd_Cop_Restore(Reg, Next_Cop_Reg);
-    
+
     /* Are we going to switch page tables? If yes, we change it now */
     Curr_Pgtbl=Curr_Proc->Pgtbl;
     Next_Pgtbl=Next_Proc->Pgtbl;
@@ -832,7 +832,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
      * a thread with higher maximum priority */
     if(RME_Cur_Thd[RME_CPUID()]->Sched.Max_Prio<Max_Prio)
         return RME_ERR_PTH_PRIO;
-    
+
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op); 
     RME_CAPTBL_GETCAP(Captbl,Cap_Proc,RME_CAP_PROC,struct RME_Cap_Proc*,Proc_Op);   
@@ -854,7 +854,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
         Thd_Crt->Head.Type_Ref=0;
         return RME_ERR_CAP_KOTBL;
     }
-    
+
     /* Get the thread, and start creation */
     Thd_Struct=(struct RME_Thd_Struct*)Vaddr;
     Thd_Struct->Sched.TID=__RME_Fetch_Add(&RME_TID_Inc, 1);
@@ -890,7 +890,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
     
     /* Creation complete */
     Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
-    
+
     return Thd_Crt->TID;
 }
 /* End Function:_RME_Thd_Crt *************************************************/
