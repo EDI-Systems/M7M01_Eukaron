@@ -3,6 +3,12 @@
 </h1>
 
 # Unity OS (RME)
+[![Github release](https://img.shields.io/github/release/EDI-Systems/M7M1_MuEukaron.svg)](https://github.com/EDI-Systems/M7M1_MuEukaron/releases/latest)
+[![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M1_MuEukaron/master@{30day}.svg)](https://github.com/EDI-Systems/M7M1_MuEukaron/compare/master@{30day}...master)
+![language](https://img.shields.io/badge/language-C-orange.svg)
+![Build](https://travis-ci.org/EDI-Systems/M7M1_MuEukaron.svg?branch=master) 
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1836/badge)](https://bestpractices.coreinfrastructure.org/projects/1836) 
+[![Join the chat at https://gitter.im/M7M1_MuEukaron/Lobby](https://badges.gitter.im/M7M1_MuEukaron/Lobby.svg)](https://gitter.im/M7M1_MuEukaron/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Click **[HERE](README.md)** for English version.
 
