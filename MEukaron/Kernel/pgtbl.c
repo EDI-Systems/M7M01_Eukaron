@@ -158,6 +158,7 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 {
     struct RME_Cap_Pgtbl* Pgtbl_Parent;
     struct RME_Cap_Pgtbl* Pgtbl_Child;
+
     /* The total size order of the child table */
     ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==RME_TRUE)

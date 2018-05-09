@@ -109,7 +109,7 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
 {
     cnt_t Count;
     struct RME_Cap_Captbl* Captbl;
-    RME_PRINTK_S("A");
+
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
     	return RME_ERR_CAP_RANGE;
@@ -117,12 +117,11 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
         return RME_ERR_CAP_KOTBL;
-    RME_PRINTK_S("B");
+
     /* Done. We start creation of the capability table. Clear header as well */
     for(Count=0;Count<Entry_Num;Count++)
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
 
-    RME_PRINTK_S("C");
     Captbl=&(((struct RME_Cap_Captbl*)Vaddr)[Cap_Captbl]);
     /* Set the cap's parameters according to what we have just created */
     RME_CAP_CLEAR(Captbl);
@@ -135,7 +134,6 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
                        RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
     Captbl->Entry_Num=Entry_Num;
 
-    RME_PRINTK_S("E");
     return Cap_Captbl;
 }
 /* End Function:_RME_Captbl_Boot_Init ****************************************/
