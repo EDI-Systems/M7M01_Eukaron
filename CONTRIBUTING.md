@@ -34,14 +34,12 @@ This project and everyone participating in it is governed by the [EDI Code of Co
 
 ### RME and Packages
 
-RME is an General-Purpose Advanced OS that sticks to a microkernel approach. It focuses on multi-core scalability, It should not have package dependencies, except for the libraries that are provided by the manufacturer. If external libraries are needed for a specific project, it is the user's duty to add such packages to the system.  
-RME is not meant to compete with FreeRTOS, RT-Thread or uC/OS. If you just need a small, fast yet reliable kernel, RME is your best choice, especially when you need to run an RTOS as the guest RTOS on **[M7M2](https://github.com/EDI-Systems/M7M2_MuAmmonite)/[M7M1](https://github.com/EDI-Systems/M7M1_MuEukaron)**.
+RME is an General-Purpose Advanced OS that sticks to a microkernel approach. It focuses on multi-core scalability and many new features that you don't find in common operating systems. Also, it should not have package dependencies, except for the libraries that are provided by the manufacturer. If external libraries are needed for a specific project, it is the user's duty to add such packages to the system.  
+RME is not meant to compete with Linux or Windows. If you need a kernel that have very high performance and is very scalable, RME is your best choice.
 
 ### Design Decisions
 
-Different from most operating systems, only the most used arcitectures are supported, such as the Cortex-M, Cortex-R, MIPS and MSP430. Other architectures are on the decline, and will disappear in a couple of years, hence they are not supported.
-Unlike FreeRTOS and RT-Thread, RME is designed by intention to contain no pre-included packages. This simplifies the system and is without extra hassle.
-Also, the RME kernel's IPC is very lightweight, very concise by design. Only two kinds are supported, mailbox and counting semaphore. This also makes it easy to formally verify the system against a extremely high standard, e.g. EAL7+.
+Different from most operating systems, RME also supports MPU-based memory protection and some high-end microcontrollers. The access control is capability-based, and thus provides a better access control model when compared with Linux. Also, the RME kernel's IPC is very lightweight, very concise by design, and should have very high performance on most architectures.
 
 ## How Can I Contribute?
 
