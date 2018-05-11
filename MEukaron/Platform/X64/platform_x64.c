@@ -1272,6 +1272,7 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
         RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
         RME_X64_Layout.Kmem1_Size[0]=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem1_Start[0];
     }
+
     else
     {
         RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size-1,RME_X64_KSTACK_ORDER);
@@ -1828,6 +1829,8 @@ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, ptr_t Reason)
 {
     /* Not handling faults */
 	RME_PRINTK_S("\n\r\n\r*** Fault: ");RME_PRINTK_I(Reason);RME_PRINTK_S(" - ");
+    /* When handling debug exceptions, note CVE 2018-8897, we may get something at
+     * kernel level - If this is what we have, the user must have touched SS + INT */
 	/* Print reason */
 	switch(Reason)
 	{

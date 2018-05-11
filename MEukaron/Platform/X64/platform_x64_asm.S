@@ -1090,7 +1090,7 @@ SVC_Handler:
     TESTQ               $0x10000,(%RSP)
     JZ                  Use_IRET
     /* Just move these into the registers desired */
-    /* CVE-2014-4699: Force canonical address */
+    /* CVE-2012-0217, CVE-2014-4699: Force canonical address on RIP */
     MOVQ                $0x7FFFFFFFFFFF,%RCX
     ANDQ                16(%RSP),%RCX
     MOVQ                32(%RSP),%R11
