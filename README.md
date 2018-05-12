@@ -73,7 +73,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |RME_SVC_SIG_RCV        |3     |Receive from a signal endpoint                                    |
 |RME_SVC_KERN           |4     |Call a kernel function                                            |
 |RME_SVC_THD_SCHED_PRIO |5     |Changing thread priority                                          |
-|RME_SVC_THD_SCHED_FREE |6     |Free a thread from some core                                      |
+|RME_SVC_THD_SCHED_FREE |6     |Free a thread from a CPU core                                     |
 |RME_SVC_THD_TIME_XFER  |7     |Transfer time to a thread                                         |
 |RME_SVC_THD_SWT        |8     |Switch to another thread                                          |
 |RME_SVC_CAPTBL_CRT     |9     |Create a capability table                                         |
@@ -86,7 +86,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |RME_SVC_PGTBL_ADD      |16    |Add a page to a page table                                        |
 |RME_SVC_PGTBL_REM      |17    |Remove a page from a page table                                   |
 |RME_SVC_PGTBL_CON      |18    |Construct a page table into another                               |
-|RME_SVC_PGTBL_DES      |19    |Destruct a page table into another                                |
+|RME_SVC_PGTBL_DES      |19    |Destruct a page table from another                                |
 |RME_SVC_PROC_CRT       |20    |Create a process                                                  |
 |RME_SVC_PROC_DEL       |21    |Delete a process                                                  |
 |RME_SVC_PROC_CPT       |22    |Change a process's capability table                               |
@@ -94,7 +94,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 |RME_SVC_THD_CRT        |24    |Create a thread                                                   |
 |RME_SVC_THD_DEL        |25    |Delete a thread                                                   |
 |RME_SVC_THD_EXEC_SET   |26    |Set entry and stack of a thread                                   |
-|RME_SVC_THD_HYP_SET    |27    |Set hyprivisor attributes of a thread                             |
+|RME_SVC_THD_HYP_SET    |27    |Set hypervisor attributes of a thread                             |
 |RME_SVC_THD_SCHED_BIND |28    |Bind a thread to the current processor                            |
 |RME_SVC_THD_SCHED_RCV  |29    |Try to receive scheduling notifications                           |
 |RME_SVC_SIG_CRT        |30    |Create a signal endpoint                                          |
