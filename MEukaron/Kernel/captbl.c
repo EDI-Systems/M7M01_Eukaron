@@ -138,7 +138,7 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
 }
 /* End Function:_RME_Captbl_Boot_Init ****************************************/
 
-/* Begin Function:_RME_Captbl_Boot_Crt *********************************************
+/* Begin Function:_RME_Captbl_Boot_Crt ****************************************
 Description : Create a boot-time capability table at the memory segment designated.
               This function does not ask for kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
