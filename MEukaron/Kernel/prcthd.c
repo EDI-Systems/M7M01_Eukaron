@@ -704,9 +704,8 @@ ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Proc, cid_t Cap_Pgt
 
 /* Begin Function:_RME_Thd_Boot_Crt *******************************************
 Description : Create a boot-time thread. The boot-time thread is per-core, and
-              will have infinite budget. It have no parent, and will be bonded
-              to where the thread is created. This function is the only function
-              that allows creation of a thread on behalf of other processors,
+              will have infinite budget, and has no parent. This function
+              allows creation of a thread on behalf of other processors,
               by passing a CPUID parameter. Therefore, it is recommended to
               create the threads sequentially during boot-up; if you create threads
               in parallel, be sure to only create the thread on your local core.
@@ -758,7 +757,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     /* Get the thread, and start creation */
     Thd_Struct=(struct RME_Thd_Struct*)Vaddr;
     Thd_Struct->Sched.TID=__RME_Fetch_Add(&RME_TID_Inc, 1);
-    /* Set this initially to 1 to make it virtually non-unbondable & undeletable */
+    /* Set this initially to 1 to make it virtually unfreeable & undeletable */
     Thd_Struct->Sched.Refcnt=1;
     Thd_Struct->Sched.Slices=RME_THD_INIT_TIME;
     Thd_Struct->Sched.State=RME_THD_RUNNING;
@@ -863,7 +862,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
     Thd_Struct->Sched.State=RME_THD_TIMEOUT;
     Thd_Struct->Sched.Signal=0;
     Thd_Struct->Sched.Max_Prio=Max_Prio;
-    /* Currently the thread is not bonded to any particular CPU */
+    /* Currently the thread is not binded to any particular CPU */
     Thd_Struct->Sched.CPUID_Bind=RME_THD_UNBIND;
     /* This is a marking that this thread haven't sent any notifications */
     __RME_List_Crt(&(Thd_Struct->Sched.Notif));
@@ -925,7 +924,7 @@ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Th
     /* Get the thread */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Del,struct RME_Thd_Struct*);
     
-    /* See if the thread is unbonded. If not, we cannot proceed to deletion */
+    /* See if the thread is unbinded. If not, we cannot proceed to deletion */
     if(Thd_Struct->Sched.CPUID_Bind!=RME_THD_UNBIND)
     {
         RME_CAP_DEFROST(Thd_Del,Type_Ref);
@@ -937,7 +936,8 @@ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Th
     
     /* Is the thread using any invocation? If yes, just pop the invocation
      * stack to empty, and free all the invocation stubs. This can be virtually
-     * unbounded if the invocation stack is just too deep. */
+     * unbounded if the invocation stack is just too deep. This is left to the
+     * user; if this is what he or she wants, be our guest. */
     while(Thd_Struct->Inv_Stack.Next!=&(Thd_Struct->Inv_Stack))
     {
         Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
@@ -958,7 +958,7 @@ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Th
 /* Begin Function:_RME_Thd_Exec_Set *******************************************
 Description : Set a thread's entry point and stack. The registers will be initialized
               with these contents. Only when the thread has exited, or just after
-              created can we change these values.
+              created should we change these values.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Thd - The capability to the thread. 2-Level.
               ptr_t Entry - The entry of the thread. An address.
@@ -976,7 +976,7 @@ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Entr
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_EXEC_SET);
     
-    /* See if the target thread is already bonded. If no or incorrect, we just quit */
+    /* See if the target thread is already binded. If no or incorrect, we just quit */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     if(Thd_Struct->Sched.CPUID_Bind!=RME_CPUID())
         return RME_ERR_PTH_INVSTATE;
@@ -1013,7 +1013,7 @@ ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Kaddr
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_HYP_SET);
     
-    /* See if the target thread is already bonded. If no or incorrect, we just quit */
+    /* See if the target thread is already binded. If no or incorrect, we just quit */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     if(Thd_Struct->Sched.CPUID_Bind!=RME_CPUID())
         return RME_ERR_PTH_INVSTATE;
@@ -1072,7 +1072,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_CHILD);
     RME_CAP_CHECK(Thd_Sched,RME_THD_FLAG_SCHED_PARENT);
     
-    /* See if the target thread is already bonded. If yes, we just quit */
+    /* See if the target thread is already binded. If yes, we just quit */
     Thd_Op_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Old_CPUID=Thd_Op_Struct->Sched.CPUID_Bind;
     if((Old_CPUID&RME_THD_UNBIND)==0)
@@ -1083,17 +1083,21 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     Thd_Sched_Struct=RME_CAP_GETOBJ(Thd_Sched,struct RME_Thd_Struct*);
     if(Thd_Sched_Struct->Sched.CPUID_Bind!=CPUID)
         return RME_ERR_PTH_INVSTATE;
+
+    /* See if we are trying to bind to ourself. This is prohibited */
+    if(Thd_Op_Struct==Thd_Sched_Struct)
+        return RME_ERR_PTH_NOTIF;
     
     /* See if the priority relationship is correct */
     if(Thd_Sched_Struct->Sched.Max_Prio<Prio)
         return RME_ERR_PTH_PRIO;
     
-    /* Yes, it is on the current processor. Try to bond the thread */
+    /* Yes, it is on the current processor. Try to bind the thread */
     if(__RME_Comp_Swap(&(Thd_Op_Struct->Sched.CPUID_Bind), &Old_CPUID, CPUID)==0)
         return RME_ERR_PTH_CONFLICT;
     
     /* Binding successful. Do operations to finish this. There's no need to worry about
-     * other cores' operations on this thread because this thread is already bonded
+     * other cores' operations on this thread because this thread is already binded
      * to this core */
     Thd_Op_Struct->Sched.Parent=Thd_Sched_Struct;
     Thd_Op_Struct->Sched.Prio=Prio;
@@ -1105,7 +1109,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
 
 /* Begin Function:_RME_Thd_Sched_Prio *****************************************
 Description : Change a thread's priority level. This can only be called from the
-              core that have the thread bonded.
+              core that have the thread binded.
               This system call can cause a potential context switch.
               It is impossible to set a thread's priority beyond its maximum priority. 
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
@@ -1128,7 +1132,7 @@ ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_PRIO);
     
-    /* See if the target thread is already bonded to this core. If no, we just quit */
+    /* See if the target thread is already binded to this core. If no, we just quit */
     CPUID=RME_CPUID();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.CPUID_Bind!=CPUID)
@@ -1171,7 +1175,7 @@ ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Sched_Prio ******************************************/
 
 /* Begin Function:_RME_Thd_Sched_Free *****************************************
-Description : Free a thread from its current bonding. This function can only be
+Description : Free a thread from its current binding. This function can only be
               executed from the same core on with the thread.
               This system call can cause a potential context switch.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
@@ -1194,14 +1198,14 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_FREE);
     
-    /* See if the target thread is already bonded. If no or bonded to other cores, we just quit */
+    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if((Thd_Struct->Sched.CPUID_Bind&RME_THD_UNBIND)!=0)
         return RME_ERR_PTH_INVSTATE;
     if(Thd_Struct->Sched.CPUID_Bind!=RME_CPUID())
         return RME_ERR_PTH_INVSTATE;
     
-    /* Am I referenced by someone as a scheduler? If yes, we cannot unbond. Because
+    /* Am I referenced by someone as a scheduler? If yes, we cannot unbind. Because
      * boot-time thread's refcnt will never be 0, thus they will never pass this checking */
     if(Thd_Struct->Sched.Refcnt!=0)
         return RME_ERR_PTH_REFCNT;
@@ -1254,7 +1258,7 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
         _RME_Run_Swt(Reg,Thd_Struct,RME_Cur_Thd[CPUID]);
     }
     
-    /* Set the state to unbonded so other cores can bond */
+    /* Set the state to unbinded so other cores can bind */
     Thd_Struct->Sched.CPUID_Bind=RME_THD_UNBIND;
     return 0;
 }
@@ -1390,6 +1394,7 @@ ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* R
     ptr_t Time_Xfer;
     
     /* We may allow transferring infinite time here */
+
     if(Time==0)
         return RME_ERR_PTH_INVSTATE;
     
