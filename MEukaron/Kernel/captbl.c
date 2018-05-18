@@ -386,7 +386,7 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Struct* Cap_Src_Struct;
     ptr_t Type_Ref;
     
-    /* These two variables are only used for kernel memory checks */
+    /* These variables are only used for kernel memory checks */
     ptr_t Kmem_End;
     ptr_t Kmem_Start;
     ptr_t Kmem_Flags;
@@ -407,6 +407,11 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         return RME_ERR_CAP_NULL;
     if(((Cap_Src_Struct->Head.Type_Ref)&RME_CAP_FROZEN)!=0)
         return RME_ERR_CAP_FROZEN;
+
+    /* Dewarn some compilers that complain about uninitialized variables */
+    Kmem_End=0;
+    Kmem_Start=0;
+    Kmem_Flags=0;
     
     /* Is there a flag conflict? - For page tables, we have different checking mechanisms */
     if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_PGTBL)
