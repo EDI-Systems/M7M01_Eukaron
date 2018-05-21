@@ -654,13 +654,13 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     __RME_Thd_Inv_Top(Thd_Struct,&Cur_Reg, &Cur_Cop_Reg, &Proc_Struct);
     __RME_Thd_Reg_Copy(Cur_Reg, Reg);
     __RME_Thd_Cop_Save(Reg, Cur_Cop_Reg);
-    /* Push this into the stack : insert after the thread list header */
+    /* Push this into the stack: insert after the thread list header */
     __RME_List_Ins(&(Inv_Struct->Head),&(Thd_Struct->Inv_Stack),Thd_Struct->Inv_Stack.Next);
     /* Setup the register contents, and do the invocation */
     __RME_Inv_Reg_Init(Param, &(Inv_Struct->Reg));
     __RME_Inv_Cop_Init(Param, &(Inv_Struct->Cop_Reg));
-    __RME_Thd_Reg_Copy(Reg,&(Inv_Struct->Reg));
-    __RME_Thd_Cop_Restore(Reg,&(Inv_Struct->Cop_Reg));
+    __RME_Thd_Reg_Copy(Reg, &(Inv_Struct->Reg));
+    __RME_Thd_Cop_Restore(Reg, &(Inv_Struct->Cop_Reg));
     
     /* Are we invoking into a new process? If yes, switch the page table */
     if(Proc_Struct->Pgtbl!=Inv_Struct->Proc->Pgtbl)
