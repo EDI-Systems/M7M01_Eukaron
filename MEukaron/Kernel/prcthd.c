@@ -1289,7 +1289,6 @@ ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd)
     
     /* Check if the CPUID is correct. Only if yes can we proceed */
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    
     if(Thd_Struct->Sched.CPUID_Bind!=RME_CPUID())
         return RME_ERR_PTH_INVSTATE;
     
@@ -1303,11 +1302,13 @@ ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd)
     /* Return one notification and delete it from the notification list */
     Thd_Child=(struct RME_Thd_Struct*)(Thd_Struct->Sched.Event.Next-1);
     __RME_List_Del(Thd_Child->Sched.Notif.Prev,Thd_Child->Sched.Notif.Next);
+    /* We need to do this because we are using this to detect whether the notification is sent */
     __RME_List_Crt(&(Thd_Child->Sched.Notif));
     
     /* See if the child is in a faulty state. If yes, we return a fault notification with that TID */
     if(Thd_Child->Sched.State==RME_THD_FAULT)
         return Thd_Child->Sched.TID|RME_THD_FAULT_FLAG;
+
     /* Return the notification TID */
     return Thd_Child->Sched.TID;
 }
@@ -1394,7 +1395,6 @@ ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* R
     ptr_t Time_Xfer;
     
     /* We may allow transferring infinite time here */
-
     if(Time==0)
         return RME_ERR_PTH_INVSTATE;
     

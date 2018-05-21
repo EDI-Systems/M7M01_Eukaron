@@ -71,7 +71,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_SIV_ACT              ((-1)+RME_ERR_SIV)
 /* This invocation succeeded, but a fault happened in the thread, and we forced a invocation return */
 #define RME_ERR_SIV_FAULT            ((-2)+RME_ERR_SIV)
-/* The thread's invocation stack/signal counter is full */
+/* The thread's signal counter is full */
 #define RME_ERR_SIV_FULL             ((-3)+RME_ERR_SIV)
 /* The thread's invocation stack is empty, cannot return */
 #define RME_ERR_SIV_EMPTY            ((-4)+RME_ERR_SIV)
