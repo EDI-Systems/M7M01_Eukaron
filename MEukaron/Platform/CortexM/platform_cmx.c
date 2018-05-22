@@ -491,7 +491,7 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               ptr_t Func_ID - The function ID.
-              ptr_t Sub_ID - The sub function ID.
+              ptr_t Sub_ID - The subfunction ID.
               ptr_t Param1 - The first parameter.
               ptr_t Param2 - The second parameter.
 Output      : None.

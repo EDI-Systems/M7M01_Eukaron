@@ -1402,7 +1402,7 @@ __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_S
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 /* Kernel function handler */
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
-                                         ptr_t Param1, ptr_t Param2);
+                                         ptr_t Sub_ID, ptr_t Param1, ptr_t Param2);
 /* Fault handler */
 __EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, ptr_t Reason);
 /* Generic interrupt handler */

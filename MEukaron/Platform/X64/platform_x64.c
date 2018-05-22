@@ -1273,6 +1273,7 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
         RME_X64_Layout.Kmem1_Size[0]=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem1_Start[0];
     }
 
+
     else
     {
         RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size-1,RME_X64_KSTACK_ORDER);
@@ -1790,13 +1791,14 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               ptr_t Func_ID - The function ID.
+              ptr_t Sub_ID - The sub function ID.
               ptr_t Param1 - The first parameter.
               ptr_t Param2 - The second parameter.
 Output      : None.
 Return      : ptr_t - The value that the function returned.
 ******************************************************************************/
 ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID,
-                              ptr_t Param1, ptr_t Param2)
+                              ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
 {
 	/* Now always call the HALT */
 	__RME_X64_Halt();
