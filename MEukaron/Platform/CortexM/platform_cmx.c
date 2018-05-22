@@ -491,13 +491,14 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               ptr_t Func_ID - The function ID.
+              ptr_t Sub_ID - The sub function ID.
               ptr_t Param1 - The first parameter.
               ptr_t Param2 - The second parameter.
 Output      : None.
 Return      : ptr_t - The value that the function returned.
 ******************************************************************************/
 ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID,
-                              ptr_t Param1, ptr_t Param2)
+                              ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
 {
     /* It must be interrupt-related operations */
     if(Func_ID<240)
