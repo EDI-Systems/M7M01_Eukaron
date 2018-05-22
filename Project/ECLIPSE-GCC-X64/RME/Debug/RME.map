@@ -750,7 +750,7 @@ Linker script and memory map
 .iplt           0xffffffff8021e180        0x0 load address 0x000000000021e180
  .iplt          0xffffffff8021e180        0x0 ./Platform/platform_x64.o
 
-.rodata         0xffffffff8021e180     0x1f18 load address 0x000000000021e180
+.rodata         0xffffffff8021e180     0x1ef8 load address 0x000000000021e180
  *(.rodata .rodata.* .gnu.linkonce.r.*)
  .rodata.str1.8
                 0xffffffff8021e180      0x270 ./Platform/platform_x64.o
@@ -777,30 +777,27 @@ Linker script and memory map
                 0xffffffff8021ef70       0x50 ./Kernel/pgtbl.o
                                          0x78 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021efc0        0x9 ./Kernel/pgtbl.o
-                                         0x25 (size before relaxing)
- *fill*         0xffffffff8021efc9        0x7 
+                0xffffffff8021efc0       0x25 ./Kernel/pgtbl.o
  .rodata.str1.8
-                0xffffffff8021efd0       0x51 ./Kernel/prcthd.o
+                0xffffffff8021efc0       0x51 ./Kernel/prcthd.o
                                          0x79 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021f021        0x9 ./Kernel/prcthd.o
-                                         0x25 (size before relaxing)
- *fill*         0xffffffff8021f02a        0x6 
+                0xffffffff8021f011       0x25 ./Kernel/prcthd.o
+ *fill*         0xffffffff8021f011        0x7 
  .rodata.str1.8
-                0xffffffff8021f030       0x58 ./Kernel/siginv.o
+                0xffffffff8021f018       0x58 ./Kernel/siginv.o
                                          0x79 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021f088        0x9 ./Kernel/siginv.o
+                0xffffffff8021f070        0x9 ./Kernel/siginv.o
                                          0x25 (size before relaxing)
- *fill*         0xffffffff8021f091        0xf 
- .rodata        0xffffffff8021f0a0      0xff8 ./UVM.o
-                0xffffffff8021f0a0                UVM_Init
+ *fill*         0xffffffff8021f079        0x7 
+ .rodata        0xffffffff8021f080      0xff8 ./UVM.o
+                0xffffffff8021f080                UVM_Init
 
-.rela.dyn       0xffffffff80220098        0x0 load address 0x0000000000220098
- .rela.iplt     0xffffffff80220098        0x0 ./Platform/platform_x64.o
+.rela.dyn       0xffffffff80220078        0x0 load address 0x0000000000220078
+ .rela.iplt     0xffffffff80220078        0x0 ./Platform/platform_x64.o
  .rela.text.startup
-                0xffffffff80220098        0x0 ./Platform/platform_x64.o
+                0xffffffff80220078        0x0 ./Platform/platform_x64.o
                 0xffffffff80221000                . = ALIGN (0x1000)
                 [!provide]                        PROVIDE (data, .)
 
