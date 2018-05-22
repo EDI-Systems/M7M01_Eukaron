@@ -224,7 +224,6 @@ Return      : ret_t - If successful, 0, or an error code.
 ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_Struct)
 {
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Reg_Struct* Block_Reg;
     ptr_t Unblock;
     ptr_t CPUID;
     
@@ -251,8 +250,7 @@ ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_Struc
     {
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value, then see if we need a preemption */
-        __RME_Thd_Inv_Top_Reg(Thd_Struct, &Block_Reg);
-        __RME_Set_Syscall_Retval(Block_Reg, Sig_Struct->Signal_Num);
+        __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg), Sig_Struct->Signal_Num);
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
         {
@@ -312,7 +310,6 @@ ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, ci
     struct RME_Cap_Sig* Sig_Op;
     struct RME_Sig_Struct* Sig_Struct;
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Reg_Struct* Block_Reg;
     ptr_t Unblock;
     ptr_t CPUID;
     
@@ -344,8 +341,7 @@ ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, ci
         __RME_Set_Syscall_Retval(Reg,0);
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value, then see if we need a preemption */
-        __RME_Thd_Inv_Top_Reg(Thd_Struct, &Block_Reg);
-        __RME_Set_Syscall_Retval(Block_Reg, Sig_Struct->Signal_Num);
+        __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg), Sig_Struct->Signal_Num);
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
         {
@@ -448,7 +444,7 @@ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, ci
     }
     else
     {
-        /* Try to take the rcv endpoint as blocked */
+        /* Try to take it */
         Old_Value=0;
         if(__RME_Comp_Swap((ptr_t*)(&(Sig_Struct->Thd)),&Old_Value,(ptr_t)Thd_Struct)==0)
             return RME_ERR_SIV_CONFLICT;
@@ -586,10 +582,13 @@ Input       : struct RME_Cap_Captbl* Captbl - The capability table.
               cid_t Cap_Inv - The capability to the invocation stub. 2-Level.
               ptr_t Entry - The entry of the thread.
               ptr_t Stack - The stack address to use for execution.
+              ptr_t Fault_Ret_Flag - If there is an error in this invocation, we return
+                                     immediately, or we wait for fault handling?
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv, ptr_t Entry, ptr_t Stack)
+ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv,
+                   ptr_t Entry, ptr_t Stack, ptr_t Fault_Ret_Flag)
 {
     struct RME_Cap_Inv* Inv_Op;
     struct RME_Inv_Struct* Inv_Struct;
@@ -601,8 +600,9 @@ ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv, ptr_t Entry, pt
     
     /* Commit the change - we do not care if the invocation is in use */
     Inv_Struct=RME_CAP_GETOBJ(Inv_Op,struct RME_Inv_Struct*);
-    __RME_Thd_Reg_Init(Entry, Stack, &(Inv_Struct->Reg));
-    __RME_Thd_Cop_Init(Entry, Stack, &(Inv_Struct->Cop_Reg));
+    Inv_Struct->Entry=Entry;
+    Inv_Struct->Stack=Stack;
+    Inv_Struct->Fault_Ret_Flag=Fault_Ret_Flag;
     
     return 0;
 }
@@ -621,11 +621,9 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
                    cid_t Cap_Inv, ptr_t Param)
 {
     struct RME_Cap_Inv* Inv_Op;
-    struct RME_Reg_Struct* Cur_Reg;
-    struct RME_Cop_Struct* Cur_Cop_Reg;
     struct RME_Inv_Struct* Inv_Struct;
+    struct RME_Inv_Struct* Inv_Top;
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Proc_Struct* Proc_Struct;
     ptr_t Active;
     
     /* Get the capability slot */
@@ -646,25 +644,29 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     if(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0)
         return RME_ERR_SIV_ACT;
     
-    /* Now save the system call return value to the caller stack */
-    __RME_Set_Syscall_Retval(Reg,0);
-    
-    /* Save the register contents. We do not know the return value yet so we cannot
-     * set it. we will set when the invocation returns */
-    __RME_Thd_Inv_Top(Thd_Struct,&Cur_Reg, &Cur_Cop_Reg, &Proc_Struct);
-    __RME_Thd_Reg_Copy(Cur_Reg, Reg);
-    __RME_Thd_Cop_Save(Reg, Cur_Cop_Reg);
+    /* Save whatever is needed to return to the point - normally only SP and IP needed
+     * because all other registers, including the coprocessor registers, are saved at
+     * user-level. We do not set the return value because it will be saved by SRET.
+     * The coprocessor state will be consistent across the call */
+    __RME_Inv_Reg_Save(&(Inv_Struct->Ret), Reg);
+    Inv_Top=RME_INVSTK_TOP(Thd_Struct);
     /* Push this into the stack: insert after the thread list header */
     __RME_List_Ins(&(Inv_Struct->Head),&(Thd_Struct->Inv_Stack),Thd_Struct->Inv_Stack.Next);
     /* Setup the register contents, and do the invocation */
-    __RME_Inv_Reg_Init(Param, &(Inv_Struct->Reg));
-    __RME_Inv_Cop_Init(Param, &(Inv_Struct->Cop_Reg));
-    __RME_Thd_Reg_Copy(Reg, &(Inv_Struct->Reg));
-    __RME_Thd_Cop_Restore(Reg, &(Inv_Struct->Cop_Reg));
+    __RME_Thd_Reg_Init(Inv_Struct->Entry, Inv_Struct->Stack, Reg);
+    __RME_Inv_Reg_Init(Param, Reg);
     
     /* Are we invoking into a new process? If yes, switch the page table */
-    if(Proc_Struct->Pgtbl!=Inv_Struct->Proc->Pgtbl)
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+    if(Inv_Top!=0)
+    {
+        if(RME_CAP_GETOBJ(Inv_Top->Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
+            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+    }
+    else
+    {
+        if(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
+            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+    }
     
     return 0;
 }
@@ -674,46 +676,59 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
 Description : Return from the invocation function, and set the return value to
               the old register set. This function does not need a capability
               table to work.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              struct RME_Reg_Struct* Reg - The register set for this thread.
+Input       : struct RME_Reg_Struct* Reg - The register set for this thread.
+              ptr_t Fault_Flag - Are we attempting a return from fault?
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg)
+ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag)
 {
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Reg_Struct* Cur_Reg;
-    struct RME_Cop_Struct* Cur_Cop_Reg;
-    struct RME_Proc_Struct* Proc_Struct;
     struct RME_Inv_Struct* Inv_Struct;
+    struct RME_Inv_Struct* Inv_Top;
     ptr_t Retval;
     
     /* See if we can return; If we can, get the structure */
     Thd_Struct=RME_Cur_Thd[RME_CPUID()];
-    if(Thd_Struct->Inv_Stack.Next==&(Thd_Struct->Inv_Stack))
+    Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
+    if(Inv_Struct==0)
         return RME_ERR_SIV_EMPTY;
     
+    /* Is this return forced by a fault? If yes, check if we allow that */
+    if((Fault_Flag!=0)&&(Inv_Struct->Fault_Ret_Flag==0))
+        return RME_ERR_SIV_FAULT;
+    
+    /* Pop it from the stack */
+    __RME_List_Del(Inv_Struct->Head.Prev,Inv_Struct->Head.Next);
     /* Get the return value from the register set */
     Retval=__RME_Get_Inv_Retval(Reg);
-    
-    /* Get the invocation struct, and pop it from the stack. We directly get the next one */
-    Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
-    __RME_List_Del(Inv_Struct->Head.Prev,Inv_Struct->Head.Next);
-    
-    /* Restore the register contents, and set return value. The system call return
-     * value is already set when we successfully make the invocation, so there's
-     * no need to do that again */
-    __RME_Thd_Inv_Top(Thd_Struct,&Cur_Reg, &Cur_Cop_Reg, &Proc_Struct);
-    __RME_Thd_Reg_Copy(Reg, Cur_Reg);
-    __RME_Thd_Cop_Restore(Reg, Cur_Cop_Reg);
+
+    /* Restore the register contents, and set return value. We need to set
+     * the return value of the invocation system call itself as well */
+    __RME_Inv_Reg_Restore(Reg, &(Inv_Struct->Ret));
     __RME_Set_Inv_Retval(Reg, Retval);
+    /* Decide the system call's return value */
+    if(Fault_Flag!=0)
+        __RME_Set_Syscall_Retval(Reg, RME_ERR_SIV_FAULT);
+    else
+        __RME_Set_Syscall_Retval(Reg, 0);
     
-    /* Are we returning into a new process? If yes, switch the page table */
-    if(Proc_Struct->Pgtbl!=Inv_Struct->Proc->Pgtbl)
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Proc_Struct->Pgtbl,ptr_t));
+    /* Are we returning to a new process? If yes, switch the page table */
+    Inv_Top=RME_INVSTK_TOP(Thd_Struct);
+    if(Inv_Top!=0)
+    {
+        if(RME_CAP_GETOBJ(Inv_Top->Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
+            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+    }
+    else
+    {
+        if(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
+            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+    }
     
     /* We have successfully returned, set the invocation as inactive */
     Inv_Struct->Active=0;
+    
     return 0;
 }
 /* End Function:_RME_Inv_Ret *************************************************/

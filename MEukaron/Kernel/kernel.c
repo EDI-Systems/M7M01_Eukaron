@@ -15,6 +15,7 @@ Description : The system call processing path, debugging primitives and kernel
 #include "Kernel/pgtbl.h"
 #include "Kernel/kotbl.h"
 #include "Kernel/prcthd.h"
+#include "Kernel/siginv.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
@@ -284,21 +285,26 @@ Return      : None.
 ******************************************************************************/
 void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
 {
-    /* What's the system call number and major capability id? */
+    /* What's the system call number and major capability ID? */
     ptr_t Svc;
     ptr_t Capid;
     ptr_t Param[3];
     ret_t Retval;
-    struct RME_Proc_Struct* Proc;
+    ptr_t CPUID;
+    struct RME_Inv_Struct* Inv_Top;
     struct RME_Cap_Captbl* Captbl;
     
     /* Get the system call parameters from the system call */
     __RME_Get_Syscall_Param(Reg, &Svc, &Capid, Param);
     
-    /* Check if our own capability table is frozen for deletion. If this table 
-     * is frozen, we do not allow further operations and return directly */
-    __RME_Thd_Inv_Top_Proc(RME_Cur_Thd[RME_CPUID()],&Proc);
-    Captbl=Proc->Captbl;
+    /* Get our current capability table. No need to check whether it is frozen
+     * because it can't be deleted anyway */
+    CPUID=RME_CPUID();
+    Inv_Top=RME_INVSTK_TOP(RME_Cur_Thd[CPUID]);
+    if(Inv_Top==0)
+        Captbl=RME_Cur_Thd[CPUID]->Sched.Proc->Captbl;
+    else
+        Captbl=Inv_Top->Proc->Captbl;
      
     /* See if this operation can potentially cause a register set switch. All the 
      * functions that may cause a register set switch is listed here. The behavior
@@ -310,7 +316,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Return from invocation */
         case RME_SVC_INV_RET:
         {
-            Retval=_RME_Inv_Ret(Reg /* struct RME_Reg_Struct* Reg */);
+            Retval=_RME_Inv_Ret(Reg /* struct RME_Reg_Struct* Reg */,
+                                0   /* ptr_t Fault_Flag */);
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Activate an invocation */
@@ -458,9 +465,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_PGTBL_CON:
         {
-            Retval=_RME_Pgtbl_Con(Captbl, Param[0] /* cid_t Cap_Pgtbl_Parent */,
-                                          Param[1] /* ptr_t Pos */,
-                                          Param[2] /* cid_t Cap_Pgtbl_Child */);
+            Retval=_RME_Pgtbl_Con(Captbl, RME_PARAM_D1(Param[0]) /* cid_t Cap_Pgtbl_Parent */,
+                                          Param[1]               /* ptr_t Pos */,
+                                          RME_PARAM_D0(Param[0]) /* cid_t Cap_Pgtbl_Child */,
+                                          Param[2]               /* ptr_t Flags_Child */);
             break;
         }
         case RME_SVC_PGTBL_DES:
@@ -573,9 +581,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_INV_SET:
         {
-            Retval=_RME_Inv_Set(Captbl, Param[0] /* cid_t Cap_Inv */,
-                                        Param[1] /* ptr_t Entry */,
-                                        Param[2] /* ptr_t Stack */);
+            Retval=_RME_Inv_Set(Captbl, RME_PARAM_D0(Param[0]) /* cid_t Cap_Inv */,
+                                        Param[1]               /* ptr_t Entry */,
+                                        Param[2]               /* ptr_t Stack */,
+                                        RME_PARAM_D1(Param[0]) /* ptr_t Fault_Ret_Flag */);
             break;
         }
         /* This is an error */

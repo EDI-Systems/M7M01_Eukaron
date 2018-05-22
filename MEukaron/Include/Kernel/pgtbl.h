@@ -125,7 +125,7 @@ __EXTERN__ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Ca
                                      ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order);
 __EXTERN__ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
                                      cid_t Cap_Pgtbl_Parent, ptr_t Pos,
-                                     cid_t Cap_Pgtbl_Child);
+                                     cid_t Cap_Pgtbl_Child, ptr_t Flags_Child);
 __EXTERN__ ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl, 
                                      ptr_t Paddr, ptr_t Pos, ptr_t Flags);
 __EXTERN__ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
@@ -138,7 +138,7 @@ __EXTERN__ ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
 __EXTERN__ ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl, ptr_t Pos);
 __EXTERN__ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
                                 cid_t Cap_Pgtbl_Parent, ptr_t Pos,
-                                cid_t Cap_Pgtbl_Child);
+                                cid_t Cap_Pgtbl_Child, ptr_t Flags_Child);
 __EXTERN__ ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl, ptr_t Pos);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */

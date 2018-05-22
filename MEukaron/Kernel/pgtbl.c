@@ -149,12 +149,14 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
               ptr_t Pos - The virtual address to position map the child page table to.
               cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
+              ptr_t Flags_Child - The flags for the child page table mapping. This restricts
+                                  the access permissions of all the memory under this mapping.
 Output      : None.
 Return      : ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
 ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
                           cid_t Cap_Pgtbl_Parent, ptr_t Pos,
-                          cid_t Cap_Pgtbl_Child)
+                          cid_t Cap_Pgtbl_Child, ptr_t Flags_Child)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Parent;
     struct RME_Cap_Pgtbl* Pgtbl_Child;
@@ -196,7 +198,7 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
-    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child)!=0)
+    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0)
         return RME_ERR_PGT_MAP;
     
     return 0;
@@ -546,12 +548,14 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
               ptr_t Pos - The virtual address to position map the child page table to.
               cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
+              ptr_t Flags_Child - The flags for the child page table mapping. This restricts
+                                  the access permissions of all the memory under this mapping.
 Output      : None.
 Return      : ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
 ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
                      cid_t Cap_Pgtbl_Parent, ptr_t Pos,
-                     cid_t Cap_Pgtbl_Child)
+                     cid_t Cap_Pgtbl_Child, ptr_t Flags_Child)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Parent;
     struct RME_Cap_Pgtbl* Pgtbl_Child;
@@ -600,7 +604,7 @@ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
 #endif
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
-    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child)!=0)
+    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0)
         return RME_ERR_PGT_MAP;
     
     return 0;

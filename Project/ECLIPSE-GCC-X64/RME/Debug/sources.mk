@@ -15,5 +15,5 @@ C_DEPS :=
 SUBDIRS := \
 Kernel \
 Platform \
-User \
+. \
 

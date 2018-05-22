@@ -17,6 +17,11 @@ Description : The header of signal and invocation management facilities.
 /* The kernel object sizes */
 #define RME_INV_SIZE          sizeof(struct RME_Inv_Struct)
 #define RME_SIG_SIZE          sizeof(struct RME_Sig_Struct)
+
+/* Get the top of invocation stack */
+#define RME_INVSTK_TOP(THD)   ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
+                                                        (0): \
+                                                        ((THD)->Inv_Stack.Next)))
 /*****************************************************************************/
 /* __SIGINV_H_DEFS__ */
 #endif
@@ -59,13 +64,13 @@ struct RME_Inv_Struct
     struct RME_Proc_Struct* Proc;
     /* Is the invocation currently active? If yes, we cannot delete */
     ptr_t Active;
-    /* The register set settings for invocation */
-    struct RME_Reg_Struct Reg;
-    /* The co-processor/peripheral settings for invocation */
-    struct RME_Cop_Struct Cop_Reg;
-    /* Below are used to hold the context, if one invocation is interrupted before it exits */
-    struct RME_Reg_Struct Inv_Reg;
-    struct RME_Cop_Struct Inv_Cop_Reg;
+    /* The entry and stack of the invocation */
+    ptr_t Entry;
+    ptr_t Stack;
+    /* Do we return immediately on fault? */
+    ptr_t Fault_Ret_Flag;
+    /* The registers to be saved in the invocation */
+    struct RME_Iret_Struct Ret;
 };
 
 /* The synchronous invocation capability */
@@ -138,11 +143,12 @@ __EXTERN__ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Stru
 __EXTERN__ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                               cid_t Cap_Kmem, cid_t Cap_Inv, cid_t Cap_Proc, ptr_t Vaddr);
 __EXTERN__ ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Inv);
-__EXTERN__ ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv, ptr_t Entry, ptr_t Stack);
+__EXTERN__ ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv,
+                              ptr_t Entry, ptr_t Stack, ptr_t Fault_Ret_Flag);
 __EXTERN__ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl, 
                               struct RME_Reg_Struct* Reg,
                               cid_t Cap_Inv, ptr_t Param);
-__EXTERN__ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg);
+__EXTERN__ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

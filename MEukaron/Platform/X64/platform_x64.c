@@ -1415,7 +1415,7 @@ ptr_t __RME_Boot(void)
                                        Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_1G, RME_PGTBL_NUM_512)==0);
         Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
         RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4), Count,
-        		                       RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count)))==0);
+        		                       RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count)), RME_PGTBL_ALL_PERM)==0);
     }
 
     /* Create 8192 PDEs, and cons them into their respective PDPs */
@@ -1425,7 +1425,7 @@ ptr_t __RME_Boot(void)
 									   Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_2M, RME_PGTBL_NUM_512)==0);
 		Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
 		RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
-									   RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Count)))==0);
+									   RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Count)), RME_PGTBL_ALL_PERM)==0);
 	}
 
     /* Map all the Kmem1 that we have into it */
@@ -1599,16 +1599,15 @@ Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : ptr_t* Svc - The system service number.
               ptr_t* Capid - The capability ID number.
               ptr_t* Param - The parameters.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc, ptr_t* Capid, ptr_t* Param)
+void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc, ptr_t* Capid, ptr_t* Param)
 {
     *Svc=(Reg->RDI)>>32;
     *Capid=(Reg->RDI)&0xFFFFFFFF;
     Param[0]=Reg->RSI;
     Param[1]=Reg->RDX;
     Param[2]=Reg->R8;
-    return 0;
 }
 /* End Function:__RME_Get_Syscall_Param **************************************/
 
@@ -1618,12 +1617,11 @@ Description : Set the system call return value to the stack frame. This function
               them to zero.
 Input       : ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
+void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
 {
     Reg->RAX=(ptr_t)Retval;
-    return 0;
 }
 /* End Function:__RME_Set_Syscall_Retval *************************************/
 
@@ -1643,12 +1641,11 @@ ptr_t __RME_Get_Inv_Retval(struct RME_Reg_Struct* Reg)
 Description : Set the invocation return value to the stack frame.
 Input       : ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
+void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
 {
     Reg->RSI=(ptr_t)Retval;
-    return 0;
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
@@ -1657,9 +1654,9 @@ Description : Initialize the register set for the thread.
 Input       : ptr_t Entry - The thread entry address.
               ptr_t Stack - The thread stack address.
 Output      : struct RME_Reg_Struct* Reg - The register set content generated.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
+void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
 {
 	/* We use the SYSRET path on creation if possible */
 	Reg->INT_NUM=0x10000;
@@ -1670,35 +1667,16 @@ ptr_t __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
 	Reg->RFLAGS=0x3200;
 	Reg->RSP=Stack;
 	Reg->SS=RME_X64_SEG_USER_DATA;
-    return 0;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
-
-/* Begin Function:__RME_Thd_Reg_Read ******************************************
-Description : Read the SP, PC and LR for the thread. On Cortex-M, R4 is read instead of
-              PC because we will use RDI to load the PC in some circumstances.
-Input       : struct RME_Reg_Struct* Reg - The current register set content.
-Output      : ptr_t* Entry - The current PC address.
-              ptr_t* Stack - The current SP address.
-              ptr_t* Status - The current status word.
-Return      : ptr_t - Always 0.
-******************************************************************************/
-ptr_t __RME_Thd_Reg_Read(ptr_t* Entry, ptr_t* Stack, ptr_t* Status, struct RME_Reg_Struct* Reg)
-{
-    *Entry=Reg->RDI;
-    *Stack=Reg->RSP;
-    *Status=Reg->RFLAGS;
-    return 0;
-}
-/* End Function:__RME_Thd_Reg_Read *******************************************/
 
 /* Begin Function:__RME_Thd_Reg_Copy ******************************************
 Description : Copy one set of registers into another.
 Input       : struct RME_Reg_Struct* Src - The source register set.
 Output      : struct RME_Reg_Struct* Dst - The destination register set.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
+void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
 {
     /* Make sure that the ordering is the same so the compiler can optimize */
     Dst->RAX=Src->RAX;
@@ -1725,7 +1703,6 @@ ptr_t __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
     Dst->RFLAGS=Src->RFLAGS;
     Dst->RSP=Src->RSP;
     Dst->SS=Src->SS;
-    return 0;
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
 
@@ -1734,12 +1711,11 @@ Description : Initialize the coprocessor register set for the thread.
 Input       : ptr_t Entry - The thread entry address.
               ptr_t Stack - The thread stack address.
 Output      : struct RME_Reg_Cop_Struct* Cop_Reg - The register set content generated.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg)
 {
     /* Empty function, return immediately. The FPU contents is not predictable */
-    return 0;
 }
 /* End Function:__RME_Thd_Cop_Reg_Init ***************************************/
 
@@ -1749,12 +1725,11 @@ Description : Save the co-op register sets. This operation is flexible - If the
 Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
                                            to save the context of the coprocessor.
 Output      : struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
 {
-    /* If we do not have a FPU, return 0 directly */
-    return 0;
+    /* Not used for now */
 }
 /* End Function:__RME_Thd_Cop_Save *******************************************/
 
@@ -1764,12 +1739,11 @@ Description : Restore the co-op register sets. This operation is flexible - If t
 Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
                                            to save the context of the coprocessor.
 Output      : struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
-{    
-    /* If we do not have a FPU, return 0 directly */
-    return 0;
+void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
+{
+    /* Not used for now */
 }
 /* End Function:__RME_Thd_Cop_Restore ****************************************/
 
@@ -1777,27 +1751,40 @@ ptr_t __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* C
 Description : Initialize the register set for the invocation.
 Input       : ptr_t Param - The parameter.
 Output      : struct RME_Reg_Struct* Reg - The register set content generated.
-Return      : ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg)
+void __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg)
 {
     Reg->RSI=Param;
-    return 0;
 }
 /* End Function:__RME_Inv_Reg_Init *******************************************/
 
-/* Begin Function:__RME_Inv_Cop_Init ******************************************
-Description : Initialize the coprocessor register set for the invocation.
-Input       : ptr_t Param - The parameter.
-Output      : struct RME_Reg_Struct* Reg - The register set content generated.
-Return      : ptr_t - Always 0.
+/* Begin Function:__RME_Inv_Reg_Save ******************************************
+Description : Save the necessary registers on invocation for returning. Only the
+              registers that will influence program control flow will be saved.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : struct RME_Iret_Struct* Ret - The invocation return register context.
+Return      : None.
 ******************************************************************************/
-ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg)
 {
-    /* Empty function */
-    return 0;
+    Ret->RIP=Reg->RIP;
+    Ret->RSP=Reg->RSP;
 }
-/* End Function:__RME_Inv_Cop_Init *******************************************/
+/* End Function:__RME_Inv_Reg_Save *******************************************/
+
+/* Begin Function:__RME_Inv_Reg_Restore ***************************************
+Description : Restore the necessary registers for returning from an invocation.
+Input       : struct RME_Iret_Struct* Ret - The invocation return register context.
+Output      : struct RME_Reg_Struct* Reg - The register set.
+Return      : None.
+******************************************************************************/
+void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret)
+{
+    Reg->RIP=Ret->RIP;
+    Reg->RSP=Ret->RSP;
+}
+/* End Function:__RME_Inv_Reg_Restore ****************************************/
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
@@ -2085,11 +2072,12 @@ Description : Map a page directory into the page table.
 Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
               struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
               ptr_t Pos - The position in the destination page table.
+              ptr_t Flags - The RME standard flags for the child page table.
 Output      : None.
 Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
 ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos, 
-                            struct RME_Cap_Pgtbl* Pgtbl_Child)
+                            struct RME_Cap_Pgtbl* Pgtbl_Child, ptr_t Flags)
 {
     ptr_t* Parent_Table;
     ptr_t* Child_Table;
@@ -2100,12 +2088,16 @@ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos,
     if(((Pgtbl_Parent->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
+    /* It should at least be readable */
+    if((Flags&RME_PGTBL_READ)==0)
+        return RME_ERR_PGT_OPFAIL;
+
     /* Get the table */
     Parent_Table=RME_CAP_GETOBJ(Pgtbl_Parent,ptr_t*);
     Child_Table=RME_CAP_GETOBJ(Pgtbl_Child,ptr_t*);
 
     /* Generate the content */
-    X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_MMU_P|RME_X64_MMU_RW|RME_X64_MMU_US;
+    X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
 
     /* Try to map it in - may need to increase some count */
     Temp=0;
