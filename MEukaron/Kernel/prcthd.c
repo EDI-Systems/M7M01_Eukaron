@@ -86,79 +86,6 @@ void __RME_List_Ins(volatile struct RME_List* New,
 }
 /* End Function:__RME_List_Ins ***********************************************/
 
-/* Begin Function:__RME_Thd_Inv_Top *******************************************
-Description : Get the top-level's invocation register set in the thread. If the
-              thread is currently not in invocation, then the top level is itself.
-Input       : struct RME_Thd_Struct* Thd - The thread struct. 
-Output      : struct RME_Reg_Struct** Reg - The pointer to the register set.
-              struct RME_Cop_Struct** Cop_Reg - The pointer to the coprocessor register set.
-              struct RME_Proc_Struct** Proc - The pointer to the process.
-Return      : ret_t - Always 0.
-******************************************************************************/
-ret_t __RME_Thd_Inv_Top(struct RME_Thd_Struct* Thd, struct RME_Reg_Struct** Reg,
-                        struct RME_Cop_Struct** Cop_Reg, struct RME_Proc_Struct** Proc)
-{
-    struct RME_Inv_Struct* Inv; 
-        
-    /* Are we in any invocation? If yes, get the top */
-    if(Thd->Inv_Stack.Next!=&(Thd->Inv_Stack))
-    {
-        Inv=(struct RME_Inv_Struct*)(Thd->Inv_Stack.Next);
-        *Reg=&(Inv->Inv_Reg);
-        *Cop_Reg=&(Inv->Inv_Cop_Reg);
-        *Proc=Inv->Proc;
-    }
-    else
-    {
-        *Reg=&(Thd->Cur_Reg->Reg);
-        *Cop_Reg=&(Thd->Cur_Reg->Cop_Reg);
-        *Proc=Thd->Sched.Proc;
-    }
-   
-    return 0;
-}
-/* End Function:__RME_Thd_Inv_Top ********************************************/
-
-/* Begin Function:__RME_Thd_Inv_Top_Reg ***************************************
-Description : Get the top-level's invocation register set in the thread. This 
-              function will only return the pointer to the register set.
-Input       : struct RME_Thd_Struct* Thd - The thread struct. 
-Output      : struct RME_Reg_Struct** Reg - The pointer to the register set.
-Return      : ret_t - Always 0.
-******************************************************************************/
-/* Write this as a macro */
-ret_t __RME_Thd_Inv_Top_Reg(struct RME_Thd_Struct* Thd, struct RME_Reg_Struct** Reg)
-{
-    /* Are we in any invocation? */
-    if(Thd->Inv_Stack.Next!=&(Thd->Inv_Stack))
-        *Reg=&(((struct RME_Inv_Struct*)(Thd->Inv_Stack.Next))->Inv_Reg);
-    else
-        *Reg=&(Thd->Cur_Reg->Reg);
-   
-    return 0;
-}
-/* End Function:__RME_Thd_Inv_Top_Reg ****************************************/
-
-/* Begin Function:__RME_Thd_Inv_Top_Proc **************************************
-Description : Get the top-level's invocation process in the thread. This 
-              function will only return the pointer to the process structure.
-Input       : struct RME_Thd_Struct* Thd - The thread struct. 
-Output      : struct RME_Proc_Struct** Proc - The pointer to the process structure.
-Return      : ret_t - Always 0.
-******************************************************************************/
-/* Write this as a macro */
-ret_t __RME_Thd_Inv_Top_Proc(struct RME_Thd_Struct* Thd, struct RME_Proc_Struct** Proc)
-{
-    /* Are we in any invocation? */
-    if(Thd->Inv_Stack.Next!=&(Thd->Inv_Stack))
-        *Proc=((struct RME_Inv_Struct*)(Thd->Inv_Stack.Next))->Proc;
-    else
-        *Proc=Thd->Sched.Proc;
-   
-    return 0;
-}
-/* End Function:__RME_Thd_Inv_Top_Proc ***************************************/
-
 /* Begin Function:__RME_Thd_Fatal *********************************************
 Description : The fatal fault handler of RME. This handler will be called by the 
               ISR that handles the faults. This indicates that a fatal fault
@@ -178,8 +105,8 @@ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
     struct RME_Thd_Struct* Thd;
     ptr_t CPUID;
     
-    /* Attempt to return from the invocation */
-    if(_RME_Inv_Ret(Reg)!=0)
+    /* Attempt to return from the invocation, from fault */
+    if(_RME_Inv_Ret(Reg, 1)!=0)
     {
         CPUID=RME_CPUID();
         /* Return failure, we are not in an invocation. Kill the thread */
@@ -190,16 +117,14 @@ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
         Thd->Sched.State=RME_THD_FAULT;
         _RME_Run_Del(Thd);
         /* Finally, pick up something else to run */
-        Thd=_RME_Run_High(CPUID);
-        Thd->Sched.State=RME_THD_RUNNING;
-        RME_Cur_Thd[CPUID]=Thd;
+        RME_Cur_Thd[CPUID]=_RME_Run_High(CPUID);
+        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_RUNNING;
+        /* A solid context switch */
+        _RME_Run_Swt(Reg, Thd, RME_Cur_Thd[CPUID]);
     
         /* Send a signal to the fault receive endpoint. This endpoint is per-core */
         _RME_Kern_Snd(Reg, RME_Fault_Sig[CPUID]);
     }
-    /* Return successful, set the return value as "failure due to fault" */
-    else
-        __RME_Set_Syscall_Retval(Reg,RME_ERR_SIV_FAULT);
         
     return 0;
 }
@@ -317,29 +242,31 @@ ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                    struct RME_Thd_Struct* Curr_Thd, 
                    struct RME_Thd_Struct* Next_Thd)
 {
-    struct RME_Proc_Struct* Curr_Proc;
+    struct RME_Inv_Struct* Curr_Inv_Top;
     struct RME_Cap_Pgtbl* Curr_Pgtbl;
-    struct RME_Reg_Struct* Curr_Reg;
-    struct RME_Cop_Struct* Curr_Cop_Reg;
-    struct RME_Proc_Struct* Next_Proc;
+    struct RME_Inv_Struct* Next_Inv_Top;
     struct RME_Cap_Pgtbl* Next_Pgtbl;
-    struct RME_Reg_Struct* Next_Reg;
-    struct RME_Cop_Struct* Next_Cop_Reg;
-    
-    /* Now do the register stuff */
-    __RME_Thd_Inv_Top(Curr_Thd,&Curr_Reg, &Curr_Cop_Reg, &Curr_Proc);
-    __RME_Thd_Inv_Top(Next_Thd,&Next_Reg, &Next_Cop_Reg, &Next_Proc);
     
     /* Save current context */
-    __RME_Thd_Reg_Copy(Curr_Reg, Reg);
-    __RME_Thd_Cop_Save(Reg, Curr_Cop_Reg);
+    __RME_Thd_Reg_Copy(&(Curr_Thd->Cur_Reg->Reg), Reg);
+    __RME_Thd_Cop_Save(Reg, &(Curr_Thd->Cur_Reg->Cop_Reg));
     /* Restore next context */
-    __RME_Thd_Reg_Copy(Reg, Next_Reg);
-    __RME_Thd_Cop_Restore(Reg, Next_Cop_Reg);
+    __RME_Thd_Reg_Copy(Reg, &(Next_Thd->Cur_Reg->Reg));
+    __RME_Thd_Cop_Restore(Reg, &(Next_Thd->Cur_Reg->Cop_Reg));
 
     /* Are we going to switch page tables? If yes, we change it now */
-    Curr_Pgtbl=Curr_Proc->Pgtbl;
-    Next_Pgtbl=Next_Proc->Pgtbl;
+    Curr_Inv_Top=RME_INVSTK_TOP(Curr_Thd);
+    Next_Inv_Top=RME_INVSTK_TOP(Next_Thd);
+    
+    if(Curr_Inv_Top==0)
+        Curr_Pgtbl=Curr_Thd->Sched.Proc->Pgtbl;
+    else
+        Curr_Pgtbl=Curr_Inv_Top->Proc->Pgtbl;
+    
+    if(Next_Inv_Top==0)
+        Next_Pgtbl=Next_Thd->Sched.Proc->Pgtbl;
+    else
+        Next_Pgtbl=Next_Inv_Top->Proc->Pgtbl;
     
     if(RME_CAP_GETOBJ(Curr_Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Next_Pgtbl,ptr_t))
         __RME_Pgtbl_Set(RME_CAP_GETOBJ(Next_Pgtbl,ptr_t));
@@ -985,9 +912,13 @@ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Entr
     if(Thd_Struct->Sched.State==RME_THD_FAULT)
         Thd_Struct->Sched.State=RME_THD_TIMEOUT;
     
-    /* Commit the change */
-    __RME_Thd_Reg_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Reg));
-    __RME_Thd_Cop_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Cop_Reg));
+    /* Commit the change if both values are non-zero. If both are zero we are just
+     * clearing the error flag and continue execution from where it faulted */
+    if((Entry!=0)&&(Stack!=0))
+    {
+        __RME_Thd_Reg_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Reg));
+        __RME_Thd_Cop_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Cop_Reg));
+    }
     
     return 0;
 }
@@ -1189,7 +1120,6 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Reg_Struct* Block_Reg;
     /* These are used to free the thread */
     ptr_t CPUID;
     
@@ -1239,8 +1169,7 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     {
         /* If it got here, the thread that is operated on cannot be the current thread, so
          * we are not overwriting the return value of the caller thread */
-        __RME_Thd_Inv_Top_Reg(Thd_Struct, &Block_Reg);
-        __RME_Set_Syscall_Retval(Block_Reg,RME_ERR_SIV_FREE);
+        __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg),RME_ERR_SIV_FREE);
         Thd_Struct->Sched.Signal->Thd=0;
         Thd_Struct->Sched.Signal=0;
         Thd_Struct->Sched.State=RME_THD_TIMEOUT;

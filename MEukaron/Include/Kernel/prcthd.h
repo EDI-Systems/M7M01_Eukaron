@@ -231,10 +231,6 @@ __EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
                               volatile struct RME_List* Prev,
                               volatile struct RME_List* Next);
 /* Helper functions */
-__EXTERN__ ret_t __RME_Thd_Inv_Top(struct RME_Thd_Struct* Thd, struct RME_Reg_Struct** Reg,
-                                   struct RME_Cop_Struct** Cop_Reg, struct RME_Proc_Struct** Proc);
-__EXTERN__ ret_t __RME_Thd_Inv_Top_Reg(struct RME_Thd_Struct* Thd, struct RME_Reg_Struct** Reg);
-__EXTERN__ ret_t __RME_Thd_Inv_Top_Proc(struct RME_Thd_Struct* Thd, struct RME_Proc_Struct** Proc);
 __EXTERN__ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs);
 /* In-kernel ready-queue primitives */
 __EXTERN__ ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);

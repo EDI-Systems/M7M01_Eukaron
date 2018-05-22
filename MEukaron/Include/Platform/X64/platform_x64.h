@@ -748,6 +748,13 @@ struct RME_Cop_Struct
 #endif
 };
 
+/* Need to save SP and IP across synchronous invocation */
+struct RME_Iret_Struct
+{
+    ptr_t RIP;
+    ptr_t RSP;
+};
+
 /* Memory information - the layout is (offset from VA base):
  * |0--640k|----------16MB|-----|-----|------|------|-----|3.25G-4G|-----|-----|
  * |Vectors|Kernel&Globals|Kotbl|Pgreg|PerCPU|Kpgtbl|Kmem1|  Hole  |Kmem2|Stack|
@@ -866,64 +873,93 @@ static volatile struct RME_X64_Features RME_X64_Feature;
  * [MSB                                                                                         LSB]
  * RME_PGTBL_BUFFERABLE | RME_PGTBL_CACHEABLE | RME_PGTBL_EXECUTE | RME_PGTBL_WRITE | RME_PGTBL_READ
  * The C snippet to generate this (gcc x64):
+
+#include <stdio.h>
+#define X64_NX          (((unsigned long long)1)<<63)
+#define X64_P           (1<<0)
+#define X64_RW          (1<<1)
+#define X64_PWT         (1<<3)
+#define X64_PCD         (1<<4)
+#define RME_READ        (1<<0)
+#define RME_WRITE       (1<<1)
+#define RME_EXECUTE     (1<<2)
+#define RME_CACHEABLE   (1<<3)
+#define RME_BUFFERABLE  (1<<4)
+int main(void)
+{
+	unsigned long long result;
+	int count;
+	for(count=0;count<32;count++)
+	{
+	    result=X64_P;
+		if((count&RME_WRITE)!=0)
+			result|=X64_RW;
+		if((count&RME_EXECUTE)==0)
+			result|=X64_NX;
+		if((count&RME_CACHEABLE)==0)
+			result|=X64_PCD;
+		if((count&RME_BUFFERABLE)==0)
+			result|=X64_PWT;
+	    printf("0x%016llX,",result);
+	    if(count%4==3)
+	    	printf("\n");
+	}
+	return 0;
+}
  */
 static const ptr_t RME_X64_Pgflg_RME2NAT[32]=
 {
-	0x800000000000001D,0x800000000000001D,0x800000000000001F,0x800000000000001F,
-	0x000000000000001D,0x000000000000001D,0x000000000000001F,0x000000000000001F,
-	0x800000000000000D,0x800000000000000D,0x800000000000000F,0x800000000000000F,
-	0x000000000000000D,0x000000000000000D,0x000000000000000F,0x000000000000000F,
-	0x8000000000000015,0x8000000000000015,0x8000000000000017,0x8000000000000017,
-	0x0000000000000015,0x0000000000000015,0x0000000000000017,0x0000000000000017,
-	0x8000000000000005,0x8000000000000005,0x8000000000000007,0x8000000000000007,
-	0x0000000000000005,0x0000000000000005,0x0000000000000007,0x0000000000000007
+	0x8000000000000019,0x8000000000000019,0x800000000000001B,0x800000000000001B,
+	0x0000000000000019,0x0000000000000019,0x000000000000001B,0x000000000000001B,
+	0x8000000000000009,0x8000000000000009,0x800000000000000B,0x800000000000000B,
+	0x0000000000000009,0x0000000000000009,0x000000000000000B,0x000000000000000B,
+	0x8000000000000011,0x8000000000000011,0x8000000000000013,0x8000000000000013,
+	0x0000000000000011,0x0000000000000011,0x0000000000000013,0x0000000000000013,
+	0x8000000000000001,0x8000000000000001,0x8000000000000003,0x8000000000000003,
+	0x0000000000000001,0x0000000000000001,0x0000000000000003,0x0000000000000003
 };
+
 /* Translate the flags back to RME format. In order to use this table, it is needed to extract the
  * X64 bits: [63](NX) [4](PCD) [3](PWT) [1](RW). The C snippet to generate this (gcc x64): 
 
-#include "stdio.h"
-
-#define X64_NX                 (1<<3)
-#define X64_PCD                (1<<2)
-#define X64_PWT                (1<<1)
-#define X64_RW                 (1<<0)
-
-#define RME_READ               (1<<0)
-#define RME_WRITE              (1<<1)
-#define RME_EXECUTE            (1<<2)
-#define RME_CACHEABLE          (1<<3)
-#define RME_BUFFERABLE         (1<<4)
-#define RME_STATIC             (1<<5)
-
+#include <stdio.h>
+#define X64_NX          (1<<3)
+#define X64_PCD         (1<<2)
+#define X64_PWT         (1<<1)
+#define X64_RW          (1<<0)
+#define RME_READ        (1<<0)
+#define RME_WRITE       (1<<1)
+#define RME_EXECUTE     (1<<2)
+#define RME_CACHEABLE   (1<<3)
+#define RME_BUFFERABLE  (1<<4)
+#define RME_STATIC      (1<<5)
 int main(void)
 {
     unsigned long long int flag;
     int count;
-    
     for(count=0;count<16;count++)
     {
         flag=RME_READ;
-
         if((count&X64_NX)==0)
             flag|=RME_EXECUTE;
-
         if((count&X64_PCD)==0)
             flag|=RME_CACHEABLE;
-
         if((count&X64_PWT)==0)
             flag|=RME_BUFFERABLE;
-
         if((count&X64_RW)!=0)
             flag|=RME_WRITE;
+        printf("0x%016llX,",flag);
+	    if(count%4==3)
+	    	printf("\n");
     }
 }
  */
 static const ptr_t RME_X64_Pgflg_NAT2RME[16]=
 {
-	0x800000000000001D,0x800000000000001D,0x800000000000001F,0x800000000000001F,
-	0x000000000000001D,0x000000000000001D,0x000000000000001F,0x000000000000001F,
-	0x800000000000000D,0x800000000000000D,0x800000000000000F,0x800000000000000F,
-	0x000000000000000D,0x000000000000000D,0x000000000000000F,0x000000000000000F
+	0x000000000000001D,0x000000000000001F,0x000000000000000D,0x000000000000000F,
+	0x0000000000000015,0x0000000000000017,0x0000000000000005,0x0000000000000007,
+	0x0000000000000019,0x000000000000001B,0x0000000000000009,0x000000000000000B,
+	0x0000000000000011,0x0000000000000013,0x0000000000000001,0x0000000000000003,
 };
 
 /* This boot code is the binary of the following boot.S, compiled with:
@@ -934,6 +970,7 @@ static const ptr_t RME_X64_Pgflg_NAT2RME[16]=
  * objdump -S boot_block.o > boot_block.asm
  * The contents of boot_block.c is placed here. Load this to 0x7000 to boot different
  * processors.
+
                  .code16
                  .global        Start_16
 Start_16:
@@ -1348,20 +1385,21 @@ __EXTERN__ void __RME_Reboot(void);
 __EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
 EXTERN ptr_t __RME_CPUID_Get(void);
-__EXTERN__ ptr_t __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc,
+__EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc,
                                          ptr_t* Capid, ptr_t* Param);
-__EXTERN__ ptr_t __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
+__EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
 __EXTERN__ ptr_t __RME_Get_Inv_Retval(struct RME_Reg_Struct* Reg);
-__EXTERN__ ptr_t __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
+__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
 /* Thread register sets */
-__EXTERN__ ptr_t __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg);
-__EXTERN__ ptr_t __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
-__EXTERN__ ptr_t __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ ptr_t __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ ptr_t __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
+__EXTERN__ void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
+__EXTERN__ void __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg);
+__EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
+__EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 /* Invocation register sets */
-__EXTERN__ ptr_t __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg);
-__EXTERN__ ptr_t __RME_Inv_Cop_Init(ptr_t Param, struct RME_Cop_Struct* Cop_Reg);
+__EXTERN__ void __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 /* Kernel function handler */
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
                                          ptr_t Param1, ptr_t Param2);
@@ -1378,7 +1416,7 @@ __EXTERN__ ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
 __EXTERN__ ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Paddr, ptr_t Pos, ptr_t Flags);
 __EXTERN__ ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos);
 __EXTERN__ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos, 
-                                       struct RME_Cap_Pgtbl* Pgtbl_Child);
+                                       struct RME_Cap_Pgtbl* Pgtbl_Child, ptr_t Flags);
 __EXTERN__ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos);
 __EXTERN__ ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos, ptr_t* Paddr, ptr_t* Flags);
 __EXTERN__ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl,
