@@ -12,13 +12,14 @@
 
 Click **[HERE](README.md)** for English version.
 
-&emsp;&emsp;**RME** 是一个支持很多高级功能的系统内核. 这个系统支持许多其他系统如 _FreeRTOS_ 、 _RT-Thread_ 和 _VxWorks_ 等不支持的复杂高级功能，在多核方面则具备和 _Linux_ 一样极佳的可扩展性。在使用时，无需了解系统的方方面面，仅需要使用我们提供好的移植甚至二进制即可。本系统的一些高级功能包括：
+&emsp;&emsp;**RME** 是一个支持很多高级功能的系统内核. 这个系统支持许多其他系统如 _FreeRTOS_ 、 _RT-Thread_ 、 _VxWorks_ 和 _Linux_ 等不支持的复杂高级功能，在多核方面则具备和 _Linux_ 一样极佳的可扩展性。在使用时，无需了解系统的方方面面，仅需要使用我们提供好的移植甚至二进制即可。本系统的一些高级功能包括：
 - 基于[权能](https://en.wikipedia.org/wiki/Capability-based_security)（capability）的可变保护域（mutable protection domain）；
 - 高度的[可扩展性](https://en.wikipedia.org/wiki/Scalability)（Scalability）和[并行性](https://en.wikipedia.org/wiki/Parallel_computing)（parallelism）；
 - [容错性](https://en.wikipedia.org/wiki/Fault_tolerance)（fault-tolerance）和[抗攻击性](https://en.wikipedia.org/wiki/Resilience_(network))（attack resilience）；
 - 用户态[层次化调度](https://en.wikipedia.org/wiki/Hierarchical_control_system)（hierachical scheduling）；
 - [全虚拟化](https://en.wikipedia.org/wiki/Full_virtualization)技术和基于[容器](https://en.wikipedia.org/wiki/Operating-system-level_virtualization)（container）的[准虚拟化](https://en.wikipedia.org/wiki/Paravirtualization)（paravirtualization）技术；
 - [非易失性内存](https://en.wikipedia.org/wiki/Non-volatile_memory)（Non-volatile memory，NVM）技术应用；
+- [网络功能虚拟化](https://en.wikipedia.org/wiki/Network_function_virtualization)（Network function virtualization，NFV）技术应用；
 - 实时（real-time）多核[混合关键度](https://en.wikipedia.org/wiki/Mixed_criticality)（mixed-criticality）系统等等。
 
 &emsp;&emsp;本系统的手册可以在 **[这里](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M5P1_%E8%BD%BB%E9%87%8F%E7%BA%A7%E5%AE%9E%E6%97%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E%E4%B9%A6.pdf)** 找到。
@@ -174,7 +175,7 @@ Click **[HERE](README.md)** for English version.
 
 &emsp;&emsp;如果你没有单独的硬件平台，那么也可以使用VMware、Virtual Box等虚拟机软件运行本系统的x86-64 ISO镜像。
 
-&emsp;&emsp;对于其他平台的支持应该也是容易实现的，但是当前并没有支持计划。对于低端Cortex-M和大多数16位微控制器，，可以使用[M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _轻量级实时操作系统_；M5P1支持全部的Cortex-M和部分的Cortex-R，但是不提供内存保护。
+&emsp;&emsp;对于其他平台的支持应该也是容易实现的，但是当前并没有支持计划。对于低端Cortex-M和大多数16位微控制器，可以使用[M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _轻量级实时操作系统_；M5P1支持全部的Cortex-M和部分的Cortex-R，但是不提供内存保护。
 
 ### 编译指南
 **微控制器**  
