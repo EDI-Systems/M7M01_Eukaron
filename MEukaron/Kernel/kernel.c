@@ -166,6 +166,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               struct RME_Reg_Struct* Reg - The current register set.
               cid_t Cap_Kern - The capability to the kernel capability. 2-Level.
               ptr_t Func_ID - The function ID to invoke.
+              ptr_t Sub_ID - The subfunction ID to invoke.
               ptr_t Param1 - The first parameter.
               ptr_t Param2 - The second parameter
 Output      : None.
@@ -177,7 +178,7 @@ Return      : ret_t - If the call is successful, it will return whatever the
                       in the kernel fucntion is banned.
 ******************************************************************************/
 ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                    cid_t Cap_Kern, ptr_t Func_ID, ptr_t Param1, ptr_t Param2)
+                    cid_t Cap_Kern, ptr_t Func_ID, ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
 {
     struct RME_Cap_Kern* Kern_Op;
     
@@ -191,7 +192,7 @@ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
        (Func_ID<RME_KERN_FLAG_LOW(Kern_Op->Head.Flags)))
         return RME_ERR_CAP_FLAG;
     /* Return whatever the function returns */
-    return __RME_Kern_Func_Handler(Reg,Func_ID,Param1,Param2);
+    return __RME_Kern_Func_Handler(Reg,Func_ID,Sub_ID,Param1,Param2);
 }
 /* End Function:_RME_Kern_Act ************************************************/
 
@@ -347,7 +348,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             Retval=_RME_Kern_Act(Captbl, Reg                    /* struct RME_Reg_Struct* Reg */,
                                          Capid                  /* cid_t Cap_Kern */,
-                                         Param[0]               /* ptr_t Func_ID */,
+                                         RME_PARAM_D0(Param[0]) /* ptr_t Func_ID */,
+                                         RME_PARAM_D1(Param[0]) /* ptr_t Sub_ID */,
                                          Param[1]               /* ptr_t Param1 */,
                                          Param[2]               /* ptr_t Param2 */);
             RME_SWITCH_RETURN(Reg,Retval);

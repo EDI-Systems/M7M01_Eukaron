@@ -244,7 +244,7 @@ __EXTERN__ void _RME_Memcpy(void* Dst, void* Src, ptr_t Num);
 /* Kernel capability */
 __EXTERN__ ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kern);
 __EXTERN__ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                               cid_t Cap_Kern, ptr_t Func_ID, ptr_t Param1, ptr_t Param2);
+                               cid_t Cap_Kern, ptr_t Func_ID, ptr_t Sub_ID, ptr_t Param1, ptr_t Param2);
 /* Kernel memory capability */
 __EXTERN__ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                                     cid_t Cap_Kmem, ptr_t Start, ptr_t End, ptr_t Flags);
