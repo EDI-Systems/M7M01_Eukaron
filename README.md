@@ -32,7 +32,7 @@ This software is **triple-licensed**: it is either **[LGPL v3](LICENSE.md)** or 
 ## Introduction to capability-based multi-core systems
 
 ### What are capabilities?
-&ensp;&ensp;&ensp;&ensp;Capabilities were a kind of certificate initially introduced into multi-user computer systems to control access permissions. It is an unforgeable token that points to some resource and carries the power to allow operations to the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be viewed as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system by the three rules:
+&ensp;&ensp;&ensp;&ensp;Capabilities are a kind of certificate that is initially introduced into multi-user computer systems to control access permissions. They are unforgeable tokens that point to some resource and carry permissions to allow operations on the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be treated as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system with the three rules:
 - Capabilities cannot be modified at user-level;
 - Capabilities can only be transfered between different processes with well-defined interfaces;
 - Capabilities will only be given to processes that can operate on the corresponding resources.
