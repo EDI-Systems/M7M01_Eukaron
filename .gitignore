@@ -57,7 +57,7 @@ Documents/*
 !Documents/M7M1_Microkernel-RTOS-User-Manual.pdf
 !Documents/Demo/
 
-# Keil specific
+# Keil/eclipse specific
 Project/**/Debug/*
 !Project/ECLIPSE-GCC-X64/RME/Debug/*
 *.tmp
@@ -65,6 +65,7 @@ Project/**/Debug/*
 *.uvopt*
 *.dep
 *.TMP
+RME.asm
 
 # CCS specific
 Project/**/.jxbrowser-data/**

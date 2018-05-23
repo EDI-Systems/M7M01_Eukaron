@@ -124,7 +124,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x2f ./Kernel/kernel.o
  .note.GNU-stack
                 0x0000000000000000        0x0 ./Kernel/kernel.o
- .eh_frame      0x0000000000000000      0x310 ./Kernel/kernel.o
+ .eh_frame      0x0000000000000000      0x318 ./Kernel/kernel.o
  .group         0x0000000000000000        0x8 ./Kernel/kotbl.o
  .group         0x0000000000000000        0x8 ./Kernel/kotbl.o
  .group         0x0000000000000000        0x8 ./Kernel/kotbl.o
@@ -331,7 +331,7 @@ Linker script and memory map
                 0xffffffff80100000                . = 0xffffffff80100000
                 0xffffffff80100000                PROVIDE (begin, .)
 
-.text           0xffffffff80100000   0x11e17d load address 0x0000000000100000
+.text           0xffffffff80100000   0x11e18d load address 0x0000000000100000
  *platform_x64_asm.o(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
  .text          0xffffffff80100000   0x10c7a2 ./Platform/platform_x64_asm.o
                 0xffffffff80100000                __RME_X64_Mboot_Header
@@ -662,7 +662,7 @@ Linker script and memory map
  .text.unlikely
                 0xffffffff8021586c        0x0 ./Kernel/captbl.o
  *fill*         0xffffffff8021586c        0x4 
- .text          0xffffffff80215870     0x16d6 ./Kernel/kernel.o
+ .text          0xffffffff80215870     0x16e6 ./Kernel/kernel.o
                 0xffffffff80215870                _RME_Clear
                 0xffffffff80215aa0                _RME_Memcmp
                 0xffffffff80215af0                _RME_Memcpy
@@ -671,133 +671,133 @@ Linker script and memory map
                 0xffffffff80216080                _RME_Kern_Act
                 0xffffffff80216180                _RME_Kmem_Boot_Crt
                 0xffffffff802164c0                _RME_Svc_Handler
-                0xffffffff802169f0                _RME_Tick_SMP_Handler
-                0xffffffff80216c60                _RME_Tick_Handler
-                0xffffffff80216c70                RME_Kmain
-                0xffffffff80216cd0                RME_Print_Int
-                0xffffffff80216e50                RME_Print_Uint
-                0xffffffff80216f10                RME_Print_String
+                0xffffffff80216a00                _RME_Tick_SMP_Handler
+                0xffffffff80216c70                _RME_Tick_Handler
+                0xffffffff80216c80                RME_Kmain
+                0xffffffff80216ce0                RME_Print_Int
+                0xffffffff80216e60                RME_Print_Uint
+                0xffffffff80216f20                RME_Print_String
  .text.unlikely
-                0xffffffff80216f46        0x0 ./Kernel/kernel.o
- *fill*         0xffffffff80216f46        0xa 
- .text          0xffffffff80216f50      0x435 ./Kernel/kotbl.o
-                0xffffffff80216f50                _RME_Kotbl_Init
-                0xffffffff80216f90                _RME_Kotbl_Mark
-                0xffffffff802171c0                _RME_Kotbl_Erase
+                0xffffffff80216f56        0x0 ./Kernel/kernel.o
+ *fill*         0xffffffff80216f56        0xa 
+ .text          0xffffffff80216f60      0x435 ./Kernel/kotbl.o
+                0xffffffff80216f60                _RME_Kotbl_Init
+                0xffffffff80216fa0                _RME_Kotbl_Mark
+                0xffffffff802171d0                _RME_Kotbl_Erase
  .text.unlikely
-                0xffffffff80217385        0x0 ./Kernel/kotbl.o
- *fill*         0xffffffff80217385        0xb 
- .text          0xffffffff80217390     0x16b8 ./Kernel/pgtbl.o
-                0xffffffff80217390                _RME_Pgtbl_Boot_Crt
-                0xffffffff80217770                _RME_Pgtbl_Boot_Con
-                0xffffffff80217970                _RME_Pgtbl_Boot_Add
-                0xffffffff80217ac0                _RME_Pgtbl_Crt
-                0xffffffff80217f50                _RME_Pgtbl_Del
-                0xffffffff80218230                _RME_Pgtbl_Add
-                0xffffffff80218560                _RME_Pgtbl_Rem
-                0xffffffff802186b0                _RME_Pgtbl_Con
-                0xffffffff80218900                _RME_Pgtbl_Des
+                0xffffffff80217395        0x0 ./Kernel/kotbl.o
+ *fill*         0xffffffff80217395        0xb 
+ .text          0xffffffff802173a0     0x16b8 ./Kernel/pgtbl.o
+                0xffffffff802173a0                _RME_Pgtbl_Boot_Crt
+                0xffffffff80217780                _RME_Pgtbl_Boot_Con
+                0xffffffff80217980                _RME_Pgtbl_Boot_Add
+                0xffffffff80217ad0                _RME_Pgtbl_Crt
+                0xffffffff80217f60                _RME_Pgtbl_Del
+                0xffffffff80218240                _RME_Pgtbl_Add
+                0xffffffff80218570                _RME_Pgtbl_Rem
+                0xffffffff802186c0                _RME_Pgtbl_Con
+                0xffffffff80218910                _RME_Pgtbl_Des
  .text.unlikely
-                0xffffffff80218a48        0x0 ./Kernel/pgtbl.o
- *fill*         0xffffffff80218a48        0x8 
- .text          0xffffffff80218a50     0x40a1 ./Kernel/prcthd.o
-                0xffffffff80218a50                __RME_List_Crt
-                0xffffffff80218a60                __RME_List_Del
-                0xffffffff80218a70                __RME_List_Ins
-                0xffffffff80218a80                __RME_Thd_Fatal
-                0xffffffff80218d60                _RME_Run_Ins
-                0xffffffff80218dd0                _RME_Run_Del
-                0xffffffff80218e40                _RME_Run_High
-                0xffffffff80218ee0                _RME_Run_Notif
-                0xffffffff80218f10                _RME_Run_Swt
-                0xffffffff80219000                _RME_Prcthd_Init
-                0xffffffff80219080                _RME_Proc_Boot_Crt
-                0xffffffff80219590                _RME_Proc_Crt
-                0xffffffff80219af0                _RME_Proc_Del
-                0xffffffff80219db0                _RME_Proc_Cpt
-                0xffffffff8021a040                _RME_Proc_Pgt
-                0xffffffff8021a2d0                _RME_Thd_Boot_Crt
-                0xffffffff8021a680                _RME_Thd_Crt
-                0xffffffff8021aad0                _RME_Thd_Del
-                0xffffffff8021ada0                _RME_Thd_Exec_Set
-                0xffffffff8021af40                _RME_Thd_Hyp_Set
-                0xffffffff8021b070                _RME_Thd_Sched_Bind
-                0xffffffff8021b2f0                _RME_Thd_Sched_Prio
-                0xffffffff8021b700                _RME_Thd_Sched_Free
-                0xffffffff8021bb70                _RME_Thd_Sched_Rcv
-                0xffffffff8021bce0                _RME_Thd_Time_Xfer
-                0xffffffff8021c450                _RME_Thd_Swt
+                0xffffffff80218a58        0x0 ./Kernel/pgtbl.o
+ *fill*         0xffffffff80218a58        0x8 
+ .text          0xffffffff80218a60     0x40a1 ./Kernel/prcthd.o
+                0xffffffff80218a60                __RME_List_Crt
+                0xffffffff80218a70                __RME_List_Del
+                0xffffffff80218a80                __RME_List_Ins
+                0xffffffff80218a90                __RME_Thd_Fatal
+                0xffffffff80218d70                _RME_Run_Ins
+                0xffffffff80218de0                _RME_Run_Del
+                0xffffffff80218e50                _RME_Run_High
+                0xffffffff80218ef0                _RME_Run_Notif
+                0xffffffff80218f20                _RME_Run_Swt
+                0xffffffff80219010                _RME_Prcthd_Init
+                0xffffffff80219090                _RME_Proc_Boot_Crt
+                0xffffffff802195a0                _RME_Proc_Crt
+                0xffffffff80219b00                _RME_Proc_Del
+                0xffffffff80219dc0                _RME_Proc_Cpt
+                0xffffffff8021a050                _RME_Proc_Pgt
+                0xffffffff8021a2e0                _RME_Thd_Boot_Crt
+                0xffffffff8021a690                _RME_Thd_Crt
+                0xffffffff8021aae0                _RME_Thd_Del
+                0xffffffff8021adb0                _RME_Thd_Exec_Set
+                0xffffffff8021af50                _RME_Thd_Hyp_Set
+                0xffffffff8021b080                _RME_Thd_Sched_Bind
+                0xffffffff8021b300                _RME_Thd_Sched_Prio
+                0xffffffff8021b710                _RME_Thd_Sched_Free
+                0xffffffff8021bb80                _RME_Thd_Sched_Rcv
+                0xffffffff8021bcf0                _RME_Thd_Time_Xfer
+                0xffffffff8021c460                _RME_Thd_Swt
  .text.unlikely
-                0xffffffff8021caf1        0x0 ./Kernel/prcthd.o
- *fill*         0xffffffff8021caf1        0xf 
- .text          0xffffffff8021cb00     0x167d ./Kernel/siginv.o
-                0xffffffff8021cb00                _RME_Sig_Boot_Crt
-                0xffffffff8021cca0                _RME_Sig_Crt
-                0xffffffff8021cf20                _RME_Sig_Del
-                0xffffffff8021d200                _RME_Kern_Snd
-                0xffffffff8021d310                _RME_Sig_Snd
-                0xffffffff8021d510                _RME_Sig_Rcv
-                0xffffffff8021d710                _RME_Inv_Crt
-                0xffffffff8021da70                _RME_Inv_Del
-                0xffffffff8021dd20                _RME_Inv_Set
-                0xffffffff8021de20                _RME_Inv_Act
-                0xffffffff8021e030                _RME_Inv_Ret
+                0xffffffff8021cb01        0x0 ./Kernel/prcthd.o
+ *fill*         0xffffffff8021cb01        0xf 
+ .text          0xffffffff8021cb10     0x167d ./Kernel/siginv.o
+                0xffffffff8021cb10                _RME_Sig_Boot_Crt
+                0xffffffff8021ccb0                _RME_Sig_Crt
+                0xffffffff8021cf30                _RME_Sig_Del
+                0xffffffff8021d210                _RME_Kern_Snd
+                0xffffffff8021d320                _RME_Sig_Snd
+                0xffffffff8021d520                _RME_Sig_Rcv
+                0xffffffff8021d720                _RME_Inv_Crt
+                0xffffffff8021da80                _RME_Inv_Del
+                0xffffffff8021dd30                _RME_Inv_Set
+                0xffffffff8021de30                _RME_Inv_Act
+                0xffffffff8021e040                _RME_Inv_Ret
  .text.unlikely
-                0xffffffff8021e17d        0x0 ./Kernel/siginv.o
- .text          0xffffffff8021e17d        0x0 ./UVM.o
+                0xffffffff8021e18d        0x0 ./Kernel/siginv.o
+ .text          0xffffffff8021e18d        0x0 ./UVM.o
                 [!provide]                        PROVIDE (etext, .)
 
-.iplt           0xffffffff8021e180        0x0 load address 0x000000000021e180
- .iplt          0xffffffff8021e180        0x0 ./Platform/platform_x64.o
+.iplt           0xffffffff8021e190        0x0 load address 0x000000000021e190
+ .iplt          0xffffffff8021e190        0x0 ./Platform/platform_x64.o
 
-.rodata         0xffffffff8021e180     0x1ef8 load address 0x000000000021e180
+.rodata         0xffffffff8021e1a0     0x1ef8 load address 0x000000000021e1a0
  *(.rodata .rodata.* .gnu.linkonce.r.*)
  .rodata.str1.8
-                0xffffffff8021e180      0x270 ./Platform/platform_x64.o
+                0xffffffff8021e1a0      0x270 ./Platform/platform_x64.o
  .rodata.str1.1
-                0xffffffff8021e3f0      0x6d4 ./Platform/platform_x64.o
+                0xffffffff8021e410      0x6d4 ./Platform/platform_x64.o
                                         0x6dc (size before relaxing)
- *fill*         0xffffffff8021eac4       0x1c 
- .rodata        0xffffffff8021eae0      0x2c0 ./Platform/platform_x64.o
+ *fill*         0xffffffff8021eae4       0x1c 
+ .rodata        0xffffffff8021eb00      0x2c0 ./Platform/platform_x64.o
  .rodata.str1.8
-                0xffffffff8021eda0       0x51 ./Kernel/captbl.o
+                0xffffffff8021edc0       0x51 ./Kernel/captbl.o
                                          0x79 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021edf1        0x9 ./Kernel/captbl.o
+                0xffffffff8021ee11        0x9 ./Kernel/captbl.o
                                          0x25 (size before relaxing)
- *fill*         0xffffffff8021edfa        0x6 
+ *fill*         0xffffffff8021ee1a        0x6 
  .rodata.str1.8
-                0xffffffff8021ee00       0x51 ./Kernel/kernel.o
+                0xffffffff8021ee20       0x51 ./Kernel/kernel.o
                                          0x79 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021ee51       0x25 ./Kernel/kernel.o
- *fill*         0xffffffff8021ee51        0x7 
- .rodata        0xffffffff8021ee58      0x118 ./Kernel/kernel.o
+                0xffffffff8021ee71       0x25 ./Kernel/kernel.o
+ *fill*         0xffffffff8021ee71        0x7 
+ .rodata        0xffffffff8021ee78      0x118 ./Kernel/kernel.o
  .rodata.str1.8
-                0xffffffff8021ef70       0x50 ./Kernel/pgtbl.o
+                0xffffffff8021ef90       0x50 ./Kernel/pgtbl.o
                                          0x78 (size before relaxing)
  .rodata.str1.1
-                0xffffffff8021efc0       0x25 ./Kernel/pgtbl.o
- .rodata.str1.8
-                0xffffffff8021efc0       0x51 ./Kernel/prcthd.o
-                                         0x79 (size before relaxing)
- .rodata.str1.1
-                0xffffffff8021f011       0x25 ./Kernel/prcthd.o
- *fill*         0xffffffff8021f011        0x7 
- .rodata.str1.8
-                0xffffffff8021f018       0x58 ./Kernel/siginv.o
-                                         0x79 (size before relaxing)
- .rodata.str1.1
-                0xffffffff8021f070        0x9 ./Kernel/siginv.o
+                0xffffffff8021efe0        0x9 ./Kernel/pgtbl.o
                                          0x25 (size before relaxing)
- *fill*         0xffffffff8021f079        0x7 
- .rodata        0xffffffff8021f080      0xff8 ./UVM.o
-                0xffffffff8021f080                UVM_Init
+ *fill*         0xffffffff8021efe9        0x7 
+ .rodata.str1.8
+                0xffffffff8021eff0       0x51 ./Kernel/prcthd.o
+                                         0x79 (size before relaxing)
+ .rodata.str1.1
+                0xffffffff8021f041       0x25 ./Kernel/prcthd.o
+ *fill*         0xffffffff8021f041        0x7 
+ .rodata.str1.8
+                0xffffffff8021f048       0x58 ./Kernel/siginv.o
+                                         0x79 (size before relaxing)
+ .rodata.str1.1
+                0xffffffff8021f0a0       0x25 ./Kernel/siginv.o
+ .rodata        0xffffffff8021f0a0      0xff8 ./UVM.o
+                0xffffffff8021f0a0                UVM_Init
 
-.rela.dyn       0xffffffff80220078        0x0 load address 0x0000000000220078
- .rela.iplt     0xffffffff80220078        0x0 ./Platform/platform_x64.o
+.rela.dyn       0xffffffff80220098        0x0 load address 0x0000000000220098
+ .rela.iplt     0xffffffff80220098        0x0 ./Platform/platform_x64.o
  .rela.text.startup
-                0xffffffff80220078        0x0 ./Platform/platform_x64.o
+                0xffffffff80220098        0x0 ./Platform/platform_x64.o
                 0xffffffff80221000                . = ALIGN (0x1000)
                 [!provide]                        PROVIDE (data, .)
 
@@ -868,15 +868,15 @@ LOAD ./Kernel/siginv.o
 LOAD ./UVM.o
 OUTPUT(RME elf64-x86-64)
 
-.debug_info     0x0000000000000000     0xfaf2
- .debug_info    0x0000000000000000     0x66f9 ./Platform/platform_x64.o
- .debug_info    0x00000000000066f9      0x9ad ./Kernel/captbl.o
- .debug_info    0x00000000000070a6     0x1e4a ./Kernel/kernel.o
- .debug_info    0x0000000000008ef0      0x3d0 ./Kernel/kotbl.o
- .debug_info    0x00000000000092c0     0x10e9 ./Kernel/pgtbl.o
- .debug_info    0x000000000000a3a9     0x3e7c ./Kernel/prcthd.o
- .debug_info    0x000000000000e225     0x186d ./Kernel/siginv.o
- .debug_info    0x000000000000fa92       0x60 ./UVM.o
+.debug_info     0x0000000000000000     0xfb0a
+ .debug_info    0x0000000000000000     0x6709 ./Platform/platform_x64.o
+ .debug_info    0x0000000000006709      0x9ad ./Kernel/captbl.o
+ .debug_info    0x00000000000070b6     0x1e52 ./Kernel/kernel.o
+ .debug_info    0x0000000000008f08      0x3d0 ./Kernel/kotbl.o
+ .debug_info    0x00000000000092d8     0x10e9 ./Kernel/pgtbl.o
+ .debug_info    0x000000000000a3c1     0x3e7c ./Kernel/prcthd.o
+ .debug_info    0x000000000000e23d     0x186d ./Kernel/siginv.o
+ .debug_info    0x000000000000faaa       0x60 ./UVM.o
 
 .debug_abbrev   0x0000000000000000     0x12b2
  .debug_abbrev  0x0000000000000000      0x4cb ./Platform/platform_x64.o
@@ -888,14 +888,14 @@ OUTPUT(RME elf64-x86-64)
  .debug_abbrev  0x000000000000104c      0x21e ./Kernel/siginv.o
  .debug_abbrev  0x000000000000126a       0x48 ./UVM.o
 
-.debug_loc      0x0000000000000000    0x100f6
- .debug_loc     0x0000000000000000     0x214d ./Platform/platform_x64.o
- .debug_loc     0x000000000000214d     0x14f5 ./Kernel/captbl.o
- .debug_loc     0x0000000000003642     0x2921 ./Kernel/kernel.o
- .debug_loc     0x0000000000005f63      0x9c8 ./Kernel/kotbl.o
- .debug_loc     0x000000000000692b     0x1f44 ./Kernel/pgtbl.o
- .debug_loc     0x000000000000886f     0x5bca ./Kernel/prcthd.o
- .debug_loc     0x000000000000e439     0x1cbd ./Kernel/siginv.o
+.debug_loc      0x0000000000000000    0x1018f
+ .debug_loc     0x0000000000000000     0x2186 ./Platform/platform_x64.o
+ .debug_loc     0x0000000000002186     0x14f5 ./Kernel/captbl.o
+ .debug_loc     0x000000000000367b     0x2981 ./Kernel/kernel.o
+ .debug_loc     0x0000000000005ffc      0x9c8 ./Kernel/kotbl.o
+ .debug_loc     0x00000000000069c4     0x1f44 ./Kernel/pgtbl.o
+ .debug_loc     0x0000000000008908     0x5bca ./Kernel/prcthd.o
+ .debug_loc     0x000000000000e4d2     0x1cbd ./Kernel/siginv.o
 
 .debug_aranges  0x0000000000000000      0x180
  .debug_aranges
@@ -965,32 +965,32 @@ OUTPUT(RME elf64-x86-64)
  .debug_macro   0x0000000000002071       0x2f ./Kernel/siginv.o
  .debug_macro   0x00000000000020a0       0x11 ./UVM.o
 
-.debug_line     0x0000000000000000     0x4da1
+.debug_line     0x0000000000000000     0x4da3
  .debug_line    0x0000000000000000     0x1383 ./Platform/platform_x64.o
  .debug_line    0x0000000000001383      0x7d5 ./Kernel/captbl.o
- .debug_line    0x0000000000001b58      0x77d ./Kernel/kernel.o
- .debug_line    0x00000000000022d5      0x48e ./Kernel/kotbl.o
- .debug_line    0x0000000000002763      0x971 ./Kernel/pgtbl.o
- .debug_line    0x00000000000030d4     0x135b ./Kernel/prcthd.o
- .debug_line    0x000000000000442f      0x949 ./Kernel/siginv.o
- .debug_line    0x0000000000004d78       0x29 ./UVM.o
+ .debug_line    0x0000000000001b58      0x77f ./Kernel/kernel.o
+ .debug_line    0x00000000000022d7      0x48e ./Kernel/kotbl.o
+ .debug_line    0x0000000000002765      0x971 ./Kernel/pgtbl.o
+ .debug_line    0x00000000000030d6     0x135b ./Kernel/prcthd.o
+ .debug_line    0x0000000000004431      0x949 ./Kernel/siginv.o
+ .debug_line    0x0000000000004d7a       0x29 ./UVM.o
 
-.debug_str      0x0000000000000000     0x9216
- .debug_str     0x0000000000000000     0x8846 ./Platform/platform_x64.o
-                                       0x89aa (size before relaxing)
- .debug_str     0x0000000000008846      0x21e ./Kernel/captbl.o
+.debug_str      0x0000000000000000     0x921d
+ .debug_str     0x0000000000000000     0x884d ./Platform/platform_x64.o
+                                       0x89b1 (size before relaxing)
+ .debug_str     0x000000000000884d      0x21e ./Kernel/captbl.o
                                        0x74c7 (size before relaxing)
- .debug_str     0x0000000000008a64      0x35d ./Kernel/kernel.o
-                                       0x7ec3 (size before relaxing)
- .debug_str     0x0000000000008dc1       0x97 ./Kernel/kotbl.o
+ .debug_str     0x0000000000008a6b      0x35d ./Kernel/kernel.o
+                                       0x7eca (size before relaxing)
+ .debug_str     0x0000000000008dc8       0x97 ./Kernel/kotbl.o
                                        0x6187 (size before relaxing)
- .debug_str     0x0000000000008e58       0xe6 ./Kernel/pgtbl.o
+ .debug_str     0x0000000000008e5f       0xe6 ./Kernel/pgtbl.o
                                        0x75b5 (size before relaxing)
- .debug_str     0x0000000000008f3e      0x1e1 ./Kernel/prcthd.o
+ .debug_str     0x0000000000008f45      0x1e1 ./Kernel/prcthd.o
                                        0x7e9a (size before relaxing)
- .debug_str     0x000000000000911f       0x94 ./Kernel/siginv.o
+ .debug_str     0x0000000000009126       0x94 ./Kernel/siginv.o
                                        0x7c88 (size before relaxing)
- .debug_str     0x00000000000091b3       0x63 ./UVM.o
+ .debug_str     0x00000000000091ba       0x63 ./UVM.o
                                        0x1a4a (size before relaxing)
 
 .comment        0x0000000000000000       0x34
