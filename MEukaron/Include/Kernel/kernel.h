@@ -95,7 +95,7 @@ Description : The header of kernel system call path.
  * Possible categories of context switch includes synchronous invocation and thread switch. */
 #define RME_SWITCH_RETURN(REG,RETVAL) \
 { \
-    if((RETVAL)<0) \
+    if(RME_UNLIKELY((RETVAL)<0)) \
         __RME_Set_Syscall_Retval((REG),(RETVAL)); \
     \
     return; \
@@ -123,7 +123,7 @@ Description : The header of kernel system call path.
 #define RME_ASSERT(X) \
 do \
 { \
-    if((X)==0) \
+    if(RME_UNLIKELY((X)==0)) \
     { \
         RME_PRINTK_S((s8*)"\r\n***\r\nKernel panic - not syncing:\r\n"); \
         RME_PRINTK_S((s8*)__FILE__); \

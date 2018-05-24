@@ -331,7 +331,7 @@
             <v6Lto>0</v6Lto>
             <v6WtE>0</v6WtE>
             <VariousControls>
-              <MiscControls></MiscControls>
+              <MiscControls>-Dlikely(x)="__builtin_expect(!!(x), 1)" -Dunlikely(x)="__builtin_expect(!!(x), 0)"</MiscControls>
               <Define>STM32F767xx,USE_HAL_DRIVER</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\STM32F7xx_HAL_Driver\Inc;..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\CMSIS\Include;..\..\MEukaron\Include;..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\STM32F7xx_HAL_Driver\Inc\Conf;..\..\..\M0P0_Library\STM32Cube_FW_F7_V1.11.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include</IncludePath>

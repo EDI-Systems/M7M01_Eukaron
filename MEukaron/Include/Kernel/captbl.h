@@ -3,7 +3,11 @@ Filename    : captbl.h
 Author      : pry
 Date        : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
-Description : The header of type table.
+Description : The header of type table. All the branches in these macros are
+              pretty much optimized with RME_LIKELY and (mainly )RME_UNLIKELY.
+              Due to the huge penalty of a wrong hint, only error handling in
+              headers, synchronous invocation activation and synchronous invocation
+              returning are heavily optimized.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
@@ -114,10 +118,10 @@ while(0)
 do \
 { \
     /* See if the capability is frozen */ \
-    if(((CAP)->Head.Type_Ref&RME_CAP_FROZEN)!=0) \
+    if(RME_UNLIKELY(((CAP)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
         return RME_ERR_CAP_FROZEN; \
     /* See if this capability allows such operations */ \
-    if(((CAP)->Head.Flags&(FLAG))!=(FLAG)) \
+    if(RME_UNLIKELY(((CAP)->Head.Flags&(FLAG))!=(FLAG))) \
         return RME_ERR_CAP_FLAG; \
 } \
 while(0)
@@ -127,41 +131,41 @@ while(0)
 do \
 { \
     /* See if the creation of such capability is allowed */ \
-    if(((CAP)->Head.Flags&(FLAG))!=(FLAG)) \
+    if(RME_UNLIKELY(((CAP)->Head.Flags&(FLAG))!=(FLAG))) \
         return RME_ERR_CAP_FLAG; \
     /* The end is always aligned to 256 bytes in the kernel, and does not include the ending byte */ \
-    if(((CAP)->Start>(START))||((CAP)->End<((START)+(SIZE)))) \
+    if(RME_UNLIKELY(((CAP)->Start>(START))||((CAP)->End<((START)+(SIZE))))) \
         return RME_ERR_CAP_FLAG; \
 } \
 while(0)
 
-/* Defrost a frozen cap */
+/* Defrost a frozen cap - we do not check failure because if we fail, someone have done it for us */
 #define RME_CAP_DEFROST(CAP,TEMP) \
 do \
 { \
     __RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),(TEMP)&(~((ptr_t)RME_CAP_FROZEN))); \
 } \
 while(0)
-    
+
 /* Checks to be done before deleting */
 #define RME_CAP_DEL_CHECK(CAP,TEMP,TYPE) \
 do \
 { \
     (TEMP)=(CAP)->Head.Type_Ref; \
-    /* See if the slot is frozen, and its cap must be not zero */ \
-    if(((TEMP)&RME_CAP_FROZEN)!=0) \
+    /* See if the slot is frozen, and its cap must be non-zero */ \
+    if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
         return RME_ERR_CAP_FROZEN; \
     /* See if we are in the creation/delegation process - This frozen flag is set by the creator */ \
-    if(RME_CAP_TYPE(TEMP)==RME_CAP_NOP) \
+    if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)==RME_CAP_NOP)) \
         return RME_ERR_CAP_NULL; \
     /* See if the cap type is correct. Only deletion checks type, while removing does not */ \
-    if(RME_CAP_TYPE(TEMP)!=(TYPE)) \
+    if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(TYPE))) \
         return RME_ERR_CAP_TYPE; \
     /* See if the slot is quiescent */ \
-    if(RME_CAP_QUIE((CAP)->Head.Timestamp)==0) \
+    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
     /* To use deletion, we must be an unreferenced root */ \
-    if((RME_CAP_REF(TEMP)!=0)||(((CAP)->Head.Parent)!=0)) \
+    if(RME_UNLIKELY((RME_CAP_REF(TEMP)!=0)||(((CAP)->Head.Parent)!=0))) \
     { \
         /* We defrost the cap and return. Need cas, in case two competing deletions happen */ \
         RME_CAP_DEFROST(CAP,TEMP); \
@@ -175,17 +179,17 @@ while(0)
 do \
 { \
     (TEMP)=(CAP)->Head.Type_Ref; \
-    /* See if the slot is frozen, and its cap must be not zero */ \
-    if(((TEMP)&RME_CAP_FROZEN)!=0) \
+    /* See if the slot is frozen, and its cap must be non-zero */ \
+    if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
         return RME_ERR_CAP_FROZEN; \
     /* See if we are in the creation/delegation process - This frozen flag is set by the creator */ \
-    if(RME_CAP_TYPE(TEMP)==RME_CAP_NOP) \
+    if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)==RME_CAP_NOP)) \
         return RME_ERR_CAP_NULL; \
     /* See if the slot is quiescent */ \
-    if(RME_CAP_QUIE((CAP)->Head.Timestamp)==0) \
+    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
     /* To use removal, we must be an unreferenced child */ \
-    if((RME_CAP_REF(TEMP)!=0)||(((CAP)->Head.Parent)==0)) \
+    if(RME_UNLIKELY((RME_CAP_REF(TEMP)!=0)||(((CAP)->Head.Parent)==0))) \
     { \
         /* We defrost the cap and return. Need cas, in case two competing removals happen */ \
         RME_CAP_DEFROST(CAP,TEMP); \
@@ -199,7 +203,7 @@ while(0)
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
-    if(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),0)==0) \
+    if(RME_UNLIKELY(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),0)==0)) \
         return RME_ERR_CAP_NULL; \
 } \
 while(0)
@@ -210,7 +214,7 @@ do \
 { \
     /* Check if anything is there. If there is nothing there, the Type_Ref must be 0 */ \
     (TEMP)=RME_CAP_TYPEREF(RME_CAP_NOP,0); \
-    if(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),RME_CAP_FROZEN)==0) \
+    if(RME_UNLIKELY(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),RME_CAP_FROZEN)==0)) \
         return RME_ERR_CAP_EXIST; \
 } \
 while(0)
@@ -220,7 +224,7 @@ while(0)
 do \
 { \
     /* Check if the captbl is over range */ \
-    if((CAP_NUM)>=((CAPTBL)->Entry_Num)) \
+    if(RME_UNLIKELY((CAP_NUM)>=((CAPTBL)->Entry_Num))) \
         return RME_ERR_CAP_RANGE; \
     /* Get the slot position */ \
     (PARAM)=&(RME_CAP_GETOBJ((CAPTBL),TYPE)[(CAP_NUM)]); \
@@ -235,35 +239,35 @@ do \
     if(((CAP_NUM)&RME_CAPID_2L)==0) \
     { \
         /* Check if the captbl is over range */ \
-        if((CAP_NUM)>=((CAPTBL)->Entry_Num)) \
+        if(RME_UNLIKELY((CAP_NUM)>=((CAPTBL)->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Struct*)[(CAP_NUM)]); \
-        if(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE)) \
+        if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
     } \
     /* Yes, this is a 2-level cap */ \
     else \
     { \
         /* Check if the cap to potential captbl is over range */ \
-        if(RME_CAP_H(CAP_NUM)>=((CAPTBL)->Entry_Num)) \
+        if(RME_UNLIKELY(RME_CAP_H(CAP_NUM)>=((CAPTBL)->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Captbl*)[RME_CAP_H(CAP_NUM)]); \
         \
         /* See if the captbl is frozen for deletion or removal */ \
-        if(((PARAM)->Head.Type_Ref&RME_CAP_FROZEN)!=0) \
+        if(RME_UNLIKELY(((PARAM)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
             return RME_ERR_CAP_FROZEN; \
         /* See if this is a captbl */ \
-        if(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=RME_CAP_CAPTBL) \
+        if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=RME_CAP_CAPTBL)) \
             return RME_ERR_CAP_TYPE; \
         \
         /* Check if the 2nd-layer captbl is over range */ \
-        if(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Captbl*)(PARAM))->Entry_Num)) \
+        if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Captbl*)(PARAM))->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
-        if(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE)) \
+        if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
     } \
 } \

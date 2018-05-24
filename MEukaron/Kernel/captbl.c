@@ -166,7 +166,6 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
 
-
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
     /* Take the slot if possible */

@@ -34,6 +34,10 @@
 								<option id="gnu.c.compiler.option.misc.other.1034607864" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fno-pic -static -fno-builtin -fno-strict-aliasing -ffreestanding -fno-common -fno-stack-protector -mtls-direct-seg-refs -mno-red-zone" valueType="string"/>
 								<option id="gnu.c.compiler.option.dialect.flags.200031733" name="Other dialect flags" superClass="gnu.c.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-m64 -mcmodel=kernel -nostdlib" valueType="string"/>
 								<option id="gnu.c.compiler.option.optimization.flags.1751812611" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-mno-sse" valueType="string"/>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1571062219" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="&quot;likely(x)=__builtin_expect(!!(x), 1)&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;unlikely(x)=__builtin_expect(!!(x), 0)&quot;"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1953577183" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool command="ld -Map RME.map -mcmodel=kernel" id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1674100226" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
@@ -55,9 +59,6 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.640244492.648085599" name="UVM.c" rcbsApplicability="disable" resourcePath="UVM.c" toolsToInvoke="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1420527623.1684910807">
-						<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1420527623.1684910807" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1420527623"/>
-					</fileInfo>
 					<sourceEntries>
 						<entry excluding="Debug/Boot" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>

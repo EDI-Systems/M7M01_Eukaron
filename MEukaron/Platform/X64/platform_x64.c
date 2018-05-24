@@ -1102,6 +1102,8 @@ ptr_t __RME_Pgtbl_Kmem_Init(void)
 
     /* Now initialize the kernel object allocation table */
     _RME_Kotbl_Init(RME_X64_Layout.Kotbl_Size/sizeof(ptr_t));
+    /* Reset PCID counter */
+    RME_X64_PCID_Inc=0;
 
     /* And the page table registration table as well */
     Pgreg=(struct __RME_X64_Pgreg*)RME_X64_Layout.Pgreg_Start;
@@ -1904,7 +1906,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_Pgtbl_Set(ptr_t Pgtbl)
 {
-	__RME_X64_Pgtbl_Set(RME_X64_VA2PA(Pgtbl));
+	__RME_X64_Pgtbl_Set(RME_X64_VA2PA(Pgtbl)|RME_X64_PGREG_POS(Pgtbl).PCID);
 }
 /* End Function:__RME_Pgtbl_Set **********************************************/
 
@@ -1964,12 +1966,19 @@ ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     {
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
+
+        RME_X64_PGREG_POS(Ptr).PCID=__RME_Fetch_Add(&RME_X64_PCID_Inc,1)&0xFFF;
     }
     else
     {
         for(;Count<512;Count++)
             Ptr[Count]=0;
     }
+
+    /* Initialize its pgreg table to all zeros, except for the PCID, which
+     * always increases as we initializes a top-level */
+    RME_X64_PGREG_POS(Ptr).Parent_Cnt=0;
+    RME_X64_PGREG_POS(Ptr).Child_Cnt=0;
 
     return 0;
 }
