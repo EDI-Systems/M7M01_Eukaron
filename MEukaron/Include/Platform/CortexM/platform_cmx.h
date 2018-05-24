@@ -84,6 +84,17 @@ typedef s32 ret_t;
 #define EXTERN                  extern
 /* Compiler "inline" keyword setting */
 #define INLINE                  __forceinline
+/* Compiler likely & unlikely setting */
+#ifdef likely
+#define RME_LIKELY(X)           (likely(X))
+#else
+#define RME_LIKELY(X)           (X)
+#endif
+#ifdef unlikely
+#define RME_UNLIKELY(X)         (unlikely(X))
+#else
+#define RME_UNLIKELY(X)         (X)
+#endif
 /* Number of CPUs in the system */
 #define RME_CPU_NUM             1
 /* The order of bits in one CPU machine word */

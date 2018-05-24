@@ -95,6 +95,17 @@ typedef s64 ret_t;
 #define EXTERN                               extern
 /* Compiler "inline" keyword setting */
 #define INLINE                               inline
+/* Compiler likely & unlikely setting */
+#ifdef likely
+#define RME_LIKELY(X)                        (likely(X))
+#else
+#define RME_LIKELY(X)                        (X)
+#endif
+#ifdef unlikely
+#define RME_UNLIKELY(X)                      (unlikely(X))
+#else
+#define RME_UNLIKELY(X)                      (X)
+#endif
 /* Number of CPUs in the system - max. 4096 ones are supported */
 #define RME_CPU_NUM                          256
 /* The order of bits in one CPU machine word */
@@ -223,7 +234,7 @@ typedef s64 ret_t;
 #define RME_X64_MMU_KERN_PDE                 (RME_X64_MMU_P|RME_X64_MMU_PDE_SUP|RME_X64_MMU_RW|RME_X64_MMU_G)
 
 /* MMU definitions */
-/* Write info to MMU */
+/* Write info to MMU - no longer used because we have PCID */
 #define RME_X64_CR3_PCD                      (1<<4)
 #define RME_X64_CR3_PWT                      (1<<3)
 
@@ -812,8 +823,10 @@ struct RME_X64_Features
 /* Page table registration table */
 struct __RME_X64_Pgreg
 {
-    /* How many child page tables does this page table have? */
-    ptr_t Child_Cnt;
+	/* What is the PCID of this page table? - This can be set through kernel function caps */
+	u32 PCID;
+    /* How many child page tables does this page table have? - this can never overflow */
+    u32 Child_Cnt;
     /* How many parent page tables does this page table have? */
     ptr_t Parent_Cnt;
 };
@@ -867,6 +880,8 @@ static volatile struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[8];
 static volatile ptr_t RME_X64_LAPIC_Addr;
 /* The processor features */
 static volatile struct RME_X64_Features RME_X64_Feature;
+/* The PCID counter */
+static volatile ptr_t RME_X64_PCID_Inc;
 
 /* Translate the flags into X64 specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:

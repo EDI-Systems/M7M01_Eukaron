@@ -243,6 +243,10 @@ __RME_X64_SMP_Boot_32:
      MOV                %CR0,%EAX
      BTS                $31,%EAX
      MOV                %EAX,%CR0
+     /* Enable PCID - CR4.PCIDE=1 FIXME: this made things slower - due to extra logic for PCID processing *//*
+     MOV                %CR4,%EAX
+     BTS                $17,%EAX
+     MOV                %EAX,%CR4*/
      /* shift to 64bit segment */
      LJMP               $8,$(Boot_Low_64-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
 

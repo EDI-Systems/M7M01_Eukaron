@@ -292,11 +292,21 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     ptr_t Param[3];
     ret_t Retval;
     ptr_t CPUID;
+    ptr_t Svc_Num;
     struct RME_Inv_Struct* Inv_Top;
     struct RME_Cap_Captbl* Captbl;
-    
+
     /* Get the system call parameters from the system call */
     __RME_Get_Syscall_Param(Reg, &Svc, &Capid, Param);
+    Svc_Num=Svc&0x3F;
+    
+    /* Fast path - synchronous invocation returning */
+    if(Svc_Num==RME_SVC_INV_RET)
+    {
+        Retval=_RME_Inv_Ret(Reg /* struct RME_Reg_Struct* Reg */,
+                            0   /* ptr_t Fault_Flag */);
+        RME_SWITCH_RETURN(Reg,Retval);
+    }
     
     /* Get our current capability table. No need to check whether it is frozen
      * because it can't be deleted anyway */
@@ -306,29 +316,24 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         Captbl=RME_Cur_Thd[CPUID]->Sched.Proc->Captbl;
     else
         Captbl=Inv_Top->Proc->Captbl;
+    
+    /* Fast path - synchronous invocation activation */
+    if(Svc_Num==RME_SVC_INV_ACT)
+    {
+        Retval=_RME_Inv_Act(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
+                                    Param[0] /* cid_t Cap_Inv */,
+                                    Param[1] /* ptr_t Param */);
+        RME_SWITCH_RETURN(Reg,Retval);
+    }
      
     /* See if this operation can potentially cause a register set switch. All the 
      * functions that may cause a register set switch is listed here. The behavior
      * of these functions shall be: If the function is successful, they shall
      * perform the return value saving on proper register stacks by themselves;
-     * if the function fails, it should not conduct such return value saving. */
-    switch((Svc&0x3F))
+     * if the function fails, it should not conduct such return value saving. These
+     * paths are less optimized than synchronous invocation, but are still optimized */
+    switch(Svc_Num)
     {
-        /* Return from invocation */
-        case RME_SVC_INV_RET:
-        {
-            Retval=_RME_Inv_Ret(Reg /* struct RME_Reg_Struct* Reg */,
-                                0   /* ptr_t Fault_Flag */);
-            RME_SWITCH_RETURN(Reg,Retval);
-        }
-        /* Activate an invocation */
-        case RME_SVC_INV_ACT:
-        {
-            Retval=_RME_Inv_Act(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                        Param[0] /* cid_t Cap_Inv */,
-                                        Param[1] /* ptr_t Param */);
-            RME_SWITCH_RETURN(Reg,Retval);
-        }
         /* Send to a signal endpoint */
         case RME_SVC_SIG_SND:
         {
@@ -390,7 +395,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     } 
 
     /* It is guaranteed that these functions will never cause a context switch */
-    switch((Svc&0x3F))
+    switch(Svc_Num)
     {
         /* Capability table */
         case RME_SVC_CAPTBL_CRT:

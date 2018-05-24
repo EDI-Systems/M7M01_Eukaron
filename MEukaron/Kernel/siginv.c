@@ -512,6 +512,9 @@ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     /* Fill in the structure */
     Inv_Struct=(struct RME_Inv_Struct*)Vaddr;
     Inv_Struct->Proc=RME_CAP_GETOBJ(Proc_Op,struct RME_Proc_Struct*);
+    Inv_Struct->Active=0;
+    /* By default we do not return on fault */
+    Inv_Struct->Fault_Ret_Flag=0;
     /* Increase the reference count of the process structure(Not the process capability) */
     __RME_Fetch_Add(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
     
@@ -568,7 +571,7 @@ ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_In
     RME_CAP_REMDEL(Inv_Del,Type_Ref);
     /* Dereference the process */
     __RME_Fetch_Add(&(Inv_Struct->Proc->Refcnt), -1);
-    /* Try to depopulate the area - this must be successful */
+    /* Try to clear the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((ptr_t)Inv_Struct,RME_INV_SIZE)!=0);
     
     return 0;
@@ -622,26 +625,25 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
 {
     struct RME_Cap_Inv* Inv_Op;
     struct RME_Inv_Struct* Inv_Struct;
-    struct RME_Inv_Struct* Inv_Top;
     struct RME_Thd_Struct* Thd_Struct;
     ptr_t Active;
-    
+
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl,Cap_Inv,RME_CAP_INV,struct RME_Cap_Inv*,Inv_Op);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Inv_Op,RME_INV_FLAG_ACT);
-    
+
     /* Get the invocation struct */
     Inv_Struct=RME_CAP_GETOBJ(Inv_Op,struct RME_Inv_Struct*);
     /* See if we are currently active - If yes, we can activate it again */
     Active=Inv_Struct->Active;
-    if(Active!=0)
+    if(RME_UNLIKELY(Active!=0))
         return RME_ERR_SIV_ACT;
     
     /* Push this invocation stub capability into the current thread's invocation stack */
     Thd_Struct=RME_Cur_Thd[RME_CPUID()];
     /* Try to do CAS and activate it */
-    if(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0)
+    if(RME_UNLIKELY(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0))
         return RME_ERR_SIV_ACT;
     
     /* Save whatever is needed to return to the point - normally only SP and IP needed
@@ -649,24 +651,15 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
      * user-level. We do not set the return value because it will be saved by SRET.
      * The coprocessor state will be consistent across the call */
     __RME_Inv_Reg_Save(&(Inv_Struct->Ret), Reg);
-    Inv_Top=RME_INVSTK_TOP(Thd_Struct);
     /* Push this into the stack: insert after the thread list header */
     __RME_List_Ins(&(Inv_Struct->Head),&(Thd_Struct->Inv_Stack),Thd_Struct->Inv_Stack.Next);
     /* Setup the register contents, and do the invocation */
     __RME_Thd_Reg_Init(Inv_Struct->Entry, Inv_Struct->Stack, Reg);
     __RME_Inv_Reg_Init(Param, Reg);
     
-    /* Are we invoking into a new process? If yes, switch the page table */
-    if(Inv_Top!=0)
-    {
-        if(RME_CAP_GETOBJ(Inv_Top->Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
-            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
-    }
-    else
-    {
-        if(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
-            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
-    }
+    /* We are assuming that we are always invoking into a new process (why use synchronous
+     * invocation if you don't do so?). So we always switch page tables regardless */
+    __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
     
     return 0;
 }
@@ -685,17 +678,16 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag)
 {
     struct RME_Thd_Struct* Thd_Struct;
     struct RME_Inv_Struct* Inv_Struct;
-    struct RME_Inv_Struct* Inv_Top;
     ptr_t Retval;
     
     /* See if we can return; If we can, get the structure */
     Thd_Struct=RME_Cur_Thd[RME_CPUID()];
     Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
-    if(Inv_Struct==0)
+    if(RME_UNLIKELY(Inv_Struct==0))
         return RME_ERR_SIV_EMPTY;
     
     /* Is this return forced by a fault? If yes, check if we allow that */
-    if((Fault_Flag!=0)&&(Inv_Struct->Fault_Ret_Flag==0))
+    if(RME_UNLIKELY((Fault_Flag!=0)&&(Inv_Struct->Fault_Ret_Flag==0)))
         return RME_ERR_SIV_FAULT;
     
     /* Pop it from the stack */
@@ -707,27 +699,21 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag)
      * the return value of the invocation system call itself as well */
     __RME_Inv_Reg_Restore(Reg, &(Inv_Struct->Ret));
     __RME_Set_Inv_Retval(Reg, Retval);
+    /* We have successfully returned, set the invocation as inactive */
+    Inv_Struct->Active=0;
+
     /* Decide the system call's return value */
-    if(Fault_Flag!=0)
+    if(RME_UNLIKELY(Fault_Flag!=0))
         __RME_Set_Syscall_Retval(Reg, RME_ERR_SIV_FAULT);
     else
         __RME_Set_Syscall_Retval(Reg, 0);
     
-    /* Are we returning to a new process? If yes, switch the page table */
-    Inv_Top=RME_INVSTK_TOP(Thd_Struct);
-    if(Inv_Top!=0)
-    {
-        if(RME_CAP_GETOBJ(Inv_Top->Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
-            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
-    }
+    /* Same assumptions as in invocation activation */
+    Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
+    if(Inv_Struct!=0)
+    	__RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
     else
-    {
-        if(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t)!=RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t))
-            __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
-    }
-    
-    /* We have successfully returned, set the invocation as inactive */
-    Inv_Struct->Active=0;
+    	__RME_Pgtbl_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t));
     
     return 0;
 }

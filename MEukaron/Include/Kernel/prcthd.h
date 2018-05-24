@@ -49,7 +49,7 @@ Description : The header of page table.
 do \
 { \
     /* Check if exceeded maximum time or overflowed */ \
-    if((((DST)+(AMOUNT))>=RME_THD_MAX_TIME)||(((DST)+(AMOUNT))<(DST))) \
+    if(RME_UNLIKELY((((DST)+(AMOUNT))>=RME_THD_MAX_TIME)||(((DST)+(AMOUNT))<(DST)))) \
         return RME_ERR_PTH_OVERFLOW; \
 } \
 while(0);
@@ -150,8 +150,8 @@ struct RME_Thd_Regs
 {
     /* The register set - architectural specific */
     struct RME_Reg_Struct Reg;
-    /* The co-processor/peripheral context - architectural specific. This usually
-     * contains the FPU data */
+    /* The co-processor/peripheral context - architecture specific.
+     * This usually contains the FPU data */
     struct RME_Cop_Struct Cop_Reg;
 };
 
