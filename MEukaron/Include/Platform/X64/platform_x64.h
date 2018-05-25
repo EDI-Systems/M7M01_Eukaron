@@ -212,6 +212,7 @@ typedef s64 ret_t;
 #define RME_X64_MMU_PWT                      (((ptr_t)1)<<3)
 /* Can we cache it? */
 #define RME_X64_MMU_PCD                      (((ptr_t)1)<<4)
+
 /* Is this accessed? */
 #define RME_X64_MMU_A                        (((ptr_t)1)<<5)
 /* Is this page dirty? */

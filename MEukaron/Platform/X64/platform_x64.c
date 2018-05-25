@@ -2066,11 +2066,16 @@ ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgtbl_Op,ptr_t*);
 
-    /* Try to unmap it. Use CAS just in case */
+    /* Make sure that there is something */
     Temp=Table[Pos];
     if(Temp==0)
         return RME_ERR_PGT_OPFAIL;
 
+    /* Is this a page directory? We cannot unmap page directories like this */
+    if((RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)!=RME_PGTBL_SIZE_4K)&&((Temp&RME_X64_MMU_PDE_SUP)==0))
+        return RME_ERR_PGT_OPFAIL;
+
+    /* Try to unmap it. Use CAS just in case */
     if(__RME_Comp_Swap(&(Table[Pos]),&Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
@@ -2143,13 +2148,17 @@ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
     /* Get the table */
     Parent_Table=RME_CAP_GETOBJ(Pgtbl_Op,ptr_t*);
 
-    /* Try to unmap it. Use CAS just in case */
+    /* Make sure that there is something */
     Temp=Parent_Table[Pos];
     if(Temp==0)
         return RME_ERR_PGT_OPFAIL;
 
-    Child_Table=(ptr_t*)Temp;
+    /* Is this a page? We cannot unmap pages like this */
+    if((RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
+        return RME_ERR_PGT_OPFAIL;
 
+    Child_Table=(ptr_t*)Temp;
+    /* Try to unmap it. Use CAS just in case */
     if(__RME_Comp_Swap(&(Parent_Table[Pos]),&Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
