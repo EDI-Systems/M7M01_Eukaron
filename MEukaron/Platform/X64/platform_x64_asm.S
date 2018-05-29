@@ -246,7 +246,7 @@ __RME_X64_SMP_Boot_32:
      /* Enable PCID - CR4.PCIDE=1 FIXME: this made things slower - due to extra logic for PCID processing *//*
      MOV                %CR4,%EAX
      BTS                $17,%EAX
-     MOV                %EAX,%CR4*/
+     MOV                %EAX,%CR4 */
      /* shift to 64bit segment */
      LJMP               $8,$(Boot_Low_64-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
 
@@ -652,18 +652,20 @@ Output      : None.
     PUSHQ               %RAX
     /* GS, CS, SS is known to be good, we just need FS, ES and DS */
     MOVW                $(KERNEL_DATA),%AX
+    /* Horrible horseracing! faster than seL4
     MOVW                %AX,%FS
-    MOVW                %AX,%ES
+    MOVW                %AX,%ES */
     MOVW                %AX,%DS
 .endm
 /* Restore all general-purpose registers */
 .macro RESTORE_GP_REGS
-    /* Put the kernel GS back */
+    /* Put the kernel GS back, and the user GS in */
     SWAPGS
     MOVW                $(USER_DATA),%AX
+    /* Horrible horseracing! faster than seL4
     MOVW                %AX,%GS
     MOVW                %AX,%FS
-    MOVW                %AX,%ES
+    MOVW                %AX,%ES */
     MOVW                %AX,%DS
     POPQ                %RAX
     POPQ                %RBX
@@ -1103,7 +1105,6 @@ SVC_Handler:
     SYSRETQ
 Use_IRET:
     /* Flag is zero, We are forced to use IRET, because this is from INT */
-    JMP .
     ADDQ                $16,%RSP
     IRETQ
 /* End Function:SVC_Handler **************************************************/

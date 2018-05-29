@@ -79,7 +79,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
         return RME_ERR_PGT_HW;
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order)!=0)
+    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
         return RME_ERR_PGT_HW;
     
     /* Get the cap location that we care about */
@@ -293,7 +293,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
         return RME_ERR_PGT_HW;
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order)!=0)
+    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
         return RME_ERR_PGT_HW;
     
     /* Get the cap location that we care about */
