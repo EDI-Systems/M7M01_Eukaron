@@ -1789,6 +1789,21 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
 
+void NDBG(void)
+{
+	write_string( 0x07, "Here", 0);
+}
+/* Crap for test */
+void write_string( int colour, const char *string, ptr_t pos)
+{
+	volatile char *video = (volatile char*)RME_X64_PA2VA(pos+0xB8000);
+	while( *string != 0 )
+	{
+		*video++ = *string++;
+		*video++ = colour;
+	}
+}
+
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
@@ -1803,7 +1818,20 @@ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID,
                               ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
 {
 	/* Now always call the HALT */
-	__RME_X64_Halt();
+	char String[16];
+
+	String[0]=Param1/10000000+'0';
+	String[1]=(Param1/1000000)%10+'0';
+	String[2]=(Param1/100000)%10+'0';
+	String[3]=(Param1/10000)%10+'0';
+	String[4]=(Param1/1000)%10+'0';
+	String[5]=(Param1/100)%10+'0';
+	String[6]=(Param1/10)%10+'0';
+	String[7]=(Param1)%10+'0';
+	String[8]='\0';
+	write_string(Func_ID, (const char *)String, Sub_ID);
+
+	//__RME_X64_Halt();
     return 0;
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
@@ -1917,13 +1945,15 @@ Input       : ptr_t Start_Addr - The start mapping address.
               ptr_t Top_Flag - The top-level flag,
               ptr_t Size_Order - The size order of the page directory.
               ptr_t Num_Order - The number order of the page directory.
+              ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
 Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order)
+ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, 
+                        ptr_t Size_Order, ptr_t Num_Order, ptr_t Vaddr)
 {
-    /* Is the start address aligned to 4kB? */
-    if((Start_Addr&0xFFF)!=0)
+    /* Is the start address and table address aligned to 4kB? */
+    if(((Start_Addr&0xFFF)!=0)||((Vaddr&0xFFF)!=0))
         return RME_ERR_PGT_OPFAIL;
 
     /* Is the size order allowed? */
@@ -2234,13 +2264,17 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
     ptr_t* Table;
     ptr_t Pos;
     ptr_t Size_Cnt;
+    /* Accumulates the flag information about each level - these bits are ANDed */
+    ptr_t Flags_Accum;
+    /* No execute bit - this bit is ORed */
+    ptr_t No_Execute;
 
     /* Check if this is the top-level page table */
     if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)==0)
         return RME_ERR_PGT_OPFAIL;
 
-    /* Are we attempting a kernel lookup? If yes, stop immediately */
-    if(Vaddr>=0x8000000000000000ULL)
+    /* Are we attempting a kernel or non-canonical lookup? If yes, stop immediately */
+    if(Vaddr>=0x7FFFFFFFFFFFULL)
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table and start lookup */
@@ -2248,6 +2282,8 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
 
     /* Do lookup recursively */
     Size_Cnt=RME_PGTBL_SIZE_512G;
+    Flags_Accum=0xFFF;
+    No_Execute=0;
     while(1)
     {
         /* Calculate where is the entry - always 0 to 512*/
@@ -2269,13 +2305,15 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
             if(Num_Order!=0)
                 *Num_Order=9;
             if(Flags!=0)
-                *Flags=RME_X64_PGFLG_NAT2RME(Table[Pos]);
+                *Flags=RME_X64_PGFLG_NAT2RME(No_Execute|(Table[Pos]&Flags_Accum));
 
             break;
         }
         else
         {
             /* This is a directory, we goto that directory to continue walking */
+            Flags_Accum&=Table[Pos];
+            No_Execute|=Table[Pos]&RME_X64_MMU_NX;
             Table=(ptr_t*)RME_X64_PA2VA(RME_X64_MMU_ADDR(Table[Pos]));
         }
 

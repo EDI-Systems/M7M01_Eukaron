@@ -645,7 +645,7 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     /* Try to do CAS and activate it */
     if(RME_UNLIKELY(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0))
         return RME_ERR_SIV_ACT;
-    
+
     /* Save whatever is needed to return to the point - normally only SP and IP needed
      * because all other registers, including the coprocessor registers, are saved at
      * user-level. We do not set the return value because it will be saved by SRET.

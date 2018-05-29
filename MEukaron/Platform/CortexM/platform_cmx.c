@@ -920,10 +920,12 @@ Input       : ptr_t Start_Addr - The start mapping address.
               ptr_t Top_Flag - The top-level flag,
               ptr_t Size_Order - The size order of the page directory.
               ptr_t Num_Order - The number order of the page directory.
+              ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
 Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order)
+ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, 
+                        ptr_t Size_Order, ptr_t Num_Order, ptr_t Vaddr)
 {
     if(Num_Order<RME_PGTBL_NUM_2)
         return RME_ERR_PGT_OPFAIL;
@@ -932,6 +934,8 @@ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_
     if(Size_Order<RME_PGTBL_SIZE_32B)
         return RME_ERR_PGT_OPFAIL;
     if(Size_Order>RME_PGTBL_SIZE_2G)
+        return RME_ERR_PGT_OPFAIL;
+    if((Vaddr&0x03)!=0)
         return RME_ERR_PGT_OPFAIL;
     
     return 0;

@@ -508,7 +508,7 @@ __EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_
 EXTERN void ___RME_CMX_MPU_Set(ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(ptr_t Pgtbl);
 __EXTERN__ ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order);
+__EXTERN__ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order, ptr_t Vaddr);
 __EXTERN__ ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
 __EXTERN__ ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
 __EXTERN__ ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Paddr, ptr_t Pos, ptr_t Flags);
