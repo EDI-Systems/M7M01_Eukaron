@@ -939,7 +939,6 @@ static const ptr_t RME_X64_Pgflg_RME2NAT[32]=
 /* Translate the flags back to RME format. In order to use this table, it is needed to extract the
  * X64 bits: [63](NX) [4](PCD) [3](PWT) [1](RW). The C snippet to generate this (gcc x64): 
 
-void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, ptr_t Param, struct RME_Reg_Struct* Reg)
 #include <stdio.h>
 #define X64_NX          (1<<3)
 #define X64_PCD         (1<<2)
