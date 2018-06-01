@@ -148,7 +148,7 @@ __EXTERN__ ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Inv,
 __EXTERN__ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl, 
                               struct RME_Reg_Struct* Reg,
                               cid_t Cap_Inv, ptr_t Param);
-__EXTERN__ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag);
+__EXTERN__ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Retval, ptr_t Fault_Flag);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

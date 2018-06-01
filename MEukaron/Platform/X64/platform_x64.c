@@ -1628,38 +1628,15 @@ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
 }
 /* End Function:__RME_Set_Syscall_Retval *************************************/
 
-/* Begin Function:__RME_Get_Inv_Retval ****************************************
-Description : Get the invocation return value from the stack frame.
-Input       : struct RME_Reg_Struct* Reg - The register set.
-Output      : None.
-Return      : ptr_t - The return value.
-******************************************************************************/
-ptr_t __RME_Get_Inv_Retval(struct RME_Reg_Struct* Reg)
-{
-    return Reg->RSI;
-}
-/* End Function:__RME_Get_Inv_Retval *****************************************/
-
-/* Begin Function:__RME_Set_Inv_Retval ****************************************
-Description : Set the invocation return value to the stack frame.
-Input       : ret_t Retval - The return value.
-Output      : struct RME_Reg_Struct* Reg - The register set.
-Return      : None.
-******************************************************************************/
-void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
-{
-    Reg->RSI=(ptr_t)Retval;
-}
-/* End Function:__RME_Set_Inv_Retval *****************************************/
-
 /* Begin Function:__RME_Thd_Reg_Init ******************************************
 Description : Initialize the register set for the thread.
 Input       : ptr_t Entry - The thread entry address.
               ptr_t Stack - The thread stack address.
+              ptr_t Param - The parameter to pass to it.
 Output      : struct RME_Reg_Struct* Reg - The register set content generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
+void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, ptr_t Param, struct RME_Reg_Struct* Reg)
 {
 	/* We use the SYSRET path on creation if possible */
 	Reg->INT_NUM=0x10000;
@@ -1670,6 +1647,8 @@ void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg)
 	Reg->RFLAGS=0x3200;
 	Reg->RSP=Stack;
 	Reg->SS=RME_X64_SEG_USER_DATA;
+	/* Pass the parameter */
+	Reg->RDI=Param;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 
@@ -1711,12 +1690,11 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
 
 /* Begin Function:__RME_Thd_Cop_Init ******************************************
 Description : Initialize the coprocessor register set for the thread.
-Input       : ptr_t Entry - The thread entry address.
-              ptr_t Stack - The thread stack address.
+Input       : struct RME_Reg_Struct* Reg - The register struct to help initialize the coprocessor.
 Output      : struct RME_Reg_Cop_Struct* Cop_Reg - The register set content generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
 {
     /* Empty function, return immediately. The FPU contents is not predictable */
 }
@@ -1750,18 +1728,6 @@ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Co
 }
 /* End Function:__RME_Thd_Cop_Restore ****************************************/
 
-/* Begin Function:__RME_Inv_Reg_Init ******************************************
-Description : Initialize the register set for the invocation.
-Input       : ptr_t Param - The parameter.
-Output      : struct RME_Reg_Struct* Reg - The register set content generated.
-Return      : None.
-******************************************************************************/
-void __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg)
-{
-    Reg->RSI=Param;
-}
-/* End Function:__RME_Inv_Reg_Init *******************************************/
-
 /* Begin Function:__RME_Inv_Reg_Save ******************************************
 Description : Save the necessary registers on invocation for returning. Only the
               registers that will influence program control flow will be saved.
@@ -1788,6 +1754,18 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
     Reg->RSP=Ret->RSP;
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
+
+/* Begin Function:__RME_Set_Inv_Retval ****************************************
+Description : Set the invocation return value to the stack frame.
+Input       : ret_t Retval - The return value.
+Output      : struct RME_Reg_Struct* Reg - The register set.
+Return      : None.
+******************************************************************************/
+void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval)
+{
+    Reg->RDI=(ptr_t)Retval;
+}
+/* End Function:__RME_Set_Inv_Retval *****************************************/
 
 void NDBG(void)
 {

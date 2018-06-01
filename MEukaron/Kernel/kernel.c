@@ -303,8 +303,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     /* Fast path - synchronous invocation returning */
     if(Svc_Num==RME_SVC_INV_RET)
     {
-        Retval=_RME_Inv_Ret(Reg /* struct RME_Reg_Struct* Reg */,
-                            0   /* ptr_t Fault_Flag */);
+        Retval=_RME_Inv_Ret(Reg      /* struct RME_Reg_Struct* Reg */,
+        		            Param[0] /* ptr_t Retval */,
+                            0        /* ptr_t Fault_Flag */);
         RME_SWITCH_RETURN(Reg,Retval);
     }
     
@@ -532,9 +533,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_THD_EXEC_SET:
         {
-            Retval=_RME_Thd_Exec_Set(Captbl, Param[0] /* cid_t Cap_Thd */,
-                                             Param[1] /* ptr_t Entry */,
-                                             Param[2] /* ptr_t Stack */);
+            Retval=_RME_Thd_Exec_Set(Captbl, Capid    /* cid_t Cap_Thd */,
+                                             Param[0] /* ptr_t Entry */,
+                                             Param[1] /* ptr_t Stack */,
+                                             Param[2] /* ptr_t Param */);
             break;
         }
         case RME_SVC_THD_HYP_SET:

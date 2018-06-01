@@ -654,8 +654,7 @@ ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     /* Push this into the stack: insert after the thread list header */
     __RME_List_Ins(&(Inv_Struct->Head),&(Thd_Struct->Inv_Stack),Thd_Struct->Inv_Stack.Next);
     /* Setup the register contents, and do the invocation */
-    __RME_Thd_Reg_Init(Inv_Struct->Entry, Inv_Struct->Stack, Reg);
-    __RME_Inv_Reg_Init(Param, Reg);
+    __RME_Thd_Reg_Init(Inv_Struct->Entry, Inv_Struct->Stack, Param, Reg);
     
     /* We are assuming that we are always invoking into a new process (why use synchronous
      * invocation if you don't do so?). So we always switch page tables regardless */
@@ -670,15 +669,15 @@ Description : Return from the invocation function, and set the return value to
               the old register set. This function does not need a capability
               table to work.
 Input       : struct RME_Reg_Struct* Reg - The register set for this thread.
+			  ptr_t Retval - The return value of this synchronous invocation.
               ptr_t Fault_Flag - Are we attempting a return from fault?
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag)
+ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Retval, ptr_t Fault_Flag)
 {
     struct RME_Thd_Struct* Thd_Struct;
     struct RME_Inv_Struct* Inv_Struct;
-    ptr_t Retval;
     
     /* See if we can return; If we can, get the structure */
     Thd_Struct=RME_Cur_Thd[RME_CPUID()];
@@ -692,8 +691,6 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Fault_Flag)
     
     /* Pop it from the stack */
     __RME_List_Del(Inv_Struct->Head.Prev,Inv_Struct->Head.Next);
-    /* Get the return value from the register set */
-    Retval=__RME_Get_Inv_Retval(Reg);
 
     /* Restore the register contents, and set return value. We need to set
      * the return value of the invocation system call itself as well */
