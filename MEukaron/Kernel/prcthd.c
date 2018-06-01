@@ -106,7 +106,7 @@ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
     ptr_t CPUID;
     
     /* Attempt to return from the invocation, from fault */
-    if(_RME_Inv_Ret(Reg, 1)!=0)
+    if(_RME_Inv_Ret(Reg, 0, 1)!=0)
     {
         CPUID=RME_CPUID();
         /* Return failure, we are not in an invocation. Kill the thread */
@@ -890,10 +890,12 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Thd - The capability to the thread. 2-Level.
               ptr_t Entry - The entry of the thread. An address.
               ptr_t Stack - The stack address to use for execution. An address.
+              ptr_t Param - The parameter to pass to the thread.
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Entry, ptr_t Stack)
+ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
+		                cid_t Cap_Thd, ptr_t Entry, ptr_t Stack, ptr_t Param)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -916,8 +918,8 @@ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Entr
      * clearing the error flag and continue execution from where it faulted */
     if((Entry!=0)&&(Stack!=0))
     {
-        __RME_Thd_Reg_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Reg));
-        __RME_Thd_Cop_Init(Entry, Stack, &(Thd_Struct->Cur_Reg->Cop_Reg));
+        __RME_Thd_Reg_Init(Entry, Stack, Param, &(Thd_Struct->Cur_Reg->Reg));
+        __RME_Thd_Cop_Init(&(Thd_Struct->Cur_Reg->Reg), &(Thd_Struct->Cur_Reg->Cop_Reg));
     }
     
     return 0;

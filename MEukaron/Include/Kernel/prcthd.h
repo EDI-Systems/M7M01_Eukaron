@@ -257,7 +257,8 @@ __EXTERN__ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Capt
 __EXTERN__ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kmem,
                               cid_t Cap_Thd, cid_t Cap_Proc, ptr_t Max_Prio, ptr_t Vaddr);
 __EXTERN__ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Thd);
-__EXTERN__ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Entry, ptr_t Stack);
+__EXTERN__ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
+                                   cid_t Cap_Thd, ptr_t Entry, ptr_t Stack, ptr_t Param);
 __EXTERN__ ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Kaddr);
 __EXTERN__ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
                                      cid_t Cap_Thd_Sched, ptr_t Prio);

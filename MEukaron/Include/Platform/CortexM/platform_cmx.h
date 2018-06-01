@@ -485,18 +485,16 @@ __EXTERN__ ptr_t __RME_CPUID_Get(void);
 __EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc,
                                          ptr_t* Capid, ptr_t* Param);
 __EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
-__EXTERN__ ptr_t __RME_Get_Inv_Retval(struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
 /* Thread register sets */
-__EXTERN__ void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, ptr_t Param, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
-__EXTERN__ void __RME_Thd_Cop_Init(ptr_t Entry, ptr_t Stack, struct RME_Cop_Struct* Cop_Reg);
+__EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 /* Invocation register sets */
-__EXTERN__ void __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
+__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
 /* Kernel function handler */
 __EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
                                          ptr_t Sub_ID, ptr_t Param1, ptr_t Param2);
