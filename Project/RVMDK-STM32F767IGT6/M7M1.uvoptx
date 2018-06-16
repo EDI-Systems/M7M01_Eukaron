@@ -177,6 +177,11 @@
           <WinNumber>1</WinNumber>
           <ItemText>Cur_Thd</ItemText>
         </Ww>
+        <Ww>
+          <count>3</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Size,0x0A</ItemText>
+        </Ww>
       </WatchWindow1>
       <MemoryWindow1>
         <Mm>

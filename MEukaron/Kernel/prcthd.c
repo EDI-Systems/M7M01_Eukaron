@@ -89,7 +89,7 @@ void __RME_List_Ins(volatile struct RME_List* New,
 /* Begin Function:__RME_Thd_Fatal *********************************************
 Description : The fatal fault handler of RME. This handler will be called by the 
               ISR that handles the faults. This indicates that a fatal fault
-              has happenened and we need to see if this thread is in a synchronous
+              has happened and we need to see if this thread is in a synchronous
               invocation. If yes, we stop the synchronous invocation immediately,
               and return a fault value to the old register set. If not, we just
               kill the thread. If the thread is killed, a timeout notification will
@@ -102,28 +102,23 @@ Return      : ret_t - Always 0.
 ******************************************************************************/
 ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
 {
-    struct RME_Thd_Struct* Thd;
     ptr_t CPUID;
     
     /* Attempt to return from the invocation, from fault */
     if(_RME_Inv_Ret(Reg, 0, 1)!=0)
     {
+        /* Return failure, we are not in an invocation. Killing the thread now */
         CPUID=RME_CPUID();
-        /* Return failure, we are not in an invocation. Kill the thread */
-        Thd=RME_Cur_Thd[CPUID];
         /* Are we attempting to kill the init threads? If yes, panic */
-        RME_ASSERT(Thd->Sched.Slices!=RME_THD_INIT_TIME);
-        Thd->Sched.Slices=0;
-        Thd->Sched.State=RME_THD_FAULT;
-        _RME_Run_Del(Thd);
-        /* Finally, pick up something else to run */
-        RME_Cur_Thd[CPUID]=_RME_Run_High(CPUID);
-        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_RUNNING;
-        /* A solid context switch */
-        _RME_Run_Swt(Reg, Thd, RME_Cur_Thd[CPUID]);
-    
-        /* Send a signal to the fault receive endpoint. This endpoint is per-core */
-        _RME_Kern_Snd(Reg, RME_Fault_Sig[CPUID]);
+        RME_ASSERT(RME_Cur_Thd[CPUID]->Sched.Slices!=RME_THD_INIT_TIME);
+        /* Deprive it of all its timeslices */
+        RME_Cur_Thd[CPUID]->Sched.Slices=0;
+        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_FAULT;
+        _RME_Run_Del(RME_Cur_Thd[CPUID]);
+        /* Send a scheduler notification to its parent */
+        _RME_Run_Notif(Reg,RME_Cur_Thd[CPUID]);
+    	/* All kernel send complete, now pick the highest priority thread to run */
+    	_RME_Kern_High(Reg, CPUID);
     }
         
     return 0;
@@ -211,12 +206,13 @@ struct RME_Thd_Struct* _RME_Run_High(ptr_t CPUID)
 
 /* Begin Function:_RME_Run_Notif **********************************************
 Description : Send a notification to the thread's parent, to notify that this 
-              thread is currently out of time.
-Input       : struct RME_Thd_Struct* Thd - The thread to send notification for.
+              thread is currently out of time, or have a fault.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
+              struct RME_Thd_Struct* Thd - The thread to send notification for.
 Output      : None.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
+ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd)
 {
     /* See if there is already a notification. If yes, do not do the send again */
     if(Thd->Sched.Notif.Next==&(Thd->Sched.Notif))
@@ -225,7 +221,11 @@ ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
                        Thd->Sched.Parent->Sched.Event.Prev,
                        &(Thd->Sched.Parent->Sched.Event));
     }
-    
+
+    /* If this guy have an endpoint, send to it */
+    if(Thd->Sched.Sched_Sig!=0)
+    	_RME_Kern_Snd(Reg,Thd->Sched.Sched_Sig);
+
     return 0;
 }
 /* End Function:_RME_Run_Notif ***********************************************/
@@ -285,9 +285,6 @@ ret_t _RME_Prcthd_Init(void)
 {
     cnt_t CPU_Cnt;
     cnt_t Prio_Cnt;
-    
-    /* Initialize counters */
-    RME_TID_Inc=0;
     
     /* Initialize the per-CPU run-queue and bitmap */
     for(CPU_Cnt=0;CPU_Cnt<RME_CPU_NUM;CPU_Cnt++)
@@ -647,7 +644,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               ptr_t Prio - The priority level of the thread.
               ptr_t CPUID - The CPU to bind this thread to.
 Output      : None.
-Return      : ret_t - If successful, the Thread ID; or an error code.
+Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Thd,
 		                cid_t Cap_Proc, ptr_t Vaddr, ptr_t Prio, ptr_t CPUID)
@@ -683,7 +680,8 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     
     /* Get the thread, and start creation */
     Thd_Struct=(struct RME_Thd_Struct*)Vaddr;
-    Thd_Struct->Sched.TID=__RME_Fetch_Add(&RME_TID_Inc, 1);
+    /* The TID of these threads are by default taken care of by the kernel */
+    Thd_Struct->Sched.TID=0;
     /* Set this initially to 1 to make it virtually unfreeable & undeletable */
     Thd_Struct->Sched.Refcnt=1;
     Thd_Struct->Sched.Slices=RME_THD_INIT_TIME;
@@ -691,6 +689,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     Thd_Struct->Sched.Signal=0;
     Thd_Struct->Sched.Prio=Prio;
     Thd_Struct->Sched.Max_Prio=RME_MAX_PREEMPT_PRIO-1;
+    Thd_Struct->Sched.Sched_Sig=0;
     /* Bind the thread to the current CPU */
     Thd_Struct->Sched.CPUID_Bind=CPUID;
     /* This is a marking that this thread haven't sent any notifications */
@@ -715,7 +714,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     Thd_Crt->Head.Flags=RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_PARENT|
                         RME_THD_FLAG_XFER_DST|RME_THD_FLAG_XFER_SRC|
                         RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT;
-    Thd_Crt->TID=Thd_Struct->Sched.TID;
+    Thd_Crt->TID=0;
     
     /* Insert this into the runqueue, and set current thread to it */
     _RME_Run_Ins(Thd_Struct);
@@ -724,7 +723,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     /* Creation complete */
     Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
     
-    return Thd_Crt->TID;
+    return 0;
 }
 /* End Function:_RME_Thd_Boot_Crt ********************************************/
 
@@ -742,7 +741,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
                                this cannot be changed.
               ptr_t Vaddr - The physical address to store the kernel object.
 Output      : None.
-Return      : ret_t - If successful, the Thread ID; or an error code.
+Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Kmem,
                    cid_t Cap_Thd, cid_t Cap_Proc, ptr_t Max_Prio, ptr_t Vaddr)
@@ -783,12 +782,14 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
 
     /* Get the thread, and start creation */
     Thd_Struct=(struct RME_Thd_Struct*)Vaddr;
-    Thd_Struct->Sched.TID=__RME_Fetch_Add(&RME_TID_Inc, 1);
+    /* These thread's TID default to 0 */
+    Thd_Struct->Sched.TID=0;
     Thd_Struct->Sched.Refcnt=0;
     Thd_Struct->Sched.Slices=0;
     Thd_Struct->Sched.State=RME_THD_TIMEOUT;
     Thd_Struct->Sched.Signal=0;
     Thd_Struct->Sched.Max_Prio=Max_Prio;
+    Thd_Struct->Sched.Sched_Sig=0;
     /* Currently the thread is not binded to any particular CPU */
     Thd_Struct->Sched.CPUID_Bind=RME_THD_UNBIND;
     /* This is a marking that this thread haven't sent any notifications */
@@ -812,12 +813,12 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
                         RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_FREE|
                         RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT|
                         RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST;
-    Thd_Crt->TID=Thd_Struct->Sched.TID;
+    Thd_Crt->TID=0;
     
     /* Creation complete */
     Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
 
-    return Thd_Crt->TID;
+    return 0;
 }
 /* End Function:_RME_Thd_Crt *************************************************/
 
@@ -984,17 +985,25 @@ Description : Set a thread's priority level, and its scheduler thread. When ther
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               cid_t Cap_Thd - The capability to the thread. 2-Level.
               cid_t Cap_Thd_Sched - The scheduler thread. 2-Level.
+              cid_t Cap_Sig - The signal endpoint for scheduler notifications. This signal
+                              endpoint will be sent to whenever this thread has a fault, or
+                              timeouts. This is purely optional; if it is not needed, pass
+                              in RME_CAPID_NULL which is a number smaller than zero.
+              tid_t TID - The thread ID. This is user-supplied, and the kernel will not
+                          check whether there are two threads that have the same TID.
               ptr_t Prio - The priority level, higher is more critical.
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, 
-                          cid_t Cap_Thd, cid_t Cap_Thd_Sched, ptr_t Prio)
+ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
+                          cid_t Cap_Thd_Sched, cid_t Cap_Sig, tid_t TID, ptr_t Prio)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Cap_Thd* Thd_Sched;
+    struct RME_Cap_Sig* Sig_Op;
     struct RME_Thd_Struct* Thd_Op_Struct;
     struct RME_Thd_Struct* Thd_Sched_Struct;
+    struct RME_Sig_Struct* Sig_Op_Struct;
     ptr_t Old_CPUID;
     ptr_t CPUID;
     
@@ -1005,6 +1014,19 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_CHILD);
     RME_CAP_CHECK(Thd_Sched,RME_THD_FLAG_SCHED_PARENT);
     
+    /* See if we need the signal endpoint for this operation */
+    if(Cap_Sig>=0)
+    {
+        RME_CAPTBL_GETCAP(Captbl,Cap_Sig,RME_CAP_SIG,struct RME_Cap_Sig*,Sig_Op);
+        RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_SCHED);
+    }
+    else
+    	Sig_Op=0;
+
+    /* Check the TID passed in to see whether it is good */
+    if((TID>=RME_THD_FAULT_FLAG)||(TID<0))
+    	return RME_ERR_PTH_TID;
+
     /* See if the target thread is already binded. If yes, we just quit */
     Thd_Op_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Old_CPUID=Thd_Op_Struct->Sched.CPUID_Bind;
@@ -1024,7 +1046,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     /* See if the priority relationship is correct */
     if(Thd_Sched_Struct->Sched.Max_Prio<Prio)
         return RME_ERR_PTH_PRIO;
-    
+
     /* Yes, it is on the current processor. Try to bind the thread */
     if(__RME_Comp_Swap(&(Thd_Op_Struct->Sched.CPUID_Bind), &Old_CPUID, CPUID)==0)
         return RME_ERR_PTH_CONFLICT;
@@ -1034,6 +1056,19 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
      * to this core */
     Thd_Op_Struct->Sched.Parent=Thd_Sched_Struct;
     Thd_Op_Struct->Sched.Prio=Prio;
+    Thd_Op_Struct->Sched.TID=TID;
+
+    /* Tie the signal endpoint to it if not zero */
+    if(Sig_Op==0)
+    	Thd_Op_Struct->Sched.Sched_Sig=0;
+    else
+    {
+        Sig_Op_Struct=RME_CAP_GETOBJ(Sig_Op,struct RME_Sig_Struct*);
+    	Thd_Op_Struct->Sched.Sched_Sig=Sig_Op_Struct;
+        /* Increase the reference count of the signal endpoint(not the capability!) */
+        __RME_Fetch_Add(&(Sig_Op_Struct->Refcnt), 1);
+    }
+
     Thd_Sched_Struct->Sched.Refcnt++;
     
     return 0;
@@ -1089,8 +1124,9 @@ ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
         
         /* Get the current highest-priority running thread */
         Thd_Struct=_RME_Run_High(CPUID);
-        /* See if we need a context seitch */
-        if(Thd_Struct!=RME_Cur_Thd[CPUID])
+        RME_ASSERT(Thd_Struct->Sched.Prio>=RME_Cur_Thd[CPUID]->Sched.Prio);
+        /* See if we need a context switch */
+        if(Thd_Struct->Sched.Prio>RME_Cur_Thd[CPUID]->Sched.Prio)
         {
             /* This will cause a solid context switch - The current thread will be set to ready,
              * and we will set the thread that we switch to to be running. */
@@ -1152,6 +1188,10 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
         __RME_List_Crt(&(Thd_Struct->Sched.Notif));
     }
     
+    /* If we have an scheduler event endpoint, release it */
+    if(Thd_Struct->Sched.Sched_Sig!=0)
+    	__RME_Fetch_Add(&(Thd_Struct->Sched.Sched_Sig->Refcnt), -1);
+
     /* Now save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);  
     
@@ -1240,7 +1280,7 @@ ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd)
     if(Thd_Child->Sched.State==RME_THD_FAULT)
         return Thd_Child->Sched.TID|RME_THD_FAULT_FLAG;
 
-    /* Return the notification TID */
+    /* Return the notification TID, which means that it is just a timeout */
     return Thd_Child->Sched.TID;
 }
 /* End Function:_RME_Thd_Sched_Rcv *******************************************/
@@ -1400,24 +1440,25 @@ ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* R
             Thd_Dst_Struct->Sched.Slices+=Time;
         }
     }
-    
+
     /* Is the source time used up? If yes, delete it from the run queue, and notify its 
      * parent. If it is not in the run queue, The state of the source must be BLOCKED. We
      * notify its parent when we are waking it up in the future, so do nothing here */
     if(Thd_Src_Struct->Sched.Slices==0)
     {
+    	/* If it is blocked, we do not change its state, and only sends the scheduler notification */
         if((Thd_Src_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Src_Struct->Sched.State==RME_THD_READY))
         {
             _RME_Run_Del(Thd_Src_Struct);
             Thd_Src_Struct->Sched.State=RME_THD_TIMEOUT;
-            /* Notify the parent about this */
-            _RME_Run_Notif(Thd_Src_Struct);
         }
+        /* Notify the parent about this */
+        _RME_Run_Notif(Reg, Thd_Src_Struct);
     }
-    
+
     /* Now save the system call return value to the caller stack - how much time the destination have now */
-    __RME_Set_Syscall_Retval(Reg,Thd_Dst_Struct->Sched.Slices);  
-    
+    __RME_Set_Syscall_Retval(Reg,Thd_Dst_Struct->Sched.Slices);
+
     /* See what was the state of the destination thread. If it is timeout, then
      * activate it. If it is other state, then leave it alone */
     if(Thd_Dst_Struct->Sched.State==RME_THD_TIMEOUT)
@@ -1426,26 +1467,9 @@ ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* R
         _RME_Run_Ins(Thd_Dst_Struct);
     }
     
-    /* See we are timeout because we did this delegation(If the current thread
-     * is timeout, it is sure that it became timeout in this function). It is not
-     * possible that the current thread be BLOCKED here */
-    if(RME_Cur_Thd[CPUID]->Sched.State==RME_THD_TIMEOUT)
-    {
-        Thd_Dst_Struct=_RME_Run_High(CPUID);
-        _RME_Run_Swt(Reg, RME_Cur_Thd[CPUID], Thd_Dst_Struct);
-        Thd_Dst_Struct->Sched.State=RME_THD_RUNNING;
-        RME_Cur_Thd[CPUID]=Thd_Dst_Struct;
-    }
-    /* See if the delegated thread have a higher priority and is ready, thus it
-     * will preempt us */
-    else if((Thd_Dst_Struct->Sched.State==RME_THD_READY)&&
-            (Thd_Dst_Struct->Sched.Prio>RME_Cur_Thd[CPUID]->Sched.Prio))
-    {
-        _RME_Run_Swt(Reg, RME_Cur_Thd[CPUID], Thd_Dst_Struct);
-        Thd_Dst_Struct->Sched.State=RME_THD_RUNNING;
-        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
-        RME_Cur_Thd[CPUID]=Thd_Dst_Struct;
-    }
+    /* All possible kernel send (scheduler notifications) done, now pick the highest
+     * priority thread to run */
+    _RME_Kern_High(Reg, CPUID);
     
     return 0;
 }
@@ -1462,8 +1486,8 @@ Description : Switch to another thread. The thread to switch to must have the sa
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table. 
               struct RME_Reg_Struct* Reg - The register set structure.
               cid_t Cap_Thd - The capability to the thread. 2-Level. If this is
-                              -1, the kernel will pickup whatever thread that have
-                              the highest priority and have time to run. 
+                              smaller than zero, the kernel will pickup whatever thread
+                              that have the highest priority and have time to run. 
               ptr_t Full_Yield - This is a flag to indicate whether this is a full yield.
                                  If it is, the kernel will kill all the time allocated for 
                                  this thread.
@@ -1475,11 +1499,12 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
 {
     struct RME_Cap_Thd* Next_Thd_Cap;
     struct RME_Thd_Struct* Next_Thd;
+    struct RME_Thd_Struct* High_Thd;
     ptr_t CPUID;
     
     /* See if the scheduler is given the right to pick a thread to run */
     CPUID=RME_CPUID();                                                   
-    if(Cap_Thd!=RME_THD_ARBITRARY)
+    if(Cap_Thd>=0)
     {
         RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_THD,struct RME_Cap_Thd*,Next_Thd_Cap);
         /* Check if the target cap is not frozen and allows such operations */
@@ -1506,10 +1531,13 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
             RME_Cur_Thd[CPUID]->Sched.Slices=0;
             RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
-            _RME_Run_Notif(RME_Cur_Thd[CPUID]);
-            /* See if it is the current thread. If yes, we choose another guy */
-            if(RME_Cur_Thd[CPUID]==Next_Thd)
-                Next_Thd=_RME_Run_High(CPUID);
+            _RME_Run_Notif(Reg,RME_Cur_Thd[CPUID]);
+            /* See if the next thread is on the same priority level with the designated thread.
+             * because we have sent a notification, we are not sure about this now. Additionally,
+             * if the next thread is the current thread, we are forced to switch to someone else. */
+            High_Thd=_RME_Run_High(CPUID);
+            if((High_Thd->Sched.Prio>Next_Thd->Sched.Prio)||(RME_Cur_Thd[CPUID]==Next_Thd))
+            	Next_Thd=High_Thd;
         }
         else
             RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
@@ -1523,7 +1551,7 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
             RME_Cur_Thd[CPUID]->Sched.Slices=0;
             RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
-            _RME_Run_Notif(RME_Cur_Thd[CPUID]);
+            _RME_Run_Notif(Reg, RME_Cur_Thd[CPUID]);
         }
         else
         {
@@ -1538,13 +1566,14 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     
     /* Now save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);
-    
+
     /* Set the next thread's state first */
     Next_Thd->Sched.State=RME_THD_RUNNING;
-    /* Are we switching to ourself? If yes, skip all the next operations */
+    /* Here we do not need to call _RME_Kern_High because we have picked the
+     * highest priority thread according to the logic above. We just check if
+     * it happens to be ourself */
     if(RME_Cur_Thd[CPUID]==Next_Thd)
         return 0;
-
     /* We have a solid context switch */
     _RME_Run_Swt(Reg, RME_Cur_Thd[CPUID], Next_Thd);
     RME_Cur_Thd[CPUID]=Next_Thd;

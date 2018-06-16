@@ -38,8 +38,6 @@ Description : The header of page table.
 #define RME_THD_INF_TIME           (RME_THD_INIT_TIME-1)
 /* Thread time upper limit - always ths infinite time */
 #define RME_THD_MAX_TIME           (RME_THD_INF_TIME)
-/* Let the kernel pick a thread to run */
-#define RME_THD_ARBITRARY          RME_ALLBITS
 /* Get the size of kernel objects */
 #define RME_PROC_SIZE              sizeof(struct RME_Proc_Struct)
 #define RME_THD_SIZE               sizeof(struct RME_Thd_Struct)
@@ -141,6 +139,8 @@ struct RME_Thd_Sched
     struct RME_Proc_Struct* Proc; 
     /* What is its parent thread? Reference the parent structure */
     struct RME_Thd_Struct* Parent;
+    /* What is the signal endpoint to send to if we have scheduler notifications? (optional) */
+    struct RME_Sig_Struct* Sched_Sig;
     /* The event list for the thread */
     struct RME_List Event;
 };
@@ -193,9 +193,6 @@ struct RME_Thd_Struct
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
-/* TODO:This can cause some cache-line contention, and NUMA problems. Fix these later */
-/* The TID incremental counter */
-static ptr_t RME_TID_Inc;
 /* The per-core priority and running list */
 static struct RME_Run_Struct RME_Run[RME_CPU_NUM];
 /*****************************************************************************/
@@ -236,7 +233,7 @@ __EXTERN__ ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs);
 __EXTERN__ ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
 __EXTERN__ ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
 __EXTERN__ struct RME_Thd_Struct* _RME_Run_High(ptr_t CPUID);
-__EXTERN__ ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
+__EXTERN__ ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd);
 __EXTERN__ ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                               struct RME_Thd_Struct* Curr_Thd, 
                               struct RME_Thd_Struct* Next_Thd);
@@ -261,10 +258,9 @@ __EXTERN__ ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
                                    cid_t Cap_Thd, ptr_t Entry, ptr_t Stack, ptr_t Param);
 __EXTERN__ ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd, ptr_t Kaddr);
 __EXTERN__ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
-                                     cid_t Cap_Thd_Sched, ptr_t Prio);
+                                     cid_t Cap_Thd_Sched, cid_t Cap_Sig, tid_t TID, ptr_t Prio);
 __EXTERN__ ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
-                                     struct RME_Reg_Struct* Reg,
-                                     cid_t Cap_Thd, ptr_t Prio);
+                                     struct RME_Reg_Struct* Reg, cid_t Cap_Thd, ptr_t Prio);
 __EXTERN__ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
                                      struct RME_Reg_Struct* Reg, cid_t Cap_Thd);
 __EXTERN__ ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd);

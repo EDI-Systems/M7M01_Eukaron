@@ -184,6 +184,7 @@ Return      : ptr_t - Always 0.
 ptr_t __RME_Boot(void)
 {
     ptr_t Cur_Addr;
+    ptr_t Size;
     
     Cur_Addr=RME_KMEM_VA_START;
     
@@ -226,11 +227,6 @@ ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
-    /* Create the initial kernel endpoint for thread faults */
-    RME_Fault_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_FAULT, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
-    
     /* Create the initial kernel endpoint for all other interrupts */
     RME_Int_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_INT, Cur_Addr)==0);
@@ -243,6 +239,12 @@ ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0, 0)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+    
+    /* Print the size of some kernel objects */
+    Size=RME_INV_SIZE/sizeof(ptr_t);
+    Size=RME_SIG_SIZE/sizeof(ptr_t);
+    Size=RME_THD_SIZE/sizeof(ptr_t);
+    Size=RME_PROC_SIZE/sizeof(ptr_t);
     
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
     RME_ASSERT(Cur_Addr<RME_CMX_KMEM_BOOT_FRONTIER);
@@ -874,6 +876,8 @@ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num)
     Flags->Group|=(((ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
     Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
     _RME_Kern_Snd(Reg, RME_Int_Sig[RME_CPUID()]);
+    /* Remember to pick the guy with the highest priority after we did all sends */
+    _RME_Kern_High(Reg, RME_CPUID());
 }
 /* End Function:__RME_CMX_Generic_Handler ************************************/
 

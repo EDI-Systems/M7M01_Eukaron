@@ -15,13 +15,13 @@ Description : The header of signal and invocation management facilities.
 #define RME_MAX_SIG_NUM           (((ptr_t)(-1))>>1)
 
 /* The kernel object sizes */
-#define RME_INV_SIZE          sizeof(struct RME_Inv_Struct)
-#define RME_SIG_SIZE          sizeof(struct RME_Sig_Struct)
+#define RME_INV_SIZE              sizeof(struct RME_Inv_Struct)
+#define RME_SIG_SIZE              sizeof(struct RME_Sig_Struct)
 
 /* Get the top of invocation stack */
-#define RME_INVSTK_TOP(THD)   ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
-                                                        (0): \
-                                                        ((THD)->Inv_Stack.Next)))
+#define RME_INVSTK_TOP(THD)       ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
+                                                            (0): \
+                                                            ((THD)->Inv_Stack.Next)))
 /*****************************************************************************/
 /* __SIGINV_H_DEFS__ */
 #endif
@@ -41,12 +41,15 @@ Description : The header of signal and invocation management facilities.
 /* The signal structure */
 struct RME_Sig_Struct
 {
-    /* Is this a kernel signal endpoint? */
-    ptr_t Kernel_Flag;
     /* The number of signals sent to here */
     ptr_t Signal_Num;
+    /* The reference count of this signal endpoint. If this is larger than zero,
+     * it must either be a kernel endpoint or a scheduler endpoint, and we can
+     * send to it in the kernel */
+    ptr_t Refcnt;
     /* What thread blocked on this one */
     struct RME_Thd_Struct* Thd;
+
 };
 
 /* The signal capability */
@@ -136,9 +139,11 @@ __EXTERN__ ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Capt
 __EXTERN__ ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                               cid_t Cap_Kmem, cid_t Cap_Sig, ptr_t Vaddr);
 __EXTERN__ ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Sig);
+__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, ptr_t CPUID);
 __EXTERN__ ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig);
 __EXTERN__ ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, cid_t Cap_Sig);
-__EXTERN__ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, cid_t Cap_Sig);
+__EXTERN__ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                              cid_t Cap_Sig, ptr_t Option);
 
 __EXTERN__ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                               cid_t Cap_Kmem, cid_t Cap_Inv, cid_t Cap_Proc, ptr_t Vaddr);

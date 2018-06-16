@@ -130,10 +130,8 @@ typedef s32 ret_t;
 #define RME_BOOT_INIT_KMEM                   5
 /* The initial timer endpoint */
 #define RME_BOOT_INIT_TIMER                  6
-/* The initial fault endpoint */
-#define RME_BOOT_INIT_FAULT                  7
-/* The initial default endpoint for all other interrupts - this will directly go to the INTD. */
-#define RME_BOOT_INIT_INT                    8
+/* The initial default endpoint for all other interrupts */
+#define RME_BOOT_INIT_INT                    7
 
 /* Booting capability layout */
 #define RME_CMX_CPT              ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))

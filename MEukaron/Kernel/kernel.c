@@ -346,7 +346,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_SIG_RCV:
         {
             Retval=_RME_Sig_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                        Param[0] /* cid_t Cap_Sig */);
+                                        Param[0] /* cid_t Cap_Sig */,
+										Param[1] /* ptr_t Option */);
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Call kernel functions */
@@ -547,9 +548,11 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_THD_SCHED_BIND:
         {
-            Retval=_RME_Thd_Sched_Bind(Captbl, Param[0] /* cid_t Cap_Thd */,
-                                               Param[1] /* cid_t Cap_Thd_Sched */, 
-                                               Param[2] /* ptr_t Prio */);
+            Retval=_RME_Thd_Sched_Bind(Captbl, Capid                  /* cid_t Cap_Thd */,
+            								   RME_PARAM_D1(Param[0]) /* cid_t Cap_Thd_Sched */,
+											   RME_PARAM_D0(Param[0]) /* cid_t Cap_Sig */,
+											   Param[1]               /* tid_t TID */,
+                                               Param[2]               /* ptr_t Prio */);
             break;
         }
         case RME_SVC_THD_SCHED_RCV:
@@ -618,7 +621,6 @@ Return      : None.
 void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
 {
 	ptr_t CPUID;
-	struct RME_Thd_Struct* Next_Thd;
 
 	CPUID=RME_CPUID();
 	if(RME_Cur_Thd[CPUID]->Sched.Slices<RME_THD_INF_TIME)
@@ -630,21 +632,19 @@ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
 		{
 			/* Running out of time. Kick this guy out and pick someone else */
 			RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
-			/* Send a scheduler notification to its parent */
-			_RME_Run_Notif(RME_Cur_Thd[CPUID]);
+			/* Delete it from runqueue */
 			_RME_Run_Del(RME_Cur_Thd[CPUID]);
-			Next_Thd=_RME_Run_High(CPUID);
-			RME_ASSERT(Next_Thd!=0);
-			Next_Thd->Sched.State=RME_THD_RUNNING;
-			/* Do a solid context switch, to the new guy */
-			_RME_Run_Swt(Reg, RME_Cur_Thd[CPUID],Next_Thd);
-			RME_Cur_Thd[CPUID]=Next_Thd;
+			/* Send a scheduler notification to its parent */
+			_RME_Run_Notif(Reg,RME_Cur_Thd[CPUID]);
 		}
 	}
 
 	/* Send a signal to the kernel system ticker receive endpoint. This endpoint
 	 * is per-core */
 	_RME_Kern_Snd(Reg, RME_Tick_Sig[CPUID]);
+
+	/* All kernel send complete, now pick the highest priority thread to run */
+	_RME_Kern_High(Reg, CPUID);
 }
 /* End Function:_RME_Tick_SMP_Handler ****************************************/
 

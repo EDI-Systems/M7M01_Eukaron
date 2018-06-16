@@ -50,8 +50,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_PTH_PGTBL            ((-1)+RME_ERR_PTH)
 /* Conflicting operations happening at the same time */
 #define RME_ERR_PTH_CONFLICT         ((-2)+RME_ERR_PTH)
-/* Thread invocation stack size error */
-#define RME_ERR_PTH_INVSTK           ((-3)+RME_ERR_PTH)
+/* Thread ID error */
+#define RME_ERR_PTH_TID              ((-3)+RME_ERR_PTH)
 /* Thread state is invalid or we have failed the CAS */
 #define RME_ERR_PTH_INVSTATE         ((-4)+RME_ERR_PTH)
 /* The thread priority is not correct */
@@ -67,7 +67,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 
 /* The base of signal/invocation errors */
 #define RME_ERR_SIV                  (-30)
-/* This invocation capability/signal endpoint is already active */
+/* This invocation capability/signal endpoint is already active, or wrong option on receive */
 #define RME_ERR_SIV_ACT              ((-1)+RME_ERR_SIV)
 /* This invocation succeeded, but a fault happened in the thread, and we forced a invocation return */
 #define RME_ERR_SIV_FAULT            ((-2)+RME_ERR_SIV)
@@ -176,8 +176,16 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Signal */
 /* This cap to signal endpoint allows sending to it */
 #define RME_SIG_FLAG_SND             (1<<0)
-/* This cap to signal endpoint allows receiving on it */
-#define RME_SIG_FLAG_RCV             (1<<1)
+/* This cap to signal endpoint allows blocking single receive on it */
+#define RME_SIG_FLAG_RCV_BS          (1<<1)
+/* This cap to signal endpoint allows blocking multi receive on it */
+#define RME_SIG_FLAG_RCV_BM          (1<<2)
+/* This cap to signal endpoint allows non-blocking single receive on it */
+#define RME_SIG_FLAG_RCV_NS          (1<<3)
+/* This cap to signal endpoint allows non-blocking multi receive on it */
+#define RME_SIG_FLAG_RCV_NM          (1<<4)
+/* This cap to signal endpoint allows sending scheduler notification to it */
+#define RME_SIG_FLAG_SCHED           (1<<5)
 /* End Operation Flags *******************************************************/
 
 /* Special Definitions *******************************************************/
@@ -293,6 +301,12 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_NUM_1M            (20)
 #define RME_PGTBL_NUM_2M            (21)
 #define RME_PGTBL_NUM_4M            (22)
+
+/* Receive options */
+#define RME_RCV_BS                  (0)
+#define RME_RCV_BM                  (1)
+#define RME_RCV_NS                  (2)
+#define RME_RCV_NM                  (3)
 /* End Special Definitions ***************************************************/
 
 /* Syystem Calls *************************************************************/
