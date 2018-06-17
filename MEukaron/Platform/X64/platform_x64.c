@@ -1901,6 +1901,7 @@ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num)
 
 		default:break;
 	}
+    /* Remember to perform context switch after any kernel sends */
 }
 /* End Function:__RME_X64_Generic_Handler ************************************/
 
