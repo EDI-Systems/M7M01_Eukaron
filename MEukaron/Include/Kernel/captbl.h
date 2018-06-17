@@ -83,9 +83,9 @@ Description : The header of type table. All the branches in these macros are
  * [15 Reserved][14 High Table(Master)  8][7  2L(1)][6   Low Table(Child) 0]
  * 64-bit systems: Capid range 0x0000 - 0x7FFF
  * [31 Reserved][30 High Table(Master) 16][15 2L(1)][14  Low Table(Child) 0] */
-#define RME_CAPID_NULL             (1<<(sizeof(ptr_t)*4-1))
+#define RME_CAPID_NULL             (((cid_t)1)<<(sizeof(ptr_t)*4-1))
 /* See if the capid is a 2-level representation */
-#define RME_CAPID_2L               (1<<(sizeof(ptr_t)*2-1))
+#define RME_CAPID_2L               (((cid_t)1)<<(sizeof(ptr_t)*2-1))
 /* High-level capability table capability position */
 #define RME_CAP_H(X)               ((X)>>(sizeof(ptr_t)*2))
 /* Low-level capability table capability position */

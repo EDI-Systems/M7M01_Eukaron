@@ -1505,16 +1505,6 @@ ptr_t __RME_Boot(void)
 		Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     }
 
-    /* Create the initial kernel endpoints for thread faults */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_FAULT, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_Num_CPU));
-    for(Count=0;Count<RME_X64_Num_CPU;Count++)
-    {
-		RME_Fault_Sig[Count]=(struct RME_Sig_Struct*)Cur_Addr;
-		RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_FAULT, Count, Cur_Addr)==0);
-		Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
-    }
-
     /* Create the initial kernel endpoints for all other interrupts */
     RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_Num_CPU));

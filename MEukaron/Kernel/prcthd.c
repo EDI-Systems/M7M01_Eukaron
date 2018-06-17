@@ -1015,7 +1015,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
     RME_CAP_CHECK(Thd_Sched,RME_THD_FLAG_SCHED_PARENT);
     
     /* See if we need the signal endpoint for this operation */
-    if(Cap_Sig>=0)
+    if(Cap_Sig<RME_CAPID_NULL)
     {
         RME_CAPTBL_GETCAP(Captbl,Cap_Sig,RME_CAP_SIG,struct RME_Cap_Sig*,Sig_Op);
         RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_SCHED);
@@ -1504,7 +1504,7 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     
     /* See if the scheduler is given the right to pick a thread to run */
     CPUID=RME_CPUID();                                                   
-    if(Cap_Thd>=0)
+    if(Cap_Thd<RME_CAPID_NULL)
     {
         RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_THD,struct RME_Cap_Thd*,Next_Thd_Cap);
         /* Check if the target cap is not frozen and allows such operations */
@@ -1556,7 +1556,7 @@ ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
         else
         {
             /* This operation is just to make sure that there are any other thread
-             * at the same priviledge level, we're not switching to ourself */
+             * at the same priority level, we're not switching to ourself */
             _RME_Run_Del(RME_Cur_Thd[CPUID]);
             _RME_Run_Ins(RME_Cur_Thd[CPUID]);
             RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;

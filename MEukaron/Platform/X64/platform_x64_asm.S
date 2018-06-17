@@ -591,16 +591,16 @@ _RME_Kmain:
 /* End Function:_RME_Kmain ***************************************************/
 
 /* Begin Function:__RME_MSB_Get ***********************************************
-Description    : Get the MSB of the word.
+Description    : Get the MSB of the word. The kernel is guaranteed not to call this
+                 function with a zero word, so we don't need to handle this edge case
+                 actually.
 Input          : ptr_t Val - The value.
 Output         : None.
 Return         : ptr_t - The MSB position.
 Register Usage : None.
 ******************************************************************************/
 __RME_MSB_Get:
-    LZCNTQ              %RDI,%RDI
-    MOVQ                $63,%RAX
-    SUBQ                %RDI,%RAX
+    BSRQ                %RDI,%RAX
     RETQ
 /* End Function:__RME_MSB_Get ************************************************/
 
