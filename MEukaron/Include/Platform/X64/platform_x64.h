@@ -156,10 +156,8 @@ typedef s64 ret_t;
 #define RME_BOOT_TBL_KMEM                    5
 /* The initial timer endpoint - this is a per-core array */
 #define RME_BOOT_TBL_TIMER                   6
-/* The initial fault endpoint - this is a per-core array */
-#define RME_BOOT_TBL_FAULT                   7
 /* The initial default endpoint for all other interrupts - this is a per-core array */
-#define RME_BOOT_TBL_INT                     8
+#define RME_BOOT_TBL_INT                     7
 
 /* The initial page table indices in the RME_BOOT_TBL_PGTBL */
 #define RME_BOOT_PML4                        0
