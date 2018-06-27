@@ -184,7 +184,7 @@ Return      : ptr_t - Always 0.
 ptr_t __RME_Boot(void)
 {
     ptr_t Cur_Addr;
-    ptr_t Size;
+    /* volatile ptr_t Size; */
     
     Cur_Addr=RME_KMEM_VA_START;
     
@@ -240,11 +240,11 @@ ptr_t __RME_Boot(void)
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0, 0)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
-    /* Print the size of some kernel objects */
-    Size=RME_INV_SIZE/sizeof(ptr_t);
+    /* Print the size of some kernel objects, only used in debugging */
+    /* Size=RME_INV_SIZE/sizeof(ptr_t);
     Size=RME_SIG_SIZE/sizeof(ptr_t);
     Size=RME_THD_SIZE/sizeof(ptr_t);
-    Size=RME_PROC_SIZE/sizeof(ptr_t);
+    Size=RME_PROC_SIZE/sizeof(ptr_t); */
     
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
     RME_ASSERT(Cur_Addr<RME_CMX_KMEM_BOOT_FRONTIER);

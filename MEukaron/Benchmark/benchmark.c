@@ -112,7 +112,7 @@ struct RME_CMX_Ret_Stack
 
 /* Includes ******************************************************************/
 #include "RME.h"
-#include "stm32f7xx.h"
+#include "stm32f4xx.h"
 /* Need to export error codes, and size of each object, in words! */
 /* End Includes **************************************************************/
 
