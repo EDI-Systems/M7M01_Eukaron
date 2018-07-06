@@ -23,13 +23,21 @@ Operation 1    Operation 2    Reason why it is safe(Operation 2 follows operatio
 Create         Create         Only one creation will be successful, because OCCUPY slot is done by CAS.
 Create         Delete         OCCUPY only set the FROZEN. Delete will require a TYPE data, which will
                               only be set after the creation completes. If it is set, then the FROZEN
-                              will be cleared, and the deletion CAS will fail.
+                              will be cleared, and the deletion CAS will fail. ABA problem cannot occur
+                              because of create-freeze quiescence.
+                              If there is no quiescence at Create-Freeze, the following may occur:
+                              Thread1: Check ---------------------------------------------- Delete(CAS)
+                              Thread2: Check - Delete - Create - Freeze -------------------------------
+                              In this case, thread 1 will perform a wrong deletion on the new capability
+                              (the CAS will be successful), but this cap is actually a new cap created
+                              by the thread 2 at the same location, not the old cap, and its quiescence
+                              may not be satisfied.
 Create         Freeze         OCCUPY only set the FROZEN. FROZEN will require that bit not set.
 Create         Add-Src        Add-Src will require a TYPE data, which will only be set after the 
                               creation completes.
 Create         Add-Dst        Only one creation will be successful, because OCCUPY slot is done by CAS.
 Create         Remove         OCCUPY only set the FROZEN. Remove will require a TYPE data, which will
-                              only be set after the creation completes.
+                              only be set after the creation completes. See Create-Delete for details.
 Create         Use            OCCUPY only set the FROZEN. Use the cap will require a TYPE data, which
                               will only be set after the creation completes.
 -------------------------------------------------------------------------------------------
@@ -125,7 +133,6 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
     Captbl=&(((struct RME_Cap_Captbl*)Vaddr)[Cap_Captbl]);
     /* Set the cap's parameters according to what we have just created */
     RME_CAP_CLEAR(Captbl);
-    Captbl->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
     Captbl->Head.Parent=0;
     Captbl->Head.Object=Vaddr;
     /* New cap allows all operations */
@@ -133,6 +140,10 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
                        RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
                        RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
     Captbl->Entry_Num=Entry_Num;
+
+    /* At last, write into slot the correct information, and clear the frozen bit */
+    RME_WRITE_RELEASE();
+    Captbl->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
 
     return Cap_Captbl;
 }
@@ -189,7 +200,9 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
                            RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
                            RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
     Captbl_Crt->Entry_Num=Entry_Num;
+
     /* At last, write into slot the correct information, and clear the frozen bit */
+    RME_WRITE_RELEASE();
     Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
 
     return 0;
@@ -252,7 +265,9 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
                            RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
                            RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
     Captbl_Crt->Entry_Num=Entry_Num;
+
     /* At last, write into slot the correct information, and clear the frozen bit */
+    RME_WRITE_RELEASE();
     Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
 
     return 0;
@@ -262,8 +277,8 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
 /* Begin Function:_RME_Captbl_Del *********************************************
 Description : Delete a layer of capability table.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              cid_t Cap_Captbl_Del  - The capability table containing the cap to
-                                      captbl for deletion. 2-Level.
+              cid_t Cap_Captbl_Del - The capability table containing the cap to
+                                     captbl for deletion. 2-Level.
               cid_t Cap_Del - The capability to the captbl being deleted. 1-Level.
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
@@ -304,8 +319,9 @@ ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Del, cid_t
     /* Remember these two variables for deletion */
     Object=RME_CAP_GETOBJ(Captbl_Del,ptr_t);
     Size=RME_CAPTBL_SIZE(Captbl_Del->Entry_Num);
-    
+
     /* Now we can safely delete the cap */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Captbl_Del,Type_Ref);
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object,Size)!=0);
@@ -348,10 +364,17 @@ ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Frz, cid_t
     if((Type_Ref&RME_CAP_FROZEN)!=0)
         return RME_ERR_CAP_FROZEN;
     
+    /* Need a read acquire barrier here to avoid stale reads below */
+    RME_READ_ACQUIRE();
+    /* See if the slot is quiescent */
+    if(RME_UNLIKELY(RME_CAP_QUIE(Captbl_Frz->Head.Timestamp)==0))
+        return RME_ERR_CAP_QUIE;
+
     /* Update the timestamp */
     Captbl_Frz->Head.Timestamp=RME_Timestamp;
     
     /* Finally, freeze it */
+    RME_WRITE_RELEASE();
     if(__RME_Comp_Swap(&(Captbl_Frz->Head.Type_Ref),&Type_Ref,Type_Ref|RME_CAPTBL_FLAG_FRZ)==0)
         return RME_ERR_CAP_EXIST;
     
@@ -504,7 +527,9 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         Cap_Dst_Struct->Head.Type_Ref=0;
         return RME_ERR_CAP_REFCNT;
     }
-    /* Write in the correct information */
+
+    /* Write in the correct information at last */
+    RME_WRITE_RELEASE();
     Cap_Dst_Struct->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref),0);
     
     return 0;
@@ -540,7 +565,9 @@ ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Rem, cid_t
     RME_CAP_REM_CHECK(Captbl_Rem,Type_Ref);
     /* Remember this for refcnt operations */
     Parent=(struct RME_Cap_Struct*)(Captbl_Rem->Head.Parent);
-    /* Remove the cap */
+
+    /* Remove the cap at last */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Captbl_Rem,Type_Ref);
     
     /* Check done, decrease its parent's refcnt */

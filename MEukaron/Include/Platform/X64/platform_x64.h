@@ -130,6 +130,10 @@ typedef s64 ret_t;
 #define RME_HYP_SIZE                         0
 /* The kernel object allocation table address - relocated */
 #define RME_KOTBL                            ((ptr_t*)0xFFFF800001000000)
+/* Read acquire barriers guarantee that all operations after a read stays after it */
+#define RME_READ_ACQUIRE()
+/* Write release barriers guarantee that all operations before a write stays before it */
+#define RME_WRITE_RELEASE()                  __RME_X64_Write_Release()
 
 /* FPU type definitions */
 #define RME_X64_FPU_AVX                      (1)
@@ -1384,6 +1388,7 @@ __EXTERN__ void __RME_X64_LAPIC_Ack(void);
 __EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
 __EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);
 __EXTERN__ ptr_t __RME_Fetch_And(ptr_t* Ptr, ptr_t Operand);
+__EXTERN__ ptr_t __RME_X64_Write_Release(void);
 /* MSB counting */
 EXTERN ptr_t __RME_MSB_Get(ptr_t Val);
 /* Debugging */

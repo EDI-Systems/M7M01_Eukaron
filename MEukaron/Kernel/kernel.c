@@ -155,6 +155,7 @@ ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t 
     Kern_Crt->Head.Flags=RME_KERN_FLAG_FULL_RANGE;
     
     /* Creation complete, and make it undeletable */
+    RME_WRITE_RELEASE();
     Kern_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_KERN,1);
     return 0;
 }
@@ -175,7 +176,7 @@ Return      : ret_t - If the call is successful, it will return whatever the
                       never return an negative value); else error code. If the 
                       kernel function ever causes a context switch, it is responsible
                       for setting the return value. On failure, a context switch 
-                      in the kernel fucntion is banned.
+                      in the kernel function is banned.
 ******************************************************************************/
 ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                     cid_t Cap_Kern, ptr_t Func_ID, ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
@@ -184,9 +185,7 @@ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl,Cap_Kern,RME_CAP_KERN,struct RME_Cap_Kern*,Kern_Op);    
-    /* Check if the target cap is not frozen */
-    if((Kern_Op->Head.Type_Ref&RME_CAP_FROZEN)!=0)
-        return RME_ERR_CAP_FROZEN;
+
     /* Check if the range of calling is allowed - This is kernel function specific */
     if((Func_ID>RME_KERN_FLAG_HIGH(Kern_Op->Head.Flags))||
        (Func_ID<RME_KERN_FLAG_LOW(Kern_Op->Head.Flags)))
@@ -251,7 +250,9 @@ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     /* Extra flags */
     Kmem_Crt->Start=Kmem_Start;
     Kmem_Crt->End=Kmem_End-1;
+
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Kmem_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_KMEM,1);
     return 0;
 }
