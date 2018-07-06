@@ -1418,4 +1418,4 @@ ___RME_CMX_MPU_Set
     END
 ;/* End Of File **************************************************************/
 
-;/* Copyright (C) 2011-2013 Evo-Devo Instrum. All rights reserved ************/
+;/* Copyright (C) Evo-Devo Instrum. All rights reserved **********************/

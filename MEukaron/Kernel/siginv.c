@@ -92,9 +92,10 @@ ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Sig_Crt->Head.Object=Vaddr;
     /* Receive only because this is from kernel. Kernel send does not check flags anyway */
     Sig_Crt->Head.Flags=RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|
-    		            RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
+                        RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
 
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Sig_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_SIG,0);
     
     return 0;
@@ -156,6 +157,7 @@ ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                         RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM|RME_SIG_FLAG_SCHED;
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Sig_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_SIG,0);
     
     return 0;
@@ -208,6 +210,7 @@ ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Si
     }
     
     /* Now we can safely delete the cap */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Sig_Del,Type_Ref);
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((ptr_t)Sig_Struct,RME_SIG_SIZE)!=0);
@@ -227,32 +230,32 @@ Return      : None.
 ******************************************************************************/
 void _RME_Kern_High(struct RME_Reg_Struct* Reg, ptr_t CPUID)
 {
-	struct RME_Thd_Struct* Thd_Struct;
+    struct RME_Thd_Struct* Thd_Struct;
 
-	Thd_Struct=_RME_Run_High(CPUID);
-	RME_ASSERT(Thd_Struct!=0);
+    Thd_Struct=_RME_Run_High(CPUID);
+    RME_ASSERT(Thd_Struct!=0);
 
-	/* Are these two threads the same? */
-	if(Thd_Struct==RME_Cur_Thd[CPUID])
-		return;
+    /* Are these two threads the same? */
+    if(Thd_Struct==RME_Cur_Thd[CPUID])
+        return;
 
-	/* Is the current thread running or ready? */
-	if((RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)||
-	   (RME_Cur_Thd[CPUID]->Sched.State==RME_THD_READY))
-	{
-		/* Yes, compare the priority to see if we need to do it */
-		if(Thd_Struct->Sched.Prio<=RME_Cur_Thd[CPUID]->Sched.Prio)
-			return;
-	}
+    /* Is the current thread running or ready? */
+    if((RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)||
+       (RME_Cur_Thd[CPUID]->Sched.State==RME_THD_READY))
+    {
+        /* Yes, compare the priority to see if we need to do it */
+        if(Thd_Struct->Sched.Prio<=RME_Cur_Thd[CPUID]->Sched.Prio)
+            return;
+    }
 
-	/* We will have a solid context switch on this point */
-	if(RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)
-		RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
+    /* We will have a solid context switch on this point */
+    if(RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)
+        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
 
-	/* Yes. Do a context switch */
-	_RME_Run_Swt(Reg,RME_Cur_Thd[CPUID],Thd_Struct);
-	Thd_Struct->Sched.State=RME_THD_RUNNING;
-	RME_Cur_Thd[CPUID]=Thd_Struct;
+    /* Yes. Do a context switch */
+    _RME_Run_Swt(Reg,RME_Cur_Thd[CPUID],Thd_Struct);
+    Thd_Struct->Sched.State=RME_THD_RUNNING;
+    RME_Cur_Thd[CPUID]=Thd_Struct;
 }
 /* End Function:_RME_Kern_High ***********************************************/
 
@@ -292,10 +295,10 @@ ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_Struc
     
     if(Unblock!=0)
     {
-    	/* The thread is blocked, and it is on our core. Unblock it, and
-		 * set the return value to one as always, Even if we were specifying
-		 * multi-receive. This is because other cores may reduce the count
-		 * to zero while we are doing this */
+        /* The thread is blocked, and it is on our core. Unblock it, and
+         * set the return value to one as always, Even if we were specifying
+         * multi-receive. This is because other cores may reduce the count
+         * to zero while we are doing this */
         __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg), 1);
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
@@ -380,7 +383,7 @@ ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, ci
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this */
-		__RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg), 1);
+        __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg), 1);
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
         {
@@ -450,7 +453,7 @@ Return      : ret_t - If successful, a non-negative number containing the number
                       received will be returned; else an error code.
 ******************************************************************************/
 ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-		           cid_t Cap_Sig, ptr_t Option)
+                   cid_t Cap_Sig, ptr_t Option)
 {
     struct RME_Cap_Sig* Sig_Op;
     struct RME_Sig_Struct* Sig_Struct;
@@ -463,11 +466,11 @@ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     /* Check if the target captbl is not frozen and allows such operations */
     switch(Option)
     {
-    	case RME_RCV_BS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BS);break;
-    	case RME_RCV_BM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BM);break;
-    	case RME_RCV_NS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NS);break;
-    	case RME_RCV_NM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NM);break;
-    	default:return RME_ERR_SIV_ACT;
+        case RME_RCV_BS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BS);break;
+        case RME_RCV_BM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BM);break;
+        case RME_RCV_NS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NS);break;
+        case RME_RCV_NM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NM);break;
+        default:return RME_ERR_SIV_ACT;
     }
     
     /* See if we can receive on that endpoint - if someone blocks, we must
@@ -491,46 +494,46 @@ ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     Old_Value=Sig_Struct->Signal_Num;
     if(Old_Value>0)
     {
-    	/* We can't use fetch-and-add because we don't know if other cores will reduce count to zero */
-    	if((Option==RME_RCV_BS)||(Option==RME_RCV_NS))
-    	{
-			/* Try to take one */
-			if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,Old_Value-1)==0)
-				return RME_ERR_SIV_CONFLICT;
-			/* We have taken it, now return what we have taken */
-			__RME_Set_Syscall_Retval(Reg, 1);
-    	}
-    	else
-    	{
-			/* Try to take all */
-			if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,0)==0)
-				return RME_ERR_SIV_CONFLICT;
-			/* We have taken all, now return what we have taken */
-			__RME_Set_Syscall_Retval(Reg, Old_Value);
-    	}
+        /* We can't use fetch-and-add because we don't know if other cores will reduce count to zero */
+        if((Option==RME_RCV_BS)||(Option==RME_RCV_NS))
+        {
+            /* Try to take one */
+            if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,Old_Value-1)==0)
+                return RME_ERR_SIV_CONFLICT;
+            /* We have taken it, now return what we have taken */
+            __RME_Set_Syscall_Retval(Reg, 1);
+        }
+        else
+        {
+            /* Try to take all */
+            if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,0)==0)
+                return RME_ERR_SIV_CONFLICT;
+            /* We have taken all, now return what we have taken */
+            __RME_Set_Syscall_Retval(Reg, Old_Value);
+        }
         return 0;
     }
     else
     {
         /* There's no value, Old_Value==0, We use this variable to try to block */
-    	if((Option==RME_RCV_BS)||(Option==RME_RCV_BM))
-    	{
-    		if(__RME_Comp_Swap((ptr_t*)(&(Sig_Struct->Thd)),&Old_Value,(ptr_t)Thd_Struct)==0)
-				return RME_ERR_SIV_CONFLICT;
-			/* Now we block our current thread. No need to set any return value to the register
-			 * set here, because we do not yet know how many signals will be there when the thread
-			 * unblocks. The unblocking does not need an option so we don't keep that; we always
-			 * treat it as single receive when we unblock anyway. */
-			Thd_Struct->Sched.State=RME_THD_BLOCKED;
-			Thd_Struct->Sched.Signal=Sig_Struct;
-			_RME_Run_Del(Thd_Struct);
-			RME_Cur_Thd[CPUID]=_RME_Run_High(CPUID);
-			_RME_Run_Swt(Reg,Thd_Struct,RME_Cur_Thd[CPUID]);
-			RME_Cur_Thd[CPUID]->Sched.State=RME_THD_RUNNING;
-    	}
-    	else
-    		/* We have taken nothing but the system call is successful anyway */
-    		__RME_Set_Syscall_Retval(Reg, 0);
+        if((Option==RME_RCV_BS)||(Option==RME_RCV_BM))
+        {
+            if(__RME_Comp_Swap((ptr_t*)(&(Sig_Struct->Thd)),&Old_Value,(ptr_t)Thd_Struct)==0)
+                return RME_ERR_SIV_CONFLICT;
+            /* Now we block our current thread. No need to set any return value to the register
+             * set here, because we do not yet know how many signals will be there when the thread
+             * unblocks. The unblocking does not need an option so we don't keep that; we always
+             * treat it as single receive when we unblock anyway. */
+            Thd_Struct->Sched.State=RME_THD_BLOCKED;
+            Thd_Struct->Sched.Signal=Sig_Struct;
+            _RME_Run_Del(Thd_Struct);
+            RME_Cur_Thd[CPUID]=_RME_Run_High(CPUID);
+            _RME_Run_Swt(Reg,Thd_Struct,RME_Cur_Thd[CPUID]);
+            RME_Cur_Thd[CPUID]->Sched.State=RME_THD_RUNNING;
+        }
+        else
+            /* We have taken nothing but the system call is successful anyway */
+            __RME_Set_Syscall_Retval(Reg, 0);
     }
     
     return 0;
@@ -598,6 +601,7 @@ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Inv_Crt->Head.Flags=RME_INV_FLAG_SET|RME_INV_FLAG_ACT;
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Inv_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_INV,0);
     
     return 0;
@@ -642,6 +646,7 @@ ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_In
     }
     
     /* Now we can safely delete the cap */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Inv_Del,Type_Ref);
     /* Dereference the process */
     __RME_Fetch_Add(&(Inv_Struct->Proc->Refcnt), -1);
@@ -743,7 +748,7 @@ Description : Return from the invocation function, and set the return value to
               the old register set. This function does not need a capability
               table to work.
 Input       : struct RME_Reg_Struct* Reg - The register set for this thread.
-			  ptr_t Retval - The return value of this synchronous invocation.
+              ptr_t Retval - The return value of this synchronous invocation.
               ptr_t Fault_Flag - Are we attempting a return from fault?
 Output      : None.
 Return      : ret_t - If successful, 0; or an error code.
@@ -770,6 +775,7 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Retval, ptr_t Fault_Flag)
      * the return value of the invocation system call itself as well */
     __RME_Inv_Reg_Restore(Reg, &(Inv_Struct->Ret));
     __RME_Set_Inv_Retval(Reg, Retval);
+
     /* We have successfully returned, set the invocation as inactive */
     Inv_Struct->Active=0;
 
@@ -782,9 +788,9 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Retval, ptr_t Fault_Flag)
     /* Same assumptions as in invocation activation */
     Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
     if(Inv_Struct!=0)
-    	__RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
+        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,ptr_t));
     else
-    	__RME_Pgtbl_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t));
+        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,ptr_t));
     
     return 0;
 }

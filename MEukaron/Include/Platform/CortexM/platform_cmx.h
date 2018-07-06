@@ -109,6 +109,9 @@ typedef s32 ret_t;
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_CMX_MPU_Data))
 /* The kernel object allocation table address - original */
 #define RME_KOTBL               RME_Kotbl
+/* No read/write barriers needed on Cortex-M, because they are single core */
+#define RME_READ_ACQUIRE()
+#define RME_WRITE_RELEASE()
 
 /* The CPU and application specific macros are here */
 #include "platform_cmx_conf.h"
@@ -139,14 +142,12 @@ typedef s32 ret_t;
 #define RME_CMX_SRAM_BASE        0x20000000
 /* For Cortex-M:
  * The layout of the page entry is:
- * [31:7] Paddr - The physical address to map this page to, or the physical
+ * [31:5] Paddr - The physical address to map this page to, or the physical
  *                address of the next layer of page table. This address is
- *                always aligned to 128 bytes. 
- * [6] Static - Is this page a static page?
- * [5] Bufferable - Is this page write-bufferable?
- * [4] Cacheable - Is this page cacheable?
- * [3] Execute - Do we allow execution(instruction fetch) on this page?
- * [2] Readonly - Is this page user read-only?
+ *                always aligned to 32 bytes.
+ * [4:2] Reserved - Because subregions must share attributes, we have the permission
+ *                  flags in the page table headers ("Page_Flags" field). These flags
+ *                  are completely identical to RME standard page flags.
  * [1] Terminal - Is this page a terminal page, or points to another page table?
  * [0] Present - Is this entry present?
  *
@@ -162,24 +163,16 @@ typedef s32 ret_t;
 /* Page entry bit definitions */
 #define RME_CMX_PGTBL_PRESENT           (1<<0)
 #define RME_CMX_PGTBL_TERMINAL          (1<<1)
-#define RME_CMX_PGTBL_READONLY          (1<<2)
-#define RME_CMX_PGTBL_READWRITE         (1<<3)
-#define RME_CMX_PGTBL_EXECUTE           (1<<4)
-#define RME_CMX_PGTBL_CACHEABLE         (1<<5)
-#define RME_CMX_PGTBL_BUFFERABLE        (1<<6)
-#define RME_CMX_PGTBL_STATIC            (1<<7)
 /* The address mask for the actual page address */
 #define RME_CMX_PGTBL_PTE_ADDR(X)       ((X)&0xFFFFFFFC)
 /* The address mask for the next level page table address */
 #define RME_CMX_PGTBL_PGD_ADDR(X)       ((X)&0xFFFFFFFC)
-#define RME_CMX_PGTBL_FLAGMASK(X)       ((X)&0x00000078)
 /* Page table metadata definitions */
 #define RME_CMX_PGTBL_START(X)          ((X)&0xFFFFFFFE)
 #define RME_CMX_PGTBL_SIZEORD(X)        ((X)>>16)
 #define RME_CMX_PGTBL_NUMORD(X)         ((X)&0x0000FFFF)
 #define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
 #define RME_CMX_PGTBL_PAGENUM(X)        ((X)&0x0000FFFF)
-#define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
 #define RME_CMX_PGTBL_INC_PAGENUM(X)    ((X)+=0x00000001)
 #define RME_CMX_PGTBL_DEC_PAGENUM(X)    ((X)-=0x00000001)
 #define RME_CMX_PGTBL_INC_DIRNUM(X)     ((X)+=0x00010000)
@@ -384,7 +377,7 @@ struct __RME_CMX_MPU_Data
 {
     /* [31:16] Static [15:0] Present */
     ptr_t State;
-    struct __RME_CMX_MPU_Entry Data[8];
+    struct __RME_CMX_MPU_Entry Data[RME_CMX_MPU_REGIONS];
 };
 
 /* Interrupt flags - this type of flags will only appear on MPU-based systems */

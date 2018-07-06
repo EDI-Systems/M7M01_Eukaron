@@ -118,9 +118,6 @@ while(0)
 #define RME_CAP_CHECK(CAP,FLAG) \
 do \
 { \
-    /* See if the capability is frozen */ \
-    if(RME_UNLIKELY(((CAP)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
-        return RME_ERR_CAP_FROZEN; \
     /* See if this capability allows such operations */ \
     if(RME_UNLIKELY(((CAP)->Head.Flags&(FLAG))!=(FLAG))) \
         return RME_ERR_CAP_FLAG; \
@@ -148,10 +145,12 @@ do \
 } \
 while(0)
 
-/* Checks to be done before deleting */
+/* Checks to be done before deleting - the barrier is for preventing stale timestamp
+ * before the FROZEN bit is set under read reordering situations. */
 #define RME_CAP_DEL_CHECK(CAP,TEMP,TYPE) \
 do \
 { \
+	/* Atomic read */ \
     (TEMP)=(CAP)->Head.Type_Ref; \
     /* See if the slot is frozen, and its cap must be non-zero */ \
     if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
@@ -162,6 +161,8 @@ do \
     /* See if the cap type is correct. Only deletion checks type, while removing does not */ \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(TYPE))) \
         return RME_ERR_CAP_TYPE; \
+    /* Need a read acquire barrier here to avoid stale reads below */ \
+    RME_READ_ACQUIRE(); \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
@@ -175,10 +176,12 @@ do \
 } \
 while(0)
     
-/* Checks to be done before removal */
+/* Checks to be done before removal - the barrier is for preventing stale timestamp
+ * before the FROZEN bit is set under read reordering situations. */
 #define RME_CAP_REM_CHECK(CAP,TEMP) \
 do \
 { \
+	/* Atomic read */ \
     (TEMP)=(CAP)->Head.Type_Ref; \
     /* See if the slot is frozen, and its cap must be non-zero */ \
     if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
@@ -186,6 +189,8 @@ do \
     /* See if we are in the creation/delegation process - This frozen flag is set by the creator */ \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)==RME_CAP_NOP)) \
         return RME_ERR_CAP_NULL; \
+    /* Need a read acquire barrier here to avoid stale reads below */ \
+    RME_READ_ACQUIRE(); \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
@@ -217,6 +222,8 @@ do \
     (TEMP)=RME_CAP_TYPEREF(RME_CAP_NOP,0); \
     if(RME_UNLIKELY(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),RME_CAP_FROZEN)==0)) \
         return RME_ERR_CAP_EXIST; \
+    /* We have taken the slot. Now log the quiescence counter in */ \
+	(CAP)->Head.Timestamp=RME_Timestamp; \
 } \
 while(0)
 
@@ -232,7 +239,19 @@ do \
 } \
 while(0)
 
-/* Check if the captbl contains the general 2-level cap */
+/* Check if the captbl contains the general 2-level cap. The reason why two read
+ * acquires are required is:
+ * The first read acquire is for handling the case where the other CPU is deleting
+ * the capability. In this case, the type reads a stale value before the delete
+ * happens, if it is reordered with the FROZEN check. If the FROZEN check passes
+ * due to completion of deletion, then two checks will all be passed without
+ * identifying the race issue.
+ * The second read acquire is for handling the case where the other CPU is creating
+ * the capability. Suppose we are now operating on an empty slot, and the other CPU
+ * have not started the creation yet. If we allow the other operation that follow the
+ * TYPE check to reorder with it, then we are checking something that is not even
+ * created at all.(and by the time type check is taking place, the creation finishes
+ * so it passes). This also will cause a race condition. */
 #define RME_CAPTBL_GETCAP(CAPTBL,CAP_NUM,CAP_TYPE,TYPE,PARAM) \
 do \
 { \
@@ -244,8 +263,15 @@ do \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Struct*)[(CAP_NUM)]); \
+		/* See if the capability is frozen */ \
+		if(RME_UNLIKELY(((PARAM)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
+    		return RME_ERR_CAP_FROZEN; \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
         if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
     } \
     /* Yes, this is a 2-level cap */ \
     else \
@@ -259,17 +285,27 @@ do \
         /* See if the captbl is frozen for deletion or removal */ \
         if(RME_UNLIKELY(((PARAM)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
             return RME_ERR_CAP_FROZEN; \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
         /* See if this is a captbl */ \
         if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=RME_CAP_CAPTBL)) \
             return RME_ERR_CAP_TYPE; \
-        \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
         /* Check if the 2nd-layer captbl is over range */ \
         if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Captbl*)(PARAM))->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
+		/* See if the capability is frozen */ \
+		if(RME_UNLIKELY(((PARAM)->Head.Type_Ref&RME_CAP_FROZEN)!=0)) \
+    		return RME_ERR_CAP_FROZEN; \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
         if(RME_UNLIKELY(RME_CAP_TYPE((PARAM)->Head.Type_Ref)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
+        /* Need a read acquire barrier here to avoid stale reads below */ \
+        RME_READ_ACQUIRE(); \
     } \
 } \
 while(0)

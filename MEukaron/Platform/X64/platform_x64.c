@@ -1761,6 +1761,7 @@ void NDBG(void)
 {
 	write_string( 0x07, "Here", 0);
 }
+
 /* Crap for test */
 void write_string( int colour, const char *string, ptr_t pos)
 {
@@ -2180,6 +2181,7 @@ Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos, ptr_t* Paddr, ptr_t* Flags)
 {
     ptr_t* Table;
+    ptr_t Temp;
 
     /* Check if the position is within the range of this page table */
     if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0)
@@ -2187,25 +2189,27 @@ ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos, ptr_t* Paddr
 
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgtbl_Op,ptr_t*);
+    /* Get the position requested - atomic read */
+    Temp=Table[Pos];
 
     /* Start lookup - is this a terminal page, or? */
     if(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)
     {
-        if((Table[Pos]&RME_X64_MMU_P)==0)
+        if((Temp&RME_X64_MMU_P)==0)
             return RME_ERR_PGT_OPFAIL;
     }
     else
     {
-        if(((Table[Pos]&RME_X64_MMU_P)==0)||((Table[Pos]&RME_X64_MMU_PDE_SUP)==0))
+        if(((Temp&RME_X64_MMU_P)==0)||((Temp&RME_X64_MMU_PDE_SUP)==0))
             return RME_ERR_PGT_OPFAIL;
     }
 
     /* This is a page. Return the physical address and flags */
     if(Paddr!=0)
-        *Paddr=RME_X64_MMU_ADDR(Table[Pos]);
+        *Paddr=RME_X64_MMU_ADDR(Temp);
 
     if(Flags!=0)
-        *Flags=RME_X64_PGFLG_NAT2RME(Table[Pos]);
+        *Flags=RME_X64_PGFLG_NAT2RME(Temp);
 
     return 0;
 }
@@ -2232,6 +2236,7 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
 {
     ptr_t* Table;
     ptr_t Pos;
+    ptr_t Temp;
     ptr_t Size_Cnt;
     /* Accumulates the flag information about each level - these bits are ANDed */
     ptr_t Flags_Accum;
@@ -2257,10 +2262,12 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
     {
         /* Calculate where is the entry - always 0 to 512*/
         Pos=(Vaddr>>Size_Cnt)&0x1FF;
+        /* Atomic read */
+        Temp=Table[Pos];
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
-        if((Table[Pos]&RME_X64_MMU_P)==0)
+        if((Temp&RME_X64_MMU_P)==0)
             return RME_ERR_PGT_OPFAIL;
-        if(((Table[Pos]&RME_X64_MMU_PDE_SUP)!=0)||(Size_Cnt==RME_PGTBL_SIZE_4K))
+        if(((Temp&RME_X64_MMU_PDE_SUP)!=0)||(Size_Cnt==RME_PGTBL_SIZE_4K))
         {
             /* This is a page - we found it */
             if(Pgtbl!=0)
@@ -2268,26 +2275,26 @@ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl
             if(Map_Vaddr!=0)
                 *Map_Vaddr=RME_ROUND_DOWN(Vaddr,Size_Cnt);
             if(Paddr!=0)
-                *Paddr=RME_X64_MMU_ADDR(Table[Pos]);
+                *Paddr=RME_X64_MMU_ADDR(Temp);
             if(Size_Order!=0)
                 *Size_Order=Size_Cnt;
             if(Num_Order!=0)
                 *Num_Order=9;
             if(Flags!=0)
-                *Flags=RME_X64_PGFLG_NAT2RME(No_Execute|(Table[Pos]&Flags_Accum));
+                *Flags=RME_X64_PGFLG_NAT2RME(No_Execute|(Temp&Flags_Accum));
 
             break;
         }
         else
         {
             /* This is a directory, we goto that directory to continue walking */
-            Flags_Accum&=Table[Pos];
-            No_Execute|=Table[Pos]&RME_X64_MMU_NX;
-            Table=(ptr_t*)RME_X64_PA2VA(RME_X64_MMU_ADDR(Table[Pos]));
+            Flags_Accum&=Temp;
+            No_Execute|=Temp&RME_X64_MMU_NX;
+            Table=(ptr_t*)RME_X64_PA2VA(RME_X64_MMU_ADDR(Temp));
         }
 
         /* The size order always decreases by 512 */
-        Size_Order-=RME_PGTBL_SIZE_512B;
+        Size_Cnt-=RME_PGTBL_SIZE_512B;
     }
     return 0;
 }

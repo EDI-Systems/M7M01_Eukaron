@@ -81,6 +81,8 @@ AVX-512 registers:
     .global             __RME_Fetch_Add
     /* Atomic and */
     .global             __RME_Fetch_And
+    /* Write release for x64 */
+    .global             __RME_X64_Write_Release
     /* Disable all interrupts */
     .global             __RME_Disable_Int
     /* Enable all interrupts */
@@ -494,6 +496,7 @@ __RME_Comp_Swap:
     LOCK CMPXCHGQ       %RDX,(%RDI)
     JNZ                 __RME_Comp_Swap_Fail
     MOVQ                $1,%RAX
+    /* In x86, locked instructions act as a fence */
     RETQ
 __RME_Comp_Swap_Fail:
     MOVQ                %RAX,(%RSI)
@@ -511,6 +514,7 @@ Return      : ptr_t - The value before the addition.
 ******************************************************************************/
 __RME_Fetch_Add:
     MOVQ                (%RDI),%RAX
+    /* In x86, locked instructions act as a fence */
     LOCK ADDQ           %RSI,(%RDI)
     RETQ
 /* End Function:__RME_Fetch_Add **********************************************/
@@ -518,8 +522,6 @@ __RME_Fetch_Add:
 /* Begin Function:__RME_Fetch_And *********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
-              On Cortex-M there is only one core. There's basically no need to do
-              anything special.
 Input       : ptr_t* Ptr - The pointer to the data.
               cnt_t Operand - The number to logic AND with the destination.
 Output      : ptr_t* Ptr - The pointer to the data.
@@ -527,9 +529,21 @@ Return      : ptr_t - The value before the AND operation.
 ******************************************************************************/
 __RME_Fetch_And:
     MOVQ                (%RDI),%RAX
+    /* In x86, locked instructions act as a fence */
     LOCK ANDQ           %RSI,(%RDI)
     RETQ
 /* End Function:__RME_Fetch_And **********************************************/
+
+/* Begin Function:__RME_X64_Write_Release *************************************
+Description : The write-release memory fence, to avoid read/write reorderings.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+__RME_X64_Write_Release:
+    MFENCE
+    RETQ
+/* End Function:__RME_X64_Write_Release **************************************/
 
 /* Begin Function:__RME_X64_Pgtbl_Set *****************************************
 Description : Set the processor's page table.

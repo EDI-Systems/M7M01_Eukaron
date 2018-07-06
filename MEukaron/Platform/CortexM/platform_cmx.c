@@ -951,7 +951,7 @@ ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     {
         ((struct __RME_CMX_MPU_Data*)Ptr)->State=0;
         
-        for(Count=0;Count<8;Count++)
+        for(Count=0;Count<RME_CMX_MPU_REGIONS;Count++)
         {
             ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_CMX_MPU_VALID|Count;
             ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0;
@@ -1116,7 +1116,8 @@ Description : Map a page directory into the page table.
 Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
               struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
               ptr_t Pos - The position in the destination page table.
-              ptr_t Flags - This have no effect for MPU-based architectures.
+              ptr_t Flags - This have no effect for MPU-based architectures
+                            (because page table addresses use up the whole word).
 Output      : None.
 Return      : ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
@@ -1165,7 +1166,7 @@ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos,
     /* Update MPU settings if there are static pages mapped into the source. If there
      * are any, update the MPU settings */
     if((RME_CMX_PGTBL_PAGENUM(Child_Meta->Dir_Page_Count)!=0)&&
-       (((Child_Meta->Page_Flags)&RME_CMX_PGTBL_STATIC)!=0))
+       (((Child_Meta->Page_Flags)&RME_PGTBL_STATIC)!=0))
     {
         if(___RME_Pgtbl_MPU_Update(Child_Meta, RME_CMX_MPU_UPD)==RME_ERR_PGT_OPFAIL)
         {
@@ -1228,7 +1229,7 @@ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos)
 }
 /* End Function:__RME_Pgtbl_Pgdir_Unmap **************************************/
 
-/* Begin Function:__RME_Pgtbl_Lookup ********************************************
+/* Begin Function:__RME_Pgtbl_Lookup ******************************************
 Description : Lookup a page entry in a page directory.
 Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page directory to lookup.
               ptr_t Pos - The position to look up.

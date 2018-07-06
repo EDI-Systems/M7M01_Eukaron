@@ -41,7 +41,7 @@ Description : The process and thread management code of RME RTOS.
 /* End Includes **************************************************************/
 
 /* Begin Function:__RME_List_Crt **********************************************
-Description : Create a doubly linkled list.
+Description : Create a doubly linked list.
 Input       : volatile struct RME_List* Head - The pointer to the list head.
 Output      : None.
 Return      : None.
@@ -378,8 +378,8 @@ ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     }
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Proc_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PROC,0);
-    
     return 0;
 }
 /* End Function:_RME_Proc_Boot_Crt *******************************************/
@@ -466,6 +466,7 @@ ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, cid_t C
     }
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Proc_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PROC,0);
     
     return 0;
@@ -511,6 +512,7 @@ ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_P
      }
     
     /* Now we can safely delete the cap */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Proc_Del,Type_Ref);
     
     /* Decrease the refcnt for the two caps */
@@ -721,8 +723,9 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     RME_Cur_Thd[Thd_Struct->Sched.CPUID_Bind]=Thd_Struct;
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
-    
+
     return 0;
 }
 /* End Function:_RME_Thd_Boot_Crt ********************************************/
@@ -816,6 +819,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
     Thd_Crt->TID=0;
     
     /* Creation complete */
+    RME_WRITE_RELEASE();
     Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
 
     return 0;
@@ -860,6 +864,7 @@ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Th
     }
     
     /* Now we can safely delete the cap */
+    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Thd_Del,Type_Ref);
     
     /* Is the thread using any invocation? If yes, just pop the invocation
@@ -1050,6 +1055,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
     /* Yes, it is on the current processor. Try to bind the thread */
     if(__RME_Comp_Swap(&(Thd_Op_Struct->Sched.CPUID_Bind), &Old_CPUID, CPUID)==0)
         return RME_ERR_PTH_CONFLICT;
+    RME_WRITE_RELEASE();
     
     /* Binding successful. Do operations to finish this. There's no need to worry about
      * other cores' operations on this thread because this thread is already binded
@@ -1069,6 +1075,7 @@ ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, cid_t Cap_Thd,
         __RME_Fetch_Add(&(Sig_Op_Struct->Refcnt), 1);
     }
 
+    /* We can use this because it is core-local */
     Thd_Sched_Struct->Sched.Refcnt++;
     
     return 0;
@@ -1230,6 +1237,7 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Set the state to unbinded so other cores can bind */
+    RME_WRITE_RELEASE();
     Thd_Struct->Sched.CPUID_Bind=RME_THD_UNBIND;
     return 0;
 }
