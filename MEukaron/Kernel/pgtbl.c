@@ -83,7 +83,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
         return RME_ERR_PGT_HW;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
@@ -97,6 +97,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {  
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
+            RME_WRITE_RELEASE();
             Pgtbl_Crt->Head.Type_Ref=0;
             return RME_ERR_CAP_KOTBL;
         }
@@ -105,11 +106,12 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
+            RME_WRITE_RELEASE();
             Pgtbl_Crt->Head.Type_Ref=0;
             return RME_ERR_CAP_KOTBL;
         }
     }
-
+    
     Pgtbl_Crt->Head.Parent=0;
     Pgtbl_Crt->Head.Object=Vaddr;
     /* Set the property of the page table to only act as source and creating process */
@@ -119,10 +121,8 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
-    /* Done. We start initialization of the page table, and we also add all 
-     * kernel pages to them. If unsuccessful, we revert operations. At here, 
-     * all the information of the page table should be filled in, except for
-     * its header */
+    /* We start initialization of the page table, and we also add all kernel pages
+     * to them if they are top-level. If unsuccessful, we revert operations. */
     if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0)
     {
         /* This must be successful */
@@ -132,6 +132,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
         
         /* Unsuccessful. Revert operations */
+        RME_WRITE_RELEASE();
         Pgtbl_Crt->Head.Type_Ref=0;
         return RME_ERR_PGT_HW;
     }
@@ -162,6 +163,7 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 {
     struct RME_Cap_Pgtbl* Pgtbl_Parent;
     struct RME_Cap_Pgtbl* Pgtbl_Child;
+    ptr_t Type_Ref;
 
     /* The total size order of the child table */
     ptr_t Child_Size_Ord;
@@ -171,8 +173,8 @@ ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 #endif
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Child,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Child);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Child,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Child,Type_Ref);
     /* Check if both page table caps are not frozen but don't check flags */
     RME_CAP_CHECK(Pgtbl_Parent, 0);
     RME_CAP_CHECK(Pgtbl_Child, 0);
@@ -230,9 +232,10 @@ ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl,
                           ptr_t Paddr, ptr_t Pos, ptr_t Flags)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Op;
+    ptr_t Type_Ref;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op);    
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op,Type_Ref);    
     /* Check if the target captbl is not frozen, but don't check their properties */
     RME_CAP_CHECK(Pgtbl_Op,0);
 
@@ -299,8 +302,8 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
         return RME_ERR_PGT_HW;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
@@ -319,6 +322,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {  
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
+            RME_WRITE_RELEASE();
             Pgtbl_Crt->Head.Type_Ref=0;
             return RME_ERR_CAP_KOTBL;
         }
@@ -327,6 +331,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
+            RME_WRITE_RELEASE();
             Pgtbl_Crt->Head.Type_Ref=0;
             return RME_ERR_CAP_KOTBL;
         }
@@ -341,10 +346,8 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
-    /* Done. We start initialization of the page table, and we also add all 
-     * kernel pages to them. If unsuccessful, we revert operations. At here, 
-     * all the information of the page table should be filled in, except for
-     * its header */
+    /* We start initialization of the page table, and we also add all kernel pages
+     * to them if they are top-level. If unsuccessful, we revert operations. */
     if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0)
     {
         /* This must be successful */
@@ -354,6 +357,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
         
         /* Unsuccessful. Revert operations */
+        RME_WRITE_RELEASE();
         Pgtbl_Crt->Head.Type_Ref=0;
         return RME_ERR_PGT_HW;
     }
@@ -388,7 +392,7 @@ ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_
     ptr_t Size;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_DEL);
     
@@ -457,10 +461,11 @@ ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     ptr_t Paddr_Dst;
     ptr_t Paddr_Src;
     ptr_t Flags_Src;
+    ptr_t Type_Ref;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Dst,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Dst);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Src,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Src);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Dst,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Dst,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Src,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Src,Type_Ref);
     /* Check if both page table caps are not frozen and allows such operations */
     RME_CAP_CHECK(Pgtbl_Dst, RME_PGTBL_FLAG_ADD_DST);
     RME_CAP_CHECK(Pgtbl_Src, RME_PGTBL_FLAG_ADD_SRC);
@@ -521,9 +526,10 @@ Return      : ret_t - If the unmapping is successful, it will return 0; else err
 ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl, ptr_t Pos)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Rem;
+    ptr_t Type_Ref;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_CAPTBL,struct RME_Cap_Pgtbl*,Pgtbl_Rem);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_CAPTBL,struct RME_Cap_Pgtbl*,Pgtbl_Rem,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Pgtbl_Rem,RME_PGTBL_FLAG_REM);
     /* Check the operation range - This is page table specific */
@@ -570,10 +576,11 @@ ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     /* The start mapping address in the parent */
     ptr_t Parent_Map_Addr;
 #endif
+    ptr_t Type_Ref;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Child,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Child);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Parent,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Parent,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Child,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Child,Type_Ref);
     /* Check if both page table caps are not frozen and allows such operations */
     RME_CAP_CHECK(Pgtbl_Parent, RME_PGTBL_FLAG_CON_PARENT);
     RME_CAP_CHECK(Pgtbl_Child, RME_PGTBL_FLAG_CON_CHILD);
@@ -629,9 +636,10 @@ Return      : ret_t - If the mapping is successful, it will return 0; else error
 ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, cid_t Cap_Pgtbl, ptr_t Pos)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Des;
+    ptr_t Type_Ref;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_CAPTBL,struct RME_Cap_Pgtbl*,Pgtbl_Des);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_CAPTBL,struct RME_Cap_Pgtbl*,Pgtbl_Des,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Pgtbl_Des,RME_PGTBL_FLAG_DES);
     /* Check the operation range - This is page table specific */

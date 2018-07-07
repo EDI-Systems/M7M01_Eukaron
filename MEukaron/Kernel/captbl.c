@@ -173,7 +173,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
         return RME_ERR_CAP_RANGE;
 
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
 
@@ -185,7 +185,8 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
     {
         /* Failure. Set the Type_Ref back to 0 and abort the creation process */
-        Captbl->Head.Type_Ref=0;
+        RME_WRITE_RELEASE();
+        Captbl_Crt->Head.Type_Ref=0;
         return RME_ERR_CAP_KOTBL;
     }
 
@@ -235,8 +236,8 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
         return RME_ERR_CAP_RANGE;
 
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Kmem,RME_CAP_KMEM,struct RME_Cap_Kmem*,Kmem_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
@@ -250,7 +251,8 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
     {
         /* Failure. Set the Type_Ref back to 0 and abort the creation process */
-        Captbl->Head.Type_Ref=0;
+        RME_WRITE_RELEASE();
+        Captbl_Crt->Head.Type_Ref=0;
         return RME_ERR_CAP_KOTBL;
     }
 
@@ -294,7 +296,7 @@ ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Del, cid_t
     ptr_t Size;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Del,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);    
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Del,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);    
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_DEL);
     
@@ -346,7 +348,7 @@ ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Frz, cid_t
     ptr_t Type_Ref;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Frz,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);    
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Frz,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);    
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_FRZ);
     
@@ -414,8 +416,8 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     ptr_t Kmem_Flags;
 
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Dst,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Dst);
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Src,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Src);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Dst,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Dst,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Src,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Src,Type_Ref);
     /* Check if both captbls are not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Dst,RME_CAPTBL_FLAG_ADD_DST);
     RME_CAP_CHECK(Captbl_Src,RME_CAPTBL_FLAG_ADD_SRC);
@@ -424,11 +426,16 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     RME_CAPTBL_GETSLOT(Captbl_Dst,Cap_Dst,struct RME_Cap_Struct*,Cap_Dst_Struct);
     RME_CAPTBL_GETSLOT(Captbl_Src,Cap_Src,struct RME_Cap_Struct*,Cap_Src_Struct);
     
-    /* Does the source cap exist, and not freezed? */
-    if(Cap_Src_Struct->Head.Type_Ref==0)
-        return RME_ERR_CAP_NULL;
-    if(((Cap_Src_Struct->Head.Type_Ref)&RME_CAP_FROZEN)!=0)
+    /* Atomic read */
+    Type_Ref=Cap_Src_Struct->Head.Type_Ref;
+    /* Is the source cap freezed? */
+    if((Type_Ref&RME_CAP_FROZEN)!=0)
         return RME_ERR_CAP_FROZEN;
+    /* Does the source cap exist? */
+    if(Type_Ref==0)
+        return RME_ERR_CAP_NULL;
+    /* Read barrier to avoid premature checking of the rest */
+    RME_READ_ACQUIRE();
 
     /* Dewarn some compilers that complain about uninitialized variables */
     Kmem_End=0;
@@ -494,11 +501,10 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         if((Flags&(~(Cap_Src_Struct->Head.Flags)))!=0)
             return RME_ERR_CAP_FLAG;
     }
-    /* Is the destination slot unoccupied, and is quiescent? */
+    
+    /* Is the destination slot unoccupied? */
     if(Cap_Dst_Struct->Head.Type_Ref!=0)
         return RME_ERR_CAP_EXIST;
-    if(RME_CAP_QUIE(Cap_Dst_Struct->Head.Timestamp)==0)
-        return RME_ERR_CAP_QUIE;
     
     /* Try to take the empty slot */
     RME_CAPTBL_OCCUPY(Cap_Dst_Struct,Type_Ref);
@@ -524,6 +530,7 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         /* Refcnt overflowed(very unlikely to happen) */
         __RME_Fetch_Add(&(Cap_Src_Struct->Head.Type_Ref), -1);
         /* Clear the taken slot as well */
+        RME_WRITE_RELEASE();
         Cap_Dst_Struct->Head.Type_Ref=0;
         return RME_ERR_CAP_REFCNT;
     }
@@ -555,7 +562,7 @@ ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Rem, cid_t
     struct RME_Cap_Struct* Parent;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Rem,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);    
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Rem,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);    
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_REM);
     
