@@ -140,7 +140,7 @@ ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t 
     ptr_t Type_Ref;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
@@ -182,9 +182,10 @@ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                     cid_t Cap_Kern, ptr_t Func_ID, ptr_t Sub_ID, ptr_t Param1, ptr_t Param2)
 {
     struct RME_Cap_Kern* Kern_Op;
+    ptr_t Type_Ref;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Kern,RME_CAP_KERN,struct RME_Cap_Kern*,Kern_Op);    
+    RME_CAPTBL_GETCAP(Captbl,Cap_Kern,RME_CAP_KERN,struct RME_Cap_Kern*,Kern_Op,Type_Ref);    
 
     /* Check if the range of calling is allowed - This is kernel function specific */
     if((Func_ID>RME_KERN_FLAG_HIGH(Kern_Op->Head.Flags))||
@@ -222,7 +223,7 @@ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     ptr_t Type_Ref;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
