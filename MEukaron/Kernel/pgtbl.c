@@ -97,8 +97,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {  
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
-            RME_WRITE_RELEASE();
-            Pgtbl_Crt->Head.Type_Ref=0;
+            RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
         }
     }
@@ -106,8 +105,7 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
-            RME_WRITE_RELEASE();
-            Pgtbl_Crt->Head.Type_Ref=0;
+            RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
         }
     }
@@ -132,14 +130,12 @@ ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
         
         /* Unsuccessful. Revert operations */
-        RME_WRITE_RELEASE();
-        Pgtbl_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
         return RME_ERR_PGT_HW;
     }
 
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Pgtbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PGTBL,0);
+    RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_PGTBL,0));
     return 0;
 }
 /* End Function:_RME_Pgtbl_Boot_Crt ******************************************/
@@ -322,8 +318,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {  
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
-            RME_WRITE_RELEASE();
-            Pgtbl_Crt->Head.Type_Ref=0;
+            RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
         }
     }
@@ -331,8 +326,7 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     {
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
-            RME_WRITE_RELEASE();
-            Pgtbl_Crt->Head.Type_Ref=0;
+            RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
         }
     }
@@ -357,14 +351,12 @@ ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
         
         /* Unsuccessful. Revert operations */
-        RME_WRITE_RELEASE();
-        Pgtbl_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
         return RME_ERR_PGT_HW;
     }
 
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Pgtbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PGTBL,0);
+    RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_PGTBL,0));
     return 0;
 }
 /* End Function:_RME_Pgtbl_Crt ***********************************************/
@@ -423,7 +415,6 @@ ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_
         Size=RME_PGTBL_SIZE_NOM(RME_PGTBL_NUMORD(Pgtbl_Del->Size_Num_Order));
     
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Pgtbl_Del,Type_Ref);
     /* Try to erase the area - This must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object, Size));

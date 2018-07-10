@@ -142,9 +142,7 @@ ret_t _RME_Captbl_Boot_Init(cid_t Cap_Captbl, ptr_t Vaddr, ptr_t Entry_Num)
     Captbl->Entry_Num=Entry_Num;
 
     /* At last, write into slot the correct information, and clear the frozen bit */
-    RME_WRITE_RELEASE();
-    Captbl->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
-
+    RME_WRITE_RELEASE(&(Captbl->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_CAPTBL,0));
     return Cap_Captbl;
 }
 /* End Function:_RME_Captbl_Boot_Init ****************************************/
@@ -185,8 +183,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
     {
         /* Failure. Set the Type_Ref back to 0 and abort the creation process */
-        RME_WRITE_RELEASE();
-        Captbl_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
 
@@ -203,9 +200,7 @@ ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     Captbl_Crt->Entry_Num=Entry_Num;
 
     /* At last, write into slot the correct information, and clear the frozen bit */
-    RME_WRITE_RELEASE();
-    Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
-
+    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_CAPTBL,0));
     return 0;
 }
 /* End Function:_RME_Captbl_Boot_Crt *****************************************/
@@ -251,8 +246,7 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
     {
         /* Failure. Set the Type_Ref back to 0 and abort the creation process */
-        RME_WRITE_RELEASE();
-        Captbl_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
 
@@ -269,9 +263,7 @@ ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     Captbl_Crt->Entry_Num=Entry_Num;
 
     /* At last, write into slot the correct information, and clear the frozen bit */
-    RME_WRITE_RELEASE();
-    Captbl_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_CAPTBL,0);
-
+    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_CAPTBL,0));
     return 0;
 }
 /* End Function:_RME_Captbl_Crt **********************************************/
@@ -323,7 +315,6 @@ ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Del, cid_t
     Size=RME_CAPTBL_SIZE(Captbl_Del->Entry_Num);
 
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Captbl_Del,Type_Ref);
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object,Size)!=0);
@@ -354,8 +345,10 @@ ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Frz, cid_t
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Frz,struct RME_Cap_Struct*,Captbl_Frz);
-    /* Check if anything is there. If nothing there, the Type_Ref must be 0 */
-    Type_Ref=Captbl_Frz->Head.Type_Ref;
+    
+    /* Check if anything is there. If nothing there, the Type_Ref must be 0. 
+     * Need a read acquire barrier here to avoid stale reads below. */
+    Type_Ref=RME_READ_ACQUIRE(&(Captbl_Frz->Head.Type_Ref));
     /* See if there is a cap */
     if(RME_CAP_TYPE(Type_Ref)==RME_CAP_NOP)
         return RME_ERR_CAP_NULL;
@@ -366,8 +359,6 @@ ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Frz, cid_t
     if((Type_Ref&RME_CAP_FROZEN)!=0)
         return RME_ERR_CAP_FROZEN;
     
-    /* Need a read acquire barrier here to avoid stale reads below */
-    RME_READ_ACQUIRE();
     /* See if the slot is quiescent */
     if(RME_UNLIKELY(RME_CAP_QUIE(Captbl_Frz->Head.Timestamp)==0))
         return RME_ERR_CAP_QUIE;
@@ -376,7 +367,6 @@ ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Frz, cid_t
     Captbl_Frz->Head.Timestamp=RME_Timestamp;
     
     /* Finally, freeze it */
-    RME_WRITE_RELEASE();
     if(__RME_Comp_Swap(&(Captbl_Frz->Head.Type_Ref),&Type_Ref,Type_Ref|RME_CAPTBL_FLAG_FRZ)==0)
         return RME_ERR_CAP_EXIST;
     
@@ -426,16 +416,14 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     RME_CAPTBL_GETSLOT(Captbl_Dst,Cap_Dst,struct RME_Cap_Struct*,Cap_Dst_Struct);
     RME_CAPTBL_GETSLOT(Captbl_Src,Cap_Src,struct RME_Cap_Struct*,Cap_Src_Struct);
     
-    /* Atomic read */
-    Type_Ref=Cap_Src_Struct->Head.Type_Ref;
+    /* Atomic read - Read barrier to avoid premature checking of the rest */
+    Type_Ref=RME_READ_ACQUIRE(&(Cap_Src_Struct->Head.Type_Ref));
     /* Is the source cap freezed? */
     if((Type_Ref&RME_CAP_FROZEN)!=0)
         return RME_ERR_CAP_FROZEN;
     /* Does the source cap exist? */
     if(Type_Ref==0)
         return RME_ERR_CAP_NULL;
-    /* Read barrier to avoid premature checking of the rest */
-    RME_READ_ACQUIRE();
 
     /* Dewarn some compilers that complain about uninitialized variables */
     Kmem_End=0;
@@ -530,15 +518,13 @@ ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         /* Refcnt overflowed(very unlikely to happen) */
         __RME_Fetch_Add(&(Cap_Src_Struct->Head.Type_Ref), -1);
         /* Clear the taken slot as well */
-        RME_WRITE_RELEASE();
-        Cap_Dst_Struct->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Cap_Dst_Struct->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
 
     /* Write in the correct information at last */
-    RME_WRITE_RELEASE();
-    Cap_Dst_Struct->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref),0);
-    
+    RME_WRITE_RELEASE(&(Cap_Dst_Struct->Head.Type_Ref),
+                      RME_CAP_TYPEREF(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref),0));
     return 0;
 }
 /* End Function:_RME_Captbl_Add **********************************************/
@@ -574,7 +560,6 @@ ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Rem, cid_t
     Parent=(struct RME_Cap_Struct*)(Captbl_Rem->Head.Parent);
 
     /* Remove the cap at last */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Captbl_Rem,Type_Ref);
     
     /* Check done, decrease its parent's refcnt */

@@ -204,7 +204,7 @@ ret_t _RME_Kotbl_Erase(ptr_t Kaddr, ptr_t Size)
         /* This address range is not fully populated */
         if((RME_KOTBL[Start]&(Start_Mask&End_Mask))!=(Start_Mask&End_Mask))
             return RME_ERR_KOT_BMP;
-        /* Check done, do the marking - need atomic operations */
+        /* Check done, do the unmarking - need atomic operations */
         __RME_Fetch_And(&(RME_KOTBL[Start]),~(Start_Mask&End_Mask));
     }
     else

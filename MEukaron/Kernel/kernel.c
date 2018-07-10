@@ -155,8 +155,7 @@ ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t 
     Kern_Crt->Head.Flags=RME_KERN_FLAG_FULL_RANGE;
     
     /* Creation complete, and make it undeletable */
-    RME_WRITE_RELEASE();
-    Kern_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_KERN,1);
+    RME_WRITE_RELEASE(&(Kern_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_KERN,1));
     return 0;
 }
 /* End Function:_RME_Kern_Boot_Crt *******************************************/
@@ -191,6 +190,7 @@ ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
     if((Func_ID>RME_KERN_FLAG_HIGH(Kern_Op->Head.Flags))||
        (Func_ID<RME_KERN_FLAG_LOW(Kern_Op->Head.Flags)))
         return RME_ERR_CAP_FLAG;
+
     /* Return whatever the function returns */
     return __RME_Kern_Func_Handler(Reg,Func_ID,Sub_ID,Param1,Param2);
 }
@@ -253,8 +253,7 @@ ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Kmem_Crt->End=Kmem_End-1;
 
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Kmem_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_KMEM,1);
+    RME_WRITE_RELEASE(&(Kmem_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_KMEM,1));
     return 0;
 }
 /* End Function:_RME_Kmem_Boot_Crt *******************************************/
