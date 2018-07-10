@@ -344,8 +344,7 @@ ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_PROC_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -363,8 +362,7 @@ ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
     {
         __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     /* Set the page table, reference it and check for overflow */
@@ -375,14 +373,12 @@ ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt,
         __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
         __RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Proc_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PROC,0);
+    RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_PROC,0));
     return 0;
 }
 /* End Function:_RME_Proc_Boot_Crt *******************************************/
@@ -436,8 +432,7 @@ ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, cid_t C
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_PROC_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -454,8 +449,7 @@ ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, cid_t C
     {
         __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     /* Set the page table, reference it and check for overflow */
@@ -466,15 +460,12 @@ ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl_Crt, cid_t C
         __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
         __RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
-        RME_WRITE_RELEASE();
-        Proc_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Proc_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_PROC,0);
-    
+    RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_PROC,0));
     return 0;
 }
 /* End Function:_RME_Proc_Crt ************************************************/
@@ -518,7 +509,6 @@ ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_P
      }
     
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Proc_Del,Type_Ref);
     
     /* Decrease the refcnt for the two caps */
@@ -682,8 +672,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Thd_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -730,9 +719,7 @@ ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t C
     RME_Cur_Thd[Thd_Struct->Sched.CPUID_Bind]=Thd_Struct;
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
-
+    RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_THD,0));
     return 0;
 }
 /* End Function:_RME_Thd_Boot_Crt ********************************************/
@@ -786,8 +773,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Thd_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
 
@@ -827,9 +813,7 @@ ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Km
     Thd_Crt->TID=0;
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Thd_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_THD,0);
-
+    RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_THD,0));
     return 0;
 }
 /* End Function:_RME_Thd_Crt *************************************************/
@@ -872,7 +856,6 @@ ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Th
     }
     
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Thd_Del,Type_Ref);
     
     /* Is the thread using any invocation? If yes, just pop the invocation
@@ -1249,8 +1232,7 @@ ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Set the state to unbinded so other cores can bind */
-    RME_WRITE_RELEASE();
-    Thd_Struct->Sched.CPUID_Bind=RME_THD_UNBIND;
+    RME_WRITE_RELEASE(&(Thd_Struct->Sched.CPUID_Bind),RME_THD_UNBIND);
     return 0;
 }
 /* End Function:_RME_Thd_Sched_Free ******************************************/

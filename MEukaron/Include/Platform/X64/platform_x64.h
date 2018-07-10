@@ -130,14 +130,14 @@ typedef s64 ret_t;
 #define RME_HYP_SIZE                         0
 /* The kernel object allocation table address - relocated */
 #define RME_KOTBL                            ((ptr_t*)0xFFFF800001000000)
-/* No read acquires needed because x86-64 satisfies read-read and read-write consistency */
-#define RME_READ_ACQUIRE()
-/* No read acquires needed because x86-64 satisfies write-write consistency. In RME, we do
+/* No read acquires needed because x86-64 guarantees read-read and read-write consistency */
+#define RME_READ_ACQUIRE(X)                  (*(X)) 
+/* No read acquires needed because x86-64 guarantees write-write consistency. In RME, we do
  * not use this to restrict the reordering of write-read (because all OCCUPY or similar
  * operations are performed with compare-and-swap which is already required to be serializing
  * when it is implemented in assembly), thus this can also be left empty. In the future, if
- * x86-64 write-write consistency is not perserved, we may need this line back. */
-#define RME_WRITE_RELEASE()                  /* __RME_X64_Write_Release() */
+ * x86-64 write-write consistency is not perserved, we may need memory fencing. */
+#define RME_WRITE_RELEASE(X,V)               ((*(X))=(V))
 
 /* FPU type definitions */
 #define RME_X64_FPU_AVX                      (1)

@@ -171,8 +171,8 @@ while(0)
 #define RME_CAP_DEL_CHECK(CAP,TEMP,TYPE) \
 do \
 { \
-    /* Atomic read */ \
-    (TEMP)=(CAP)->Head.Type_Ref; \
+    /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
+    (TEMP)=RME_READ_ACQUIRE(&((CAP)->Head.Type_Ref)); \
     /* See if the slot is frozen, and its cap must be non-zero */ \
     if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
         return RME_ERR_CAP_FROZEN; \
@@ -182,8 +182,6 @@ do \
     /* See if the cap type is correct. Only deletion checks type, while removing does not */ \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(TYPE))) \
         return RME_ERR_CAP_TYPE; \
-    /* Need a read acquire barrier here to avoid stale reads below */ \
-    RME_READ_ACQUIRE(); \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
@@ -205,16 +203,14 @@ while(0)
 #define RME_CAP_REM_CHECK(CAP,TEMP) \
 do \
 { \
-    /* Atomic read avoids read barrier between frozen check and type check */ \
-    (TEMP)=(CAP)->Head.Type_Ref; \
+    /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
+    (TEMP)=RME_READ_ACQUIRE(&((CAP)->Head.Type_Ref)); \
     /* See if the slot is frozen, and its cap must be non-zero */ \
     if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
         return RME_ERR_CAP_FROZEN; \
     /* See if we are in the creation/delegation process - This frozen flag is set by the creator */ \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)==RME_CAP_NOP)) \
         return RME_ERR_CAP_NULL; \
-    /* Need a read acquire barrier here to avoid stale reads below */ \
-    RME_READ_ACQUIRE(); \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
         return RME_ERR_CAP_QUIE; \
@@ -299,15 +295,13 @@ do \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Struct*)[(CAP_NUM)]); \
-        /* Atomic read avoids read barrier between frozen check and type check */ \
-        (TEMP)=(PARAM)->Head.Type_Ref; \
+        /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
+        (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Ref)); \
         /* See if the capability is frozen */ \
         if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
             return RME_ERR_CAP_FROZEN; \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
-        /* Need a read acquire barrier here to avoid stale reads below */ \
-        RME_READ_ACQUIRE(); \
     } \
     /* Yes, this is a 2-level cap */ \
     else \
@@ -317,30 +311,26 @@ do \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Captbl*)[RME_CAP_H(CAP_NUM)]); \
-        /* Atomic read avoids read barrier between frozen check and type check */ \
-        (TEMP)=(PARAM)->Head.Type_Ref; \
+        /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
+        (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Ref)); \
         /* See if the captbl is frozen for deletion or removal */ \
         if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
             return RME_ERR_CAP_FROZEN; \
         /* See if this is a captbl */ \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=RME_CAP_CAPTBL)) \
             return RME_ERR_CAP_TYPE; \
-        /* Need a read acquire barrier here to avoid stale reads below */ \
-        RME_READ_ACQUIRE(); \
         /* Check if the 2nd-layer captbl is over range */ \
         if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Captbl*)(PARAM))->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
-        /* Atomic read avoids read barrier between frozen check and type check */ \
-        (TEMP)=(PARAM)->Head.Type_Ref; \
+        /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
+        (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Ref)); \
         /* See if the capability is frozen */ \
         if(RME_UNLIKELY(((TEMP)&RME_CAP_FROZEN)!=0)) \
             return RME_ERR_CAP_FROZEN; \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(CAP_TYPE))) \
             return RME_ERR_CAP_TYPE; \
-        /* Need a read acquire barrier here to avoid stale reads below */ \
-        RME_READ_ACQUIRE(); \
     } \
 } \
 while(0)

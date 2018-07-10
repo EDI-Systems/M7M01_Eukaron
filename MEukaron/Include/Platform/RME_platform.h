@@ -7,7 +7,7 @@ Description : The platform specific types for RME.
 ******************************************************************************/
 
 /* Platform Includes *********************************************************/
-#include "Platform/X64/platform_x64.h"
+#include "Platform/CortexM/platform_cmx.h"
 /* End Platform Includes *****************************************************/
 
 /* End Of File ***************************************************************/

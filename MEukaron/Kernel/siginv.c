@@ -76,8 +76,7 @@ ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_SIG_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Sig_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -96,9 +95,7 @@ ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                         RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
 
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Sig_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_SIG,0);
-    
+    RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_SIG,0));
     return 0;
 }
 /* End Function:_RME_Sig_Boot_Crt ********************************************/
@@ -141,8 +138,7 @@ ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_SIG_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Sig_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -159,9 +155,7 @@ ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
                         RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM|RME_SIG_FLAG_SCHED;
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Sig_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_SIG,0);
-    
+    RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_SIG,0));
     return 0;
 }
 /* End Function:_RME_Sig_Crt *************************************************/
@@ -212,7 +206,6 @@ ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_Si
     }
     
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Sig_Del,Type_Ref);
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((ptr_t)Sig_Struct,RME_SIG_SIZE)!=0);
@@ -587,8 +580,7 @@ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_INV_SIZE)!=0)
     {
-        RME_WRITE_RELEASE();
-        Inv_Crt->Head.Type_Ref=0;
+        RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
     
@@ -607,9 +599,7 @@ ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl,
     Inv_Crt->Head.Flags=RME_INV_FLAG_SET|RME_INV_FLAG_ACT;
     
     /* Creation complete */
-    RME_WRITE_RELEASE();
-    Inv_Crt->Head.Type_Ref=RME_CAP_TYPEREF(RME_CAP_INV,0);
-    
+    RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Ref),RME_CAP_TYPEREF(RME_CAP_INV,0));
     return 0;
 }
 /* End Function:_RME_Inv_Crt *************************************************/
@@ -652,7 +642,6 @@ ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, cid_t Cap_Captbl, cid_t Cap_In
     }
     
     /* Now we can safely delete the cap */
-    RME_WRITE_RELEASE();
     RME_CAP_REMDEL(Inv_Del,Type_Ref);
     /* Dereference the process */
     __RME_Fetch_Add(&(Inv_Struct->Proc->Refcnt), -1);
@@ -786,8 +775,7 @@ ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, ptr_t Retval, ptr_t Fault_Flag)
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */
-    RME_WRITE_RELEASE();
-    Inv_Struct->Active=0;
+    RME_WRITE_RELEASE(&(Inv_Struct->Active),0);
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Fault_Flag!=0))

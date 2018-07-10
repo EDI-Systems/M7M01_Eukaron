@@ -109,9 +109,10 @@ typedef s32 ret_t;
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_CMX_MPU_Data))
 /* The kernel object allocation table address - original */
 #define RME_KOTBL               RME_Kotbl
-/* No read/write barriers needed on Cortex-M, because they are single core */
-#define RME_READ_ACQUIRE()
-#define RME_WRITE_RELEASE()
+/* No read/write barriers needed on Cortex-M, because they are currently all
+ * single core. If this changes in the future, we may need DMB barriers. */
+#define RME_READ_ACQUIRE(X)     (*(X))
+#define RME_WRITE_RELEASE(X,V)  ((*(X))=(V))
 
 /* The CPU and application specific macros are here */
 #include "platform_cmx_conf.h"
