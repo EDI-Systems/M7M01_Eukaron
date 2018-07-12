@@ -212,7 +212,7 @@ Click **[HERE](README.md)** for English version.
 
 &emsp;&emsp;请阅读[CONTRIBUTING.md](CONTRIBUTING.md)文档来获得关于行为规范和提交代码的相关信息。
 
-&emsp;&emsp;我们希望感谢乔治华盛顿大学的[Composite](https://github.com/gwsystems/composite)开发组（这也是本系统的设计影响最大的系统），以及德累斯顿工业大学的[Fiasco.OC](https://os.inf.tu-dresden.de/fiasco)开发组。
+&emsp;&emsp;我们希望感谢乔治华盛顿大学的[Composite](https://github.com/gwsystems/composite)开发组（这也是对本系统的设计影响最大的系统），以及德累斯顿工业大学的[Fiasco.OC](https://os.inf.tu-dresden.de/fiasco)开发组。
 
 ## EDI 工程信息
 &emsp;&emsp;演进 - 中生 - 真核 (M7M1 R3T1)
