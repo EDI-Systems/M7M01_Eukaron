@@ -331,7 +331,7 @@
             <v6Lto>0</v6Lto>
             <v6WtE>0</v6WtE>
             <VariousControls>
-              <MiscControls></MiscControls>
+              <MiscControls>-Dlikely(x)="__builtin_expect(!!(x), 1)" -Dunlikely(x)="__builtin_expect(!!(x), 0)"</MiscControls>
               <Define>STM32F405xx, USE_HAL_DRIVER, HSE_VALUE="8000000", PLL_M="8"</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\M0P0_Library\STM32Cube_FW_F4_V1.21.0\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\MEukaron\Include;..\..\..\M0P0_Library\STM32Cube_FW_F4_V1.21.0\Drivers\CMSIS\Include;..\..\..\M0P0_Library\STM32Cube_FW_F4_V1.21.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\..\M0P0_Library\STM32Cube_FW_F4_V1.21.0\Drivers\STM32F4xx_HAL_Driver\Inc\Conf</IncludePath>
@@ -364,7 +364,7 @@
             <TextAddressRange>0x08000000</TextAddressRange>
             <DataAddressRange>0x20020000</DataAddressRange>
             <pXoBase></pXoBase>
-            <ScatterFile>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\platform_STM32F405RG.sct</ScatterFile>
+            <ScatterFile>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\rme_platform_STM32F405RG.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
             <Misc>--keep=M7M2_Init</Misc>
@@ -378,34 +378,34 @@
           <GroupName>Kernel</GroupName>
           <Files>
             <File>
-              <FileName>captbl.c</FileName>
+              <FileName>rme_captbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\captbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_captbl.c</FilePath>
             </File>
             <File>
-              <FileName>kernel.c</FileName>
+              <FileName>rme_kernel.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\kernel.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_kernel.c</FilePath>
             </File>
             <File>
-              <FileName>kotbl.c</FileName>
+              <FileName>rme_kotbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\kotbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_kotbl.c</FilePath>
             </File>
             <File>
-              <FileName>pgtbl.c</FileName>
+              <FileName>rme_pgtbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\pgtbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_pgtbl.c</FilePath>
             </File>
             <File>
-              <FileName>prcthd.c</FileName>
+              <FileName>rme_prcthd.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\prcthd.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_prcthd.c</FilePath>
             </File>
             <File>
-              <FileName>siginv.c</FileName>
+              <FileName>rme_siginv.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\siginv.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_siginv.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -413,14 +413,14 @@
           <GroupName>Platform</GroupName>
           <Files>
             <File>
-              <FileName>platform_cmx.c</FileName>
+              <FileName>rme_platform_cmx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Platform\CortexM\platform_cmx.c</FilePath>
+              <FilePath>..\..\MEukaron\Platform\CortexM\rme_platform_cmx.c</FilePath>
             </File>
             <File>
-              <FileName>platform_cmx_asm.s</FileName>
+              <FileName>rme_platform_cmx_asm.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\MEukaron\Platform\CortexM\platform_cmx_asm.s</FilePath>
+              <FilePath>..\..\MEukaron\Platform\CortexM\rme_platform_cmx_asm.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -554,14 +554,14 @@
           <GroupName>User</GroupName>
           <Files>
             <File>
-              <FileName>benchmark.c</FileName>
+              <FileName>rme_benchmark.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Benchmark\benchmark.c</FilePath>
+              <FilePath>..\..\MEukaron\Benchmark\rme_benchmark.c</FilePath>
             </File>
             <File>
-              <FileName>benchmark_asm.s</FileName>
+              <FileName>rme_benchmark_asm.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\MEukaron\Benchmark\benchmark_asm.s</FilePath>
+              <FilePath>..\..\MEukaron\Benchmark\rme_benchmark_asm.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -569,9 +569,9 @@
           <GroupName>Linker</GroupName>
           <Files>
             <File>
-              <FileName>platform_STM32F405RG.sct</FileName>
+              <FileName>rme_platform_STM32F405RG.sct</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\platform_STM32F405RG.sct</FilePath>
+              <FilePath>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\rme_platform_STM32F405RG.sct</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>

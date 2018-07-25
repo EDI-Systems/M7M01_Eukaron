@@ -73,7 +73,7 @@
         <LExpSel>0</LExpSel>
       </OPTXL>
       <OPTFL>
-        <tvExp>1</tvExp>
+        <tvExp>0</tvExp>
         <tvExpOptDlg>0</tvExpOptDlg>
         <IsCurrentTarget>1</IsCurrentTarget>
       </OPTFL>
@@ -312,7 +312,7 @@
 
   <Group>
     <GroupName>Kernel</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -323,8 +323,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\captbl.c</PathWithFileName>
-      <FilenameWithoutPath>captbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_captbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_captbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -335,8 +335,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\kernel.c</PathWithFileName>
-      <FilenameWithoutPath>kernel.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_kernel.c</PathWithFileName>
+      <FilenameWithoutPath>rme_kernel.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -347,8 +347,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\kotbl.c</PathWithFileName>
-      <FilenameWithoutPath>kotbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_kotbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_kotbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -359,8 +359,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\pgtbl.c</PathWithFileName>
-      <FilenameWithoutPath>pgtbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_pgtbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_pgtbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -371,8 +371,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\prcthd.c</PathWithFileName>
-      <FilenameWithoutPath>prcthd.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_prcthd.c</PathWithFileName>
+      <FilenameWithoutPath>rme_prcthd.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -383,8 +383,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\siginv.c</PathWithFileName>
-      <FilenameWithoutPath>siginv.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_siginv.c</PathWithFileName>
+      <FilenameWithoutPath>rme_siginv.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -403,8 +403,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\platform_cmx.c</PathWithFileName>
-      <FilenameWithoutPath>platform_cmx.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx.c</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_cmx.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -415,8 +415,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\platform_cmx_asm.s</PathWithFileName>
-      <FilenameWithoutPath>platform_cmx_asm.s</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx_asm.s</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_cmx_asm.s</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -424,7 +424,7 @@
 
   <Group>
     <GroupName>Lib</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -564,7 +564,7 @@
 
   <Group>
     <GroupName>User</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -575,8 +575,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Benchmark\benchmark.c</PathWithFileName>
-      <FilenameWithoutPath>benchmark.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Benchmark\rme_benchmark.c</PathWithFileName>
+      <FilenameWithoutPath>rme_benchmark.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -587,8 +587,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Benchmark\benchmark_asm.s</PathWithFileName>
-      <FilenameWithoutPath>benchmark_asm.s</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Benchmark\rme_benchmark_asm.s</PathWithFileName>
+      <FilenameWithoutPath>rme_benchmark_asm.s</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -596,7 +596,7 @@
 
   <Group>
     <GroupName>Linker</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -607,8 +607,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\platform_STM32F405RG.sct</PathWithFileName>
-      <FilenameWithoutPath>platform_STM32F405RG.sct</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F405RG\rme_platform_STM32F405RG.sct</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_STM32F405RG.sct</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

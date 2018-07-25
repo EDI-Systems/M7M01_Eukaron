@@ -237,7 +237,7 @@
 
   <Group>
     <GroupName>Kernel</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -248,8 +248,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\captbl.c</PathWithFileName>
-      <FilenameWithoutPath>captbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_captbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_captbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -260,8 +260,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\kernel.c</PathWithFileName>
-      <FilenameWithoutPath>kernel.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_kernel.c</PathWithFileName>
+      <FilenameWithoutPath>rme_kernel.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -272,8 +272,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\kotbl.c</PathWithFileName>
-      <FilenameWithoutPath>kotbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_kotbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_kotbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -284,8 +284,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\pgtbl.c</PathWithFileName>
-      <FilenameWithoutPath>pgtbl.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_pgtbl.c</PathWithFileName>
+      <FilenameWithoutPath>rme_pgtbl.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -296,8 +296,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\prcthd.c</PathWithFileName>
-      <FilenameWithoutPath>prcthd.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_prcthd.c</PathWithFileName>
+      <FilenameWithoutPath>rme_prcthd.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -308,8 +308,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Kernel\siginv.c</PathWithFileName>
-      <FilenameWithoutPath>siginv.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Kernel\rme_siginv.c</PathWithFileName>
+      <FilenameWithoutPath>rme_siginv.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -328,8 +328,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\platform_cmx.c</PathWithFileName>
-      <FilenameWithoutPath>platform_cmx.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx.c</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_cmx.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -340,8 +340,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\platform_cmx_asm.s</PathWithFileName>
-      <FilenameWithoutPath>platform_cmx_asm.s</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx_asm.s</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_cmx_asm.s</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -568,20 +568,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\platform_STM32F767IG.sct</PathWithFileName>
-      <FilenameWithoutPath>platform_STM32F767IG.sct</FilenameWithoutPath>
-      <RteFlg>0</RteFlg>
-      <bShared>0</bShared>
-    </File>
-    <File>
-      <GroupNumber>5</GroupNumber>
-      <FileNumber>26</FileNumber>
-      <FileType>5</FileType>
-      <tvExp>0</tvExp>
-      <tvExpOptDlg>0</tvExpOptDlg>
-      <bDave2>0</bDave2>
-      <PathWithFileName>..\..\Documents\obsolete.txt</PathWithFileName>
-      <FilenameWithoutPath>obsolete.txt</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\rme_platform_STM32F767IG.sct</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_STM32F767IG.sct</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

@@ -364,7 +364,7 @@
             <TextAddressRange>0x08000000</TextAddressRange>
             <DataAddressRange>0x20020000</DataAddressRange>
             <pXoBase></pXoBase>
-            <ScatterFile>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\platform_STM32F767IG.sct</ScatterFile>
+            <ScatterFile>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\rme_platform_STM32F767IG.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
             <Misc>--keep=M7M2_Init --keep=VM* --keep=rtthread</Misc>
@@ -378,34 +378,34 @@
           <GroupName>Kernel</GroupName>
           <Files>
             <File>
-              <FileName>captbl.c</FileName>
+              <FileName>rme_captbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\captbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_captbl.c</FilePath>
             </File>
             <File>
-              <FileName>kernel.c</FileName>
+              <FileName>rme_kernel.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\kernel.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_kernel.c</FilePath>
             </File>
             <File>
-              <FileName>kotbl.c</FileName>
+              <FileName>rme_kotbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\kotbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_kotbl.c</FilePath>
             </File>
             <File>
-              <FileName>pgtbl.c</FileName>
+              <FileName>rme_pgtbl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\pgtbl.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_pgtbl.c</FilePath>
             </File>
             <File>
-              <FileName>prcthd.c</FileName>
+              <FileName>rme_prcthd.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\prcthd.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_prcthd.c</FilePath>
             </File>
             <File>
-              <FileName>siginv.c</FileName>
+              <FileName>rme_siginv.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Kernel\siginv.c</FilePath>
+              <FilePath>..\..\MEukaron\Kernel\rme_siginv.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -413,14 +413,14 @@
           <GroupName>Platform</GroupName>
           <Files>
             <File>
-              <FileName>platform_cmx.c</FileName>
+              <FileName>rme_platform_cmx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\MEukaron\Platform\CortexM\platform_cmx.c</FilePath>
+              <FilePath>..\..\MEukaron\Platform\CortexM\rme_platform_cmx.c</FilePath>
             </File>
             <File>
-              <FileName>platform_cmx_asm.s</FileName>
+              <FileName>rme_platform_cmx_asm.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\MEukaron\Platform\CortexM\platform_cmx_asm.s</FilePath>
+              <FilePath>..\..\MEukaron\Platform\CortexM\rme_platform_cmx_asm.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -731,14 +731,9 @@
           <GroupName>Linker</GroupName>
           <Files>
             <File>
-              <FileName>platform_STM32F767IG.sct</FileName>
+              <FileName>rme_platform_STM32F767IG.sct</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\platform_STM32F767IG.sct</FilePath>
-            </File>
-            <File>
-              <FileName>obsolete.txt</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\Documents\obsolete.txt</FilePath>
+              <FilePath>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\rme_platform_STM32F767IG.sct</FilePath>
             </File>
           </Files>
         </Group>
