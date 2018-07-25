@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configurations XML_version="1.2" id="configurations_0">
+<configuration XML_version="1.2" id="Texas Instruments XDS100v1 USB Debug Probe_0">
+        <instance XML_version="1.2" desc="Texas Instruments XDS100v1 USB Debug Probe_0" href="connections/TIXDS100usb_Connection.xml" id="Texas Instruments XDS100v1 USB Debug Probe_0" xml="TIXDS100usb_Connection.xml" xmlpath="connections"/>
+        <connection XML_version="1.2" id="Texas Instruments XDS100v1 USB Debug Probe_0">
+            <instance XML_version="1.2" href="drivers/tixds100icepick_d.xml" id="drivers" xml="tixds100icepick_d.xml" xmlpath="drivers"/>
+            <instance XML_version="1.2" href="drivers/tixds100c66xx.xml" id="drivers" xml="tixds100c66xx.xml" xmlpath="drivers"/>
+            <instance XML_version="1.2" href="drivers/tixds100cs_dap.xml" id="drivers" xml="tixds100cs_dap.xml" xmlpath="drivers"/>
+            <instance XML_version="1.2" href="drivers/tixds100csstm.xml" id="drivers" xml="tixds100csstm.xml" xmlpath="drivers"/>
+            <instance XML_version="1.2" href="drivers/tixds100etbcs.xml" id="drivers" xml="tixds100etbcs.xml" xmlpath="drivers"/>
+            <platform XML_version="1.2" id="platform_0">
+                <instance XML_version="1.2" desc="TMS320C6678_0" href="devices/C6678.xml" id="TMS320C6678_0" xml="C6678.xml" xmlpath="devices"/>
+            <device HW_revision="1" XML_version="1.2" description="C66x core" id="TMS320C6678_0" partnum="TMS320C6678" simulation="no">
+                    <router HW_revision="1.0" XML_version="1.2" description="ICEPick_D Router" id="IcePick_D_0" isa="ICEPICK_D">
+                        <property Type="filepathfield" Value="" id="GEL File"/>
+                    <property Type="choicelist" Value="0" id="bypass"/>
+                        <subpath id="subpath_0">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" deviceSim="false" id="C66xx_0" isa="TMS320c66xx">
+                                <property Type="filepathfield" Value="..\..\..\MEukaron\Include\Platform\C66X\Chips\TMS320C6678\platform_TMS320C6678.gel" id="GEL File"/>
+                            </cpu>
+                        </subpath>
+                    <subpath id="subpath_1">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_1" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_2">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_2" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_3">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_3" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_4">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_4" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_5">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_5" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_6">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_6" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                                <property Type="choicelist" Value="0" id="bypass"/>
+                            </cpu>
+                        </subpath>
+                        <subpath id="subpath_7">
+                            <cpu HW_revision="1.0" XML_version="1.2" description="C66xx CPU" id="C66xx_7" isa="TMS320c66xx">
+                                <property Type="choicelist" Value="1" id="Slave Processor"/>
+                                <property Type="choicelist" Value="0" id="bypass"/>
+                            </cpu>
+                        </subpath>
+                    </router>
+                </device>
+            </platform>
+        </connection>
+    </configuration>
+</configurations>

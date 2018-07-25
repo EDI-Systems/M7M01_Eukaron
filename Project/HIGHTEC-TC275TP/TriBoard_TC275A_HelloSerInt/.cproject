@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.921119436">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.921119436" moduleId="org.eclipse.cdt.core.settings" name="iROM">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="TriBoard_TC275A_HelloSerInt" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug,org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" description="" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.921119436" name="iRAM" parent="com.rt.hightec.buildsystem.tricore.new.configuration.excutable">
+					<folderInfo id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.921119436." name="/" resourcePath="">
+						<toolChain id="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable.1367623335" name="TriCore Toolchain" superClass="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable">
+							<option id="com.rt.hightec.buildsystem.tricore.new.mcpu.1276951413" superClass="com.rt.hightec.buildsystem.tricore.new.mcpu" value="TC27xx" valueType="enumerated"/>
+							<targetPlatform archList="TriCore" binaryParser="org.eclipse.cdt.core.ELF" id="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform.1952986340" isAbstract="false" name="Infineon\TC27xA Starterkit\TriBoard_TC27xA" superClass="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform"/>
+							<builder buildPath="${workspace_loc:/TriBoard_TC275A_HelloSerInt/iROM}" id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder.1625050816" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.1918436889" name="TriCore Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath.1398673042" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype.1263591780" name="Assembler Input NO GUI" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.gtm.1136849145" name="TriCore GTM Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.gtm">
+								<option id="gtm.opion.include.path.672612850" superClass="gtm.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="gtm.input.469269109" name="Assembler Input (mcs)" superClass="gtm.input"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.pcp.631788922" name="TriCore PCP Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.pcp">
+								<option id="pcp.opion.include.path.1450328653" superClass="pcp.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp.1479423996" name="Compiler Input (CPCP)" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.c.354262824" name="TriCore C Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined.2079959410" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="TRIBOARD_TC275A"/>
+									<listOptionValue builtIn="false" value="BAUDRATE=38400"/>
+									<listOptionValue builtIn="false" value="MINIMAL_CODE"/>
+									<listOptionValue builtIn="false" value="USE_IRQ"/>
+								</option>
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.1848830321" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType.1296792616" name="Compiler Input (C)" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.cpp.99758669" name="TriCore C++ Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.cpp">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.1123127115" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.c.849063178" name="TriCore C Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.c">
+								<option id="abstract.tool.linker.warnings.no.warn.flags.1717084953" superClass="abstract.tool.linker.warnings.no.warn.flags" value="true" valueType="boolean"/>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input.1342969362" name="Abstract Linker Input NO GUI" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(ASM)"/>
+								</inputType>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.cpp.8629584" name="TriCore C++ Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.cpp"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.archiver.1789305255" name="TriCore Archiver" superClass="com.rt.hightec.buildsystem.tricore.new.archiver"/>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="h"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+		<cconfiguration id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.388897103">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.388897103" moduleId="org.eclipse.cdt.core.settings" name="iROM">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="TriBoard_TC275A_HelloSerInt" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug,org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" description="" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.388897103" name="iROM" parent="com.rt.hightec.buildsystem.tricore.new.configuration.excutable">
+					<folderInfo id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.388897103." name="/" resourcePath="">
+						<toolChain id="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable.790730279" name="TriCore Toolchain" superClass="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable">
+							<option id="com.rt.hightec.buildsystem.tricore.new.mcpu.814671900" superClass="com.rt.hightec.buildsystem.tricore.new.mcpu" value="TC27xx" valueType="enumerated"/>
+							<targetPlatform archList="TriCore" binaryParser="org.eclipse.cdt.core.ELF" id="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform.1697623093" isAbstract="false" name="Infineon\TC27xA Starterkit\TriBoard_TC27xA" superClass="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform"/>
+							<builder buildPath="${workspace_loc:/TriBoard_TC275A_HelloSerInt/iROM}" id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder.205027005" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.1191561778" name="TriCore Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath.2055326827" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype.1146088259" name="Assembler Input NO GUI" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.gtm.567299783" name="TriCore GTM Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.gtm">
+								<option id="gtm.opion.include.path.1047111954" superClass="gtm.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="gtm.input.1076088809" name="Assembler Input (mcs)" superClass="gtm.input"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.pcp.1128976976" name="TriCore PCP Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.pcp">
+								<option id="pcp.opion.include.path.1604671851" superClass="pcp.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp.490935402" name="Compiler Input (CPCP)" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.c.1172428401" name="TriCore C Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined.2017464078" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="TRIBOARD_TC275A"/>
+									<listOptionValue builtIn="false" value="BAUDRATE=38400"/>
+									<listOptionValue builtIn="false" value="MINIMAL_CODE"/>
+									<listOptionValue builtIn="false" value="USE_IRQ"/>
+								</option>
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.170781643" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType.961033593" name="Compiler Input (C)" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.cpp.1427543850" name="TriCore C++ Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.cpp">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.62894333" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.c.548604861" name="TriCore C Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.c">
+								<option id="abstract.tool.linker.warnings.no.warn.flags.843374950" superClass="abstract.tool.linker.warnings.no.warn.flags" value="true" valueType="boolean"/>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input.1413112173" name="Abstract Linker Input NO GUI" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(ASM)"/>
+								</inputType>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.cpp.1447292150" name="TriCore C++ Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.cpp"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.archiver.1909427432" name="TriCore Archiver" superClass="com.rt.hightec.buildsystem.tricore.new.archiver"/>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="h"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+		<cconfiguration id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.1068924859">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.1068924859" moduleId="org.eclipse.cdt.core.settings" name="Default">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="TriBoard_TC275A_HelloSerInt" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug,org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" description="" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.1068924859" name="Default" parent="com.rt.hightec.buildsystem.tricore.new.configuration.excutable">
+					<folderInfo id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.1068924859." name="/" resourcePath="">
+						<toolChain id="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable.1842487644" name="TriCore Toolchain" superClass="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable">
+							<option id="com.rt.hightec.buildsystem.tricore.new.mcpu.1333778814" superClass="com.rt.hightec.buildsystem.tricore.new.mcpu" value="TC27xx" valueType="enumerated"/>
+							<targetPlatform archList="TriCore" binaryParser="org.eclipse.cdt.core.ELF" id="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform.1190570247" isAbstract="false" name="Infineon\TC27xA Starterkit\TriBoard_TC27xA" superClass="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform"/>
+							<builder buildPath="${workspace_loc:/TriBoard_TC275A_HelloSerInt/Default}" id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder.328344104" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.179141664" name="TriCore Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath.1984879862" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype.1931567207" name="Assembler Input NO GUI" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.gtm.1514247794" name="TriCore GTM Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.gtm">
+								<option id="gtm.opion.include.path.1105405768" superClass="gtm.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="gtm.input.1271621016" name="Assembler Input (mcs)" superClass="gtm.input"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.pcp.1966932020" name="TriCore PCP Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.pcp">
+								<option id="pcp.opion.include.path.1586586237" superClass="pcp.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp.1624191391" name="Compiler Input (CPCP)" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.c.961633457" name="TriCore C Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined.1694055956" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="TRIBOARD_TC275A"/>
+									<listOptionValue builtIn="false" value="BAUDRATE=38400"/>
+									<listOptionValue builtIn="false" value="MINIMAL_CODE"/>
+									<listOptionValue builtIn="false" value="USE_IRQ"/>
+								</option>
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.1877124447" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType.893338261" name="Compiler Input (C)" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.cpp.545157600" name="TriCore C++ Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.cpp">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.26053853" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.c.1033091966" name="TriCore C Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.c">
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input.184324490" name="Abstract Linker Input NO GUI" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(ASM)"/>
+								</inputType>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.cpp.1825853288" name="TriCore C++ Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.cpp"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.archiver.1059269442" name="TriCore Archiver" superClass="com.rt.hightec.buildsystem.tricore.new.archiver"/>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="h"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+		<cconfiguration id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.610787714">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.610787714" moduleId="org.eclipse.cdt.core.settings" name="memoryIntCode">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="TriBoard_TC275A_HelloSerInt" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug,org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe" description="" id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.610787714" name="memoryIntCode" parent="com.rt.hightec.buildsystem.tricore.new.configuration.excutable">
+					<folderInfo id="com.rt.hightec.buildsystem.tricore.new.configuration.excutable.610787714." name="/" resourcePath="">
+						<toolChain id="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable.552614999" name="TriCore Toolchain" superClass="com.rt.hightec.buildsystem.tricore.new.toolchain.new.executable">
+							<option id="com.rt.hightec.buildsystem.tricore.new.mcpu.1220358437" superClass="com.rt.hightec.buildsystem.tricore.new.mcpu" value="TC27xx" valueType="enumerated"/>
+							<targetPlatform archList="TriCore" binaryParser="org.eclipse.cdt.core.ELF" id="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform.98445853" isAbstract="false" name="Infineon\TC27xA Starterkit\TriBoard_TC27xA" superClass="com.rt.hightec.buildsystem.tricore.new.excutable.targetplatform"/>
+							<builder buildPath="${workspace_loc:/TriBoard_TC275A_HelloSerInt/memoryIntCode}" id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder.988147457" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.builder"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.1297860238" name="TriCore Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath.1317433215" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.assembler.general.includepath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype.1877735913" name="Assembler Input NO GUI" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.inputtype"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.assembler.gtm.1236156151" name="TriCore GTM Assembler" superClass="com.rt.hightec.buildsystem.tricore.new.assembler.gtm">
+								<option id="gtm.opion.include.path.1624848552" superClass="gtm.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="gtm.input.1964843443" name="Assembler Input (mcs)" superClass="gtm.input"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.pcp.852167669" name="TriCore PCP Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.pcp">
+								<option id="pcp.opion.include.path.455834272" superClass="pcp.opion.include.path" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp.1078197318" name="Compiler Input (CPCP)" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c.input.cpcp"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.c.170370066" name="TriCore C Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.c">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined.2026724914" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.symbols.defined" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="TRIBOARD_TC275A"/>
+									<listOptionValue builtIn="false" value="BAUDRATE=38400"/>
+									<listOptionValue builtIn="false" value="MINIMAL_CODE"/>
+									<listOptionValue builtIn="false" value="USE_IRQ"/>
+								</option>
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.118128542" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType.16553400" name="Compiler Input (C)" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.c.inputType"/>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.compiler.cpp.1716781315" name="TriCore C++ Compiler" superClass="com.rt.hightec.buildsystem.tricore.new.compiler.cpp">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths.1819895195" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.compiler.general.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;../h&quot;"/>
+								</option>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.c.246571438" name="TriCore C Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.c">
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.general.description.file.333751543" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.general.description.file" value="../ld/memoryIntCode.x" valueType="string"/>
+								<option id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.lib.Includepath.105049774" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.lib.Includepath" valueType="libPaths">
+									<listOptionValue builtIn="false" value="../ld"/>
+								</option>
+								<inputType id="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input.2020591896" name="Abstract Linker Input NO GUI" superClass="com.rt.hightec.framework.buildsystem.abstract.hightec.tool.linker.input">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+									<additionalInput kind="additionalinputdependency" paths="$(ASM)"/>
+								</inputType>
+							</tool>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.linker.cpp.116455519" name="TriCore C++ Linker" superClass="com.rt.hightec.buildsystem.tricore.new.linker.cpp"/>
+							<tool id="com.rt.hightec.buildsystem.tricore.new.archiver.615094854" name="TriCore Archiver" superClass="com.rt.hightec.buildsystem.tricore.new.archiver"/>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="h"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="TriBoard_TC275A_HelloSerInt.com.rt.hightec.buildsystem.tricore.new.projectType.905682705" name="TriCore Project" projectType="com.rt.hightec.buildsystem.tricore.new.projectType"/>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets">
+		<buildTargets>
+			<target name="clean" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>make</buildCommand>
+				<buildArguments/>
+				<buildTarget>clean</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>true</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="all" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>make</buildCommand>
+				<buildArguments/>
+				<buildTarget>all</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>true</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="rebuild" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>make</buildCommand>
+				<buildArguments/>
+				<buildTarget>rebuild</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>true</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+		</buildTargets>
+	</storageModule>
+</cproject>

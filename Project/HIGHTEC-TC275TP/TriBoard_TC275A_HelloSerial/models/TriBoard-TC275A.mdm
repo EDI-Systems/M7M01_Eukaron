@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinkerModel:LDFMemoryDescripton xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:LinkerModel="http://LinkerModel" Description="" Name="TriBoard-TC275A" EBMCFG="">
+  <Memory Description="Program Memory Unit (PMU)" Name="Program Unit">
+    <Region Description="Program Flash Memory (PFLASH0)" Name="PMU_PFLASH0" Begin="0x80000000" Attributes="rx!p" Length="2"/>
+    <Region Description="Program Flash Memory (PFLASH1)" Name="PMU_PFLASH1" Begin="0x80200000" Attributes="rx!p" Length="2"/>
+    <Region Description="Data Flash Memory (DFLASH0)" Name="PMU_DFLASH0" Begin="0xAF000000" Attributes="r!xp" Length="1"/>
+    <Region Description="Data Flash Memory (DFLASH0_1)" Name="PMU_DFLASH0_1" Begin="0xAF100000" Attributes="r!xp" Length="16" LengthUnit="KB"/>
+    <Region Description="Data Flash Memory (DFLASH1)" Name="PMU_DFLASH1" Begin="0xAF110000" Attributes="r!xp" Length="64" LengthUnit="KB"/>
+    <Region Description="Boot ROM (BROM)" Name="BROM" Begin="0x8FFF8000" Attributes="rx!p" Length="32" LengthUnit="KB"/>
+  </Memory>
+  <Memory Description="Program Memory Interface (PMI)" Name="Program Interface">
+    <Region Description="Scratch-Pad RAM (PSPR)" Name="PMI_PSPR" Begin="0xC0000000" Attributes="wx!p" Length="24" LengthUnit="KB"/>
+  </Memory>
+  <Memory Description="Data Memory Interface (DMI)" Name="Data Interface">
+    <Region Description="Local Data RAM (DSPR)" Name="DMI_DSPR" Begin="0xD0000000" Attributes="w!xp" Length="112" LengthUnit="KB"/>
+  </Memory>
+  <Memory Description="Local Memory Unit (LMU)" Name="Local Memory Unit">
+    <Region Description="Local Data RAM (DSPR)" Name="LMU_SRAM" Begin="0x90000000" Attributes="w!xp" Length="32" LengthUnit="KB"/>
+  </Memory>
+</LinkerModel:LDFMemoryDescripton>
