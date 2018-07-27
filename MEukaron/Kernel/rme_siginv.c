@@ -219,37 +219,37 @@ Description : Pick the thread with the highest priority to run. Always call this
               after you finish all your kernel sending stuff in the interrupt
               handler, or the kernel send will not be correct.
 Input       : struct RME_Reg_Struct* Reg - The register set before the switch.
-              rme_ptr_t CPUID - The current CPUID.
+              struct RME_CPU_Local* CPU_Local - The CPU-local data structure.
 Output      : struct RME_Reg_Struct* Reg - The register set after the switch.
 Return      : None.
 ******************************************************************************/
-void _RME_Kern_High(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID)
+void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local)
 {
     struct RME_Thd_Struct* Thd_Struct;
 
-    Thd_Struct=_RME_Run_High(CPUID);
+    Thd_Struct=_RME_Run_High(CPU_Local);
     RME_ASSERT(Thd_Struct!=0);
 
     /* Are these two threads the same? */
-    if(Thd_Struct==RME_Cur_Thd[CPUID])
+    if(Thd_Struct==(CPU_Local->Cur_Thd))
         return;
 
     /* Is the current thread running or ready? */
-    if((RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)||
-       (RME_Cur_Thd[CPUID]->Sched.State==RME_THD_READY))
+    if(((CPU_Local->Cur_Thd)->Sched.State==RME_THD_RUNNING)||
+       ((CPU_Local->Cur_Thd)->Sched.State==RME_THD_READY))
     {
         /* Yes, compare the priority to see if we need to do it */
-        if(Thd_Struct->Sched.Prio<=RME_Cur_Thd[CPUID]->Sched.Prio)
+        if(Thd_Struct->Sched.Prio<=(CPU_Local->Cur_Thd)->Sched.Prio)
             return;
     }
 
     /* We will have a solid context switch on this point */
-    if(RME_Cur_Thd[CPUID]->Sched.State==RME_THD_RUNNING)
-        RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
+    if((CPU_Local->Cur_Thd)->Sched.State==RME_THD_RUNNING)
+        (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
 
-    _RME_Run_Swt(Reg,RME_Cur_Thd[CPUID],Thd_Struct);
+    _RME_Run_Swt(Reg,(CPU_Local->Cur_Thd),Thd_Struct);
     Thd_Struct->Sched.State=RME_THD_RUNNING;
-    RME_Cur_Thd[CPUID]=Thd_Struct;
+    (CPU_Local->Cur_Thd)=Thd_Struct;
 }
 /* End Function:_RME_Kern_High ***********************************************/
 
@@ -266,20 +266,19 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
 {
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Unblock;
-    rme_ptr_t CPUID;
     
     /* Cannot send to a pure user endpoint in the kernel */
     if(Sig_Struct->Refcnt==0)
         return RME_ERR_SIV_CONFLICT;
+    
     /* See if we can receive on that endpoint - if someone blocks, we must
      * wait for it to unblock before we can proceed */
-    CPUID=RME_CPUID();
     Thd_Struct=Sig_Struct->Thd;
     /* If and only if we are calling from the same core as the blocked thread do
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
     if(Thd_Struct!=0)
     {
-        if(Thd_Struct->Sched.CPUID_Bind==CPUID)
+        if(Thd_Struct->Sched.CPU_Local==RME_CPU_LOCAL())
             Unblock=1;
         else
             Unblock=0;
@@ -348,7 +347,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     struct RME_Sig_Struct* Sig_Struct;
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Unblock;
-    rme_ptr_t CPUID;
+    struct RME_CPU_Local* CPU_Local;
     rme_ptr_t Type_Ref;
     
     /* Get the capability slot */
@@ -356,14 +355,14 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_SND);
     
-    CPUID=RME_CPUID();
+    CPU_Local=RME_CPU_LOCAL();
     Sig_Struct=RME_CAP_GETOBJ(Sig_Op,struct RME_Sig_Struct*);
     Thd_Struct=Sig_Struct->Thd;
     /* If and only if we are calling from the same core as the blocked thread do
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
     if(Thd_Struct!=0)
     {
-        if(Thd_Struct->Sched.CPUID_Bind==CPUID)
+        if(Thd_Struct->Sched.CPU_Local==CPU_Local)
             Unblock=1;
         else
             Unblock=0;
@@ -386,13 +385,13 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             /* Put this into the runqueue */
             _RME_Run_Ins(Thd_Struct);
             /* See if it will preempt us */
-            if(Thd_Struct->Sched.Prio>RME_Cur_Thd[CPUID]->Sched.Prio)
+            if(Thd_Struct->Sched.Prio>(CPU_Local->Cur_Thd)->Sched.Prio)
             {
                 /* Yes. Do a context switch */
-                _RME_Run_Swt(Reg,RME_Cur_Thd[CPUID],Thd_Struct);
-                RME_Cur_Thd[CPUID]->Sched.State=RME_THD_READY;
+                _RME_Run_Swt(Reg,CPU_Local->Cur_Thd,Thd_Struct);
+                (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
                 Thd_Struct->Sched.State=RME_THD_RUNNING;
-                RME_Cur_Thd[CPUID]=Thd_Struct;
+                CPU_Local->Cur_Thd=Thd_Struct;
             }
             else
                 Thd_Struct->Sched.State=RME_THD_READY;
@@ -456,7 +455,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     struct RME_Sig_Struct* Sig_Struct;
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Old_Value;
-    rme_ptr_t CPUID;
+    struct RME_CPU_Local* CPU_Local;
     rme_ptr_t Type_Ref;
     
     /* Get the capability slot */
@@ -481,8 +480,8 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     /* Are we trying to let a boot-time thread block on a signal? This is NOT allowed.
      * Additionally, if the current thread have no timeslice left (which shouldn't happen
      * under whatever circumstances), we assert and die */
-    CPUID=RME_CPUID();
-    Thd_Struct=RME_Cur_Thd[CPUID];
+    CPU_Local=RME_CPU_LOCAL();
+    Thd_Struct=CPU_Local->Cur_Thd;
     RME_ASSERT(Thd_Struct->Sched.Slices!=0);
     if(Thd_Struct->Sched.Slices==RME_THD_INIT_TIME)
         return RME_ERR_SIV_BOOT;
@@ -525,9 +524,9 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             Thd_Struct->Sched.State=RME_THD_BLOCKED;
             Thd_Struct->Sched.Signal=Sig_Struct;
             _RME_Run_Del(Thd_Struct);
-            RME_Cur_Thd[CPUID]=_RME_Run_High(CPUID);
-            _RME_Run_Swt(Reg,Thd_Struct,RME_Cur_Thd[CPUID]);
-            RME_Cur_Thd[CPUID]->Sched.State=RME_THD_RUNNING;
+            CPU_Local->Cur_Thd=_RME_Run_High(CPU_Local);
+            _RME_Run_Swt(Reg,Thd_Struct,CPU_Local->Cur_Thd);
+            (CPU_Local->Cur_Thd)->Sched.State=RME_THD_RUNNING;
         }
         else
             /* We have taken nothing but the system call is successful anyway */
@@ -717,7 +716,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
         return RME_ERR_SIV_ACT;
     
     /* Push this invocation stub capability into the current thread's invocation stack */
-    Thd_Struct=RME_Cur_Thd[RME_CPUID()];
+    Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     /* Try to do CAS and activate it */
     if(RME_UNLIKELY(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0))
         return RME_ERR_SIV_ACT;
@@ -756,7 +755,7 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, rme_ptr_t Retval, rme_ptr_t F
     struct RME_Inv_Struct* Inv_Struct;
     
     /* See if we can return; If we can, get the structure */
-    Thd_Struct=RME_Cur_Thd[RME_CPUID()];
+    Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
     if(RME_UNLIKELY(Inv_Struct==0))
         return RME_ERR_SIV_EMPTY;

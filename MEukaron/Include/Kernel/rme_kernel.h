@@ -101,13 +101,6 @@ Description : The header of kernel system call path.
     return; \
 }
 
-/* The CPUID is defined here */
-#if(RME_CPU_NUM==1)
-#define RME_CPUID()                     0
-#else
-#define RME_CPUID()                     __RME_CPUID_Get()
-#endif
-
 /* The system service numbers are defined here. This is included in both user level 
  * and kernel level */
 #include "rme.h"
@@ -216,15 +209,8 @@ static rme_ret_t __RME_Low_Level_Check(void);
 #endif
 
 /*****************************************************************************/
-/* TODO:This can cause some cache-line contention, and NUMA problems. Fix these later */
 /* Current timestamp counter */
 __EXTERN__ rme_ptr_t RME_Timestamp;
-/* Current thread per CPU */
-__EXTERN__ struct RME_Thd_Struct* RME_Cur_Thd[RME_CPU_NUM];
-/* Kernel tick timer endpoint per CPU */
-__EXTERN__ struct RME_Sig_Struct* RME_Tick_Sig[RME_CPU_NUM];
-/* Default interrupt vector endpoint per CPU */
-__EXTERN__ struct RME_Sig_Struct* RME_Int_Sig[RME_CPU_NUM];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/

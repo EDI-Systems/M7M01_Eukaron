@@ -28,8 +28,8 @@ Description : The header of page table.
 /* Priority level bitmap */
 #define RME_PRIO_WORD_NUM          (RME_MAX_PREEMPT_PRIO>>RME_WORD_ORDER)
 
-/* Thread bonding state */
-#define RME_THD_UNBIND             (((rme_ptr_t)1)<<(sizeof(rme_ptr_t)*8-1))
+/* Thread binding state */
+#define RME_THD_UNBINDED           ((struct RME_CPU_Local*)((rme_ptr_t)(-1)))
 /* Thread sched rcv faulty state */
 #define RME_THD_FAULT_FLAG         (((rme_ptr_t)1)<<(sizeof(rme_ptr_t)*8-2))
 /* Init thread infinite time marker */
@@ -121,8 +121,10 @@ struct RME_Thd_Sched
     struct RME_List Notif; 
     /* What's the TID of the thread? */
     rme_ptr_t TID;
-    /* What core is it on, and did it bond itself to a core? */
-    rme_ptr_t CPUID_Bind;
+    /* What is the CPU-local data structure that this thread is on? If this is
+     * 0xFF....FF, then this is not binded to any core. The compiler should be able
+     * to take this even if at this point struct RME_CPU_Local is undefined. */
+    struct RME_CPU_Local* CPU_Local;
     /* How much time slices is left for this thread? */
     rme_ptr_t Slices;
     /* What is the current state of the thread? */
@@ -167,6 +169,21 @@ struct RME_Thd_Struct
     /* The thread synchronous invocation stack */
     struct RME_List Inv_Stack;
 };
+
+/* The CPU-local data structure */
+struct RME_CPU_Local
+{
+    /* The CPUID of the CPU */
+    rme_ptr_t CPUID;
+    /* The current thread on the CPU */
+    struct RME_Thd_Struct* Cur_Thd;
+    /* The tick timer signal endpoint */
+    struct RME_Sig_Struct* Tick_Sig;
+    /* The interrupt signal endpoint */
+    struct RME_Sig_Struct* Int_Sig;
+    /* The runqueue and bitmap */
+    struct RME_Run_Struct Run;
+};
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -193,8 +210,7 @@ struct RME_Thd_Struct
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
-/* The per-core priority and running list */
-static struct RME_Run_Struct RME_Run[RME_CPU_NUM];
+
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -220,6 +236,8 @@ static struct RME_Run_Struct RME_Run[RME_CPU_NUM];
 
 /* Public C Function Prototypes **********************************************/
 /*****************************************************************************/
+/* Initialize per-CPU data structures */
+__EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID);
 /* Linked list operations */
 __EXTERN__ void __RME_List_Crt(volatile struct RME_List* Head);
 __EXTERN__ void __RME_List_Del(volatile struct RME_List* Prev,
@@ -232,15 +250,12 @@ __EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs);
 /* In-kernel ready-queue primitives */
 __EXTERN__ rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
 __EXTERN__ rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
-__EXTERN__ struct RME_Thd_Struct* _RME_Run_High(rme_ptr_t CPUID);
+__EXTERN__ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local);
 __EXTERN__ rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd);
 __EXTERN__ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                                   struct RME_Thd_Struct* Curr_Thd, 
                                   struct RME_Thd_Struct* Next_Thd);
-/* Initialization function */
-__EXTERN__ rme_ret_t _RME_Prcthd_Init(void);
 /* Process system calls */
-                              
 __EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                                         rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr);
 __EXTERN__ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt, rme_cid_t Cap_Kmem,
@@ -249,8 +264,9 @@ __EXTERN__ rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_
 __EXTERN__ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl);
 __EXTERN__ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_cid_t Cap_Pgtbl);
 /* Thread system calls */
-__EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Thd,
-                                       rme_cid_t Cap_Proc, rme_ptr_t Vaddr, rme_ptr_t Prio, rme_ptr_t CPUID);
+__EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
+                                       rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Vaddr,
+                                       rme_ptr_t Prio, struct RME_CPU_Local* CPU_Local);
 __EXTERN__ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Kmem,
                                   rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Max_Prio, rme_ptr_t Vaddr);
 __EXTERN__ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Thd);

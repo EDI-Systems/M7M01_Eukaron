@@ -31,7 +31,7 @@
 								<option id="gnu.c.compiler.option.include.paths.1543249988" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}}/../../../MEukaron/Include"/>
 								</option>
-								<option id="gnu.c.compiler.option.misc.other.1034607864" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fno-pic -static -fno-builtin -fno-strict-aliasing -ffreestanding -fno-common -fno-stack-protector -mtls-direct-seg-refs -mno-red-zone" valueType="string"/>
+								<option id="gnu.c.compiler.option.misc.other.1034607864" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fno-pic -static -fno-builtin -fno-strict-aliasing -ffreestanding -fno-common -fno-stack-protector -mtls-direct-seg-refs -mno-red-zone -Wno-maybe-uninitialized" valueType="string"/>
 								<option id="gnu.c.compiler.option.dialect.flags.200031733" name="Other dialect flags" superClass="gnu.c.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-m64 -mcmodel=kernel -nostdlib" valueType="string"/>
 								<option id="gnu.c.compiler.option.optimization.flags.1751812611" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-mno-sse" valueType="string"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1571062219" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
@@ -45,7 +45,7 @@
 								<option id="gnu.c.link.option.nodeflibs.1473036420" name="Do not use default libraries (-nodefaultlibs)" superClass="gnu.c.link.option.nodeflibs" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="gnu.c.link.option.noshared.1488936486" name="No shared libraries (-static)" superClass="gnu.c.link.option.noshared" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<option id="gnu.c.link.option.nostdlibs.1204431225" name="No startup or default libs (-nostdlib)" superClass="gnu.c.link.option.nostdlibs" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-								<option id="gnu.c.link.option.ldflags.1572154496" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="-m elf_x86_64 -T ${workspace_loc:/${ProjName}}/../../../MEukaron/Include/Platform/X64/platform_x64.ld" valueType="string"/>
+								<option id="gnu.c.link.option.ldflags.1572154496" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="-m elf_x86_64 -T ${workspace_loc:/${ProjName}}/../../../MEukaron/Include/Platform/X64/rme_platform_x64.ld" valueType="string"/>
 								<option id="gnu.c.link.option.other.1798198858" name="Other options (-Xlinker [option])" superClass="gnu.c.link.option.other" useByScannerDiscovery="false"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.243046064" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>

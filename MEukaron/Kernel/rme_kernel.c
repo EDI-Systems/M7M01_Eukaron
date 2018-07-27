@@ -260,20 +260,16 @@ rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
 /* End Function:_RME_Kmem_Boot_Crt *******************************************/
 
 /* Begin Function:_RME_Syscall_Init *******************************************
-Description : The initialization function of system calls.
+Description : The initialization function of system calls. This actually does
+              nothing except initializing the timestamp value.
 Input       : None.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
 rme_ret_t _RME_Syscall_Init(void)
 {
-    rme_cnt_t Count;
-    
     /* Set it to 0x00..FF.. */
     RME_Timestamp=(~((rme_ptr_t)(0)))>>(sizeof(rme_ptr_t)*4);
-    
-    for(Count=0;Count<RME_CPU_NUM;Count++)
-        RME_Cur_Thd[Count]=0;
     
     return 0;
 }
@@ -293,8 +289,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     rme_ptr_t Capid;
     rme_ptr_t Param[3];
     rme_ret_t Retval;
-    rme_ptr_t CPUID;
     rme_ptr_t Svc_Num;
+    struct RME_CPU_Local* CPU_Local;
     struct RME_Inv_Struct* Inv_Top;
     struct RME_Cap_Captbl* Captbl;
 
@@ -313,10 +309,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     
     /* Get our current capability table. No need to check whether it is frozen
      * because it can't be deleted anyway */
-    CPUID=RME_CPUID();
-    Inv_Top=RME_INVSTK_TOP(RME_Cur_Thd[CPUID]);
+    CPU_Local=RME_CPU_LOCAL();
+    Inv_Top=RME_INVSTK_TOP(CPU_Local->Cur_Thd);
     if(Inv_Top==0)
-        Captbl=RME_Cur_Thd[CPUID]->Sched.Proc->Captbl;
+        Captbl=(CPU_Local->Cur_Thd)->Sched.Proc->Captbl;
     else
         Captbl=Inv_Top->Proc->Captbl;
     
@@ -622,31 +618,30 @@ Return      : None.
 ******************************************************************************/
 void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
 {
-	rme_ptr_t CPUID;
+	struct RME_CPU_Local* CPU_Local;
 
-	CPUID=RME_CPUID();
-	if(RME_Cur_Thd[CPUID]->Sched.Slices<RME_THD_INF_TIME)
+	CPU_Local=RME_CPU_LOCAL();
+	if((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME)
 	{
 		/* Decrease timeslice count */
-		RME_Cur_Thd[CPUID]->Sched.Slices--;
+		(CPU_Local->Cur_Thd)->Sched.Slices--;
 		/* See if the current thread's timeslice is used up */
-		if(RME_Cur_Thd[CPUID]->Sched.Slices==0)
+		if((CPU_Local->Cur_Thd)->Sched.Slices==0)
 		{
 			/* Running out of time. Kick this guy out and pick someone else */
-			RME_Cur_Thd[CPUID]->Sched.State=RME_THD_TIMEOUT;
+			(CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
 			/* Delete it from runqueue */
-			_RME_Run_Del(RME_Cur_Thd[CPUID]);
+			_RME_Run_Del(CPU_Local->Cur_Thd);
 			/* Send a scheduler notification to its parent */
-			_RME_Run_Notif(Reg,RME_Cur_Thd[CPUID]);
+			_RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
 		}
 	}
 
-	/* Send a signal to the kernel system ticker receive endpoint. This endpoint
-	 * is per-core */
-	_RME_Kern_Snd(Reg, RME_Tick_Sig[CPUID]);
+	/* Send to the system ticker receive endpoint. This endpoint is per-core */
+	_RME_Kern_Snd(Reg, CPU_Local->Tick_Sig);
 
 	/* All kernel send complete, now pick the highest priority thread to run */
-	_RME_Kern_High(Reg, CPUID);
+	_RME_Kern_High(Reg, CPU_Local);
 }
 /* End Function:_RME_Tick_SMP_Handler ****************************************/
 
@@ -717,12 +712,9 @@ rme_ret_t RME_Kmain(void)
     _RME_Kotbl_Init(RME_KOTBL_WORD_NUM);
     /* Initialize system calls, and kernel timestamp counter */
     _RME_Syscall_Init();
-    /* Initialize process/threads control module */
-    _RME_Prcthd_Init();
     
     /* Boot into the first process, and handle it all the other cases&enable the interrupt */
     __RME_Boot();
-    
     /* Should never reach here. If it reached here, we reboot */
     __RME_Reboot();
     
