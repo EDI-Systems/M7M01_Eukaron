@@ -139,7 +139,7 @@ __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t 
 __EXTERN__ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                   rme_cid_t Cap_Kmem, rme_cid_t Cap_Sig, rme_ptr_t Vaddr);
 __EXTERN__ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
-__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID);
+__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local);
 __EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig);
 __EXTERN__ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Sig);
 __EXTERN__ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,

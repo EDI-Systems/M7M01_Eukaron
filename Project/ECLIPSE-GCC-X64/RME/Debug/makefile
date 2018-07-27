@@ -35,7 +35,7 @@ main-build: RME
 RME: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	ld -Map RME.map -mcmodel=kernel -nodefaultlibs -m elf_x86_64 -T /media/pry/Code/Code_Library/MCU/Mutatus/M7M1_MuEukaron/Project/ECLIPSE-GCC-X64/RME/../../../MEukaron/Include/Platform/X64/platform_x64.ld -o "RME" $(OBJS) $(USER_OBJS) $(LIBS)
+	ld -Map RME.map -mcmodel=kernel -nodefaultlibs -m elf_x86_64 -T /media/pry/Code/Code_Library/MCU/Mutatus/M7M1_MuEukaron/Project/ECLIPSE-GCC-X64/RME/../../../MEukaron/Include/Platform/X64/rme_platform_x64.ld -o "RME" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build

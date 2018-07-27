@@ -89,8 +89,8 @@ AVX-512 registers:
     .global             __RME_Enable_Int
     /* Get the MSB in a word */
     .global             __RME_MSB_Get
-    /* Get the CPU ID */
-    .global             __RME_CPUID_Get
+    /* Get the CPU-local data structure */
+    .global             __RME_X64_CPU_Local_Get
     /* Kernel main function wrapper */
     .global             _RME_Kmain
     /* Entering of the user mode */
@@ -389,18 +389,17 @@ __RME_X64_Write_MSR:
     RETQ
 /* End Function:__RME_X64_Write_MSR ******************************************/
 
-/* Begin Function:__RME_CPUID_Get *********************************************
-Description : Get the CPUID. This is to identify where we are executing. This is
-              not to be confused with __RME_X64_CPUID_Get, which is a wrapper for
-              "CPUID" instruction.
+/* Begin Function:__RME_X64_CPU_Local_Get *************************************
+Description : Get the CPU-local data structures. This is to identify where we are
+              executing.
 Input       : None.
 Output      : None.
-Return      : ptr_t - The CPUID.
+Return      : struct RME_CPU_Local* - The CPU-local data structures.
 ******************************************************************************/
-__RME_CPUID_Get:
-    MOV                 %GS:(8192-24),%RAX
+__RME_X64_CPU_Local_Get:
+    MOVQ                %GS:(8192-8*3),%RAX
     RETQ
-/* End Function:__RME_CPUID_Get **********************************************/
+/* End Function:__RME_X64_CPU_Local_Get **************************************/
 
 /* Begin Function:__RME_X64_CPUID_Get *****************************************
 Description    : The function for outputting something to an I/O port.

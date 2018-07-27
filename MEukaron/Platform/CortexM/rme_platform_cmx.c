@@ -155,6 +155,9 @@ rme_ptr_t __RME_Low_Level_Init(void)
     NVIC_SetPriority(UsageFault_IRQn, 0xFF);
     NVIC_SetPriority(DebugMonitor_IRQn, 0xFF);
     
+    /* Initialize CPU-local data structures */
+    _RME_CPU_Local_Init(&RME_CMX_Local, 0);
+    
     /* Configure systick */
     SysTick_Config(RME_CMX_SYSTICK_VAL);
     return 0;
@@ -223,12 +226,12 @@ rme_ptr_t __RME_Boot(void)
                                   RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
     
     /* Create the initial kernel endpoint for timer ticks */
-    RME_Tick_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
+    RME_CMX_Local.Tick_Sig=(struct RME_Sig_Struct*)Cur_Addr;
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_Int_Sig[0]=(struct RME_Sig_Struct*)Cur_Addr;
+    RME_CMX_Local.Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_INT, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
@@ -237,7 +240,7 @@ rme_ptr_t __RME_Boot(void)
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_CMX_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PROC, Cur_Addr, 0, 0)==0);
+                                 RME_BOOT_INIT_PROC, Cur_Addr, 0, &RME_CMX_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
     /* Print the size of some kernel objects, only used in debugging */
@@ -249,7 +252,7 @@ rme_ptr_t __RME_Boot(void)
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
     RME_ASSERT(Cur_Addr<RME_CMX_KMEM_BOOT_FRONTIER);
     /* Enable the MPU & interrupt */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ(RME_Cur_Thd[RME_CPUID()]->Sched.Proc->Pgtbl,rme_ptr_t));
+    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_CMX_Local.Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
     __RME_Enable_Int();
     /* Boot into the init thread */
     __RME_Enter_User_Mode(RME_CMX_INIT_ENTRY, RME_CMX_INIT_STACK, 0);
@@ -787,7 +790,6 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
     rme_ptr_t Cur_CFSR;
     rme_ptr_t Cur_MMFAR;
     rme_ptr_t Flags;
-    rme_ptr_t CPUID;
     struct RME_Proc_Struct* Proc;
     struct RME_Inv_Struct* Inv_Top;
     struct __RME_CMX_Pgtbl_Meta* Meta;
@@ -820,10 +822,9 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
     {
         /* See if the fault address can be found in our current page table, and
          * if it is there, we only care about the flags */
-        CPUID=RME_CPUID();
-        Inv_Top=RME_INVSTK_TOP(RME_Cur_Thd[CPUID]);
+        Inv_Top=RME_INVSTK_TOP(RME_CMX_Local.Cur_Thd);
         if(Inv_Top==0)
-            Proc=RME_Cur_Thd[CPUID]->Sched.Proc;
+            Proc=(RME_CMX_Local.Cur_Thd)->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
@@ -875,9 +876,9 @@ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
     /* Set the flags for this interrupt source */
     Flags->Group|=(((rme_ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
     Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((rme_ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
-    _RME_Kern_Snd(Reg, RME_Int_Sig[RME_CPUID()]);
+    _RME_Kern_Snd(Reg, RME_CMX_Local.Int_Sig);
     /* Remember to pick the guy with the highest priority after we did all sends */
-    _RME_Kern_High(Reg, RME_CPUID());
+    _RME_Kern_High(Reg, &RME_CMX_Local);
 }
 /* End Function:__RME_CMX_Generic_Handler ************************************/
 

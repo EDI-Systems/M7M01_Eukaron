@@ -91,8 +91,8 @@ typedef rme_s32_t rme_ret_t;
 #else
 #define RME_UNLIKELY(X)                 (X)
 #endif
-/* Number of CPUs in the system */
-#define RME_CPU_NUM                     1
+/* CPU-local data structure location macro */
+#define RME_CPU_LOCAL()                 (&RME_CMX_Local)
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                  5
 /* Forcing VA=PA in user memory segments */
@@ -439,7 +439,8 @@ static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_CMX_Pgtbl_Meta* Meta, rme_
 #endif
 
 /*****************************************************************************/
-
+/* Cortex-M only have one core, thus this is its CPU-local data structure */
+__EXTERN__ struct RME_CPU_Local RME_CMX_Local;
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/

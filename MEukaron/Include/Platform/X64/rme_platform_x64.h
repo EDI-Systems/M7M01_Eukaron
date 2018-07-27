@@ -1,92 +1,88 @@
 /******************************************************************************
-Filename   : platform_x64.h
-Author     : pry
-Date       : 01/04/2017
+Filename    : rme_platform_x64.h
+Author      : pry
+Date        : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
-Description: The header of "platform_x64.c".
+Description : The header of "platform_x64.c".
 ******************************************************************************/
 
 /* Defines *******************************************************************/
 #include "multiboot.h"
 #ifdef __HDR_DEFS__
-#ifndef __PLATFORM_X64_H_DEFS__
-#define __PLATFORM_X64_H_DEFS__
+#ifndef __RME_PLATFORM_X64_H_DEFS__
+#define __RME_PLATFORM_X64_H_DEFS__
 /*****************************************************************************/
 /* Basic Types ***************************************************************/
-#if(DEFINE_BASIC_TYPES==TRUE)
-
-#ifndef __S64__
-#define __S64__
-typedef signed long long s64;
+#ifndef __RME_S64_T__
+#define __RME_S64_T__
+typedef signed long long rme_s64_t;
 #endif
 
-#ifndef __S32__
-#define __S32__
-typedef signed int s32;
+#ifndef __RME_S32_T__
+#define __RME_S32_T__
+typedef signed int rme_s32_t;
 #endif
 
-#ifndef __S16__
-#define __S16__
-typedef signed short s16;
+#ifndef __RME_S16_T__
+#define __RME_S16_T__
+typedef signed short rme_s16_t;
 #endif
 
-#ifndef __S8__
-#define __S8__
-typedef signed char s8;
+#ifndef __RME_S8_T__
+#define __RME_S8_T__
+typedef signed char rme_s8_t;
 #endif
 
-#ifndef __U64__
-#define __U64__
-typedef unsigned long long u64;
+#ifndef __RME_U64_T__
+#define __RME_U64_T__
+typedef unsigned long long rme_u64_t;
 #endif
 
-#ifndef __U32__
-#define __U32__
-typedef unsigned int u32;
+#ifndef __RME_U32_T__
+#define __RME_U32_T__
+typedef unsigned int rme_u32_t;
 #endif
 
-#ifndef __U16__
-#define __U16__
-typedef unsigned short u16;
+#ifndef __RME_U16_T__
+#define __RME_U16_T__
+typedef unsigned short rme_u16_t;
 #endif
 
-#ifndef __U8__
-#define __U8__
-typedef unsigned char u8;
-#endif
-
+#ifndef __RME_U8_T__
+#define __RME_U8_T__
+typedef unsigned char rme_u8_t;
 #endif
 /* End Basic Types ***********************************************************/
 
 /* Begin Extended Types ******************************************************/
-#ifndef __TID_T__
-#define __TID_T__
+#ifndef __RME_TID_T__
+#define __RME_TID_T__
 /* The typedef for the Thread ID */
-typedef s64 tid_t;
+typedef rme_s64_t rme_tid_t;
 #endif
 
-#ifndef __PTR_T__
-#define __PTR_T__
+#ifndef __RME_PTR_T__
+#define __RME_PTR_T__
 /* The typedef for the pointers - This is the raw style. Pointers must be unsigned */
-typedef u64 ptr_t;
+typedef rme_u64_t rme_ptr_t;
 #endif
 
-#ifndef __CNT_T__
-#define __CNT_T__
+#ifndef __RME_CNT_T__
+#define __RME_CNT_T__
 /* The typedef for the count variables */
-typedef s64 cnt_t;
+typedef rme_s64_t rme_cnt_t;
 #endif
 
-#ifndef __CID_T__
-#define __CID_T__
+#ifndef __RME_CID_T__
+#define __RME_CID_T__
 /* The typedef for capability ID */
-typedef s64 cid_t;
+typedef rme_s64_t rme_cid_t;
 #endif
 
-#ifndef __RET_T__
-#define __RET_T__
+#ifndef __RME_RET_T__
+#define __RME_RET_T__
 /* The type for process return value */
-typedef s64 ret_t;
+typedef rme_s64_t rme_ret_t;
 #endif
 /* End Extended Types ********************************************************/
 
@@ -106,8 +102,8 @@ typedef s64 ret_t;
 #else
 #define RME_UNLIKELY(X)                      (X)
 #endif
-/* Number of CPUs in the system - max. 4096 ones are supported */
-#define RME_CPU_NUM                          256
+/* Get CPU-local data structure */
+#define RME_CPU_LOCAL()                      __RME_X64_CPU_Local_Get()
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                       6
 /* Forcing VA=PA in user memory segments */
@@ -115,11 +111,11 @@ typedef s64 ret_t;
 /* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
 #define RME_QUIE_TIME                        10
 /* Normal page directory size calculation macro */
-#define RME_PGTBL_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(ptr_t))
+#define RME_PGTBL_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
 /* Top-level page directory size calculation macro */
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)        RME_PGTBL_SIZE_NOM(NUM_ORDER)
 /* Initial stack size and address */
-#define RME_KMEM_STACK_ADDR                  ((ptr_t)__RME_X64_Kern_Boot_Stack)
+#define RME_KMEM_STACK_ADDR                  ((rme_ptr_t)__RME_X64_Kern_Boot_Stack)
 /* The virtual memory start address for the kernel objects */
 #define RME_KMEM_VA_START                    0xFFFF800000000000ULL
 /* The size of the kernel object virtual memory - dummy, we will detect the actual values */
@@ -129,7 +125,7 @@ typedef s64 ret_t;
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                         0
 /* The kernel object allocation table address - relocated */
-#define RME_KOTBL                            ((ptr_t*)0xFFFF800001000000)
+#define RME_KOTBL                            ((rme_ptr_t*)0xFFFF800001000000)
 /* No read acquires needed because x86-64 guarantees read-read and read-write consistency */
 #define RME_READ_ACQUIRE(X)                  (*(X)) 
 /* No read acquires needed because x86-64 guarantees write-write consistency. In RME, we do
@@ -143,12 +139,17 @@ typedef s64 ret_t;
 #define RME_X64_FPU_AVX                      (1)
 #define RME_X64_FPU_AVX512                   (2)
 /* The CPU and application specific macros are here */
-#include "platform_x64_conf.h"
+#include "rme_platform_x64_conf.h"
 /* End System macros *********************************************************/
 
 /* X64 specific macros *******************************************************/
+/* Number of CPUs in the system - max. 4096 ones are supported */
+#define RME_X64_CPU_NUM                      256
+/* Number of IOAPICs in the system - max. 256 ones are supported */
+#define RME_X64_IOAPIC_NUM                   8
+
 /* Make 2-level capability */
-#define RME_CAPID(X,Y)                       (((X)<<(sizeof(ptr_t)*2))|(Y)|RME_CAPID_2L)
+#define RME_CAPID(X,Y)                       (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                      0
@@ -182,11 +183,11 @@ typedef s64 ret_t;
 /* The offset of device hole */
 #define RME_X64_DEVICE_OFFSET                (0xFE000000ULL)
 /* Convert PA-VA and VA-PA in the first block of memory (16MB - 3.25GB)*/
-#define RME_X64_PA2VA(PA)                    (((ptr_t)(PA))+RME_X64_VA_BASE)
-#define RME_X64_VA2PA(VA)                    (((ptr_t)(VA))-RME_X64_VA_BASE)
+#define RME_X64_PA2VA(PA)                    (((rme_ptr_t)(PA))+RME_X64_VA_BASE)
+#define RME_X64_VA2PA(VA)                    (((rme_ptr_t)(VA))-RME_X64_VA_BASE)
 /* Convert PA-VA and VA-PA in the text memory (16MB - 2GB )*/
-#define RME_X64_TEXT_PA2VA(PA)               (((ptr_t)(PA))+RME_X64_TEXT_VA_BASE)
-#define RME_X64_TEXT_VA2PA(VA)               (((ptr_t)(VA))-RME_X64_TEXT_VA_BASE)
+#define RME_X64_TEXT_PA2VA(PA)               (((rme_ptr_t)(PA))+RME_X64_TEXT_VA_BASE)
+#define RME_X64_TEXT_VA2PA(VA)               (((rme_ptr_t)(VA))-RME_X64_TEXT_VA_BASE)
 /* How many segments under 4G are allowed for Kmem1 - If this exceeded the kernel will just hang */
 #define RME_X64_KMEM1_MAXSEGS                32
 
@@ -207,31 +208,31 @@ typedef s64 ret_t;
 
 /* Page entry bit definitions */
 /* No execution */
-#define RME_X64_MMU_NX                       (((ptr_t)1)<<63)
+#define RME_X64_MMU_NX                       (((rme_ptr_t)1)<<63)
 /* Present */
-#define RME_X64_MMU_P                        (((ptr_t)1)<<0)
+#define RME_X64_MMU_P                        (((rme_ptr_t)1)<<0)
 /* Is it read-only or writable? */
-#define RME_X64_MMU_RW                       (((ptr_t)1)<<1)
+#define RME_X64_MMU_RW                       (((rme_ptr_t)1)<<1)
 /* Is it user or system? */
-#define RME_X64_MMU_US                       (((ptr_t)1)<<2)
+#define RME_X64_MMU_US                       (((rme_ptr_t)1)<<2)
 /* Is it write-through? */
-#define RME_X64_MMU_PWT                      (((ptr_t)1)<<3)
+#define RME_X64_MMU_PWT                      (((rme_ptr_t)1)<<3)
 /* Can we cache it? */
-#define RME_X64_MMU_PCD                      (((ptr_t)1)<<4)
+#define RME_X64_MMU_PCD                      (((rme_ptr_t)1)<<4)
 
 
 /* Is this accessed? */
-#define RME_X64_MMU_A                        (((ptr_t)1)<<5)
+#define RME_X64_MMU_A                        (((rme_ptr_t)1)<<5)
 /* Is this page dirty? */
-#define RME_X64_MMU_D                        (((ptr_t)1)<<6)
+#define RME_X64_MMU_D                        (((rme_ptr_t)1)<<6)
 /* The page-attribute table bit for 4k pages */
-#define RME_X64_MMU_PTE_PAT                  (((ptr_t)1)<<7)
+#define RME_X64_MMU_PTE_PAT                  (((rme_ptr_t)1)<<7)
 /* The super-page bit */
-#define RME_X64_MMU_PDE_SUP                  (((ptr_t)1)<<7)
+#define RME_X64_MMU_PDE_SUP                  (((rme_ptr_t)1)<<7)
 /* The global page bit - use this for all kernel memories */
-#define RME_X64_MMU_G                        (((ptr_t)1)<<8)
+#define RME_X64_MMU_G                        (((rme_ptr_t)1)<<8)
 /* The page-attribute table bit for other page sizes */
-#define RME_X64_MMU_PDE_PAT                  (((ptr_t)1)<<12)
+#define RME_X64_MMU_PDE_PAT                  (((rme_ptr_t)1)<<12)
 /* The generic address mask */
 #define RME_X64_MMU_ADDR(X)                  ((X)&0x000FFFFFFFFFF000)
 /* Initial PML4 entries */
@@ -341,12 +342,12 @@ typedef s64 ret_t;
 #define RME_X64_SET_IDT(TABLE, VECT, TYPE_ATTR, ADDR) \
 do \
 { \
-    (TABLE)[VECT].Offset1=((ptr_t)(ADDR))&0xFFFF; \
+    (TABLE)[VECT].Offset1=((rme_ptr_t)(ADDR))&0xFFFF; \
     (TABLE)[VECT].Selector=8; \
     (TABLE)[VECT].IST_Offset=0; \
     (TABLE)[VECT].Type_Attr=(TYPE_ATTR); \
-    (TABLE)[VECT].Offset2=(((ptr_t)(ADDR))>>16)&0xFFFF; \
-    (TABLE)[VECT].Offset3=((ptr_t)(ADDR))>>32; \
+    (TABLE)[VECT].Offset2=(((rme_ptr_t)(ADDR))>>16)&0xFFFF; \
+    (TABLE)[VECT].Offset3=((rme_ptr_t)(ADDR))>>32; \
     (TABLE)[VECT].Zero=0; \
 } \
 while(0)
@@ -447,8 +448,8 @@ while(0)
 #define RME_X64_LAPIC_TDCR                   (0x03E0/4)
 
 /* LAPIC R/W */
-#define RME_X64_LAPIC_READ(REG)              (((u32*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG])
-#define RME_X64_LAPIC_WRITE(REG,VAL)         (((u32*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG]=(VAL))
+#define RME_X64_LAPIC_READ(REG)              (((rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG])
+#define RME_X64_LAPIC_WRITE(REG,VAL)         (((rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG]=(VAL))
 
 /* IOAPIC address - consider supporting multiple ones */
 #define RME_X64_IOAPIC_ADDR                 (RME_X64_PA2VA(0xFEC00000))
@@ -504,10 +505,12 @@ while(0)
 #define RME_X64_KSTACK(CPU)                (RME_X64_Layout.Stack_Start+((1+(CPU))<<RME_X64_KSTACK_ORDER))
 /* Get boot-time user stack addresses */
 #define RME_X64_USTACK(CPU)                (RME_POW2(RME_PGTBL_SIZE_2M)+((CPU)+1)*RME_POW2(RME_PGTBL_SIZE_2K))
-/* Microsecond delay function */
+/* The base of CPU-local data area */
+#define RME_X64_CPU_LOCAL_BASE(CPU)        (RME_X64_Layout.PerCPU_Start+(CPU)*2*RME_POW2(RME_PGTBL_SIZE_4K))
+/* Microsecond delay function - not needed in most cases */
 #define RME_X64_UDELAY(US)
 /*****************************************************************************/
-/* __PLATFORM_X64_H_DEFS__ */
+/* __RME_PLATFORM_X64_H_DEFS__ */
 #endif
 /* __HDR_DEFS__ */
 #endif
@@ -515,8 +518,8 @@ while(0)
 
 /* Structs *******************************************************************/
 #ifdef __HDR_STRUCTS__
-#ifndef __PLATFORM_X64_H_STRUCTS__
-#define __PLATFORM_X64_H_STRUCTS__
+#ifndef __RME_PLATFORM_X64_H_STRUCTS__
+#define __RME_PLATFORM_X64_H_STRUCTS__
 /* We used structs in the header */
 
 /* Use defines in these headers */
@@ -527,31 +530,31 @@ while(0)
 /* Root System Description Pointer descriptor */
 struct RME_X64_ACPI_RDSP_Desc
 {
-	u8 Signature[8];
-	u8 Checksum;
-	u8 OEM_ID[6];
-	u8 Revision;
-	u32 RSDT_Addr_Phys;
+	rme_u8_t Signature[8];
+	rme_u8_t Checksum;
+	rme_u8_t OEM_ID[6];
+	rme_u8_t Revision;
+	rme_u32_t RSDT_Addr_Phys;
 
 	/* These are the extended parts that we do not use now */
-	u32 Length;
-	u64 XSDT_Addr_Phys;
-	u8 Xchecksum;
-	u8 Reserved[3];
+	rme_u32_t Length;
+	rme_u64_t XSDT_Addr_Phys;
+	rme_u8_t Xchecksum;
+	rme_u8_t Reserved[3];
 } __attribute__((__packed__));
 
 /* General ACPI descriptor header */
 struct RME_X64_ACPI_Desc_Hdr
 {
-	u8 Signature[4];
-	u32 Length;
-	u8 Revision;
-	u8 Checksum;
-	u8 OEM_ID[6];
-	u8 OEM_Table_ID[8];
-	u32 OEM_Revision;
-	u8 Creator_ID[4];
-	u32 Creator_Revision;
+	rme_u8_t Signature[4];
+	rme_u32_t Length;
+	rme_u8_t Revision;
+	rme_u8_t Checksum;
+	rme_u8_t OEM_ID[6];
+	rme_u8_t OEM_Table_ID[8];
+	rme_u32_t OEM_Revision;
+	rme_u8_t Creator_ID[4];
+	rme_u32_t Creator_Revision;
 } __attribute__((__packed__));
 
 /* Root System Description Table header */
@@ -559,99 +562,104 @@ struct RME_X64_ACPI_RSDT_Hdr
 {
 	struct RME_X64_ACPI_Desc_Hdr Header;
     /* This is fine; GCC can take this */
-	u32 Entry[0];
+	rme_u32_t Entry[0];
 } __attribute__((__packed__));
 
 /* Multiple APIC Description Table header */
 struct RME_X64_ACPI_MADT_Hdr
 {
 	struct RME_X64_ACPI_Desc_Hdr Header;
-	u32 LAPIC_Addr_Phys;
-	u32 Flags;
+	rme_u32_t LAPIC_Addr_Phys;
+	rme_u32_t Flags;
     /* This is fine; GCC can take this */
-	u8 Table[0];
+	rme_u8_t Table[0];
 } __attribute__((__packed__));
 
 /* MADT's LAPIC record */
 struct RME_X64_ACPI_MADT_LAPIC_Record
 {
-	u8 Type;
-	u8 Length;
-	u8 ACPI_ID;
-	u8 APIC_ID;
-	u32 Flags;
+	rme_u8_t Type;
+	rme_u8_t Length;
+	rme_u8_t ACPI_ID;
+	rme_u8_t APIC_ID;
+	rme_u32_t Flags;
 } __attribute__((__packed__));
 
 /* MADT's IOAPIC record */
 struct RME_X64_ACPI_MADT_IOAPIC_Record
 {
-	u8 Type;
-	u8 Length;
-	u8 ID;
-	u8 Reserved;
-	u32 Addr;
-	u32 Interrupt_Base;
+	rme_u8_t Type;
+	rme_u8_t Length;
+	rme_u8_t ID;
+	rme_u8_t Reserved;
+	rme_u32_t Addr;
+	rme_u32_t Interrupt_Base;
 } __attribute__((__packed__));
 
 /* MADT's interrupt source override record*/
 struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record
 {
-	u8 Type;
-	u8 Length;
-    u8 Bus;
-    u8 Source;
-    u8 GS_Interrupt;
-    u16 MPS_Int_Flags;
+	rme_u8_t Type;
+	rme_u8_t Length;
+    rme_u8_t Bus;
+    rme_u8_t Source;
+    rme_u8_t GS_Interrupt;
+    rme_u16_t MPS_Int_Flags;
 }  __attribute__((__packed__));
 
-/* IDT entry */
+/* IDT entry - 16 bytes in length. 256 entries are 4kB in total */
 struct RME_X64_IDT_Entry
 {
 	/* Offset bits 0..15 */
-    u16 Offset1;
+    rme_u16_t Offset1;
     /* A code segment selector in GDT or LDT */
-	u16 Selector;
+	rme_u16_t Selector;
     /* Bits 0..2 holds Interrupt Stack Table offset, rest of bits zero */
-    u8 IST_Offset;
+    rme_u8_t IST_Offset;
     /* Type and attributes */
-    u8 Type_Attr;
+    rme_u8_t Type_Attr;
     /* Offset bits 16..31 */
-    u16 Offset2;
+    rme_u16_t Offset2;
     /* Offset bits 32..63 */
-    u32 Offset3;
+    rme_u32_t Offset3;
     /* Reserved, must be zero */
-    u32 Zero;
+    rme_u32_t Zero;
 } __attribute__((packed));
 
 /* IOAPIC data structure */
 struct RME_X64_IOAPIC_Map
 {
-    u32 Reg;
-    u32 Pad[3];
-    u32 Data;
+    rme_u32_t Reg;
+    rme_u32_t Pad[3];
+    rme_u32_t Data;
 };
 
-/* CPUID data structure */
-struct RME_X64_CPUID_Entry
+/* Temporary data structure */
+struct RME_X64_Temp
 {
-	ptr_t CPUID;
-	ptr_t Kernel_SP;
-	ptr_t Temp_User_SP;
+	/* The CPU local address. The reason why this is here is because x86-64
+	 * does not support instructions to read segment base directly. We cannot
+	 * risk fsgsbase instructions because it is not supported on all CPUs. */
+	rme_ptr_t CPU_Local_Addr;
+	/* The kernel stack for this CPU */
+	rme_ptr_t Kernel_SP;
+	/* The temporary user stack for this CPU */
+	rme_ptr_t Temp_User_SP;
 };
 
 /* Per-CPU data structure */
 struct RME_X64_CPU_Info
 {
 	/* The LAPIC ID of the CPU, used to distinguish between different CPUs */
-	ptr_t LAPIC_ID;
+	rme_ptr_t LAPIC_ID;
 	/* Is the booting done on this CPU? */
-	volatile ptr_t Boot_Done;
+	volatile rme_ptr_t Boot_Done;
 };
 
 /* Per-IOAPIC data structure */
 struct RME_X64_IOAPIC_Info
 {
-    ptr_t IOAPIC_ID;
+    rme_ptr_t IOAPIC_ID;
 };
 
 /* The 6 registers that are used to pass arguments are RDI, RSI, RDX, RCX, R8, R9.
@@ -659,119 +667,119 @@ struct RME_X64_IOAPIC_Info
  * value is always located at RAX. */
 struct RME_Reg_Struct
 {
-    ptr_t RAX;
-    ptr_t RBX;
-    ptr_t RCX;
-    ptr_t RDX;
-    ptr_t RSI;
-    ptr_t RDI;
-    ptr_t RBP;
-    ptr_t R8;
-    ptr_t R9;
-    ptr_t R10;
-    ptr_t R11;
-    ptr_t R12;
-    ptr_t R13;
-    ptr_t R14;
-    ptr_t R15;
+    rme_ptr_t RAX;
+    rme_ptr_t RBX;
+    rme_ptr_t RCX;
+    rme_ptr_t RDX;
+    rme_ptr_t RSI;
+    rme_ptr_t RDI;
+    rme_ptr_t RBP;
+    rme_ptr_t R8;
+    rme_ptr_t R9;
+    rme_ptr_t R10;
+    rme_ptr_t R11;
+    rme_ptr_t R12;
+    rme_ptr_t R13;
+    rme_ptr_t R14;
+    rme_ptr_t R15;
     /* If we went into this with a SYSCALL, this is 0x10000 */
-    ptr_t INT_NUM;
-    ptr_t ERROR_CODE;
-    ptr_t RIP;
-    ptr_t CS;
-    ptr_t RFLAGS;
-    ptr_t RSP;
-    ptr_t SS;
+    rme_ptr_t INT_NUM;
+    rme_ptr_t ERROR_CODE;
+    rme_ptr_t RIP;
+    rme_ptr_t CS;
+    rme_ptr_t RFLAGS;
+    rme_ptr_t RSP;
+    rme_ptr_t SS;
 };
 
 /* The coprocessor register set structure. MMX and SSE */
 struct RME_Cop_Struct
 {
 	/* MMX registers first */
-	ptr_t FPR_MMX0[2];
-	ptr_t FPR_MMX1[2];
-	ptr_t FPR_MMX2[2];
-	ptr_t FPR_MMX3[2];
-	ptr_t FPR_MMX4[2];
-	ptr_t FPR_MMX5[2];
-	ptr_t FPR_MMX6[2];
-	ptr_t FPR_MMX7[2];
+	rme_ptr_t FPR_MMX0[2];
+	rme_ptr_t FPR_MMX1[2];
+	rme_ptr_t FPR_MMX2[2];
+	rme_ptr_t FPR_MMX3[2];
+	rme_ptr_t FPR_MMX4[2];
+	rme_ptr_t FPR_MMX5[2];
+	rme_ptr_t FPR_MMX6[2];
+	rme_ptr_t FPR_MMX7[2];
 	/* SSE registers follow */
 #if(RME_X64_FPU_TYPE==RME_FALSE)
-	ptr_t XMM0[2];
-	ptr_t XMM1[2];
-	ptr_t XMM2[2];
-	ptr_t XMM3[2];
-	ptr_t XMM4[2];
-	ptr_t XMM5[2];
-	ptr_t XMM6[2];
-	ptr_t XMM7[2];
-	ptr_t XMM8[2];
-	ptr_t XMM9[2];
-	ptr_t XMM10[2];
-	ptr_t XMM11[2];
-	ptr_t XMM12[2];
-	ptr_t XMM13[2];
-	ptr_t XMM14[2];
-	ptr_t XMM15[2];
+	rme_ptr_t XMM0[2];
+	rme_ptr_t XMM1[2];
+	rme_ptr_t XMM2[2];
+	rme_ptr_t XMM3[2];
+	rme_ptr_t XMM4[2];
+	rme_ptr_t XMM5[2];
+	rme_ptr_t XMM6[2];
+	rme_ptr_t XMM7[2];
+	rme_ptr_t XMM8[2];
+	rme_ptr_t XMM9[2];
+	rme_ptr_t XMM10[2];
+	rme_ptr_t XMM11[2];
+	rme_ptr_t XMM12[2];
+	rme_ptr_t XMM13[2];
+	rme_ptr_t XMM14[2];
+	rme_ptr_t XMM15[2];
 #elif(RME_X64_FPU_TYPE==RME_X64_FPU_AVX)
-	ptr_t XYMM0[4];
-	ptr_t XYMM1[4];
-	ptr_t XYMM2[4];
-	ptr_t XYMM3[4];
-	ptr_t XYMM4[4];
-	ptr_t XYMM5[4];
-	ptr_t XYMM6[4];
-	ptr_t XYMM7[4];
-	ptr_t XYMM8[4];
-	ptr_t XYMM9[4];
-	ptr_t XYMM10[4];
-	ptr_t XYMM11[4];
-	ptr_t XYMM12[4];
-	ptr_t XYMM13[4];
-	ptr_t XYMM14[4];
-	ptr_t XYMM15[4];
+	rme_ptr_t XYMM0[4];
+	rme_ptr_t XYMM1[4];
+	rme_ptr_t XYMM2[4];
+	rme_ptr_t XYMM3[4];
+	rme_ptr_t XYMM4[4];
+	rme_ptr_t XYMM5[4];
+	rme_ptr_t XYMM6[4];
+	rme_ptr_t XYMM7[4];
+	rme_ptr_t XYMM8[4];
+	rme_ptr_t XYMM9[4];
+	rme_ptr_t XYMM10[4];
+	rme_ptr_t XYMM11[4];
+	rme_ptr_t XYMM12[4];
+	rme_ptr_t XYMM13[4];
+	rme_ptr_t XYMM14[4];
+	rme_ptr_t XYMM15[4];
 #elif(RME_X64_FPU_TYPE==RME_X64_FPU_AVX512)
-	ptr_t XYZMM0[8];
-	ptr_t XYZMM1[8];
-	ptr_t XYZMM2[8];
-	ptr_t XYZMM3[8];
-	ptr_t XYZMM4[8];
-	ptr_t XYZMM5[8];
-	ptr_t XYZMM6[8];
-	ptr_t XYZMM7[8];
-	ptr_t XYZMM8[8];
-	ptr_t XYZMM9[8];
-	ptr_t XYZMM10[8];
-	ptr_t XYZMM11[8];
-	ptr_t XYZMM12[8];
-	ptr_t XYZMM13[8];
-	ptr_t XYZMM14[8];
-	ptr_t XYZMM15[8];
-	ptr_t XYZMM16[8];
-	ptr_t XYZMM17[8];
-	ptr_t XYZMM18[8];
-	ptr_t XYZMM19[8];
-	ptr_t XYZMM20[8];
-	ptr_t XYZMM21[8];
-	ptr_t XYZMM22[8];
-	ptr_t XYZMM23[8];
-	ptr_t XYZMM24[8];
-	ptr_t XYZMM25[8];
-	ptr_t XYZMM26[8];
-	ptr_t XYZMM27[8];
-	ptr_t XYZMM28[8];
-	ptr_t XYZMM29[8];
-	ptr_t XYZMM30[8];
-	ptr_t XYZMM31[8];
+	rme_ptr_t XYZMM0[8];
+	rme_ptr_t XYZMM1[8];
+	rme_ptr_t XYZMM2[8];
+	rme_ptr_t XYZMM3[8];
+	rme_ptr_t XYZMM4[8];
+	rme_ptr_t XYZMM5[8];
+	rme_ptr_t XYZMM6[8];
+	rme_ptr_t XYZMM7[8];
+	rme_ptr_t XYZMM8[8];
+	rme_ptr_t XYZMM9[8];
+	rme_ptr_t XYZMM10[8];
+	rme_ptr_t XYZMM11[8];
+	rme_ptr_t XYZMM12[8];
+	rme_ptr_t XYZMM13[8];
+	rme_ptr_t XYZMM14[8];
+	rme_ptr_t XYZMM15[8];
+	rme_ptr_t XYZMM16[8];
+	rme_ptr_t XYZMM17[8];
+	rme_ptr_t XYZMM18[8];
+	rme_ptr_t XYZMM19[8];
+	rme_ptr_t XYZMM20[8];
+	rme_ptr_t XYZMM21[8];
+	rme_ptr_t XYZMM22[8];
+	rme_ptr_t XYZMM23[8];
+	rme_ptr_t XYZMM24[8];
+	rme_ptr_t XYZMM25[8];
+	rme_ptr_t XYZMM26[8];
+	rme_ptr_t XYZMM27[8];
+	rme_ptr_t XYZMM28[8];
+	rme_ptr_t XYZMM29[8];
+	rme_ptr_t XYZMM30[8];
+	rme_ptr_t XYZMM31[8];
 #endif
 };
 
 /* Need to save SP and IP across synchronous invocation */
 struct RME_Iret_Struct
 {
-    ptr_t RIP;
-    ptr_t RSP;
+    rme_ptr_t RIP;
+    rme_ptr_t RSP;
 };
 
 /* Memory information - the layout is (offset from VA base):
@@ -792,62 +800,62 @@ struct RME_Iret_Struct
  */
 struct RME_X64_Layout
 {
-	ptr_t Kotbl_Start;
-	ptr_t Kotbl_Size;
+	rme_ptr_t Kotbl_Start;
+	rme_ptr_t Kotbl_Size;
 
-	ptr_t Pgreg_Start;
-	ptr_t Pgreg_Size;
+	rme_ptr_t Pgreg_Start;
+	rme_ptr_t Pgreg_Size;
 
-	ptr_t PerCPU_Start;
-	ptr_t PerCPU_Size;
+	rme_ptr_t PerCPU_Start;
+	rme_ptr_t PerCPU_Size;
 
-	ptr_t Kpgtbl_Start;
-	ptr_t Kpgtbl_Size;
+	rme_ptr_t Kpgtbl_Start;
+	rme_ptr_t Kpgtbl_Size;
 
 	/* We allow max. 32 trunks under 4G */
-	ptr_t Kmem1_Trunks;
-	ptr_t Kmem1_Start[RME_X64_KMEM1_MAXSEGS];
-	ptr_t Kmem1_Size[RME_X64_KMEM1_MAXSEGS];
+	rme_ptr_t Kmem1_Trunks;
+	rme_ptr_t Kmem1_Start[RME_X64_KMEM1_MAXSEGS];
+	rme_ptr_t Kmem1_Size[RME_X64_KMEM1_MAXSEGS];
 
-	ptr_t Hole_Start;
-	ptr_t Hole_Size;
+	rme_ptr_t Hole_Start;
+	rme_ptr_t Hole_Size;
 
-	ptr_t Kmem2_Start;
-	ptr_t Kmem2_Size;
+	rme_ptr_t Kmem2_Start;
+	rme_ptr_t Kmem2_Size;
 
-	ptr_t Stack_Start;
-	ptr_t Stack_Size;
+	rme_ptr_t Stack_Start;
+	rme_ptr_t Stack_Size;
 };
 
 /* The processor features */
 struct RME_X64_Features
 {
-	ptr_t Max_Func;
-	ptr_t Max_Ext;
-	ptr_t Func[16][4];
-	ptr_t Ext[16][4];
+	rme_ptr_t Max_Func;
+	rme_ptr_t Max_Ext;
+	rme_ptr_t Func[16][4];
+	rme_ptr_t Ext[16][4];
 };
 
 /* Page table registration table */
 struct __RME_X64_Pgreg
 {
 	/* What is the PCID of this page table? - This can be set through kernel function caps */
-	u32 PCID;
+	rme_u32_t PCID;
     /* How many child page tables does this page table have? - this can never overflow */
-    u32 Child_Cnt;
+    rme_u32_t Child_Cnt;
     /* How many parent page tables does this page table have? */
-    ptr_t Parent_Cnt;
+    rme_ptr_t Parent_Cnt;
 };
 
 /* The first two levels of the kernel page table. The third level will be constructed on the fly */
 struct __RME_X64_Kern_Pgtbl
 {
-	ptr_t Dummy[256];
-	ptr_t PML4[256];
-	ptr_t PDP[256][512];
+	rme_ptr_t Dummy[256];
+	rme_ptr_t PML4[256];
+	rme_ptr_t PDP[256][512];
 };
 /*****************************************************************************/
-/* __PLATFORM_X64_H_STRUCTS__ */
+/* __RME_PLATFORM_X64_H_STRUCTS__ */
 #endif
 /* __HDR_STRUCTS__ */
 #endif
@@ -855,8 +863,8 @@ struct __RME_X64_Kern_Pgtbl
 
 /* Private Global Variables **************************************************/
 #if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __PLATFORM_X64_MEMBERS__
-#define __PLATFORM_X64_MEMBERS__
+#ifndef __RME_PLATFORM_X64_MEMBERS__
+#define __RME_PLATFORM_X64_MEMBERS__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEFS__
@@ -871,25 +879,25 @@ struct __RME_X64_Kern_Pgtbl
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
 /* Is there a UART in the system? */
-static volatile ptr_t RME_X64_UART_Exist;
+static volatile rme_ptr_t RME_X64_UART_Exist;
 /* Where is the multiboot information located? */
 static volatile struct multiboot_info* RME_X64_MBInfo;
 /* The layout of the memory structure */
 static volatile struct RME_X64_Layout RME_X64_Layout;
 /* We currently support 256 CPUs max */
-static volatile ptr_t RME_X64_Num_CPU;
+static volatile rme_ptr_t RME_X64_Num_CPU;
 /* CPU counter */
-static volatile ptr_t RME_X64_CPU_Cnt;
-static volatile struct RME_X64_CPU_Info RME_X64_CPU_Info[RME_CPU_NUM];
+static volatile rme_ptr_t RME_X64_CPU_Cnt;
+static volatile struct RME_X64_CPU_Info RME_X64_CPU_Info[RME_X64_CPU_NUM];
 /* There can be max. 8 IOAPICs */
-static volatile ptr_t RME_X64_Num_IOAPIC;
-static volatile struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[8];
+static volatile rme_ptr_t RME_X64_Num_IOAPIC;
+static volatile struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[RME_X64_IOAPIC_NUM];
 /* The LAPIC address */
-static volatile ptr_t RME_X64_LAPIC_Addr;
+static volatile rme_ptr_t RME_X64_LAPIC_Addr;
 /* The processor features */
 static volatile struct RME_X64_Features RME_X64_Feature;
 /* The PCID counter */
-static volatile ptr_t RME_X64_PCID_Inc;
+static volatile rme_ptr_t RME_X64_PCID_Inc;
 
 /* Translate the flags into X64 specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
@@ -930,7 +938,7 @@ int main(void)
 	return 0;
 }
  */
-static const ptr_t RME_X64_Pgflg_RME2NAT[32]=
+static const rme_ptr_t RME_X64_Pgflg_RME2NAT[32]=
 {
 	0x8000000000000019,0x8000000000000019,0x800000000000001B,0x800000000000001B,
 	0x0000000000000019,0x0000000000000019,0x000000000000001B,0x000000000000001B,
@@ -977,7 +985,7 @@ int main(void)
     }
 }
  */
-static const ptr_t RME_X64_Pgflg_NAT2RME[16]=
+static const rme_ptr_t RME_X64_Pgflg_NAT2RME[16]=
 {
 	0x000000000000001D,0x000000000000001F,0x000000000000000D,0x000000000000000F,
 	0x0000000000000015,0x0000000000000017,0x0000000000000005,0x0000000000000007,
@@ -1032,7 +1040,7 @@ Boot_GDT_Desc_16:
                  .word          (Boot_GDT_Desc_16-Boot_GDT_16-1)
                  .long          Boot_GDT_16
  */
-static const u8 RME_X64_Boot_Code[]=
+static const rme_u8_t RME_X64_Boot_Code[]=
 {
     0xFA,0x31,0xC0,0x8E,0xD8,0x8E,0xC0,0x8E,
     0xD0,0x0F,0x01,0x16,0x5C,0x70,0x0F,0x20,
@@ -1055,26 +1063,28 @@ static const u8 RME_X64_Boot_Code[]=
 /*****************************************************************************/
 static void __RME_X64_UART_Init(void);
 /* Find the RDSP */
-static struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(ptr_t Base, ptr_t Len);
+static struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(rme_ptr_t Base, rme_ptr_t Len);
 static struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Find(void);
-static ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT);
+static rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT);
 /* Debug output helper */
 static void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header);
 /* Initialize the ACPI */
-static ret_t __RME_X64_ACPI_Init(void);
+static rme_ret_t __RME_X64_ACPI_Init(void);
 /* Get processor feature bits */
 static void __RME_X64_Feature_Get(void);
 /* Initialize memory according to GRUB multiboot specification */
-static void __RME_X64_Mem_Init(ptr_t MMap_Addr, ptr_t MMap_Length);
+static void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length);
 /* Initialize CPU-local tables */
 static void __RME_X64_CPU_Local_Init(void);
+/* Get the RME CPU-local data structure given its CPUID */
+static struct RME_CPU_Local* __RME_X64_CPU_Local_Get_By_CPUID(rme_ptr_t CPUID);
 /* Initialize interrupt controllers */
 static void __RME_X64_PIC_Init(void);
 static void __RME_X64_LAPIC_Init(void);
 static void __RME_X64_IOAPIC_Init(void);
 /* Enable/disable a vector in IOAPIC */
-static void __RME_X64_IOAPIC_Int_Enable(ptr_t IRQ, ptr_t CPUID);
-static void __RME_X64_IOAPIC_Int_Disable(ptr_t IRQ);
+static void __RME_X64_IOAPIC_Int_Enable(rme_ptr_t IRQ, rme_ptr_t CPUID);
+static void __RME_X64_IOAPIC_Int_Disable(rme_ptr_t IRQ);
 /* Initialize timers */
 static void __RME_X64_Timer_Init(void);
 /*****************************************************************************/
@@ -1091,7 +1101,7 @@ static void __RME_X64_Timer_Init(void);
 /*****************************************************************************/
 EXTERN struct RME_X64_IDT_Entry RME_X64_IDT_Table[256];
 EXTERN struct __RME_X64_Kern_Pgtbl RME_X64_Kpgt;
-EXTERN ptr_t __RME_X64_Kern_Boot_Stack[0];
+EXTERN rme_ptr_t __RME_X64_Kern_Boot_Stack[0];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
@@ -1099,15 +1109,15 @@ EXTERN ptr_t __RME_X64_Kern_Boot_Stack[0];
 /* Public C Function Prototypes **********************************************/
 /*****************************************************************************/
 /* X64 specific */
-EXTERN ptr_t __RME_X64_In(ptr_t Port);
-EXTERN void __RME_X64_Out(ptr_t Port, ptr_t Data);
-EXTERN ptr_t __RME_X64_Read_MSR(ptr_t MSR);
-EXTERN void __RME_X64_Write_MSR(ptr_t MSR, ptr_t Value);
-EXTERN void __RME_X64_GDT_Load(ptr_t* GDTR);
-EXTERN void __RME_X64_IDT_Load(ptr_t* IDTR);
-EXTERN void __RME_X64_TSS_Load(ptr_t TSS);
-EXTERN ptr_t __RME_X64_CPUID_Get(ptr_t EAX, ptr_t* EBX, ptr_t* ECX, ptr_t* EDX);
-EXTERN void __RME_X64_Pgtbl_Set(ptr_t Pgtbl);
+EXTERN rme_ptr_t __RME_X64_In(rme_ptr_t Port);
+EXTERN void __RME_X64_Out(rme_ptr_t Port, rme_ptr_t Data);
+EXTERN rme_ptr_t __RME_X64_Read_MSR(rme_ptr_t MSR);
+EXTERN void __RME_X64_Write_MSR(rme_ptr_t MSR, rme_ptr_t Value);
+EXTERN void __RME_X64_GDT_Load(rme_ptr_t* GDTR);
+EXTERN void __RME_X64_IDT_Load(rme_ptr_t* IDTR);
+EXTERN void __RME_X64_TSS_Load(rme_ptr_t TSS);
+EXTERN rme_ptr_t __RME_X64_CPUID_Get(rme_ptr_t EAX, rme_ptr_t* EBX, rme_ptr_t* ECX, rme_ptr_t* EDX);
+EXTERN void __RME_X64_Pgtbl_Set(rme_ptr_t Pgtbl);
 /* Boot glue */
 EXTERN void __RME_X64_SMP_Boot_32(void);
 /* Vectors */
@@ -1389,65 +1399,65 @@ EXTERN void __RME_X64_Halt(void);
 __EXTERN__ void __RME_X64_SMP_Tick(void);
 __EXTERN__ void __RME_X64_LAPIC_Ack(void);
 /* Atomics */
-__EXTERN__ ptr_t __RME_Comp_Swap(ptr_t* Ptr, ptr_t* Old, ptr_t New);
-__EXTERN__ ptr_t __RME_Fetch_Add(ptr_t* Ptr, cnt_t Addend);
-__EXTERN__ ptr_t __RME_Fetch_And(ptr_t* Ptr, ptr_t Operand);
-__EXTERN__ ptr_t __RME_X64_Write_Release(void);
+__EXTERN__ rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New);
+__EXTERN__ rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+__EXTERN__ rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__EXTERN__ rme_ptr_t __RME_X64_Write_Release(void);
 /* MSB counting */
-EXTERN ptr_t __RME_MSB_Get(ptr_t Val);
+EXTERN rme_ptr_t __RME_MSB_Get(rme_ptr_t Val);
 /* Debugging */
-__EXTERN__ ptr_t __RME_Putchar(char Char);
+__EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */
 EXTERN void ___RME_X64_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_X64_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
-EXTERN void _RME_Kmain(ptr_t Stack);
-EXTERN void __RME_Enter_User_Mode(ptr_t Entry_Addr, ptr_t Stack_Addr, ptr_t CPUID);
-__EXTERN__ ptr_t __RME_Low_Level_Init(void);
-__EXTERN__ ptr_t __RME_Boot(void);
+EXTERN void _RME_Kmain(rme_ptr_t Stack);
+EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
+__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ rme_ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);
 __EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
-EXTERN ptr_t __RME_CPUID_Get(void);
-__EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, ptr_t* Svc,
-                                         ptr_t* Capid, ptr_t* Param);
-__EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
+EXTERN struct RME_CPU_Local* __RME_X64_CPU_Local_Get(void);
+__EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
+                                        rme_ptr_t* Capid, rme_ptr_t* Param);
+__EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
-__EXTERN__ void __RME_Thd_Reg_Init(ptr_t Entry, ptr_t Stack, ptr_t Param, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
 __EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 /* Invocation register sets */
-__EXTERN__ void __RME_Inv_Reg_Init(ptr_t Param, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Inv_Reg_Init(rme_ptr_t Param, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
-__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, ret_t Retval);
+__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Kernel function handler */
-__EXTERN__ ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, ptr_t Func_ID, 
-                                         ptr_t Sub_ID, ptr_t Param1, ptr_t Param2);
+__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
+                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
-__EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, ptr_t Reason);
+__EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Reason);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, ptr_t Int_Num);
+__EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__EXTERN__ void __RME_Pgtbl_Set(ptr_t Pgtbl);
-__EXTERN__ ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ ptr_t __RME_Pgtbl_Check(ptr_t Start_Addr, ptr_t Top_Flag, ptr_t Size_Order, ptr_t Num_Order, ptr_t Vaddr);
-__EXTERN__ ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Paddr, ptr_t Pos, ptr_t Flags);
-__EXTERN__ ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos);
-__EXTERN__ ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, ptr_t Pos, 
-                                       struct RME_Cap_Pgtbl* Pgtbl_Child, ptr_t Flags);
-__EXTERN__ ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos);
-__EXTERN__ ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Pos, ptr_t* Paddr, ptr_t* Flags);
-__EXTERN__ ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, ptr_t Vaddr, ptr_t* Pgtbl,
-                                  ptr_t* Map_Vaddr, ptr_t* Paddr, ptr_t* Size_Order, ptr_t* Num_Order, ptr_t* Flags);
+__EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
+                                           struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
+                                      rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __PLATFORM_X64_MEMBERS__ */
+/* __RME_PLATFORM_X64_MEMBERS__ */
 #endif
 /* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
 #endif
