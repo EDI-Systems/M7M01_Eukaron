@@ -116,7 +116,7 @@ rme_ptr_t _RME_Timestamp_Inc(rme_cnt_t Value)
 {
     /* The incremental value cannot be smaller than zero or equal to zero */
     RME_ASSERT(Value>0);
-    return __RME_Fetch_Add(&RME_Timestamp,Value);
+    return RME_FETCH_ADD(&RME_Timestamp,Value);
 }
 /* End Function:_RME_Timestamp_Inc *******************************************/
 

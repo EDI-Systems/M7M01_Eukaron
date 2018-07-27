@@ -158,7 +158,7 @@ while(0)
 #define RME_CAP_DEFROST(CAP,TEMP) \
 do \
 { \
-    __RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),(TEMP)&(~((rme_ptr_t)RME_CAP_FROZEN))); \
+    RME_COMP_SWAP(&((CAP)->Head.Type_Ref),(TEMP),(TEMP)&(~((rme_ptr_t)RME_CAP_FROZEN))); \
 } \
 while(0)
 
@@ -231,7 +231,7 @@ while(0)
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
-    if(RME_UNLIKELY(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),0)==0)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Ref),(TEMP),0)==0)) \
         return RME_ERR_CAP_NULL; \
 } \
 while(0)
@@ -245,7 +245,7 @@ do \
 { \
     /* Check if anything is there. If there is nothing there, the Type_Ref must be 0 */ \
     (TEMP)=RME_CAP_TYPEREF(RME_CAP_NOP,0); \
-    if(RME_UNLIKELY(__RME_Comp_Swap(&((CAP)->Head.Type_Ref),&(TEMP),RME_CAP_FROZEN)==0)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Ref),(TEMP),RME_CAP_FROZEN)==0)) \
         return RME_ERR_CAP_EXIST; \
     /* We have taken the slot. Now log the quiescence counter in. No barrier needed as our atomics are serializing */ \
     (CAP)->Head.Timestamp=RME_Timestamp; \

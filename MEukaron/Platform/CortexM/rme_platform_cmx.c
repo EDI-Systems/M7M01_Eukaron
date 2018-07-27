@@ -37,80 +37,67 @@ Description : The hardware abstraction layer for Cortex-M microcontrollers.
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
-/* Begin Function:__RME_Comp_Swap *********************************************
-Description : The compare-and-swap atomic instruction. If the *Old value is equal to
-              *Ptr, then set the *Ptr as New and return 1; else set the *Old as *Ptr,
-              and return 0.
+/* Begin Function:__RME_CMX_Comp_Swap *****************************************
+Description : The compare-and-swap atomic instruction. If the Old value is equal to
+              *Ptr, then set the *Ptr as New and return 1; else return 0.
               On Cortex-M there is only one core. There's basically no need to do
-              anything special, and we just disable interrupt for a very short time.
+              anything special, and because we are already in kernel, relevant
+              interrupts are already masked by default.
 Input       : rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t* Old - The old value.
+              rme_ptr_t Old - The old value.
               rme_ptr_t New - The new value.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t* Old - The old value.
 Return      : rme_ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New)
+rme_ptr_t __RME_CMX_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
 {
-    __RME_Disable_Int();
-    if(*Ptr==*Old)
+    if(*Ptr==Old)
     {
         *Ptr=New;
-        __RME_Enable_Int();
         return 1;
     }
-    *Old=*Ptr;
-    __RME_Enable_Int();
     
     return 0;
 }
-/* End Function:__RME_Comp_Swap **********************************************/
+/* End Function:__RME_CMX_Comp_Swap ******************************************/
 
-/* Begin Function:__RME_Fetch_Add *********************************************
+/* Begin Function:__RME_CMX_Fetch_Add *****************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is 
               pointed to by the pointer, and return the value before addition.
-              On Cortex-M there is only one core. There's basically no need to do
-              anything special, and we just disable interrupt for a very short time.
 Input       : rme_ptr_t* Ptr - The pointer to the data.
               rme_cnt_t Addend - The number to add.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the addition.
 ******************************************************************************/
-rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
+rme_ptr_t __RME_CMX_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
 {
     rme_ptr_t Old;
     
-    __RME_Disable_Int();
     Old=*Ptr;
     *Ptr=Old+Addend;
-    __RME_Enable_Int();
     
     return Old;
 }
-/* End Function:__RME_Fetch_Add **********************************************/
+/* End Function:__RME_CMX_Fetch_Add ******************************************/
 
-/* Begin Function:__RME_Fetch_And *********************************************
+/* Begin Function:__RME_CMX_Fetch_And *****************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
-              On Cortex-M there is only one core. There's basically no need to do
-              anything special.
 Input       : rme_ptr_t* Ptr - The pointer to the data.
               rme_cnt_t Operand - The number to logic AND with the destination.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the AND operation.
 ******************************************************************************/
-rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
+rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 {
     rme_ptr_t Old;
     
-    __RME_Disable_Int();
     Old=*Ptr;
     *Ptr=Old&Operand;
-    __RME_Enable_Int();
     
     return Old;
 }
-/* End Function:__RME_Fetch_And **********************************************/
+/* End Function:__RME_CMX_Fetch_And ******************************************/
 
 /* Begin Function:__RME_Putchar ***********************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
@@ -512,7 +499,7 @@ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
     else if(Func_ID==240)
     {
         /* Wait for interrupt to happen */
-        __RME_CMX_WFI();
+        __RME_CMX_Wait_Int();
         __RME_Set_Syscall_Retval(Reg,0);
         return 0;
     }
