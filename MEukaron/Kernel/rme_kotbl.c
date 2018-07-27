@@ -100,7 +100,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
         if((Old_Val&(Start_Mask&End_Mask))!=0)
             return RME_ERR_KOT_BMP;
         /* Check done, do the marking with CAS */
-        if(__RME_Comp_Swap(&RME_KOTBL[Start],&Old_Val,Old_Val|(Start_Mask&End_Mask))==0)
+        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|(Start_Mask&End_Mask))==0)
             return RME_ERR_KOT_BMP;
     }
     else
@@ -110,7 +110,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
         Old_Val=RME_KOTBL[Start];
         if((Old_Val&Start_Mask)!=0)
             return RME_ERR_KOT_BMP;
-        if(__RME_Comp_Swap(&RME_KOTBL[Start],&Old_Val,Old_Val|Start_Mask)==0)
+        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|Start_Mask)==0)
             return RME_ERR_KOT_BMP;
         /* Check&Mark the middle */
         for(Count=Start+1;Count<End;Count++)
@@ -123,7 +123,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             }
             else
             {
-                if(__RME_Comp_Swap(&RME_KOTBL[Count],&Old_Val,RME_ALLBITS)==0)
+                if(RME_COMP_SWAP(&RME_KOTBL[Count],Old_Val,RME_ALLBITS)==0)
                 {
                     Undo=1;
                     break;
@@ -139,7 +139,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
                 Undo=1;
             else
             {
-                if(__RME_Comp_Swap(&RME_KOTBL[End],&Old_Val,Old_Val|End_Mask)==0)
+                if(RME_COMP_SWAP(&RME_KOTBL[End],Old_Val,Old_Val|End_Mask)==0)
                     Undo=1;
             }
         }
@@ -151,7 +151,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             for(Count--;Count>Start;Count--)
                 RME_KOTBL[Count]=0;
             /* Undo the first word - need atomic instructions */
-            __RME_Fetch_And(&(RME_KOTBL[Start]),~Start_Mask);
+            RME_FETCH_AND(&(RME_KOTBL[Start]),~Start_Mask);
             /* Return failure */
             return RME_ERR_KOT_BMP;
         }
@@ -205,7 +205,7 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size)
         if((RME_KOTBL[Start]&(Start_Mask&End_Mask))!=(Start_Mask&End_Mask))
             return RME_ERR_KOT_BMP;
         /* Check done, do the unmarking - need atomic operations */
-        __RME_Fetch_And(&(RME_KOTBL[Start]),~(Start_Mask&End_Mask));
+        RME_FETCH_AND(&(RME_KOTBL[Start]),~(Start_Mask&End_Mask));
     }
     else
     {
@@ -223,12 +223,12 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size)
             return RME_ERR_KOT_BMP;
         
         /* Erase the start - make it atomic */
-        __RME_Fetch_And(&(RME_KOTBL[Start]),~Start_Mask);
+        RME_FETCH_AND(&(RME_KOTBL[Start]),~Start_Mask);
         /* Erase the middle - do not need atomics here */
         for(Count=Start+1;Count<End-1;Count++)
             RME_KOTBL[Count]=0;
         /* Erase the end - make it atomic */
-        __RME_Fetch_And(&(RME_KOTBL[End]),~End_Mask);
+        RME_FETCH_AND(&(RME_KOTBL[End]),~End_Mask);
     }
     
     return 0;

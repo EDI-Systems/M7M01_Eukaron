@@ -362,21 +362,21 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
     Proc_Struct->Refcnt=1;
     /* Set the capability table, reference it and check for overflow */
     Proc_Struct->Captbl=Captbl_Op;
-    Type_Ref=__RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     /* Set the page table, reference it and check for overflow */
     Proc_Struct->Pgtbl=Pgtbl_Op;
-    Type_Ref=__RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
-        __RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
@@ -449,21 +449,21 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     /* Set the capability table, reference it and check for overflow */
     Proc_Struct->Captbl=Captbl_Op;
     Proc_Struct->Refcnt=0;
-    Type_Ref=__RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
     /* Set the page table, reference it and check for overflow */
     Proc_Struct->Pgtbl=Pgtbl_Op;
-    Type_Ref=__RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Captbl_Op->Head.Type_Ref), -1);
-        __RME_Fetch_Add(&(Pgtbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
@@ -517,8 +517,8 @@ rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme
     RME_CAP_REMDEL(Proc_Del,Type_Ref);
     
     /* Decrease the refcnt for the two caps */
-    __RME_Fetch_Add(&(Object->Captbl->Head.Type_Ref), -1);
-    __RME_Fetch_Add(&(Object->Pgtbl->Head.Type_Ref), -1);
+    RME_FETCH_ADD(&(Object->Captbl->Head.Type_Ref), -1);
+    RME_FETCH_ADD(&(Object->Pgtbl->Head.Type_Ref), -1);
         
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((rme_ptr_t)Object, RME_PROC_SIZE)!=0);
@@ -553,10 +553,10 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     RME_CAP_CHECK(Captbl_New,RME_CAPTBL_FLAG_PROC_CPT);
     
     /* Increase the reference count of the new cap first - If that fails, we can revert easily */
-    Type_Ref=__RME_Fetch_Add(&(Captbl_New->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Captbl_New->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), -1);
         return RME_ERR_CAP_REFCNT;
     }
     
@@ -564,15 +564,15 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     Proc_Struct=RME_CAP_GETOBJ(Proc_Op,struct RME_Proc_Struct*);
     Captbl_Old=Proc_Struct->Captbl;
     /* Actually commit the change */
-    if(__RME_Comp_Swap((rme_ptr_t*)(&(Proc_Struct->Captbl)),
-                              (rme_ptr_t*)(&Captbl_Old),
-                              (rme_ptr_t)Captbl_New)==0)
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Proc_Struct->Captbl)),
+                       (rme_ptr_t)Captbl_Old,
+                       (rme_ptr_t)Captbl_New)==0)
     {
-        __RME_Fetch_Add(&(Captbl_New->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), -1);
         return RME_ERR_PTH_CONFLICT;
     }
     /* Release the old table */
-    __RME_Fetch_Add(&(Captbl_Old->Head.Type_Ref), -1);
+    RME_FETCH_ADD(&(Captbl_Old->Head.Type_Ref), -1);
     
     return 0;
 }
@@ -604,10 +604,10 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     RME_CAP_CHECK(Pgtbl_New,RME_PGTBL_FLAG_PROC_PGT);
     
     /* Increase the reference count of the new cap first - If that fails, we can revert easily */
-    Type_Ref=__RME_Fetch_Add(&(Pgtbl_New->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
-        __RME_Fetch_Add(&(Pgtbl_New->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), -1);
         return RME_ERR_CAP_REFCNT;
     }
     
@@ -615,15 +615,15 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     Proc_Struct=RME_CAP_GETOBJ(Proc_Op,struct RME_Proc_Struct*);
     Pgtbl_Old=Proc_Struct->Pgtbl;
     /* Actually commit the change */
-    if(__RME_Comp_Swap((rme_ptr_t*)(&(Proc_Struct->Captbl)),
-                              (rme_ptr_t*)(&Pgtbl_Old),
-                              (rme_ptr_t)Pgtbl_New)==0)
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Proc_Struct->Captbl)),
+                       (rme_ptr_t)Pgtbl_Old,
+                       (rme_ptr_t)Pgtbl_New)==0)
     {
-        __RME_Fetch_Add(&(Pgtbl_New->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), -1);
         return RME_ERR_PTH_CONFLICT;
     }
     /* Release the old table */
-    __RME_Fetch_Add(&(Pgtbl_Old->Head.Type_Ref), -1);
+    RME_FETCH_ADD(&(Pgtbl_Old->Head.Type_Ref), -1);
     
     return 0;
 }
@@ -708,7 +708,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     __RME_List_Crt(&(Thd_Struct->Inv_Stack));
     
     /* Increase the reference count of the process structure(Not the process capability) */
-    __RME_Fetch_Add(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
+    RME_FETCH_ADD(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
     
     /* Set the cap's parameters according to what we have just created */
     Thd_Crt->Head.Parent=0;
@@ -807,7 +807,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     __RME_List_Crt(&(Thd_Struct->Inv_Stack));
     
     /* Increase the reference count of the process structure(Not the process capability) */
-    __RME_Fetch_Add(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
+    RME_FETCH_ADD(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
     
     /* Set the cap's parameters according to what we have just created */
     Thd_Crt->Head.Parent=0;
@@ -877,7 +877,7 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     }
     
     /* Dereference the process */
-    __RME_Fetch_Add(&(Thd_Struct->Sched.Proc->Refcnt), -1);
+    RME_FETCH_ADD(&(Thd_Struct->Sched.Proc->Refcnt), -1);
     
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((rme_ptr_t)Thd_Struct,RME_THD_SIZE)!=0);
@@ -1054,8 +1054,8 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
         return RME_ERR_PTH_PRIO;
 
     /* Yes, it is on the current processor. Try to bind the thread */
-    if(__RME_Comp_Swap((rme_ptr_t*)&(Thd_Op_Struct->Sched.CPU_Local),
-                       (rme_ptr_t*)&Old_CPU_Local,
+    if(RME_COMP_SWAP((rme_ptr_t*)&(Thd_Op_Struct->Sched.CPU_Local),
+                       (rme_ptr_t)Old_CPU_Local,
                        (rme_ptr_t)CPU_Local)==0)
         return RME_ERR_PTH_CONFLICT;
     
@@ -1074,7 +1074,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
         Sig_Op_Struct=RME_CAP_GETOBJ(Sig_Op,struct RME_Sig_Struct*);
     	Thd_Op_Struct->Sched.Sched_Sig=Sig_Op_Struct;
         /* Increase the reference count of the signal endpoint(not the capability!) */
-        __RME_Fetch_Add(&(Sig_Op_Struct->Refcnt), 1);
+        RME_FETCH_ADD(&(Sig_Op_Struct->Refcnt), 1);
     }
 
     /* We can use this because it is core-local */
@@ -1201,7 +1201,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     
     /* If we have an scheduler event endpoint, release it */
     if(Thd_Struct->Sched.Sched_Sig!=0)
-    	__RME_Fetch_Add(&(Thd_Struct->Sched.Sched_Sig->Refcnt), -1);
+    	RME_FETCH_ADD(&(Thd_Struct->Sched.Sched_Sig->Refcnt), -1);
 
     /* Now save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);  

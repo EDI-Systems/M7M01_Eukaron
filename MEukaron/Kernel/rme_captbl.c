@@ -367,7 +367,7 @@ rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Fr
     Captbl_Frz->Head.Timestamp=RME_Timestamp;
     
     /* Finally, freeze it */
-    if(__RME_Comp_Swap(&(Captbl_Frz->Head.Type_Ref),&Type_Ref,Type_Ref|RME_CAPTBL_FLAG_FRZ)==0)
+    if(RME_COMP_SWAP(&(Captbl_Frz->Head.Type_Ref),Type_Ref,Type_Ref|RME_CAPTBL_FLAG_FRZ)==0)
         return RME_ERR_CAP_EXIST;
     
     return 0;
@@ -510,12 +510,12 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     /* Set the parent */
     Cap_Dst_Struct->Head.Parent=(rme_ptr_t)Cap_Src_Struct;
     /* Set the parent's reference count */
-    Type_Ref=__RME_Fetch_Add(&(Cap_Src_Struct->Head.Type_Ref), 1);
+    Type_Ref=RME_FETCH_ADD(&(Cap_Src_Struct->Head.Type_Ref), 1);
     /* Is it overflowed? */
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
         /* Refcnt overflowed(very unlikely to happen) */
-        __RME_Fetch_Add(&(Cap_Src_Struct->Head.Type_Ref), -1);
+        RME_FETCH_ADD(&(Cap_Src_Struct->Head.Type_Ref), -1);
         /* Clear the taken slot as well */
         RME_WRITE_RELEASE(&(Cap_Dst_Struct->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
@@ -562,7 +562,7 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Re
     RME_CAP_REMDEL(Captbl_Rem,Type_Ref);
     
     /* Check done, decrease its parent's refcnt */
-    __RME_Fetch_Add(&(Parent->Head.Type_Ref), -1);
+    RME_FETCH_ADD(&(Parent->Head.Type_Ref), -1);
     
     return 0;
 }

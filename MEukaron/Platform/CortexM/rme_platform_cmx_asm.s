@@ -48,7 +48,7 @@ __heap_limit
     ;Enable all interrupts
     EXPORT              __RME_Enable_Int
     ;Wait until interrupts happen
-    EXPORT              __RME_CMX_WFI
+    EXPORT              __RME_CMX_Wait_Int
     ;Get the MSB in a word
     EXPORT              __RME_MSB_Get
     ;Kernel main function wrapper
@@ -1231,17 +1231,17 @@ __RME_Enable_Int
     BX                  LR
 ;/* End Function:__RME_Enable_Int ********************************************/
 
-;/* Begin Function:__RME_CMX_WFI **********************************************
+;/* Begin Function:__RME_CMX_Wait_Int *****************************************
 ;Description    : Wait until a new interrupt comes, to save power.
 ;Input          : None.
 ;Output         : None.    
 ;Register Usage : None.                                  
 ;*****************************************************************************/
-__RME_CMX_WFI
+__RME_CMX_Wait_Int
     ;Wait for interrupt.
     WFI 
     BX                  LR
-;/* End Function:__RME_CMX_WFI ***********************************************/
+;/* End Function:__RME_CMX_Wait_Int ******************************************/
 
 ;/* Begin Function:_RME_Kmain *************************************************
 ;Description    : The entry address of the kernel. Never returns.

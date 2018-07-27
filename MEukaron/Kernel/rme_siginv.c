@@ -321,9 +321,9 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
     {
         /* The guy who blocked on it is not on our core, or nobody blocked.
          * We just faa the counter value and return */
-        if(__RME_Fetch_Add(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
+        if(RME_FETCH_ADD(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
         {
-            __RME_Fetch_Add(&(Sig_Struct->Signal_Num),-1);
+            RME_FETCH_ADD(&(Sig_Struct->Signal_Num),-1);
             return RME_ERR_SIV_FULL;
         }
     }
@@ -409,9 +409,9 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     else
     {
         /* The guy who blocked on it is not on our core, we just faa and return */
-        if(__RME_Fetch_Add(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
+        if(RME_FETCH_ADD(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
         {
-            __RME_Fetch_Add(&(Sig_Struct->Signal_Num),-1);
+            RME_FETCH_ADD(&(Sig_Struct->Signal_Num),-1);
             return RME_ERR_SIV_FULL;
         }
         /* Now save the system call return value to the caller stack */
@@ -495,7 +495,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         if((Option==RME_RCV_BS)||(Option==RME_RCV_NS))
         {
             /* Try to take one */
-            if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,Old_Value-1)==0)
+            if(RME_COMP_SWAP(&(Sig_Struct->Signal_Num),Old_Value,Old_Value-1)==0)
                 return RME_ERR_SIV_CONFLICT;
             /* We have taken it, now return what we have taken */
             __RME_Set_Syscall_Retval(Reg, 1);
@@ -503,7 +503,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         else
         {
             /* Try to take all */
-            if(__RME_Comp_Swap(&(Sig_Struct->Signal_Num),&Old_Value,0)==0)
+            if(RME_COMP_SWAP(&(Sig_Struct->Signal_Num),Old_Value,0)==0)
                 return RME_ERR_SIV_CONFLICT;
             /* We have taken all, now return what we have taken */
             __RME_Set_Syscall_Retval(Reg, Old_Value);
@@ -515,7 +515,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         /* There's no value, Old_Value==0, We use this variable to try to block */
         if((Option==RME_RCV_BS)||(Option==RME_RCV_BM))
         {
-            if(__RME_Comp_Swap((rme_ptr_t*)(&(Sig_Struct->Thd)),&Old_Value,(rme_ptr_t)Thd_Struct)==0)
+            if(RME_COMP_SWAP((rme_ptr_t*)(&(Sig_Struct->Thd)),Old_Value,(rme_ptr_t)Thd_Struct)==0)
                 return RME_ERR_SIV_CONFLICT;
             /* Now we block our current thread. No need to set any return value to the register
              * set here, because we do not yet know how many signals will be there when the thread
@@ -590,7 +590,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* By default we do not return on fault */
     Inv_Struct->Fault_Ret_Flag=0;
     /* Increase the reference count of the process structure(Not the process capability) */
-    __RME_Fetch_Add(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
+    RME_FETCH_ADD(&(RME_CAP_GETOBJ(Proc_Op, struct RME_Proc_Struct*)->Refcnt), 1);
     
     /* Fill in the header part */
     Inv_Crt->Head.Parent=0;
@@ -643,7 +643,7 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* Now we can safely delete the cap */
     RME_CAP_REMDEL(Inv_Del,Type_Ref);
     /* Dereference the process */
-    __RME_Fetch_Add(&(Inv_Struct->Proc->Refcnt), -1);
+    RME_FETCH_ADD(&(Inv_Struct->Proc->Refcnt), -1);
     /* Try to clear the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((rme_ptr_t)Inv_Struct,RME_INV_SIZE)!=0);
     
@@ -718,7 +718,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     /* Push this invocation stub capability into the current thread's invocation stack */
     Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     /* Try to do CAS and activate it */
-    if(RME_UNLIKELY(__RME_Comp_Swap(&(Inv_Struct->Active),&Active,1)==0))
+    if(RME_UNLIKELY(RME_COMP_SWAP(&(Inv_Struct->Active),Active,1)==0))
         return RME_ERR_SIV_ACT;
 
     /* Save whatever is needed to return to the point - normally only SP and IP needed

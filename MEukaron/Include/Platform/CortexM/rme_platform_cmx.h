@@ -105,6 +105,12 @@ typedef rme_s32_t rme_ret_t;
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_CMX_MPU_Data))
 /* The kernel object allocation table address - original */
 #define RME_KOTBL                       RME_Kotbl
+/* Compare-and-Swap(CAS) */
+#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_CMX_Comp_Swap(PTR,OLD,NEW)
+/* Fetch-and-Add(FAA) */
+#define RME_FETCH_ADD(PTR,ADDEND)       __RME_CMX_Fetch_Add(PTR,ADDEND)
+/* Fetch-and-And(FAND) */
+#define RME_FETCH_AND(PTR,OPERAND)      __RME_CMX_Fetch_And(PTR,OPERAND)
 /* No read/write barriers needed on Cortex-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
@@ -450,11 +456,11 @@ __EXTERN__ struct RME_CPU_Local RME_CMX_Local;
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
-EXTERN void __RME_CMX_WFI(void);
+EXTERN void __RME_CMX_Wait_Int(void);
 /* Atomics */
-__EXTERN__ rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__EXTERN__ rme_ptr_t __RME_CMX_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
+__EXTERN__ rme_ptr_t __RME_CMX_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+__EXTERN__ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* MSB counting */
 EXTERN rme_ptr_t __RME_MSB_Get(rme_ptr_t Val);
 /* Debugging */
