@@ -2014,7 +2014,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
 
-        RME_X64_PGREG_POS(Ptr).PCID=__RME_Fetch_Add((rme_ptr_t*)&RME_X64_PCID_Inc,1)&0xFFF;
+        RME_X64_PGREG_POS(Ptr).PCID=RME_FETCH_ADD((rme_ptr_t*)&RME_X64_PCID_Inc,1)&0xFFF;
     }
     else
     {
@@ -2065,7 +2065,6 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
     rme_ptr_t* Table;
-    rme_ptr_t Temp;
     rme_ptr_t X64_Flags;
 
     /* Are we trying to map into the kernel space on the top level? */
@@ -2086,8 +2085,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
         X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_US;
 
     /* Try to map it in */
-    Temp=0;
-    if(__RME_Comp_Swap(&(Table[Pos]),&Temp,X64_Flags)==0)
+    if(RME_COMP_SWAP(&(Table[Pos]),0,X64_Flags)==0)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -2123,7 +2121,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
         return RME_ERR_PGT_OPFAIL;
 
     /* Try to unmap it. Use CAS just in case */
-    if(__RME_Comp_Swap(&(Table[Pos]),&Temp,0)==0)
+    if(RME_COMP_SWAP(&(Table[Pos]),Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -2144,7 +2142,6 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
-    rme_ptr_t Temp;
     rme_ptr_t X64_Flags;
 
     /* Are we trying to map into the kernel space on the top level? */
@@ -2163,13 +2160,12 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
 
     /* Try to map it in - may need to increase some count */
-    Temp=0;
-    if(__RME_Comp_Swap(&(Parent_Table[Pos]),&Temp,X64_Flags)==0)
+    if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,X64_Flags)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Map complete, increase reference count for both page tables */
-    __RME_Fetch_Add((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),1);
-    __RME_Fetch_Add((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),1);
 
     return 0;
 }
@@ -2206,12 +2202,12 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 
     Child_Table=(rme_ptr_t*)Temp;
     /* Try to unmap it. Use CAS just in case */
-    if(__RME_Comp_Swap(&(Parent_Table[Pos]),&Temp,0)==0)
+    if(RME_COMP_SWAP(&(Parent_Table[Pos]),Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Decrease reference count */
-    __RME_Fetch_Add((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),-1);
-    __RME_Fetch_Add((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),-1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),-1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),-1);
 
     return 0;
 }

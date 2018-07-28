@@ -226,7 +226,7 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
     /* It must be possible to find one thread per core */
     RME_ASSERT(Count>=0);
     /* Get the first "1"'s position in the word */
-    Prio=__RME_MSB_Get((CPU_Local->Run).Bitmap[Count]);
+    Prio=RME_MSB_GET((CPU_Local->Run).Bitmap[Count]);
     Prio+=Count<<RME_WORD_ORDER;
     /* Now there is something at this priority level. Get it and start to run */
     return (struct RME_Thd_Struct*)((CPU_Local->Run).List[Prio].Next);
