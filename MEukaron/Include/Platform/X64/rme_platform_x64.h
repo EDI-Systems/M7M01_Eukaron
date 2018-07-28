@@ -126,6 +126,62 @@ typedef rme_s64_t rme_ret_t;
 #define RME_HYP_SIZE                         0
 /* The kernel object allocation table address - relocated */
 #define RME_KOTBL                            ((rme_ptr_t*)0xFFFF800001000000)
+/* Atomic instructions - The oficial release replaces all these with inline
+ * assembly to boost speed. Sometimes this can harm compiler compatibility. If
+ * you need normal assembly version, consider uncommenting the macro below. */
+/* #define RME_X64_USE_DEFAULT_ATOMICS */
+/* Default implementation */
+#ifdef RME_X64_USE_DEFAULT_ATOMICS
+/* Compare-and-Swap */
+#define RME_COMP_SWAP(PTR,OLD,NEW)           __RME_X64_Comp_Swap(PTR,OLD,NEW)
+/* Fetch-and-Add(FAA) */
+#define RME_FETCH_ADD(PTR,ADDEND)            __RME_X64_Fetch_Add(PTR,ADDEND)
+/* Fetch-and-And(FAND) */
+#define RME_FETCH_AND(PTR,OPERAND)           __RME_X64_Fetch_And(PTR,OPERAND)
+/* Get most significant bit */
+#define RME_MSB_GET(VAL)                     __RME_X64_MSB_Get(VAL)
+/* Inline assembly implementation */
+#else
+static INLINE rme_ptr_t _RME_X64_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
+{
+	rme_u8_t Zero;
+	__asm__ __volatile__("LOCK CMPXCHGQ %[New], %[Ptr]; SETZ %[Zero]"
+	                     :[Ptr]"+m"(*Ptr), [Zero]"=r"(Zero)
+	                     :[New]"r"(New), [Old]"a"(Old)
+	                     :"memory", "cc");
+	return (rme_ptr_t)Zero;
+}
+static INLINE rme_ptr_t _RME_X64_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
+{
+	__asm__ __volatile__("LOCK XADDQ %[Addend], %[Ptr]"
+	                     :[Ptr]"+m"(*Ptr), [Addend]"+r"(Addend)
+	                     :
+	                     :"memory", "cc");
+	return Addend;
+}
+static INLINE rme_ptr_t _RME_X64_Fetch_And(rme_ptr_t* Ptr, rme_cnt_t Operand)
+{
+	rme_u64_t Old;
+	__asm__ __volatile__("MOVQ %[Ptr],%[Old]; LOCK ANDQ %[Operand], %[Ptr]"
+	                     :[Ptr]"+m"(*Ptr), [Old]"=r"(Old)
+	                     :[Operand]"r"(Operand)
+	                     :"memory", "cc");
+	return Old;
+}
+static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
+{
+	rme_u64_t Ret;
+	__asm__ __volatile__("BSRQ %[Val],%[Ret]"
+	                     :[Ret]"=r"(Ret)
+	                     :[Val]"r"(Val)
+	                     :"cc");
+	return Ret;
+}
+#define RME_COMP_SWAP(PTR,OLD,NEW)           _RME_X64_Comp_Swap(PTR,OLD,NEW)
+#define RME_FETCH_ADD(PTR,ADDEND)            _RME_X64_Fetch_Add(PTR,ADDEND)
+#define RME_FETCH_AND(PTR,OPERAND)           _RME_X64_Fetch_And(PTR,OPERAND)
+#define RME_MSB_GET(VAL)                     _RME_X64_MSB_Get(VAL)
+#endif
 /* No read acquires needed because x86-64 guarantees read-read and read-write consistency */
 #define RME_READ_ACQUIRE(X)                  (*(X)) 
 /* No read acquires needed because x86-64 guarantees write-write consistency. In RME, we do
@@ -1399,12 +1455,12 @@ EXTERN void __RME_X64_Halt(void);
 __EXTERN__ void __RME_X64_SMP_Tick(void);
 __EXTERN__ void __RME_X64_LAPIC_Ack(void);
 /* Atomics */
-__EXTERN__ rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__EXTERN__ rme_ptr_t __RME_X64_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
+__EXTERN__ rme_ptr_t __RME_X64_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+__EXTERN__ rme_ptr_t __RME_X64_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 __EXTERN__ rme_ptr_t __RME_X64_Write_Release(void);
 /* MSB counting */
-EXTERN rme_ptr_t __RME_MSB_Get(rme_ptr_t Val);
+EXTERN rme_ptr_t __RME_X64_MSB_Get(rme_ptr_t Val);
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */

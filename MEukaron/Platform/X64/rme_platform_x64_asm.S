@@ -75,20 +75,20 @@ AVX-512 registers:
 ******************************************************************************/
 
 /* Begin Exports *************************************************************/
-    /* Atomic compare and exchange */
-    .global             __RME_Comp_Swap
-    /* Atomic add */
-    .global             __RME_Fetch_Add
-    /* Atomic and */
-    .global             __RME_Fetch_And
-    /* Write release for x64 */
-    .global             __RME_X64_Write_Release
     /* Disable all interrupts */
     .global             __RME_Disable_Int
     /* Enable all interrupts */
     .global             __RME_Enable_Int
+    /* Atomic compare and exchange */
+    .global             __RME_X64_Comp_Swap
+    /* Atomic add */
+    .global             __RME_X64_Fetch_Add
+    /* Atomic and */
+    .global             __RME_X64_Fetch_And
+    /* Write release for x64 */
+    .global             __RME_X64_Write_Release
     /* Get the MSB in a word */
-    .global             __RME_MSB_Get
+    .global             __RME_X64_MSB_Get
     /* Get the CPU-local data structure */
     .global             __RME_X64_CPU_Local_Get
     /* Kernel main function wrapper */
@@ -479,31 +479,27 @@ __RME_X64_TSS_Load:
     RETQ
 /* End Function:__RME_X64_TSS_Load *******************************************/
 
-/* Begin Function:__RME_Comp_Swap *********************************************
-Description : The compare-and-swap atomic instruction. If the *Old value is equal to
-              *Ptr, then set the *Ptr as New and return 1; else set the *Old as *Ptr,
-              and return 0.
+/* Begin Function:__RME_X64_Comp_Swap *****************************************
+Description : The compare-and-swap atomic instruction. If the Old value is equal to
+              *Ptr, then set the *Ptr as New and return 1; else return 0.
 Input       : ptr_t* Ptr - The pointer to the data.
-              ptr_t* Old - The old value.
+              ptr_t Old - The old value.
               ptr_t New - The new value.
 Output      : ptr_t* Ptr - The pointer to the data.
-              ptr_t* Old - The old value.
 Return      : ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-__RME_Comp_Swap:
-    MOVQ                (%RSI),%RAX
-    LOCK CMPXCHGQ       %RDX,(%RDI)
-    JNZ                 __RME_Comp_Swap_Fail
-    MOVQ                $1,%RAX
+__RME_X64_Comp_Swap:
+    MOVQ                %RSI,%RAX
+    XOR                 %RSI,%RSI
     /* In x86, locked instructions act as a fence */
+    LOCK CMPXCHGQ       %RDX,(%RDI)
+    /* Set the bit if ZF is set */
+    SETZ                %SIL
+    MOVQ                %RSI,%RAX
     RETQ
-__RME_Comp_Swap_Fail:
-    MOVQ                %RAX,(%RSI)
-    MOVQ                $0,%RAX
-    RETQ
-/* End Function:__RME_Comp_Swap **********************************************/
+/* End Function:__RME_X64_Comp_Swap ******************************************/
 
-/* Begin Function:__RME_Fetch_Add *********************************************
+/* Begin Function:__RME_X64_Fetch_Add *****************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is
               pointed to by the pointer, and return the value before addition.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -511,14 +507,14 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the addition.
 ******************************************************************************/
-__RME_Fetch_Add:
-    MOVQ                (%RDI),%RAX
+__RME_X64_Fetch_Add:
+    MOVQ                %RSI,%RAX
     /* In x86, locked instructions act as a fence */
-    LOCK ADDQ           %RSI,(%RDI)
+    LOCK XADDQ          %RAX,(%RDI)
     RETQ
-/* End Function:__RME_Fetch_Add **********************************************/
+/* End Function:__RME_X64_Fetch_Add ******************************************/
 
-/* Begin Function:__RME_Fetch_And *********************************************
+/* Begin Function:__RME_X64_Fetch_And *****************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -526,12 +522,12 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the AND operation.
 ******************************************************************************/
-__RME_Fetch_And:
+__RME_X64_Fetch_And:
     MOVQ                (%RDI),%RAX
     /* In x86, locked instructions act as a fence */
     LOCK ANDQ           %RSI,(%RDI)
     RETQ
-/* End Function:__RME_Fetch_And **********************************************/
+/* End Function:__RME_X64_Fetch_And ******************************************/
 
 /* Begin Function:__RME_X64_Write_Release *************************************
 Description : The write-release memory fence, to avoid read/write reorderings.
@@ -603,7 +599,7 @@ _RME_Kmain:
     JMP                 RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
-/* Begin Function:__RME_MSB_Get ***********************************************
+/* Begin Function:__RME_X64_MSB_Get *******************************************
 Description    : Get the MSB of the word. The kernel is guaranteed not to call this
                  function with a zero word, so we don't need to handle this edge case
                  actually.
@@ -612,10 +608,10 @@ Output         : None.
 Return         : ptr_t - The MSB position.
 Register Usage : None.
 ******************************************************************************/
-__RME_MSB_Get:
+__RME_X64_MSB_Get:
     BSRQ                %RDI,%RAX
     RETQ
-/* End Function:__RME_MSB_Get ************************************************/
+/* End Function:__RME_X64_MSB_Get ********************************************/
 
 /* Begin Function:__RME_Enter_User_Mode ***************************************
 Description : Entering of the user mode, after the system finish its preliminary

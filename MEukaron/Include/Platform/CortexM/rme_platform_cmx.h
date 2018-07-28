@@ -111,6 +111,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_FETCH_ADD(PTR,ADDEND)       __RME_CMX_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
 #define RME_FETCH_AND(PTR,OPERAND)      __RME_CMX_Fetch_And(PTR,OPERAND)
+/* Get most significant bit */
+#define RME_MSB_GET(VAL)                __RME_CMX_MSB_Get(VAL)
 /* No read/write barriers needed on Cortex-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
@@ -462,7 +464,7 @@ __EXTERN__ rme_ptr_t __RME_CMX_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* MSB counting */
-EXTERN rme_ptr_t __RME_MSB_Get(rme_ptr_t Val);
+EXTERN rme_ptr_t __RME_CMX_MSB_Get(rme_ptr_t Val);
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */

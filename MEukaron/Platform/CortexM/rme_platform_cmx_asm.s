@@ -50,7 +50,7 @@ __heap_limit
     ;Wait until interrupts happen
     EXPORT              __RME_CMX_Wait_Int
     ;Get the MSB in a word
-    EXPORT              __RME_MSB_Get
+    EXPORT              __RME_CMX_MSB_Get
     ;Kernel main function wrapper
     EXPORT              _RME_Kmain
     ;Entering of the user mode
@@ -1256,19 +1256,19 @@ _RME_Kmain
     B                   .
 ;/* End Function:_RME_Kmain **************************************************/
 
-;/* Begin Function:__RME_MSB_Get **********************************************
+;/* Begin Function:__RME_CMX_MSB_Get ******************************************
 ;Description    : Get the MSB of the word.
 ;Input          : ptr_t Val - The value.
 ;Output         : None.
 ;Return         : ptr_t - The MSB position.   
 ;Register Usage : None. 
 ;*****************************************************************************/
-__RME_MSB_Get
+__RME_CMX_MSB_Get
     CLZ                 R1,R0
     MOV                 R0,#31
     SUB                 R0,R1
     BX                  LR
-;/* End Function:__RME_MSB_Get ***********************************************/
+;/* End Function:__RME_CMX_MSB_Get *******************************************/
 
 ;/* Begin Function:__RME_Enter_User_Mode **************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
