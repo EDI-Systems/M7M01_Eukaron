@@ -37,10 +37,9 @@ Description : The hardware abstraction layer for TMS320C66X DSPs.
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
-/* Begin Function:__RME_Comp_Swap *********************************************
-Description : The compare-and-swap atomic instruction. If the *Old value is equal to
-              *Ptr, then set the *Ptr as New and return 1; else set the *Old as *Ptr,
-              and return 0.
+/* Begin Function:__RME_C66X_Comp_Swap ****************************************
+Description : The compare-and-swap atomic instruction. If the Old value is equal to
+              *Ptr, then set the *Ptr as New and return 1; else return 0.
               TMS320C6678 does not have atomic instructions. Instead, it have something
               called hardware semaphore. We then are forced to use this as a memory
               monitor, try to take ticket locks to certain kernel memory segments
@@ -48,13 +47,12 @@ Description : The compare-and-swap atomic instruction. If the *Old value is equa
               get implemented in the CPU, so this should be fine, and we can still
               guarantee progress somewhere.
 Input       : rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t* Old - The old value.
+              rme_ptr_t Old - The old value.
               rme_ptr_t New - The new value.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t* Old - The old value.
 Return      : rme_ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New)
+rme_ptr_t __RME_C66X_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
 {
     rme_ptr_t Pos;
     rme_ptr_t Ret;
@@ -71,24 +69,21 @@ rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New)
     }
 
     /* Granted. We proceed to compare-and-swap */
-    if(*Ptr==*Old)
+    if(*Ptr==Old)
     {
         *Ptr=New;
         Ret=1;
     }
     else
-    {
-        *Old=*Ptr;
         Ret=0;
-    }
 
     /* Release the semaphore as we are finished */
     RME_WRITE_RELEASE((rme_ptr_t*)&RME_C66X_SEM_DIRECT(Pos),1);
     return Ret;
 }
-/* End Function:__RME_Comp_Swap **********************************************/
+/* End Function:__RME_C66X_Comp_Swap *****************************************/
 
-/* Begin Function:__RME_Fetch_Add *********************************************
+/* Begin Function:__RME_C66X_Fetch_Add ****************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is 
               pointed to by the pointer, and return the value before addition.
               TMS320C6678 does not have atomic instructions. Instead, it have something
@@ -102,7 +97,7 @@ Input       : rme_ptr_t* Ptr - The pointer to the data.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the addition.
 ******************************************************************************/
-rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
+rme_ptr_t __RME_C66X_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
 {
     rme_ptr_t Pos;
     rme_ptr_t Old;
@@ -126,9 +121,9 @@ rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
     RME_WRITE_RELEASE((rme_ptr_t*)&RME_C66X_SEM_DIRECT(Pos),1);
     return Old;
 }
-/* End Function:__RME_Fetch_Add **********************************************/
+/* End Function:__RME_C66X_Fetch_Add *****************************************/
 
-/* Begin Function:__RME_Fetch_And *********************************************
+/* Begin Function:__RME_C66X_Fetch_And ****************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
               TMS320C6678 does not have atomic instructions. Instead, it have something
@@ -142,7 +137,7 @@ Input       : rme_ptr_t* Ptr - The pointer to the data.
 Output      : rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the AND operation.
 ******************************************************************************/
-rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
+rme_ptr_t __RME_C66X_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 {
     rme_ptr_t Pos;
     rme_ptr_t Old;
@@ -166,7 +161,7 @@ rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
     RME_WRITE_RELEASE((rme_ptr_t*)&RME_C66X_SEM_DIRECT(Pos),1);
     return Old;
 }
-/* End Function:__RME_Fetch_And **********************************************/
+/* End Function:__RME_C66X_Fetch_And *****************************************/
 
 /* Begin Function:__RME_Putchar ***********************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
@@ -191,7 +186,9 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Low_Level_Init(void)
 {
     rme_ptr_t Count;
-    RME_C66X_LOW_LEVEL_INIT();
+
+    /* SMP common initialization */
+    __RME_SMP_Low_Level_Init();
 
     /* UART initialization - Word length 8 */
     RME_C66X_UART_LCR=RME_C66X_UART_LCR_WLS8;
@@ -205,6 +202,50 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_C66X_UART_PWREMU_MGMT=RME_C66X_MGMT_UTRST|RME_C66X_MGMT_FREE;
     /* Cleanup previous data (rx trigger is also set to 0) */
     RME_C66X_UART_FCR=RME_C66X_UART_FCR_FIFOEN|RME_C66X_UART_FCR_TXCLR;
+
+    /* Program the timer 0 - we assume that it is always Fcorepac/6 */
+    RME_C66X_TIM_CNTLO(0)=0;
+    RME_C66X_TIM_CNTHI(0)=0;
+    RME_C66X_TIM_PRDLO(0)=RME_C66X_SYSTICK_VAL;
+    RME_C66X_TIM_PRDHI(0)=0;
+    RME_C66X_TIM_RELLO(0)=RME_C66X_SYSTICK_VAL;
+    RME_C66X_TIM_RELHI(0)=0;
+    /* Take timer out of reset */
+    RME_C66X_TIM_TGCR(0)=RME_C66X_TIM_TGCR_TIMHIRS|RME_C66X_TIM_TGCR_TIMLORS;
+    RME_C66X_TIM_INTCTL(0)=RME_C66X_TIM_INTCTL_PRDINTEN_LO;
+    /* Start to run the timer */
+    RME_C66X_TIM_TCR(0)=RME_C66X_TIM_TCR_CONT;
+
+    /* System interrupt controller initialization - disable all of them */
+    for(Count=0;Count<4;Count++)
+        RME_C66X_CIC_GER(Count)=0x00;
+
+    /* Initialize our own stack so that the next time we will use it */
+    __RME_C66X_Stack_Addr[0]=(rme_ptr_t)(&__RME_C66X_Stack[4096]);
+
+    /* Additional low-level initialization stuff */
+    RME_C66X_ADDITIONAL_LOW_LEVEL_INIT();
+
+    return 0;
+}
+/* End Function:__RME_Low_Level_Init *****************************************/
+
+/* Begin Function:__RME_SMP_Low_Level_Init ************************************
+Description : Initialize the low-level hardware.
+Input       : None.
+Output      : None.
+Return      : rme_ptr_t - Always 0.
+******************************************************************************/
+rme_ptr_t __RME_SMP_Low_Level_Init(void)
+{
+    rme_ptr_t Count;
+
+    /* Clear our own reset stat registers */
+    RME_C66X_DSC_LRSTNMISTAT_CLR|=1<<RME_C66X_CPU_Cnt;
+    RME_C66X_DSC_RESETSTAT_CLR|=1<<RME_C66X_CPU_Cnt;
+
+    /* Initialize core-local data structure */
+    _RME_CPU_Local_Init(RME_CPU_LOCAL(),__RME_C66X_CPUID_Get());
 
     /* Core-local interrupt controller initialization - clear all flags first */
     RME_C66X_LIC_EVTCLR(0)=0xFFFFFFFFUL;
@@ -224,23 +265,6 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Initialize interrupt vector table */
     __RME_C66X_Set_ISTP((rme_ptr_t)__RME_C66X_Vector_Table);
 
-    /* Program the timer 0 - we assume that it is always Fcorepac/6 */
-    RME_C66X_TIM_CNTLO(0)=0;
-    RME_C66X_TIM_CNTHI(0)=0;
-    RME_C66X_TIM_PRDLO(0)=RME_C66X_SYSTICK_VAL;
-    RME_C66X_TIM_PRDHI(0)=0;
-    RME_C66X_TIM_RELLO(0)=RME_C66X_SYSTICK_VAL;
-    RME_C66X_TIM_RELHI(0)=0;
-    /* Take timer out of reset */
-    RME_C66X_TIM_TGCR(0)=RME_C66X_TIM_TGCR_TIMHIRS|RME_C66X_TIM_TGCR_TIMLORS;
-    RME_C66X_TIM_INTCTL(0)=RME_C66X_TIM_INTCTL_PRDINTEN_LO;
-    /* Start to run the timer */
-    RME_C66X_TIM_TCR(0)=RME_C66X_TIM_TCR_CONT;
-
-    /* System interrupt controller initialization - disable all of them */
-    for(Count=0;Count<4;Count++)
-        RME_C66X_CIC_GER(Count)=0x00;
-
     /* Cache configuration - L1 preconfigured on some devices but we will configure again */
     RME_C66X_CACHE_L1PCFG=0x07;
     RME_C66X_CACHE_L1DCFG=0x07;
@@ -254,7 +278,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
 
     return 0;
 }
-/* End Function:__RME_Low_Level_Init *****************************************/
+/* End Function:__RME_SMP_Low_Level_Init *************************************/
 
 /* Begin Function:main ********************************************************
 Description : The entrance of the operating system. This function is for compatibility
@@ -270,6 +294,42 @@ int main(void)
 }
 /* End Function:main *********************************************************/
 
+/* Begin Function:__RME_C66X_SMP_Init *****************************************
+Description : Start all other processors, one by one.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_C66X_SMP_Init(void)
+{
+    rme_cnt_t Count;
+
+    /* Start the CPUs one by one - the first one is ourself */
+    RME_C66X_CPU_Cnt=1;
+    for(Count=1;Count<RME_C66X_CPU_NUM;Count++)
+    {
+        /* Reset the CPU first (CorePac local reset) */
+        RME_C66X_MDCTL(15+Count)=RME_C66X_MDCTL_LRST|RME_C66X_MDCTL_NEXT_ENABLE;
+
+        /* Set the boot address */
+        RME_C66X_DSC_BOOT_ADDR(Count)=(rme_ptr_t)_RME_C66X_SMP_Kmain;
+        RME_PRINTK_S("\n\rBooting CPU ");
+        RME_PRINTK_I(Count);
+        __RME_C66X_Boot_Done[Count]=0;
+
+        /* Set the stack for this CPU */
+        __RME_C66X_Stack_Addr[Count]=(rme_ptr_t)&(__RME_C66X_Stack[4096*(Count+1)]);
+
+        /* De-assert the reset */
+        RME_C66X_MDCTL(15+Count)=RME_C66X_MDCTL_NEXT_ENABLE;
+
+        /* Wait for CPU to finish its own initialization */
+        while(__RME_C66X_Boot_Done[Count]==0);
+        RME_C66X_CPU_Cnt++;
+    }
+}
+/* End Function:__RME_C66X_SMP_Init ******************************************/
+
 /* Begin Function:__RME_Boot **************************************************
 Description : Boot the first process in the system.
 Input       : None.
@@ -280,6 +340,8 @@ rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
     
+    /* Start all other processors one by one */
+    __RME_C66X_SMP_Init();
 
     return 0;
 }
@@ -310,18 +372,6 @@ void __RME_Shutdown(void)
     RME_ASSERT(RME_WORD_BITS!=RME_POW2(RME_WORD_ORDER));
 }
 /* End Function:__RME_Shutdown ***********************************************/
-
-/* Begin Function:__RME_CPUID_Get *********************************************
-Description : Get the CPUID. This is to identify where we are executing.
-Input       : None.
-Output      : None.
-Return      : rme_ptr_t - The CPUID.
-******************************************************************************/
-rme_ptr_t __RME_CPUID_Get(void)
-{
-    return 0;
-}
-/* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_Get_Syscall_Param *************************************
 Description : Get the system call parameters from the stack frame.
@@ -578,7 +628,7 @@ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
 
     /* Get the address of the data section of this core */
     MMU_Data=(struct __RME_C66X_MMU_Data*)(Pgtbl+sizeof(struct __RME_C66X_Pgtbl_Meta));
-    Region_Data=(struct __RME_C66X_MMU_Entry*)MMU_Data->Data[RME_CPUID()];
+    Region_Data=(struct __RME_C66X_MMU_Entry*)MMU_Data->Data[__RME_C66X_CPUID_Get()];
 
     /* The address to start to write into - the last region is always kernel entry.
      * The compiler will optimize this into highly efficient parallel assembly */
@@ -684,12 +734,12 @@ void __RME_C66X_Generic_Handler(struct RME_Reg_Struct* Reg)
         {
             case RME_C66X_EVT_SYSTICK:
             {
-                if(RME_CPUID()==0)
+                if(__RME_C66X_CPUID_Get()==0)
                 {
                     /* Increase the tick */
                     _RME_Tick_Handler(Reg);
                     /* Send IPI to all other processors */
-                    for(Count=1;Count<RME_CPU_NUM;Count++)
+                    for(Count=1;Count<RME_C66X_CPU_NUM;Count++)
                         RME_C66X_DSC_IPCGR(Count)=0x01;
                 }
                 else
@@ -833,7 +883,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     {
         ((struct __RME_C66X_MMU_Data*)Ptr)->State=0;
 
-        for(CPU_Cnt=0;CPU_Cnt<RME_CPU_NUM;CPU_Cnt++)
+        for(CPU_Cnt=0;CPU_Cnt<RME_C66X_CPU_NUM;CPU_Cnt++)
         {
             for(Count=0;Count<15;Count++)
             {
@@ -919,7 +969,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
           RME_ROUND_DOWN(Paddr,RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order));
 
     /* Register into the page table¡£ We need a compare-and-swap here */
-    if(__RME_Comp_Swap(&Table[Pos],&Temp,Entry)==0)
+    if(RME_COMP_SWAP(&Table[Pos],Temp,Entry)==0)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -959,7 +1009,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 
     /* Use compare-and swap to evict the entry - the metadata problem is the user-level's,
      * not the kernel, and the kernel does not check quiescence at all here */
-    if(__RME_Comp_Swap(&Table[Pos],&Temp,0)==0)
+    if(RME_COMP_SWAP(&Table[Pos],Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -1007,12 +1057,12 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     Entry=RME_C66X_PGTBL_PRESENT|((rme_ptr_t)Child_Meta);
 
     /* Register into the page table¡£ We need a compare-and-swap here */
-    if(__RME_Comp_Swap(&Table[Pos],&Temp,Entry)==0)
+    if(RME_COMP_SWAP(&Table[Pos],Temp,Entry)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Fetch-and-add to parent&child counters */
-    __RME_Fetch_Add(&(Parent_Meta->Child_Cnt),1);
-    __RME_Fetch_Add(&(Child_Meta->Parent_Cnt),1);
+    RME_FETCH_ADD(&(Parent_Meta->Child_Cnt),1);
+    RME_FETCH_ADD(&(Child_Meta->Parent_Cnt),1);
 
     return 0;
 }
@@ -1055,12 +1105,12 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 
     /* Use compare-and swap to evict the entry - the metadata problem is the user-level's,
      * not the kernel, and the kernel does not check quiescence at all here */
-    if(__RME_Comp_Swap(&Table[Pos],&Temp,0)==0)
+    if(RME_COMP_SWAP(&Table[Pos],Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Fetch-and-add to parent&child counters */
-    __RME_Fetch_Add(&(Parent_Meta->Child_Cnt),-1);
-    __RME_Fetch_Add(&(Child_Meta->Parent_Cnt),-1);
+    RME_FETCH_ADD(&(Parent_Meta->Child_Cnt),-1);
+    RME_FETCH_ADD(&(Child_Meta->Parent_Cnt),-1);
 
     return 0;
 }

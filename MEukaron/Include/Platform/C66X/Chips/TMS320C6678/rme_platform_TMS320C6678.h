@@ -7,7 +7,8 @@ Description: The configuration file for TMS320C6678.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
-/* The HAL library */
+/* Number of CPUs in the system */
+#define RME_C66X_CPU_NUM             8
 /* The virtual memory start address for the kernel objects */
 #define RME_KMEM_VA_START            0x80100000
 /* The size of the kernel object virtual memory */
@@ -19,7 +20,7 @@ Description: The configuration file for TMS320C6678.
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KMEM_SLOT_ORDER          4
 /* Kernel stack size and address */
-#define RME_KMEM_STACK_ADDR          ((rme_ptr_t)&__RME_C66X_Kern_SP_End)
+#define RME_KMEM_STACK_ADDR          ((rme_ptr_t)&(__RME_C66X_Stack[4096]))
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32
@@ -69,13 +70,9 @@ Description: The configuration file for TMS320C6678.
 #define RME_CMX_INT_PRIO              1
 #define RME_CMX_KERN_PWR              240
 
-/* Other low-level initialization stuff - clock and serial.
- * Because most C66X boards are custom made, thus the initialization code should
- * be provided by the user (there are thousands of ways to boot this behemoth) and
- * we don't want to provide a fixed initialization pattern. Please tailor this to your
- * application as always if you see fit. The initialization of the example project is
- * conducted by the TI-provided GEL file. We will only initialize the serial port here.*/
-#define RME_C66X_LOW_LEVEL_INIT() \
+/* Additional peripherals to be initialized when the system boots. This will only be
+ * run once on the booting processor. */
+#define RME_C66X_ADDITIONAL_LOW_LEVEL_INIT() \
 do \
 { \
 } \
