@@ -91,8 +91,8 @@ typedef rme_s32_t rme_ret_t;
 #else
 #define RME_UNLIKELY(X)                 (X)
 #endif
-/* Number of CPUs in the system */
-#define RME_CPU_NUM                     8
+/* CPU-local data structure */
+#define RME_CPU_LOCAL()                 (&(RME_C66X_CPU_Local[__RME_C66X_CPUID_Get()]))
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                  5
 /* Forcing VA=PA in user memory segments */
@@ -105,6 +105,14 @@ typedef rme_s32_t rme_ret_t;
 #define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_C66X_MMU_Data))
 /* The kernel object allocation table address - original */
 #define RME_KOTBL                       RME_Kotbl
+/* Compare-and-Swap(CAS) */
+#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_C66X_Comp_Swap(PTR,OLD,NEW)
+/* Fetch-and-Add(FAA) */
+#define RME_FETCH_ADD(PTR,ADDEND)       __RME_C66X_Fetch_Add(PTR,ADDEND)
+/* Fetch-and-And(FAND) */
+#define RME_FETCH_AND(PTR,OPERAND)      __RME_C66X_Fetch_And(PTR,OPERAND)
+/* Get most significant bit */
+#define RME_MSB_GET(VAL)                __RME_C66X_MSB_Get(VAL)
 /* Read barrier on C66X - C66X only guarantees read-write ordering, thus this is required */
 #define RME_READ_ACQUIRE(X)             __RME_C66X_Read_Acquire(X)
 /* Write barrier on C66X - C66X only guarantees read-write ordering, thus this is required */
@@ -114,7 +122,7 @@ typedef rme_s32_t rme_ret_t;
 #include "rme_platform_c66x_conf.h"
 /* End System macros *********************************************************/
 
-/* Cortex-M specific macros **************************************************/
+/* C66X specific macros ******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                 0
@@ -329,6 +337,17 @@ typedef rme_s32_t rme_ret_t;
 /* Host interrupt enable registers */
 #define RME_C66X_CIC_HIER(N,X)          RME_C66X_SFR(RME_C66X_CIC(N),0x1500+((X)<<2)) /* 0-7, 256 host interrupts */
 
+/* Power state control registers */
+#define RME_C66X_PID                    RME_C66X_SFR(0x02350000,0x0000)
+#define RME_C66X_VCNTLID                RME_C66X_SFR(0x02350000,0x0014)
+#define RME_C66X_PTCMD                  RME_C66X_SFR(0x02350000,0x0120)
+#define RME_C66X_PTSTAT                 RME_C66X_SFR(0x02350000,0x0128)
+#define RME_C66X_PDSTAT(X)              RME_C66X_SFR(0x02350000,0x0200+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
+#define RME_C66X_PDCTL(X)               RME_C66X_SFR(0x02350000,0x0300+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
+#define RME_C66X_MDSTAT(X)              RME_C66X_SFR(0x02350000,0x0800+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
+#define RME_C66X_MDCTL(X)               RME_C66X_SFR(0x02350000,0x0A00+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
+#define RME_C66X_MDCTL_LRST             (1<<8)
+#define RME_C66X_MDCTL_NEXT_ENABLE      (0x03)
 /* Device state control registers */
 #define RME_C66X_DSC_JTAGID             RME_C66X_SFR(0x02620018,0x0000)
 #define RME_C66X_DSC_DEVSTAT            RME_C66X_SFR(0x02620020,0x0000)
@@ -596,7 +615,7 @@ struct __RME_C66X_MMU_Data
 {
     /* [31:16] Static [15:0] Present */
     rme_ptr_t State;
-    struct __RME_C66X_MMU_Entry Data[RME_CPU_NUM][15];
+    struct __RME_C66X_MMU_Entry Data[RME_C66X_CPU_NUM][15];
 };
 
 /* Interrupt flags */
@@ -637,6 +656,9 @@ struct __RME_C66X_Flags
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
 
+/* CPU booting counter
+ *  counter */
+static rme_ptr_t RME_C66X_CPU_Cnt;
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -644,10 +666,10 @@ struct __RME_C66X_Flags
 /*****************************************************************************/
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, rme_ptr_t Entry_Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_C66X_MPU_Data* Top_MPU,
-                                    rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
+                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_C66X_MPU_Data* Top_MPU,
-                                  rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
-                                  rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
+                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
+                                      rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_C66X_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
 /*****************************************************************************/
 #define __EXTERN__
@@ -662,12 +684,14 @@ static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_C66X_Pgtbl_Meta* Meta, rme
 
 /*****************************************************************************/
 /* Core local storage */
-EXTERN rme_ptr_t __RME_C66X_Core_Local[16384*8];
-/* Initial kernel stack pointer */
-EXTERN rme_ptr_t __RME_C66X_Kern_SP[4*8+8192];
-EXTERN rme_ptr_t __RME_C66X_Kern_SP_End;
+EXTERN rme_ptr_t __RME_C66X_Stack[4096*8];
+EXTERN rme_ptr_t __RME_C66X_Stack_Addr[8];
 /* Vector table */
-EXTERN rme_ptr_t __RME_C66X_Vector_Table[32*16];
+EXTERN rme_ptr_t __RME_C66X_Vector_Table[8*16];
+/* Boot done indicator */
+EXTERN rme_ptr_t __RME_C66X_Boot_Done[8];
+/* Core-local storage */
+__EXTERN__ struct RME_CPU_Local RME_C66X_CPU_Local[RME_C66X_CPU_NUM];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
@@ -677,20 +701,22 @@ EXTERN rme_ptr_t __RME_C66X_Vector_Table[32*16];
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
-EXTERN void __RME_C66X_WFI(void);
+EXTERN void __RME_C66X_Idle(void);
 EXTERN void __RME_C66X_Set_ISTP(rme_ptr_t ISTP);
 EXTERN rme_ptr_t __RME_C66X_Get_EFR(void);
 EXTERN void __RME_C66X_Set_ECR(rme_ptr_t ECR);
 EXTERN rme_ptr_t __RME_C66X_Get_IERR(void);
 /* Atomics */
-__EXTERN__ rme_ptr_t __RME_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t* Old, rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__EXTERN__ rme_ptr_t __RME_C66X_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
+__EXTERN__ rme_ptr_t __RME_C66X_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+__EXTERN__ rme_ptr_t __RME_C66X_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* Fencing */
 EXTERN rme_ptr_t __RME_C66X_Read_Acquire(rme_ptr_t* Ptr);
 EXTERN void __RME_C66X_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Value);
 /* MSB counting */
-EXTERN rme_ptr_t __RME_MSB_Get(rme_ptr_t Val);
+EXTERN rme_ptr_t __RME_C66X_MSB_Get(rme_ptr_t Val);
+/* Core ID */
+EXTERN rme_ptr_t __RME_C66X_CPUID_Get(void);
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */
@@ -698,13 +724,15 @@ EXTERN void ___RME_C66X_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_C66X_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(rme_ptr_t Stack);
+EXTERN void _RME_C66X_SMP_Kmain(void);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ rme_ptr_t __RME_SMP_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);
 __EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
-__EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
+__EXTERN__ struct RME_CPU_Local* __RME_CPU_Local_Get(void);
 __EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
                                         rme_ptr_t* Capid, rme_ptr_t* Param);
 __EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);

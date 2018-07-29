@@ -7,7 +7,7 @@ Description : The platform specific types for RME.
 ******************************************************************************/
 
 /* Platform Includes *********************************************************/
-#include "Platform/X64/rme_platform_x64.h"
+#include "Platform/C66X/rme_platform_c66x.h"
 /* End Platform Includes *****************************************************/
 
 /* End Of File ***************************************************************/

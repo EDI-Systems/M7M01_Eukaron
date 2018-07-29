@@ -15,16 +15,16 @@
     .data
     ;The kernel stack segment is 64k-aligned as always - performed by linker script
     ;.align              65536
-__RME_C66X_Core_Local:
-    .space              16384*8
-    ;Kernel SP storage array also 64k-aligned
-    .sect               ".stack"
-__RME_C66X_Kern_SP:
-    .space              4*8
-    ;Temporary stack section
-    .space              8192
-__RME_C66X_Kern_SP_End:
+__RME_C66X_Stack:
+    .space              16384
 __TI_STACK_END:
+    .space              16384*7
+    ;Kernel SP storage array also 64k-aligned, 32 bytes. This is not the actual stack.
+    .sect               ".stack"
+__RME_C66X_Stack_Addr:
+    .space              4*8
+__RME_C66X_Boot_Done:
+    .space              4*8
 ;/* End Stacks ***************************************************************/
             
 ;/* Begin Header *************************************************************/
@@ -43,7 +43,9 @@ __TI_STACK_END:
     .global             __RME_C66X_Read_Acquire
     .global             __RME_C66X_Write_Release
     ;Get the MSB in a word
-    .global             __RME_MSB_Get
+    .global             __RME_C66X_MSB_Get
+    ;Get the core ID
+    .global             __RME_C66X_CPUID_Get
     ;Kernel main function wrapper
     .global             _RME_Kmain
     ;Entering of the user mode
@@ -55,12 +57,12 @@ __TI_STACK_END:
     ;Restore coprocessor context
     .global             ___RME_C66X_Thd_Cop_Restore
     ;Core-local data and stack
-    .global             __RME_C66X_Core_Local
-    ;End of initial kernel stack
-    .global             __RME_C66X_Kern_SP
-    .global             __RME_C66X_Kern_SP_End
+    .global             __RME_C66X_Stack
+    .global             __RME_C66X_Stack_Addr
     ;TI's stack definition - their CRT assumes this
     .global             __TI_STACK_END
+    ;Boot done indicator
+    .global             __RME_C66X_Boot_Done
     ;Vector table start address
     .global             __RME_C66X_Vector_Table
     ;Write ISTP
@@ -76,10 +78,10 @@ __TI_STACK_END:
 ;/* Begin Imports ************************************************************/
     ;The kernel entry of RME. This will be defined in C language.
     .global             RME_Kmain
-    ;The memory management fault handler of RME. This will be defined in C language.
-    .global             __RME_C66X_Fault_Handler
+    ;The entry point for all other CPUs than the booting one.
+    .global             _RME_C66X_SMP_Kmain
     ;The generic interrupt handler for all other vectors. System calls will also
-    ;be called through this. This is a C66X idiosyncrasy
+    ;be called through this. This is a C66X idiosyncrasy.
     .global             __RME_C66X_Generic_Handler
 ;/* End Imports **************************************************************/
 
@@ -133,11 +135,29 @@ __RME_C66X_Vector_Table:
 
 ;/* End Handlers *************************************************************/
 
-;/* Begin Function:__RME_Disable_Int ******************************************
-;Description    : The function for disabling all interrupts.
+;/* Begin Function:_RME_C66X_SMP_Kmain ****************************************
+;Description    : The entry address of the kernel for non-booting SMP processors.
+;                 Never returns. This function must be aligned at at least 2^9,
+;                 as this is required by the architecture.
 ;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Output         : None.
+;Return         : None.
+;*****************************************************************************/
+    .align              1024
+_RME_C66X_SMP_Kmain:
+    MVC                 DNUM,B15
+    SHL                 B15,2,B15
+    ;This means that the kernel per-core SP storage area must be 64k-aligned
+    MVKH                __RME_C66X_Stack_Addr,B15
+    LDW                 *B15,B15
+    CALLP.S2            RME_Kmain,B3
+;/* End Function:_RME_C66X_SMP_Kmain *****************************************/
+
+;/* Begin Function:__RME_Disable_Int ******************************************
+;Description : The function for disabling all interrupts.
+;Input       : None.
+;Output      : None.    
+;Return      : None.                                  
 ;*****************************************************************************/    
 __RME_Disable_Int:
     DINT
@@ -145,10 +165,10 @@ __RME_Disable_Int:
 ;/* End Function:__RME_Disable_Int *******************************************/
 
 ;/* Begin Function:__RME_Enable_Int *******************************************
-;Description    : The function for enabling all interrupts.
-;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : The function for enabling all interrupts.
+;Input       : None.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_Enable_Int:
     RINT
@@ -156,10 +176,10 @@ __RME_Enable_Int:
 ;/* End Function:__RME_Enable_Int ********************************************/
 
 ;/* Begin Function:__RME_C66X_Idle ********************************************
-;Description    : Wait until a new interrupt comes, to save power.
-;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : Wait until a new interrupt comes, to save power.
+;Input       : None.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_C66X_Idle:
     IDLE
@@ -167,10 +187,10 @@ __RME_C66X_Idle:
 ;/* End Function:__RME_C66X_Idle *********************************************/
 
 ;/* Begin Function:__RME_C66X_Set_ISTP ****************************************
-;Description    : Load the interrupt vector table.
-;Input          : ptr_t A4 - The address to load into the register.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : Load the interrupt vector table.
+;Input       : rme_ptr_t A4 - The address to load into the register.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_C66X_Set_ISTP:
     MVC                 A4,ISTP
@@ -178,10 +198,10 @@ __RME_C66X_Set_ISTP:
 ;/* End Function:__RME_C66X_Set_ISTP *****************************************/
 
 ;/* Begin Function:__RME_C66X_Get_EFR *****************************************
-;Description    : Get the EFR and attempt to identify the exception cause.
-;Input          : None.
-;Output         : None.    
-;Return         : A4 - The returned EFR content.                                  
+;Description : Get the EFR and attempt to identify the exception cause.
+;Input       : None.
+;Output      : None.
+;Return      : A4 - The returned EFR content.
 ;*****************************************************************************/
 __RME_C66X_Get_EFR:
     MVC                 EFR,B4
@@ -190,10 +210,10 @@ __RME_C66X_Get_EFR:
 ;/* End Function:__RME_C66X_Get_EFR ******************************************/
 
 ;/* Begin Function:__RME_C66X_Set_ECR *****************************************
-;Description    : Set the ECR and clear the cause of the exception.
-;Input          : ptr_t A4 - The ECR content to set.
-;Output         : None.
-;Return         : None.                                 
+;Description : Set the ECR and clear the cause of the exception.
+;Input       : rme_ptr_t A4 - The ECR content to set.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_C66X_Set_ECR:
     MVC                 A4,ECR
@@ -201,10 +221,10 @@ __RME_C66X_Set_ECR:
 ;/* End Function:__RME_C66X_Set_ECR ******************************************/
 
 ;/* Begin Function:__RME_C66X_Get_IERR *****************************************
-;Description    : Get the IERR and attempt to identify the error cause.
-;Input          : None.
-;Output         : None.    
-;Return         : A4 - The returned IERR content.                                  
+;Description : Get the IERR and attempt to identify the error cause.
+;Input       : None.
+;Output      : None.
+;Return      : A4 - The returned IERR content.
 ;*****************************************************************************/
 __RME_C66X_Get_IERR:
     MVC                 IERR,B4
@@ -213,10 +233,10 @@ __RME_C66X_Get_IERR:
 ;/* End Function:__RME_C66X_Get_IERR *****************************************/
 
 ;/* Begin Function:__RME_C66X_Read_Acquire ************************************
-;Description    : Load acquire - no operation will begin until this load finishes.
-;Input          : ptr_t* A4 - The address to load from.
-;Output         : None.
-;Return         : ptr_t A4 - The value loaded.
+;Description : Load acquire - no operation will begin until this load finishes.
+;Input       : rme_ptr_t* A4 - The address to load from.
+;Output      : None.
+;Return      : rme_ptr_t A4 - The value loaded.
 ;*****************************************************************************/
 __RME_C66X_Read_Acquire:
     LDW                 *A4,A4
@@ -225,11 +245,11 @@ __RME_C66X_Read_Acquire:
 ;/* End Function:__RME_C66X_Read_Acquire *************************************/
 
 ;/* Begin Function:__RME_C66X_Write_Release ***********************************
-;Description    : Write release - all operations will finish before this write begins.
-;Input          : ptr_t* A4 - The address to write to.
-;                 ptr_t B4 - The value to write.
-;Output         : None.
-;Return         : None.
+;Description : Write release - all operations will finish before this write begins.
+;Input       : rme_ptr_t* A4 - The address to write to.
+;              rme_ptr_t B4 - The value to write.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_C66X_Write_Release:
     MFENCE
@@ -239,30 +259,40 @@ __RME_C66X_Write_Release:
 
 ;/* Begin Function:_RME_Kmain *************************************************
 ;Description    : The entry address of the kernel. Never returns.
-;Input          : ptr_t Stack - The stack address to set SP to.
+;Input          : rme_ptr_t Stack - The stack address to set SP to.
 ;Output         : None.
-;Return         : None.   
-;Register Usage : None. 
+;Return         : None.
 ;*****************************************************************************/
 _RME_Kmain:
     MV                  A4,B15
     CALLP.S2            RME_Kmain,B3
 ;/* End Function:_RME_Kmain **************************************************/
 
-;/* Begin Function:__RME_MSB_Get **********************************************
+;/* Begin Function:__RME_C66X_MSB_Get *****************************************
 ;Description    : Get the MSB of the word.
-;Input          : ptr_t Val - The value.
+;Input          : rme_ptr_t Val - The value.
 ;Output         : None.
-;Return         : ptr_t - The MSB position.   
-;Register Usage : None. 
+;Return         : rme_ptr_t - The MSB position.
 ;*****************************************************************************/
-__RME_MSB_Get:
+__RME_C66X_MSB_Get:
     MVK                 1,B4
     LMBD                B4,A4,B4
     MVK                 31,A4
     SUB                 A4,B4,A4
     B                   B3
-;/* End Function:__RME_MSB_Get ***********************************************/
+;/* End Function:__RME_C66X_MSB_Get ******************************************/
+
+;/* Begin Function:__RME_C66X_CPUID_Get ***************************************
+;Description    : Get the CPUID of the processor.
+;Input          : None.
+;Output         : None.
+;Return         : rme_ptr_t - The MSB position.
+;*****************************************************************************/
+__RME_C66X_CPUID_Get:
+    MVC                 DNUM,B4
+    MV                  B4,A4
+||  B                   B3
+;/* End Function:__RME_C66X_CPUID_Get ****************************************/
 
 ;/* Begin Function:__RME_Enter_User_Mode **************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
@@ -274,7 +304,8 @@ __RME_MSB_Get:
 ;Input       : A4 - The user execution startpoint.
 ;              B4 - The user stack.
 ;              A6 - The CPUID.
-;Output      : None.                              
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_Enter_User_Mode:
     ;Fill stack pointer
@@ -347,13 +378,14 @@ ___RME_C66X_Thd_Cop_Restore:
 ;              an empty descending stack.
 ;Input       : None.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 SVC_Handler:
     MVC                 B15,REP
     MVC                 DNUM,B15
     SHL                 B15,2,B15
     ;This means that the kernel per-core SP storage area must be 64k-aligned
-    MVKH                __RME_C66X_Kern_SP,B15
+    MVKH                __RME_C66X_Stack_Addr,B15
     LDW                 *B15,B15
     ;Push A15,A14,B15,B14 to stack, which we later use as a pushing pair. No parallelism
     STDW                A15:A14,*B15--
@@ -487,15 +519,6 @@ SVC_Handler:
     ;Return to user-level
     B                   NRP
 ;/* End Function:SVC_Handler *************************************************/
-
-;/* Begin Function:Fault_Handler **********************************************
-;Description : The multi-purpose handler routine. This will in fact call
-;              a C function to resolve the system service routines.             
-;Input       : None.
-;Output      : None.
-;*****************************************************************************/
-
-;/* End Function:Fault_Handler ***********************************************/
  
 ;/* End Of File **************************************************************/
 
