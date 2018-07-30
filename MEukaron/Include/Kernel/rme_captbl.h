@@ -86,6 +86,8 @@ Description : The header of type table. All the branches in these macros are
 #define RME_CAPID_NULL             (((rme_cid_t)1)<<(sizeof(rme_ptr_t)*4-1))
 /* See if the capid is a 2-level representation */
 #define RME_CAPID_2L               (((rme_cid_t)1)<<(sizeof(rme_ptr_t)*2-1))
+/* Make 2-level capability */
+#define RME_CAPID(X,Y)             (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
 /* High-level capability table capability position */
 #define RME_CAP_H(X)               ((X)>>(sizeof(rme_ptr_t)*2))
 /* Low-level capability table capability position */

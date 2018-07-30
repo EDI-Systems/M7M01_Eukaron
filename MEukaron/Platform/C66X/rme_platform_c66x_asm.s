@@ -23,8 +23,6 @@ __TI_STACK_END:
     .sect               ".stack"
 __RME_C66X_Stack_Addr:
     .space              4*8
-__RME_C66X_Boot_Done:
-    .space              4*8
 ;/* End Stacks ***************************************************************/
             
 ;/* Begin Header *************************************************************/
@@ -48,6 +46,8 @@ __RME_C66X_Boot_Done:
     .global             __RME_C66X_CPUID_Get
     ;Kernel main function wrapper
     .global             _RME_Kmain
+    ;The entry point for all other CPUs than the booting one.
+    .global             _RME_C66X_SMP_Kmain
     ;Entering of the user mode
     .global             __RME_Enter_User_Mode
     ;The MPU setup routine
@@ -61,8 +61,6 @@ __RME_C66X_Boot_Done:
     .global             __RME_C66X_Stack_Addr
     ;TI's stack definition - their CRT assumes this
     .global             __TI_STACK_END
-    ;Boot done indicator
-    .global             __RME_C66X_Boot_Done
     ;Vector table start address
     .global             __RME_C66X_Vector_Table
     ;Write ISTP
@@ -78,8 +76,8 @@ __RME_C66X_Boot_Done:
 ;/* Begin Imports ************************************************************/
     ;The kernel entry of RME. This will be defined in C language.
     .global             RME_Kmain
-    ;The entry point for all other CPUs than the booting one.
-    .global             _RME_C66X_SMP_Kmain
+    ;The kernel entry of non-booting processors. This will be defined in C language.
+    .global             __RME_SMP_Kmain
     ;The generic interrupt handler for all other vectors. System calls will also
     ;be called through this. This is a C66X idiosyncrasy.
     .global             __RME_C66X_Generic_Handler
@@ -150,7 +148,7 @@ _RME_C66X_SMP_Kmain:
     ;This means that the kernel per-core SP storage area must be 64k-aligned
     MVKH                __RME_C66X_Stack_Addr,B15
     LDW                 *B15,B15
-    CALLP.S2            RME_Kmain,B3
+    CALLP.S2            __RME_SMP_Kmain,B3
 ;/* End Function:_RME_C66X_SMP_Kmain *****************************************/
 
 ;/* Begin Function:__RME_Disable_Int ******************************************

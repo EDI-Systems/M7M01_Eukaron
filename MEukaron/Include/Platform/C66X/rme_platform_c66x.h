@@ -126,23 +126,23 @@ typedef rme_s32_t rme_ret_t;
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                 0
-/* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGTBL                  1
+/* The top-level page table of the init process - an array */
+#define RME_BOOT_INIT_PGTBL             1
 /* The init process */
 #define RME_BOOT_INIT_PROC              2
-/* The init thread */
-#define RME_BOOT_INIT_THD               3
+/* The init thread - this is a per-core array */
+#define RME_BOOT_TBL_THD                3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN              4
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KMEM              5
-/* The initial timer endpoint */
-#define RME_BOOT_INIT_TIMER             6
-/* The initial default endpoint for all other interrupts */
-#define RME_BOOT_INIT_INT               7
+/* The initial timer endpoint - this is a per-core array */
+#define RME_BOOT_TBL_TIMER              6
+/* The initial default endpoint for all other interrupts - this is a per-core array */
+#define RME_BOOT_TBL_INT                7
 
 /* Booting capability layout */
-#define RME_C66X_CPT                    ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
+#define RME_C66X_CPT                    (Captbl)
 /* For C66X:
  * The layout of the page entry is:
  * [31:12] Paddr - The physical address to map this page to, or the physical
@@ -706,6 +706,8 @@ struct __RME_C66X_Flags
 /*****************************************************************************/
 /* CPU booting counter */
 static rme_ptr_t RME_C66X_CPU_Cnt;
+/* Booting done indicator */
+static rme_ptr_t __RME_C66X_Boot_Done[RME_C66X_CPU_NUM];
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -765,8 +767,10 @@ EXTERN void ___RME_C66X_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_C66X_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(rme_ptr_t Stack);
+__EXTERN__ void __RME_SMP_Kmain(void);
 EXTERN void _RME_C66X_SMP_Kmain(void);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
+__EXTERN__ void __RME_C66X_Timer_Init(void);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_SMP_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);

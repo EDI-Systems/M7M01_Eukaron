@@ -177,6 +177,29 @@ rme_ptr_t __RME_Putchar(char Char)
 }
 /* End Function:__RME_Putchar ************************************************/
 
+/* Begin Function:__RME_C66X_Timer_Init ***************************************
+Description : Initialize the timer and start time accounting.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_C66X_Timer_Init(void)
+{
+    /* Program the timer 0 - we assume that it is always Fcorepac/6 */
+    RME_C66X_TIM_CNTLO(0)=0;
+    RME_C66X_TIM_CNTHI(0)=0;
+    RME_C66X_TIM_PRDLO(0)=RME_C66X_SYSTICK_VAL;
+    RME_C66X_TIM_PRDHI(0)=0;
+    RME_C66X_TIM_RELLO(0)=RME_C66X_SYSTICK_VAL;
+    RME_C66X_TIM_RELHI(0)=0;
+    /* Take timer out of reset */
+    RME_C66X_TIM_TGCR(0)=RME_C66X_TIM_TGCR_TIMHIRS|RME_C66X_TIM_TGCR_TIMLORS;
+    RME_C66X_TIM_INTCTL(0)=RME_C66X_TIM_INTCTL_PRDINTEN_LO;
+    /* Start to run the timer */
+    RME_C66X_TIM_TCR(0)=RME_C66X_TIM_TCR_CONT;
+}
+/* End Function:__RME_C66X_Timer_Init ****************************************/
+
 /* Begin Function:__RME_Low_Level_Init ****************************************
 Description : Initialize the low-level hardware.
 Input       : None.
@@ -188,6 +211,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     rme_ptr_t Count;
 
     /* SMP common initialization */
+    RME_C66X_CPU_Cnt=0;
     __RME_SMP_Low_Level_Init();
 
     /* UART initialization - Word length 8 */
@@ -202,19 +226,6 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_C66X_UART_PWREMU_MGMT=RME_C66X_UART_MGMT_UTRST|RME_C66X_UART_MGMT_FREE;
     /* Cleanup previous data (rx trigger is also set to 0) */
     RME_C66X_UART_FCR=RME_C66X_UART_FCR_FIFOEN|RME_C66X_UART_FCR_TXCLR;
-
-    /* Program the timer 0 - we assume that it is always Fcorepac/6 */
-    RME_C66X_TIM_CNTLO(0)=0;
-    RME_C66X_TIM_CNTHI(0)=0;
-    RME_C66X_TIM_PRDLO(0)=RME_C66X_SYSTICK_VAL;
-    RME_C66X_TIM_PRDHI(0)=0;
-    RME_C66X_TIM_RELLO(0)=RME_C66X_SYSTICK_VAL;
-    RME_C66X_TIM_RELHI(0)=0;
-    /* Take timer out of reset */
-    RME_C66X_TIM_TGCR(0)=RME_C66X_TIM_TGCR_TIMHIRS|RME_C66X_TIM_TGCR_TIMLORS;
-    RME_C66X_TIM_INTCTL(0)=RME_C66X_TIM_INTCTL_PRDINTEN_LO;
-    /* Start to run the timer */
-    RME_C66X_TIM_TCR(0)=RME_C66X_TIM_TCR_CONT;
 
     /* System interrupt controller initialization - disable all of them */
     for(Count=0;Count<4;Count++)
@@ -286,6 +297,42 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
 }
 /* End Function:__RME_SMP_Low_Level_Init *************************************/
 
+/* Begin Function:__RME_SMP_Kmain *********************************************
+Description : The entry for SMP processors.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_SMP_Kmain(void)
+{
+    struct RME_CPU_Local* CPU_Local;
+
+    /* Do our own low-level init */
+    __RME_SMP_Low_Level_Init();
+
+    /* Check to see if we are booting this correctly */
+    CPU_Local=RME_CPU_LOCAL();
+    RME_ASSERT(CPU_Local->CPUID==RME_C66X_CPU_Cnt);
+    __RME_C66X_Boot_Done[RME_C66X_CPU_Cnt]=1;
+
+    /* Spin until the global CPU counter is zero again, which means the booting
+     * processor has done booting and we can proceed now */
+    while(RME_C66X_CPU_Cnt!=0);
+
+    /* The booting CPU must have created everything necessary for us. Let's
+     * check to see if they are there. */
+    RME_ASSERT(CPU_Local->Cur_Thd!=0);
+    RME_ASSERT(CPU_Local->Tick_Sig!=0);
+    RME_ASSERT(CPU_Local->Int_Sig!=0);
+
+    /* Change page tables */
+    __RME_Pgtbl_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
+
+    /* Boot into the init thread - never returns */
+    __RME_Enter_User_Mode(RME_C66X_INIT_ENTRY, 0, CPU_Local->CPUID);
+}
+/* End Function:__RME_SMP_Kmain **********************************************/
+
 /* Begin Function:main ********************************************************
 Description : The entrance of the operating system. This function is for compatibility
               with the ARM toolchain.
@@ -345,11 +392,106 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
+    rme_ptr_t Count;
+    struct RME_Cap_Captbl* Captbl;
     
     /* Start all other processors one by one */
     __RME_C66X_SMP_Init();
 
-    /* Create initial captbls, etc - */
+    /* Create all initial tables in Kmem1, which is sure to be present. We reserve 16
+     * pages at the start to load the init process */
+    Cur_Addr=RME_KMEM_VA_START;
+    /* Create the capability table for the init process - always 16 */
+    Captbl=(struct RME_Cap_Captbl*)Cur_Addr;
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,16)==RME_BOOT_CAPTBL);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(16));
+
+    /* Create the capability table for initial page tables. We just add all the addressible
+     * memory to the initial process; we do not care the actual memory amount. The initial
+     * memory will consist of 64MB memory blocks. Adjust this if you change kernel memory,
+     * and remember that kernel memory can only be adjusted in 64MB blocks. */
+    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PGTBL,
+                                   Cur_Addr, 0, RME_PGTBL_TOP, RME_PGTBL_SIZE_64M, RME_PGTBL_NUM_64)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_64));
+
+    /* Map all the user memory that we have into it - L1, L2 and other cache memory is reserved for
+     * kernel function usage only, and they are only accessible in kernel mode. This is to prevent
+     * unintended corruption. */
+    for(Count=33;Count<64;Count++)
+    {
+        RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_C66X_CPT, RME_BOOT_INIT_PGTBL,
+                                       Count*RME_POW2(RME_PGTBL_SIZE_64M), Count, RME_PGTBL_ALL_PERM)==0);
+    }
+
+    /* Activate the first process - This process cannot be deleted */
+    RME_ASSERT(_RME_Proc_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC, RME_BOOT_CAPTBL, RME_BOOT_INIT_PGTBL, Cur_Addr)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PROC_SIZE);
+
+    /* Create the initial kernel function capability */
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
+
+    /* Create initial kernel memory capability */
+    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_KMEM, RME_BOOT_INIT_KMEM,
+                                  RME_KMEM_VA_START,RME_KMEM_VA_START+RME_KMEM_SIZE,
+                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC|
+                                  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
+
+    /* Create the initial kernel endpoints for timer ticks */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_TIMER, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_C66X_CPU_NUM));
+    for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
+    {
+        RME_C66X_CPU_Local[Count].Tick_Sig=(struct RME_Sig_Struct*)Cur_Addr;
+        RME_ASSERT(_RME_Sig_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_TIMER, Count, Cur_Addr)==0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    }
+
+    /* Create the initial kernel endpoints for all other interrupts */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_INT, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_C66X_CPU_NUM));
+    for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
+    {
+        RME_C66X_CPU_Local[Count].Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
+        RME_ASSERT(_RME_Sig_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    }
+
+    /* Activate the first thread, and set its priority */
+    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_C66X_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_THD, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_C66X_CPU_NUM));
+    for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
+    {
+        RME_ASSERT(_RME_Thd_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PROC, Cur_Addr, 0, &(RME_C66X_CPU_Local[Count]))>=0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+    }
+
+    RME_PRINTK_S("\r\nKotbl registration end offset: 0x");
+    RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
+    RME_PRINTK_S("\r\nKernel memory frontier: 0x");
+    RME_PRINTK_U(Cur_Addr);
+    RME_ASSERT(Cur_Addr<RME_C66X_KMEM_BOOT_FRONTIER);
+
+    /* Print sizes and halt */
+    RME_PRINTK_S("\r\nThread object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Thd_Struct)/sizeof(rme_ptr_t));
+    RME_PRINTK_S("\r\nProcess object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Proc_Struct)/sizeof(rme_ptr_t));
+    RME_PRINTK_S("\r\nInvocation object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Inv_Struct)/sizeof(rme_ptr_t));
+    RME_PRINTK_S("\r\nEndpoint object size: ");
+    RME_PRINTK_I(sizeof(struct RME_Sig_Struct)/sizeof(rme_ptr_t));
+
+    /* Initialize the timer and start its interrupt routing */
+    RME_PRINTK_S("\r\nTimer init\r\n");
+    __RME_C66X_Timer_Init();
+
+    /* Change page tables */
+    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
+
+    /* Now other non-booting processors may proceed and go into their threads */
+    RME_C66X_CPU_Cnt=0;
+    /* Boot into the init thread - stack is always 0; the user need to look for stack on its own */
+    __RME_Enter_User_Mode(RME_C66X_INIT_ENTRY, 0, 0);
 
     return 0;
 }

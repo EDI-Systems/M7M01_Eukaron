@@ -12,9 +12,9 @@ Description: The configuration file for TMS320C6678.
 /* The virtual memory start address for the kernel objects */
 #define RME_KMEM_VA_START            0x80100000
 /* The size of the kernel object virtual memory */
-#define RME_KMEM_SIZE                0x03E00000
+#define RME_KMEM_SIZE                0x03F00000
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_START             0x83F00000
+#define RME_HYP_VA_START             0x84000000
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                 0x000C0000
 /* The granularity of kernel memory allocation, in bytes */
@@ -29,10 +29,8 @@ Description: The configuration file for TMS320C6678.
 #define RME_C66X_INT_FLAG_ADDR        0x83FC0000
 /* Initial kenel object frontier limit */
 #define RME_C66X_KMEM_BOOT_FRONTIER   0x80101000
-/* Init process's first thread's entry point address */
+/* Init process's initial thread entry point address */
 #define RME_C66X_INIT_ENTRY           0x84000000
-/* Init process's first thread's stack address */
-#define RME_C66X_INIT_STACK           0x84100000
 /* What is the tick interval value? - 10ms per tick */
 #define RME_C66X_SYSTICK_VAL          1500000
 /* What is the event number for tick timer? */
@@ -63,12 +61,12 @@ Description: The configuration file for TMS320C6678.
 #define RME_C66X_EVT_EMC_BUSERR       (127) /* EMC CFG bus error event */
 
 /* Kernel functions standard to Cortex-M, interrupt management and power */
-#define RME_CMX_KERN_INT(X)           (X)
-#define RME_CMX_INT_OP                0
-#define RME_CMX_INT_ENABLE            1
-#define RME_CMX_INT_DISABLE           0
-#define RME_CMX_INT_PRIO              1
-#define RME_CMX_KERN_PWR              240
+#define RME_C66X_KERN_INT(X)           (X)
+#define RME_C66X_INT_OP                0
+#define RME_C66X_INT_ENABLE            1
+#define RME_C66X_INT_DISABLE           0
+#define RME_C66X_INT_PRIO              1
+#define RME_C66X_KERN_PWR              240
 
 /* Additional peripherals to be initialized when the system boots. This will only be
  * run once on the booting processor. */
