@@ -33,7 +33,7 @@ Description : The header of kernel system call path.
 #define RME_ROUND_UP(NUM,POW)           RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1),POW)
 #define RME_POW2(POW)                   (((rme_ptr_t)1)<<(POW))
 /* Check if address is aligned on word boundary */
-#define RME_IS_ALIGNED(ADDR)    (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4))==0)
+#define RME_IS_ALIGNED(ADDR)            (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4))==0)
 /* Bit field extraction macros for easy extraction of parameters
 [MSB                                 PARAMS                                 LSB]
 [                  D1                  ][                  D0                  ]

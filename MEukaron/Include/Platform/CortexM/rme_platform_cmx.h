@@ -430,10 +430,10 @@ struct __RME_CMX_Flags
 /*****************************************************************************/
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, rme_ptr_t Entry_Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_CMX_MPU_Data* Top_MPU, 
-                                    rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
+                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_CMX_MPU_Data* Top_MPU, 
-                                  rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
-                                  rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
+                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
+                                      rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_CMX_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
 /*****************************************************************************/
 #define __EXTERN__
