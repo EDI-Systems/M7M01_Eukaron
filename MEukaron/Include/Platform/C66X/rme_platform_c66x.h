@@ -143,18 +143,17 @@ typedef rme_s32_t rme_ret_t;
 
 /* Booting capability layout */
 #define RME_C66X_CPT                    ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
-/* SRAM base */
-#define RME_C66X_RAM_BASE               0x20000000
 /* For C66X:
  * The layout of the page entry is:
  * [31:12] Paddr - The physical address to map this page to, or the physical
  *                 address of the next layer of page table. This address is
  *                 always aligned to 4kB.
- * [6] Static - Is this page a static page?
- * [5:4] Reserved - The cacheability flags are not fit for C6000 as it uses cache registers.
+ * [7] Static - Is this page a static page?
+ * [6:5] Reserved - The cacheability flags are not fit for C6000 as it uses cache registers.
  *                  We will implement cacheability as kernel functions.
- * [3] Execute - Do we allow execution(instruction fetch) on this page?
- * [2] Readonly - Is this page user read-only?
+ * [4] Execute - Do we allow execution(instruction fetch) on this page?
+ * [3] Write - Is this page user writable?
+ * [2] Read - Is this page user readable?
  * [1] Terminal - Is this page a terminal page, or points to another page table?
  * [0] Present - Is this entry present?
  *
@@ -183,66 +182,117 @@ typedef rme_s32_t rme_ret_t;
 /* Page table metadata definitions */
 #define RME_C66X_PGTBL_SIZEORD(X)       ((X)>>16)
 #define RME_C66X_PGTBL_NUMORD(X)        ((X)&0x0000FFFF)
+/* Extract address for MMU */
+#define RME_C66X_PGTBL_MPAXH_VA(X)      ((X)&0xFFFFF000)
+#define RME_C66X_PGTBL_MPAXL_PA(X)      (((X)&0xFFFFF000)<<4)
+/* Get info from MMU */
+#define RME_C66X_PGTBL_MPAXL_SZORD(X)   ((((X)&0x3F)>>1)-2)
 
 /* Special function register definitions */
 #define RME_C66X_SFR(BASE,OFFSET)       (*((volatile rme_ptr_t*)((rme_ptr_t)((BASE)+(OFFSET)))))
+
+/* XMC base */
+#define RME_C66X_XMC                    (0x08000000)
+/* C66X XMC definitions */
+#define RME_C66X_XMC_XMPAXL(X)          RME_C66X_SFR(RME_C66X_XMC,(X)<<3)
+#define RME_C66X_XMC_XMPAXH(X)          RME_C66X_SFR(RME_C66X_XMC,0x0004+((X)<<3))
+#define RME_C66X_XMC_XMPFAR             RME_C66X_SFR(RME_C66X_XMC,0x0200)
+#define RME_C66X_XMC_XMPFSR             RME_C66X_SFR(RME_C66X_XMC,0x0204)
+#define RME_C66X_XMC_XMPFCR             RME_C66X_SFR(RME_C66X_XMC,0x0208)
+#define RME_C66X_XMC_MDMAARBX           RME_C66X_SFR(RME_C66X_XMC,0x0280)
+#define RME_C66X_XMC_XPFCMD             RME_C66X_SFR(RME_C66X_XMC,0x0300)
+#define RME_C66X_XMC_XPFACS             RME_C66X_SFR(RME_C66X_XMC,0x0304)
+#define RME_C66X_XMC_XPFAC(X)           RME_C66X_SFR(RME_C66X_XMC,0x0310+((X)<<2))
+#define RME_C66X_XMC_XPFADDR(X)         RME_C66X_SFR(RME_C66X_XMC,0x0400+((X)<<2))
+/* MPAX locks */
+#define RME_C66X_XMC_LOCK               (0x0184AD00)
+#define RME_C66X_XMC_MPLK(X)            RME_C66X_SFR(RME_C66X_XMC_LOCK,(X)<<2) /* 0-3 */
+#define RME_C66X_XMC_MPLKCMD            RME_C66X_SFR(RME_C66X_XMC_LOCK,0x0010)
+#define RME_C66X_XMC_MPLKSTAT           RME_C66X_SFR(RME_C66X_XMC_LOCK,0x0014)
+/* Number of regions */
+#define RME_C66X_XMC_REGIONS            (16)
+/* XMC bit fields */
+#define RME_C66X_XMC_XMPAXH_SIZE(X)     ((X)-1)
+#define RME_C66X_XMC_XMPAXH_DISABLE     (0)
+#define RME_C66X_XMC_XMPAXL_SR          (1<<5)
+#define RME_C66X_XMC_XMPAXL_SW          (1<<4)
+#define RME_C66X_XMC_XMPAXL_SX          (1<<3)
+#define RME_C66X_XMC_XMPAXL_UR          (1<<2)
+#define RME_C66X_XMC_XMPAXL_UW          (1<<1)
+#define RME_C66X_XMC_XMPAXL_UX          (1<<0)
+#define RME_C66X_XMC_XMPAXL_FLAG(FLAG)  (((FLAG)&RME_PGTBL_READ)<<2)| \
+                                         ((FLAG)&RME_PGTBL_WRITE)| \
+                                         (((FLAG)&RME_PGTBL_EXECUTE)>>2)
+#define RME_C66X_XMC_XMPFSR_LOCAL       (1<<8)
+#define RME_C66X_XMC_XMPFCR_MPFCLR      (1<<0)
+/* Lock bitfields */
+#define RME_C66X_XMC_MPLK0_KEY          (0xBFBFBFBF)
+#define RME_C66X_XMC_MPLK1_KEY          (0x0000FE29)
+#define RME_C66X_XMC_MPLK2_KEY          (0x00000003)
+#define RME_C66X_XMC_MPLK3_KEY          (0x00000004)
+#define RME_C66X_XMC_MPLKCMD_KEYR       (1<<2)
+#define RME_C66X_XMC_MPLKCMD_LOCK       (1<<1)
+#define RME_C66X_XMC_MPLKCMD_UNLOCK     (1<<0)
+#define RME_C66X_XMC_MPLKSTAT_LK        (1<<0)
+/* Convert RME representation to machine representation */
+#define RME_C66X_XMC_XMPAXH_V(VA,SIZE)  ((VA)|RME_C66X_XMC_XMPAXH_SIZE(SIZE))
+#define RME_C66X_XMC_XMPAXL_V(PA,FLAG)  (((PA)>>4)|RME_C66X_XMC_XMPAXL_FLAG(FLAG))
+/* Default values for region 0 & 1 (kernel) */
+#define RME_C66X_XMC_XMPAXL0_DEF        (RME_C66X_XMC_XMPAXL_SR|RME_C66X_XMC_XMPAXL_SW|RME_C66X_XMC_XMPAXL_SX)
+#define RME_C66X_XMC_XMPAXH0_DEF        (RME_C66X_XMC_XMPAXH_SIZE(RME_PGTBL_SIZE_2G))
+#define RME_C66X_XMC_XMPAXL1_DEF        ((0x80000000UL)|RME_C66X_XMC_XMPAXL_SR|RME_C66X_XMC_XMPAXL_SW|RME_C66X_XMC_XMPAXL_SX)
+#define RME_C66X_XMC_XMPAXH1_DEF        ((0x80000000UL)|RME_C66X_XMC_XMPAXH_SIZE(RME_PGTBL_SIZE_2G))
+
+/* Cache controller base */
+#define RME_C66X_CACHE                  (0x01840000)
 /* C66X level 1 program cache definitions */
-#define RME_C66X_CACHE_L1PCFG           RME_C66X_SFR(0x01840020,0x0000)
-#define RME_C66X_CACHE_L1PCC            RME_C66X_SFR(0x01840024,0x0000)
-#define RME_C66X_CACHE_L1PIBAR          RME_C66X_SFR(0x01844020,0x0000)
-#define RME_C66X_CACHE_L1PIWC           RME_C66X_SFR(0x01844024,0x0000)
-#define RME_C66X_CACHE_L1PINV           RME_C66X_SFR(0x01845028,0x0000)
+#define RME_C66X_CACHE_L1PCFG           RME_C66X_SFR(RME_C66X_CACHE,0x0020)
+#define RME_C66X_CACHE_L1PCC            RME_C66X_SFR(RME_C66X_CACHE,0x0024)
+#define RME_C66X_CACHE_L1PIBAR          RME_C66X_SFR(RME_C66X_CACHE,0x4020)
+#define RME_C66X_CACHE_L1PIWC           RME_C66X_SFR(RME_C66X_CACHE,0x4024)
+#define RME_C66X_CACHE_L1PINV           RME_C66X_SFR(RME_C66X_CACHE,0x5028)
 /* C66X level 1 data cache definitions */
-#define RME_C66X_CACHE_L1DCFG           RME_C66X_SFR(0x01840040,0x0000)
-#define RME_C66X_CACHE_L1DCC            RME_C66X_SFR(0x01840044,0x0000)
-#define RME_C66X_CACHE_L1DWIBAR         RME_C66X_SFR(0x01844030,0x0000)
-#define RME_C66X_CACHE_L1DWIWC          RME_C66X_SFR(0x01844034,0x0000)
-#define RME_C66X_CACHE_L1DIBAR          RME_C66X_SFR(0x01844048,0x0000)
-#define RME_C66X_CACHE_L1DIWC           RME_C66X_SFR(0x0184404C,0x0000)
-#define RME_C66X_CACHE_L1DWB            RME_C66X_SFR(0x01845040,0x0000)
-#define RME_C66X_CACHE_L1DWBINV         RME_C66X_SFR(0x01845044,0x0000)
-#define RME_C66X_CACHE_L1DINV           RME_C66X_SFR(0x01845048,0x0000)
+#define RME_C66X_CACHE_L1DCFG           RME_C66X_SFR(RME_C66X_CACHE,0x0040)
+#define RME_C66X_CACHE_L1DCC            RME_C66X_SFR(RME_C66X_CACHE,0x0044)
+#define RME_C66X_CACHE_L1DWIBAR         RME_C66X_SFR(RME_C66X_CACHE,0x4030)
+#define RME_C66X_CACHE_L1DWIWC          RME_C66X_SFR(RME_C66X_CACHE,0x4034)
+#define RME_C66X_CACHE_L1DIBAR          RME_C66X_SFR(RME_C66X_CACHE,0x4048)
+#define RME_C66X_CACHE_L1DIWC           RME_C66X_SFR(RME_C66X_CACHE,0x404C)
+#define RME_C66X_CACHE_L1DWB            RME_C66X_SFR(RME_C66X_CACHE,0x5040)
+#define RME_C66X_CACHE_L1DWBINV         RME_C66X_SFR(RME_C66X_CACHE,0x5044)
+#define RME_C66X_CACHE_L1DINV           RME_C66X_SFR(RME_C66X_CACHE,0x5048)
 /* C66X level 2 cache definitions */
-#define RME_C66X_CACHE_L2CFG            RME_C66X_SFR(0x01840000,0x0000)
-#define RME_C66X_CACHE_L2WBAR           RME_C66X_SFR(0x01844000,0x0000)
-#define RME_C66X_CACHE_L2WWC            RME_C66X_SFR(0x01844004,0x0000)
-#define RME_C66X_CACHE_L2IBAR           RME_C66X_SFR(0x01844018,0x0000)
-#define RME_C66X_CACHE_L2IWC            RME_C66X_SFR(0x0184401C,0x0000)
-#define RME_C66X_CACHE_L2WB             RME_C66X_SFR(0x01845000,0x0000)
-#define RME_C66X_CACHE_L2WBINV          RME_C66X_SFR(0x01845004,0x0000)
-#define RME_C66X_CACHE_L2INV            RME_C66X_SFR(0x01845008,0x0000)
-#define RME_C66X_CACHE_L2MAR(X)         RME_C66X_SFR(0x01848000,(X)<<2) /* 12-255 */
+#define RME_C66X_CACHE_L2CFG            RME_C66X_SFR(RME_C66X_CACHE,0x0000)
+#define RME_C66X_CACHE_L2WBAR           RME_C66X_SFR(RME_C66X_CACHE,0x4000)
+#define RME_C66X_CACHE_L2WWC            RME_C66X_SFR(RME_C66X_CACHE,0x4004)
+#define RME_C66X_CACHE_L2IBAR           RME_C66X_SFR(RME_C66X_CACHE,0x4018)
+#define RME_C66X_CACHE_L2IWC            RME_C66X_SFR(RME_C66X_CACHE,0x401C)
+#define RME_C66X_CACHE_L2WB             RME_C66X_SFR(RME_C66X_CACHE,0x5000)
+#define RME_C66X_CACHE_L2WBINV          RME_C66X_SFR(RME_C66X_CACHE,0x5004)
+#define RME_C66X_CACHE_L2INV            RME_C66X_SFR(RME_C66X_CACHE,0x5008)
+#define RME_C66X_CACHE_L2MAR(X)         RME_C66X_SFR(RME_C66X_CACHE,0x8000+((X)<<2)) /* 12-255 */
 #define RME_C66X_CACHE_L2MAR_PFX        (1<<3)
 #define RME_C66X_CACHE_L2MAR_PC         (1<<0)
 
-/* C66X MMU definitions */
-#define RME_C66X_MMU_XMPAL(X)           RME_C66X_SFR(0x08000000,(X)<<3)
-#define RME_C66X_MMU_XMPAH(X)           RME_C66X_SFR(0x08000004,(X)<<3)
-#define RME_C66X_MMU_XMPFAR             RME_C66X_SFR(0x08000200,0)
-#define RME_C66X_MMU_XMPFSR             RME_C66X_SFR(0x08000208,0)
-#define RME_C66X_MMU_MDMAARBX           RME_C66X_SFR(0x08000280)
-#define RME_C66X_MMU_XPFCMD             RME_C66X_SFR(0x08000300)
-#define RME_C66X_MMU_XPFACS             RME_C66X_SFR(0x08000304)
-#define RME_C66X_MMU_XPFAC(X)           RME_C66X_SFR(0x08000310,(X)<<2)
-#define RME_C66X_MMU_XPFADDR(X)         RME_C66X_SFR(0x08000400,(X)<<2)
-
+/* Semaphore base */
+#define RME_C66X_SEM                    (0x02640000)
 /* C66X semaphore definitions */
 #define RME_C66X_SEM_NUM                (32)
-#define RME_C66X_SEM_PID                RME_C66X_SFR(0x02640000,0x0000)
-#define RME_C66X_SEM_RST_RUN            RME_C66X_SFR(0x02640000,0x0004)
-#define RME_C66X_SEM_EOI                RME_C66X_SFR(0x02640000,0x000C)
-#define RME_C66X_SEM_DIRECT(X)          RME_C66X_SFR(0x02640000,0x0100+((X)<<2)) /* 0-63 */
-#define RME_C66X_SEM_INDIRECT(X)        RME_C66X_SFR(0x02640000,0x0200+((X)<<2)) /* 0-63 */
-#define RME_C66X_SEM_QUERY(X)           RME_C66X_SFR(0x02640000,0x0300+((X)<<2)) /* 0-63 */
-#define RME_C66X_SEM_FLAGL(X)           RME_C66X_SFR(0x02640000,0x0400+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_FLAGL_CLEAR(X)     RME_C66X_SFR(0x02640000,0x0400+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_FLAGH(X)           RME_C66X_SFR(0x02640000,0x0440+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_FLAGH_CLEAR(X)     RME_C66X_SFR(0x02640000,0x0440+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_FLAGL_SET(X)       RME_C66X_SFR(0x02640000,0x0480+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_FLAGH_SET(X)       RME_C66X_SFR(0x02640000,0x04C0+((X)<<2)) /* 0-15 */
-#define RME_C66X_SEM_ERR                RME_C66X_SFR(0x02640000,0x0500)
-#define RME_C66X_SEM_ERR_CLEAR          RME_C66X_SFR(0x02640000,0x0504)
-#define RME_C66X_SEM_ERR_SET            RME_C66X_SFR(0x02640000,0x0508)
+#define RME_C66X_SEM_PID                RME_C66X_SFR(RME_C66X_SEM,0x0000)
+#define RME_C66X_SEM_RST_RUN            RME_C66X_SFR(RME_C66X_SEM,0x0004)
+#define RME_C66X_SEM_EOI                RME_C66X_SFR(RME_C66X_SEM,0x000C)
+#define RME_C66X_SEM_DIRECT(X)          RME_C66X_SFR(RME_C66X_SEM,0x0100+((X)<<2)) /* 0-63 */
+#define RME_C66X_SEM_INDIRECT(X)        RME_C66X_SFR(RME_C66X_SEM,0x0200+((X)<<2)) /* 0-63 */
+#define RME_C66X_SEM_QUERY(X)           RME_C66X_SFR(RME_C66X_SEM,0x0300+((X)<<2)) /* 0-63 */
+#define RME_C66X_SEM_FLAGL(X)           RME_C66X_SFR(RME_C66X_SEM,0x0400+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_FLAGL_CLEAR(X)     RME_C66X_SFR(RME_C66X_SEM,0x0400+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_FLAGH(X)           RME_C66X_SFR(RME_C66X_SEM,0x0440+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_FLAGH_CLEAR(X)     RME_C66X_SFR(RME_C66X_SEM,0x0440+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_FLAGL_SET(X)       RME_C66X_SFR(RME_C66X_SEM,0x0480+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_FLAGH_SET(X)       RME_C66X_SFR(RME_C66X_SEM,0x04C0+((X)<<2)) /* 0-15 */
+#define RME_C66X_SEM_ERR                RME_C66X_SFR(RME_C66X_SEM,0x0500)
+#define RME_C66X_SEM_ERR_CLEAR          RME_C66X_SFR(RME_C66X_SEM,0x0504)
+#define RME_C66X_SEM_ERR_SET            RME_C66X_SFR(RME_C66X_SEM,0x0508)
 /* Get the semaphore positions - what semaphore is responsible for this memory range? */
 #define RME_C66X_SEM_POS(ADDR,POS) \
 { \
@@ -254,16 +304,18 @@ typedef rme_s32_t rme_ret_t;
         (POS)=((ADDR)-RME_KMEM_VA_START)/(RME_KMEM_SIZE/RME_C66X_SEM_NUM);\
 }
 
+/* UART base */
+#define RME_C66X_UART                   (0x02540000)
 /* C66X UART definitions */
-#define RME_C66X_UART_LCR               RME_C66X_SFR(0x02540000,0x000C)
-#define RME_C66X_UART_DLL               RME_C66X_SFR(0x02540000,0x0020)
-#define RME_C66X_UART_DLH               RME_C66X_SFR(0x02540000,0x0024)
-#define RME_C66X_UART_IER               RME_C66X_SFR(0x02540000,0x0004)
-#define RME_C66X_UART_MCR               RME_C66X_SFR(0x02540000,0x0010)
-#define RME_C66X_UART_PWREMU_MGMT       RME_C66X_SFR(0x02540000,0x0030)
-#define RME_C66X_UART_FCR               RME_C66X_SFR(0x02540000,0x0008)
-#define RME_C66X_UART_THR               RME_C66X_SFR(0x02540000,0x0000)
-#define RME_C66X_UART_LSR               RME_C66X_SFR(0x02540000,0x0014)
+#define RME_C66X_UART_LCR               RME_C66X_SFR(RME_C66X_UART,0x000C)
+#define RME_C66X_UART_DLL               RME_C66X_SFR(RME_C66X_UART,0x0020)
+#define RME_C66X_UART_DLH               RME_C66X_SFR(RME_C66X_UART,0x0024)
+#define RME_C66X_UART_IER               RME_C66X_SFR(RME_C66X_UART,0x0004)
+#define RME_C66X_UART_MCR               RME_C66X_SFR(RME_C66X_UART,0x0010)
+#define RME_C66X_UART_PWREMU_MGMT       RME_C66X_SFR(RME_C66X_UART,0x0030)
+#define RME_C66X_UART_FCR               RME_C66X_SFR(RME_C66X_UART,0x0008)
+#define RME_C66X_UART_THR               RME_C66X_SFR(RME_C66X_UART,0x0000)
+#define RME_C66X_UART_LSR               RME_C66X_SFR(RME_C66X_UART,0x0014)
 /* UART bits */
 #define RME_C66X_UART_LCR_DLAB          (1<<7)
 #define RME_C66X_UART_LCR_BC            (1<<6)
@@ -275,31 +327,33 @@ typedef rme_s32_t rme_ret_t;
 #define RME_C66X_UART_LCR_WLS6          (1)
 #define RME_C66X_UART_LCR_WLS7          (2)
 #define RME_C66X_UART_LCR_WLS8          (3)
-#define RME_C66X_MGMT_UTRST             (1<<14)
-#define RME_C66X_MGMT_URRST             (1<<13)
-#define RME_C66X_MGMT_FREE              (1<<0)
+#define RME_C66X_UART_MGMT_UTRST        (1<<14)
+#define RME_C66X_UART_MGMT_URRST        (1<<13)
+#define RME_C66X_UART_MGMT_FREE         (1<<0)
 #define RME_C66X_UART_FCR_TXCLR         (1<<2)
 #define RME_C66X_UART_FCR_RXCLR         (1<<1)
 #define RME_C66X_UART_FCR_FIFOEN        (1<<0)
 #define RME_C66X_UART_LSR_THRE          (1<<5)
 
+/* Local interrupt controller base */
+#define RME_C66X_LIC                    (0x01800000)
 /* C66X Corepac local interrupt controller definitions */
-#define RME_C66X_LIC_EVTFLAG(X)         RME_C66X_SFR(0x01800000,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_EVTSET(X)          RME_C66X_SFR(0x01800020,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_EVTCLR(X)          RME_C66X_SFR(0x01800040,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_EVTMASK(X)         RME_C66X_SFR(0x01800080,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_MEVTFLAG(X)        RME_C66X_SFR(0x018000A0,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_INTMUX(X)          RME_C66X_SFR(0x01800100,(X)<<2) /* 1-3 */
-#define RME_C66X_LIC_AEGMUX(X)          RME_C66X_SFR(0x01800140,(X)<<2) /* 0-1 */
-#define RME_C66X_LIC_INTXSTAT           RME_C66X_SFR(0x01800180,0x0000)
-#define RME_C66X_LIC_INTXCLR            RME_C66X_SFR(0x01800184,0x0000)
-#define RME_C66X_LIC_INTDMASK           RME_C66X_SFR(0x01800188,0x0000)
-#define RME_C66X_LIC_EXPMASK(X)         RME_C66X_SFR(0x018000C0,(X)<<2) /* 0-3 */
-#define RME_C66X_LIC_MEXPFLAG(X)        RME_C66X_SFR(0x018000E0,(X)<<2) /* 0-3 */
+#define RME_C66X_LIC_EVTFLAG(X)         RME_C66X_SFR(RME_C66X_LIC,(X)<<2) /* 0-3 */
+#define RME_C66X_LIC_EVTSET(X)          RME_C66X_SFR(RME_C66X_LIC,0x0020+((X)<<2)) /* 0-3 */
+#define RME_C66X_LIC_EVTCLR(X)          RME_C66X_SFR(RME_C66X_LIC,0x0040+((X)<<2)) /* 0-3 */
+#define RME_C66X_LIC_EVTMASK(X)         RME_C66X_SFR(RME_C66X_LIC,0x0080+((X)<<2)) /* 0-3 */
+#define RME_C66X_LIC_MEVTFLAG(X)        RME_C66X_SFR(RME_C66X_LIC,0x00A0+((X)<<2)) /* 0-3 */
+#define RME_C66X_LIC_INTMUX(X)          RME_C66X_SFR(RME_C66X_LIC,0x0100+((X)<<2)) /* 1-3 */
+#define RME_C66X_LIC_AEGMUX(X)          RME_C66X_SFR(RME_C66X_LIC,0x0140+((X)<<2)) /* 0-1 */
+#define RME_C66X_LIC_INTXSTAT           RME_C66X_SFR(RME_C66X_LIC,0x0180)
+#define RME_C66X_LIC_INTXCLR            RME_C66X_SFR(RME_C66X_LIC,0x0184)
+#define RME_C66X_LIC_INTDMASK           RME_C66X_SFR(RME_C66X_LIC,0x0188)
+#define RME_C66X_LIC_EXPMASK(X)         RME_C66X_SFR(RME_C66X_LIC,0x00C0+((X)<<2)) /* 0-3 */
+#define RME_C66X_LIC_MEXPFLAG(X)        RME_C66X_SFR(RME_C66X_LIC,0x00E0+((X)<<2)) /* 0-3 */
 
-/* C66X Chip-level interrupt controller definitions */
-/* Addresses of the interruptv controllers - 4 controllers */
+/* CIC base - 4 controllers */
 #define RME_C66X_CIC(N)                 (0x02600000+(0x4000*(N))) /* 0-3 */
+/* C66X Chip-level interrupt controller definitions */
 /* Revision register */
 #define RME_C66X_CIC_REV(N)             RME_C66X_SFR(RME_C66X_CIC(N),0x0000)
 /* Control register */
@@ -337,60 +391,65 @@ typedef rme_s32_t rme_ret_t;
 /* Host interrupt enable registers */
 #define RME_C66X_CIC_HIER(N,X)          RME_C66X_SFR(RME_C66X_CIC(N),0x1500+((X)<<2)) /* 0-7, 256 host interrupts */
 
+/* PSC base */
+#define RME_C66X_PSC                    (0x02350000)
 /* Power state control registers */
-#define RME_C66X_PID                    RME_C66X_SFR(0x02350000,0x0000)
-#define RME_C66X_VCNTLID                RME_C66X_SFR(0x02350000,0x0014)
-#define RME_C66X_PTCMD                  RME_C66X_SFR(0x02350000,0x0120)
-#define RME_C66X_PTSTAT                 RME_C66X_SFR(0x02350000,0x0128)
-#define RME_C66X_PDSTAT(X)              RME_C66X_SFR(0x02350000,0x0200+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
-#define RME_C66X_PDCTL(X)               RME_C66X_SFR(0x02350000,0x0300+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
-#define RME_C66X_MDSTAT(X)              RME_C66X_SFR(0x02350000,0x0800+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
-#define RME_C66X_MDCTL(X)               RME_C66X_SFR(0x02350000,0x0A00+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
-#define RME_C66X_MDCTL_LRST             (1<<8)
-#define RME_C66X_MDCTL_NEXT_ENABLE      (0x03)
+#define RME_C66X_PSC_PID                RME_C66X_SFR(RME_C66X_PSC,0x0000)
+#define RME_C66X_PSC_VCNTLID            RME_C66X_SFR(RME_C66X_PSC,0x0014)
+#define RME_C66X_PSC_PTCMD              RME_C66X_SFR(RME_C66X_PSC,0x0120)
+#define RME_C66X_PSC_PTSTAT             RME_C66X_SFR(RME_C66X_PSC,0x0128)
+#define RME_C66X_PSC_PDSTAT(X)          RME_C66X_SFR(RME_C66X_PSC,0x0200+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
+#define RME_C66X_PSC_PDCTL(X)           RME_C66X_SFR(RME_C66X_PSC,0x0300+((X)<<2)) /* 0-31 - 8 is CorePac 0 */
+#define RME_C66X_PSC_MDSTAT(X)          RME_C66X_SFR(RME_C66X_PSC,0x0800+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
+#define RME_C66X_PSC_MDCTL(X)           RME_C66X_SFR(RME_C66X_PSC,0x0A00+((X)<<2)) /* 0-31 - 15 is CorePac 0 */
+#define RME_C66X_PSC_MDCTL_LRST         (1<<8)
+#define RME_C66X_PSC_MDCTL_NEXT_ENABLE  (0x03)
+
+/* DSC base */
+#define RME_C66X_DSC                    (0x02620000)
 /* Device state control registers */
-#define RME_C66X_DSC_JTAGID             RME_C66X_SFR(0x02620018,0x0000)
-#define RME_C66X_DSC_DEVSTAT            RME_C66X_SFR(0x02620020,0x0000)
-#define RME_C66X_DSC_KICK0              RME_C66X_SFR(0x02620038,0x0000)
-#define RME_C66X_DSC_KICK1              RME_C66X_SFR(0x0262003C,0x0000)
-#define RME_C66X_DSC_BOOT_ADDR(X)       RME_C66X_SFR(0x02620040,(X)<<2) /* 0-7, 8 cores */
-#define RME_C66X_DSC_MACIDL             RME_C66X_SFR(0x02620110,0x0000)
-#define RME_C66X_DSC_MACIDH             RME_C66X_SFR(0x02620110,0x0004)
-#define RME_C66X_DSC_LRSTNMISTAT_CLR    RME_C66X_SFR(0x02620130,0x0000)
-#define RME_C66X_DSC_RESETSTAT_CLR      RME_C66X_SFR(0x02620134,0x0000)
-#define RME_C66X_DSC_BOOTCOMPLETE       RME_C66X_SFR(0x0262013C,0x0000)
-#define RME_C66X_DSC_RESET_STAT         RME_C66X_SFR(0x02620144,0x0000)
-#define RME_C66X_DSC_LRSTNMISTAT        RME_C66X_SFR(0x02620148,0x0000)
-#define RME_C66X_DSC_DEVCFG             RME_C66X_SFR(0x0262014C,0x0000)
-#define RME_C66X_DSC_PWRSTATECTL        RME_C66X_SFR(0x02620150,0x0000)
-#define RME_C66X_DSC_SRIO_STS           RME_C66X_SFR(0x02620154,0x0000)
-#define RME_C66X_DSC_SMGII_STS          RME_C66X_SFR(0x02620158,0x0000)
-#define RME_C66X_DSC_PCIE_STS           RME_C66X_SFR(0x0262015C,0x0000)
-#define RME_C66X_DSC_HYPERLINK_STS      RME_C66X_SFR(0x02620160,0x0000)
-#define RME_C66X_DSC_NMIGR(X)           RME_C66X_SFR(0x02620200,(X)<<2) /* 0-7, 8 cores */
-#define RME_C66X_DSC_IPCGR(X)           RME_C66X_SFR(0x02620240,(X)<<2) /* 0-7, 8 cores */
-#define RME_C66X_DSC_IPCGRH             RME_C66X_SFR(0x0262027C,0x0000)
-#define RME_C66X_DSC_IPCAR(X)           RME_C66X_SFR(0x02620280,(X)<<2) /* 0-7, 8 cores */
-#define RME_C66X_DSC_IPCARH             RME_C66X_SFR(0x026202BC,0x0000)
-#define RME_C66X_DSC_TINPSEL            RME_C66X_SFR(0x02620300,0x0000)
-#define RME_C66X_DSC_TOUTPSEL           RME_C66X_SFR(0x02620304,0x0000)
-#define RME_C66X_DSC_RSTMUX(X)          RME_C66X_SFR(0x02620308,(X)<<2) /* 0-7, 8 cores */
-#define RME_C66X_DSC_MAINPLLCTL(X)      RME_C66X_SFR(0x02620328,(X)<<2) /* 0-1 */
-#define RME_C66X_DSC_DDR3PLLCTL(X)      RME_C66X_SFR(0x02620330,(X)<<2) /* 0-1 */
-#define RME_C66X_DSC_PASSPLLCTL(X)      RME_C66X_SFR(0x02620338,(X)<<2) /* 0-1 */
-#define RME_C66X_DSC_SGMII_CFGPLL       RME_C66X_SFR(0x02620340,0x0000)
-#define RME_C66X_DSC_SGMII_CFGRX(X)     RME_C66X_SFR(0x02620344,(X)<<3) /* 0-1 */
-#define RME_C66X_DSC_SGMII_CFGTX(X)     RME_C66X_SFR(0x02620348,(X)<<3) /* 0-1 */
-#define RME_C66X_DSC_PCIE_CFGPLL        RME_C66X_SFR(0x02620358,0x0000)
-#define RME_C66X_DSC_SRIO_CFGPLL        RME_C66X_SFR(0x02620360,0x0000)
-#define RME_C66X_DSC_SRIO_CFGRX(X)      RME_C66X_SFR(0x02620364,(X)<<3) /* 0-3 */
-#define RME_C66X_DSC_SRIO_CFGTX(X)      RME_C66X_SFR(0x02620368,(X)<<3) /* 0-3 */
-#define RME_C66X_DSC_DSP_SUSP_CTL       RME_C66X_SFR(0x0262038C,0x0000)
-#define RME_C66X_DSC_HYPERLINK_CFGPLL   RME_C66X_SFR(0x026203B4,0x0000)
-#define RME_C66X_DSC_HYPERLINK_CFGRX(X) RME_C66X_SFR(0x026203B8,(X)<<3) /* 0-3 */
-#define RME_C66X_DSC_HYPERLINK_CFGTX(X) RME_C66X_SFR(0x026203BC,(X)<<3) /* 0-3 */
-#define RME_C66X_DSC_DEVSPEED           RME_C66X_SFR(0x026203F8,0x0000)
-#define RME_C66X_DSC_CHIP_MISC_CTL      RME_C66X_SFR(0x02620400,0x0000)
+#define RME_C66X_DSC_JTAGID             RME_C66X_SFR(RME_C66X_DSC,0x0018)
+#define RME_C66X_DSC_DEVSTAT            RME_C66X_SFR(RME_C66X_DSC,0x0020)
+#define RME_C66X_DSC_KICK0              RME_C66X_SFR(RME_C66X_DSC,0x0038)
+#define RME_C66X_DSC_KICK1              RME_C66X_SFR(RME_C66X_DSC,0x003C)
+#define RME_C66X_DSC_BOOT_ADDR(X)       RME_C66X_SFR(RME_C66X_DSC,0x0040+((X)<<2)) /* 0-7, 8 cores */
+#define RME_C66X_DSC_MACIDL             RME_C66X_SFR(RME_C66X_DSC,0x0110)
+#define RME_C66X_DSC_MACIDH             RME_C66X_SFR(RME_C66X_DSC,0x0114)
+#define RME_C66X_DSC_LRSTNMISTAT_CLR    RME_C66X_SFR(RME_C66X_DSC,0x0130)
+#define RME_C66X_DSC_RESETSTAT_CLR      RME_C66X_SFR(RME_C66X_DSC,0x0134)
+#define RME_C66X_DSC_BOOTCOMPLETE       RME_C66X_SFR(RME_C66X_DSC,0x013C)
+#define RME_C66X_DSC_RESET_STAT         RME_C66X_SFR(RME_C66X_DSC,0x0144)
+#define RME_C66X_DSC_LRSTNMISTAT        RME_C66X_SFR(RME_C66X_DSC,0x0148)
+#define RME_C66X_DSC_DEVCFG             RME_C66X_SFR(RME_C66X_DSC,0x014C)
+#define RME_C66X_DSC_PWRSTATECTL        RME_C66X_SFR(RME_C66X_DSC,0x0150)
+#define RME_C66X_DSC_SRIO_STS           RME_C66X_SFR(RME_C66X_DSC,0x0154)
+#define RME_C66X_DSC_SMGII_STS          RME_C66X_SFR(RME_C66X_DSC,0x0158)
+#define RME_C66X_DSC_PCIE_STS           RME_C66X_SFR(RME_C66X_DSC,0x015C)
+#define RME_C66X_DSC_HYPERLINK_STS      RME_C66X_SFR(RME_C66X_DSC,0x0160)
+#define RME_C66X_DSC_NMIGR(X)           RME_C66X_SFR(RME_C66X_DSC,0x0200+((X)<<2)) /* 0-7, 8 cores */
+#define RME_C66X_DSC_IPCGR(X)           RME_C66X_SFR(RME_C66X_DSC,0x0240+((X)<<2)) /* 0-7, 8 cores */
+#define RME_C66X_DSC_IPCGRH             RME_C66X_SFR(RME_C66X_DSC,0x027C)
+#define RME_C66X_DSC_IPCAR(X)           RME_C66X_SFR(RME_C66X_DSC,0x0280+((X)<<2)) /* 0-7, 8 cores */
+#define RME_C66X_DSC_IPCARH             RME_C66X_SFR(RME_C66X_DSC,0x02BC)
+#define RME_C66X_DSC_TINPSEL            RME_C66X_SFR(RME_C66X_DSC,0x0300)
+#define RME_C66X_DSC_TOUTPSEL           RME_C66X_SFR(RME_C66X_DSC,0x0304)
+#define RME_C66X_DSC_RSTMUX(X)          RME_C66X_SFR(RME_C66X_DSC,0x0308+((X)<<2)) /* 0-7, 8 cores */
+#define RME_C66X_DSC_MAINPLLCTL(X)      RME_C66X_SFR(RME_C66X_DSC,0x0328+((X)<<2)) /* 0-1 */
+#define RME_C66X_DSC_DDR3PLLCTL(X)      RME_C66X_SFR(RME_C66X_DSC,0x0330+((X)<<2)) /* 0-1 */
+#define RME_C66X_DSC_PASSPLLCTL(X)      RME_C66X_SFR(RME_C66X_DSC,0x0338+((X)<<2)) /* 0-1 */
+#define RME_C66X_DSC_SGMII_CFGPLL       RME_C66X_SFR(RME_C66X_DSC,0x0340)
+#define RME_C66X_DSC_SGMII_CFGRX(X)     RME_C66X_SFR(RME_C66X_DSC,0x0344+((X)<<3)) /* 0-1 */
+#define RME_C66X_DSC_SGMII_CFGTX(X)     RME_C66X_SFR(RME_C66X_DSC,0x0348+((X)<<3)) /* 0-1 */
+#define RME_C66X_DSC_PCIE_CFGPLL        RME_C66X_SFR(RME_C66X_DSC,0x0358)
+#define RME_C66X_DSC_SRIO_CFGPLL        RME_C66X_SFR(RME_C66X_DSC,0x0360)
+#define RME_C66X_DSC_SRIO_CFGRX(X)      RME_C66X_SFR(RME_C66X_DSC,0x0364+((X)<<3)) /* 0-3 */
+#define RME_C66X_DSC_SRIO_CFGTX(X)      RME_C66X_SFR(RME_C66X_DSC,0368+((X)<<3)) /* 0-3 */
+#define RME_C66X_DSC_DSP_SUSP_CTL       RME_C66X_SFR(RME_C66X_DSC,0x038C)
+#define RME_C66X_DSC_HYPERLINK_CFGPLL   RME_C66X_SFR(RME_C66X_DSC,0x03B4)
+#define RME_C66X_DSC_HYPERLINK_CFGRX(X) RME_C66X_SFR(RME_C66X_DSC,0x03B8+((X)<<3)) /* 0-3 */
+#define RME_C66X_DSC_HYPERLINK_CFGTX(X) RME_C66X_SFR(RME_C66X_DSC,0x03BC+((X)<<3)) /* 0-3 */
+#define RME_C66X_DSC_DEVSPEED           RME_C66X_SFR(RME_C66X_DSC,0x03F8)
+#define RME_C66X_DSC_CHIP_MISC_CTL      RME_C66X_SFR(RME_C66X_DSC,0x0400)
 
 /* Timer definitions */
 #define RME_C66X_TIMER(N)               (0x02200000+(0x10000*(N))) /* 0-15 */
@@ -412,24 +471,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_C66X_TIM_TGCR_TIMHIRS       (1<<1)
 #define RME_C66X_TIM_TGCR_TIMLORS       (1<<0)
 #define RME_C66X_TIM_INTCTL_PRDINTEN_LO (1<<0)
-
-/* MMU operation flag */
-#define RME_C66X_MMU_CLR                (0)
-#define RME_C66X_MMU_UPD                (1)
-/* MMU definitions */
-/* Extract address for MMU */
-#define RME_C66X_MMU_ADDR(X)            ((X)&0xFFFFFFE0)
-/* Get info from MMU */
-#define RME_C66X_MPU_SZORD(X)           ((((X)&0x3F)>>1)-2)
-/* Write info to MMU - cache control bits are gone, always cacheable */
-#define RME_C66X_MMU_SIZE(X)            ((X)-1)
-#define RME_C66X_MMU_DISABLE            (0)
-#define RME_C66X_MMU_SR                 (1<<5)
-#define RME_C66X_MMU_SW                 (1<<4)
-#define RME_C66X_MMU_SX                 (1<<3)
-#define RME_C66X_MMU_UR                 (1<<2)
-#define RME_C66X_MMU_UW                 (1<<1)
-#define RME_C66X_MMU_UX                 (1<<0)
 
 /* EFR bit definitions */
 #define RME_C66X_EFR_NXF                ((rme_ptr_t)1<<31) /* NMI */
@@ -590,14 +631,24 @@ struct RME_Iret_Struct
 /* C66X have a region-based MMU, with physical address extension support. We do not support
  * physical address extension here on purpose. The first set of registers are aways reserved
  * for kernel operations (statically mapped), thus is never user-populated */
-struct __RME_C66X_MMU_Entry
+struct __RME_C66X_XMC_Entry
 {
     /* MPAX high register */
-    rme_ptr_t MPAXH;
+    rme_ptr_t XMPAXH;
     /* MPAX low register */
-    rme_ptr_t MPAXL;
+    rme_ptr_t XMPAXL;
 };
 
+/* Per-CPU MMU cache data structure */
+struct __RME_C66X_MMU_CPU_Local
+{
+    /* [31:16] Static [15:0] Present */
+    rme_ptr_t State;
+    struct __RME_C66X_XMC_Entry Data[RME_C66X_XMC_REGIONS];
+};
+
+/* Top-level page table organization: Meta - MMU - Table
+ * Other page table level organization: Meta - Table */
 struct __RME_C66X_Pgtbl_Meta
 {
     /* The size/num order of this level */
@@ -613,9 +664,7 @@ struct __RME_C66X_Pgtbl_Meta
  * we make the kernel memory allocation static, thus we will not have liveness issues */
 struct __RME_C66X_MMU_Data
 {
-    /* [31:16] Static [15:0] Present */
-    rme_ptr_t State;
-    struct __RME_C66X_MMU_Entry Data[RME_C66X_CPU_NUM][15];
+    struct __RME_C66X_MMU_CPU_Local Local[RME_C66X_CPU_NUM];
 };
 
 /* Interrupt flags */
@@ -655,22 +704,14 @@ struct __RME_C66X_Flags
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
-
-/* CPU booting counter
- *  counter */
+/* CPU booting counter */
 static rme_ptr_t RME_C66X_CPU_Cnt;
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
 /* Private C Function Prototypes *********************************************/ 
 /*****************************************************************************/
-static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, rme_ptr_t Entry_Size_Order);
-static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_C66X_MPU_Data* Top_MPU,
-                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
-static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_C66X_MPU_Data* Top_MPU,
-                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
-                                      rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
-static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_C66X_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
+static rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgtbl* Pgtbl, rme_ptr_t CPUID);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -751,10 +792,11 @@ __EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr
                                              rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
 __EXTERN__ void __RME_C66X_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause);
+/* Interrupt handler */
+__EXTERN__ void __RME_C66X_Int_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_C66X_Generic_Handler(struct RME_Reg_Struct* Reg);
 /* Page table operations */
-EXTERN void ___RME_C66X_MPU_Set(rme_ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);

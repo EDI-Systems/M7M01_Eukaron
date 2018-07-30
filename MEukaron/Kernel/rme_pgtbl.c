@@ -497,8 +497,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. Under a multi-core
      * environment, the driver layer need to determine whether two cores are modifying
-     * a same page, and do corresponding CAS if such operations are to be avoided.
-     */
+     * a same page, and do corresponding CAS if such operations are to be avoided. */
     if(__RME_Pgtbl_Page_Map(Pgtbl_Dst, Paddr_Dst, Pos_Dst, Flags_Dst)!=0)
         return RME_ERR_PGT_MAP;
     

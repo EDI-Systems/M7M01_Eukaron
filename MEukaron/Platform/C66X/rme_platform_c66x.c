@@ -199,7 +199,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_C66X_UART_IER=0;
     RME_C66X_UART_MCR=0;
     /* Enable transmitter and free-running mode. receiver not enabled */
-    RME_C66X_UART_PWREMU_MGMT=RME_C66X_MGMT_UTRST|RME_C66X_MGMT_FREE;
+    RME_C66X_UART_PWREMU_MGMT=RME_C66X_UART_MGMT_UTRST|RME_C66X_UART_MGMT_FREE;
     /* Cleanup previous data (rx trigger is also set to 0) */
     RME_C66X_UART_FCR=RME_C66X_UART_FCR_FIFOEN|RME_C66X_UART_FCR_TXCLR;
 
@@ -272,9 +272,15 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
     /* All device memory is not cacheable not prefetchable - we can modify this later with kernel functions */
     for(Count=12;Count<128;Count++)
         RME_C66X_CACHE_L2MAR(Count)=0;
-    /* All external memor is cacheable and prefetchable - we can modify this later with kernel functions */
+    /* All external memory is cacheable and prefetchable - we can modify this later with kernel functions */
     for(Count=128;Count<256;Count++)
         RME_C66X_CACHE_L2MAR(Count)=RME_C66X_CACHE_L2MAR_PFX|RME_C66X_CACHE_L2MAR_PC;
+
+    /* Correct our page table entries */
+    RME_C66X_XMC_XMPAXL(0)=RME_C66X_XMC_XMPAXL0_DEF;
+    RME_C66X_XMC_XMPAXH(0)=RME_C66X_XMC_XMPAXH0_DEF;
+    RME_C66X_XMC_XMPAXL(1)=RME_C66X_XMC_XMPAXL1_DEF;
+    RME_C66X_XMC_XMPAXH(1)=RME_C66X_XMC_XMPAXH1_DEF;
 
     return 0;
 }
@@ -309,7 +315,7 @@ void __RME_C66X_SMP_Init(void)
     for(Count=1;Count<RME_C66X_CPU_NUM;Count++)
     {
         /* Reset the CPU first (CorePac local reset) */
-        RME_C66X_MDCTL(15+Count)=RME_C66X_MDCTL_LRST|RME_C66X_MDCTL_NEXT_ENABLE;
+        RME_C66X_PSC_MDCTL(15+Count)=RME_C66X_PSC_MDCTL_LRST|RME_C66X_PSC_MDCTL_NEXT_ENABLE;
 
         /* Set the boot address */
         RME_C66X_DSC_BOOT_ADDR(Count)=(rme_ptr_t)_RME_C66X_SMP_Kmain;
@@ -321,7 +327,7 @@ void __RME_C66X_SMP_Init(void)
         __RME_C66X_Stack_Addr[Count]=(rme_ptr_t)&(__RME_C66X_Stack[4096*(Count+1)]);
 
         /* De-assert the reset */
-        RME_C66X_MDCTL(15+Count)=RME_C66X_MDCTL_NEXT_ENABLE;
+        RME_C66X_PSC_MDCTL(15+Count)=RME_C66X_PSC_MDCTL_NEXT_ENABLE;
 
         /* Wait for CPU to finish its own initialization */
         while(__RME_C66X_Boot_Done[Count]==0);
@@ -342,6 +348,8 @@ rme_ptr_t __RME_Boot(void)
     
     /* Start all other processors one by one */
     __RME_C66X_SMP_Init();
+
+    /* Create initial captbls, etc - */
 
     return 0;
 }
@@ -623,47 +631,116 @@ Return      : None.
 ******************************************************************************/
 void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
 {
+    rme_cnt_t Count;
     struct __RME_C66X_MMU_Data* MMU_Data;
-    struct __RME_C66X_MMU_Entry* Region_Data;
+    struct __RME_C66X_XMC_Entry* Region_Data;
 
     /* Get the address of the data section of this core */
     MMU_Data=(struct __RME_C66X_MMU_Data*)(Pgtbl+sizeof(struct __RME_C66X_Pgtbl_Meta));
-    Region_Data=(struct __RME_C66X_MMU_Entry*)MMU_Data->Data[__RME_C66X_CPUID_Get()];
+    Region_Data=MMU_Data->Local[__RME_C66X_CPUID_Get()].Data;
+
+    /* See if the XMC is locked. If yes, we always unlock them */
+    if((RME_C66X_XMC_MPLKSTAT&RME_C66X_XMC_MPLKSTAT_LK)!=0)
+    {
+        /* Locked - we need to unlock first */
+        RME_C66X_XMC_MPLKCMD=RME_C66X_XMC_MPLKCMD_KEYR;
+        RME_C66X_XMC_MPLK(0)=RME_C66X_XMC_MPLK0_KEY;
+        RME_C66X_XMC_MPLK(1)=RME_C66X_XMC_MPLK1_KEY;
+        RME_C66X_XMC_MPLK(2)=RME_C66X_XMC_MPLK2_KEY;
+        RME_C66X_XMC_MPLK(3)=RME_C66X_XMC_MPLK3_KEY;
+        RME_C66X_XMC_MPLKCMD=RME_C66X_XMC_MPLKCMD_UNLOCK;
+        /* Should be unlocked anyway, and we will keep it unlocked forever */
+        RME_ASSERT((RME_C66X_XMC_MPLKSTAT&RME_C66X_XMC_MPLKSTAT_LK)==0);
+    }
 
     /* The address to start to write into - the last region is always kernel entry.
-     * The compiler will optimize this into highly efficient parallel assembly */
-    RME_C66X_MMU_XMPAL(0)=Region_Data[0].MPAXL;
-    RME_C66X_MMU_XMPAH(0)=Region_Data[0].MPAXH;
-    RME_C66X_MMU_XMPAL(1)=Region_Data[1].MPAXL;
-    RME_C66X_MMU_XMPAH(1)=Region_Data[1].MPAXH;
-    RME_C66X_MMU_XMPAL(2)=Region_Data[2].MPAXL;
-    RME_C66X_MMU_XMPAH(2)=Region_Data[2].MPAXH;
-    RME_C66X_MMU_XMPAL(3)=Region_Data[3].MPAXL;
-    RME_C66X_MMU_XMPAH(3)=Region_Data[3].MPAXH;
-    RME_C66X_MMU_XMPAL(4)=Region_Data[4].MPAXL;
-    RME_C66X_MMU_XMPAH(4)=Region_Data[4].MPAXH;
-    RME_C66X_MMU_XMPAL(5)=Region_Data[5].MPAXL;
-    RME_C66X_MMU_XMPAH(5)=Region_Data[5].MPAXH;
-    RME_C66X_MMU_XMPAL(6)=Region_Data[6].MPAXL;
-    RME_C66X_MMU_XMPAH(6)=Region_Data[6].MPAXH;
-    RME_C66X_MMU_XMPAL(7)=Region_Data[7].MPAXL;
-    RME_C66X_MMU_XMPAH(7)=Region_Data[7].MPAXH;
-    RME_C66X_MMU_XMPAL(8)=Region_Data[8].MPAXL;
-    RME_C66X_MMU_XMPAH(8)=Region_Data[8].MPAXH;
-    RME_C66X_MMU_XMPAL(9)=Region_Data[9].MPAXL;
-    RME_C66X_MMU_XMPAH(9)=Region_Data[9].MPAXH;
-    RME_C66X_MMU_XMPAL(10)=Region_Data[10].MPAXL;
-    RME_C66X_MMU_XMPAH(10)=Region_Data[10].MPAXH;
-    RME_C66X_MMU_XMPAL(11)=Region_Data[11].MPAXL;
-    RME_C66X_MMU_XMPAH(11)=Region_Data[11].MPAXH;
-    RME_C66X_MMU_XMPAL(12)=Region_Data[12].MPAXL;
-    RME_C66X_MMU_XMPAH(12)=Region_Data[12].MPAXH;
-    RME_C66X_MMU_XMPAL(13)=Region_Data[13].MPAXL;
-    RME_C66X_MMU_XMPAH(13)=Region_Data[13].MPAXH;
-    RME_C66X_MMU_XMPAL(14)=Region_Data[14].MPAXL;
-    RME_C66X_MMU_XMPAH(14)=Region_Data[14].MPAXH;
+     * The compiler will optimize this into highly efficient parallel assembly. The first
+     * two are kernel entries; thus they are not touched at all in the whole process. */
+    for(Count=2;Count<RME_C66X_XMC_REGIONS;Count++)
+    {
+        RME_C66X_XMC_XMPAXL(Count)=Region_Data[Count].XMPAXL;
+        RME_C66X_XMC_XMPAXH(Count)=Region_Data[Count].XMPAXH;
+    }
 }
 /* End Function:__RME_Pgtbl_Set **********************************************/
+
+/* Begin Function:__RME_C66X_MMU_Update ***************************************
+Description : Update the MMU contents according to the metadata.
+Input       : struct RME_Cap_Pgtbl* Pgtbl - The capability to the top-level page table.
+              rme_ptr_t CPUID - The ID of the CPU.
+Output      : None.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL(-1).
+******************************************************************************/
+rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgtbl* Pgtbl, rme_ptr_t CPUID)
+{
+    rme_ptr_t Fault_Addr;
+    rme_ptr_t Fault_Reason;
+    rme_ptr_t Map_Vaddr;
+    rme_ptr_t Paddr;
+    rme_ptr_t Size_Order;
+    rme_ptr_t Flags;
+    rme_ptr_t Slot;
+    struct __RME_C66X_MMU_CPU_Local* Local;
+
+    /* Where is the error and what type is it? */
+    Fault_Addr=RME_C66X_XMC_XMPFAR;
+    Fault_Reason=RME_C66X_XMC_XMPFSR;
+    /* Clear the fault register */
+    RME_C66X_XMC_XMPFCR=RME_C66X_XMC_XMPFCR_MPFCLR;
+
+    /* Is this a privileged fault? If yes, we just hang immediately because this CAN'T happen */
+    RME_ASSERT((Fault_Reason&(RME_C66X_XMC_XMPAXL_SR|RME_C66X_XMC_XMPAXL_SW|RME_C66X_XMC_XMPAXL_SX))==0);
+    /* Must be user-level */
+    RME_ASSERT((Fault_Reason&(RME_C66X_XMC_XMPAXL_UR|RME_C66X_XMC_XMPAXL_UW|RME_C66X_XMC_XMPAXL_UX))!=0);
+    /* If this is not a local fault, we hang - some DMA masters and peripheral drivers must have
+     * corrupted, and it is the user's duty to fix them up. EDI will not deal with them here. */
+    RME_ASSERT((Fault_Reason&RME_C66X_XMC_XMPFSR_LOCAL)!=0);
+
+    /* This is a user-level fault. Look up the address in the page table to decide what to do */
+    if(__RME_Pgtbl_Walk(Pgtbl, Fault_Addr, 0, &Map_Vaddr, &Paddr, &Size_Order, 0, &Flags)!=0)
+        return RME_ERR_PGT_OPFAIL;
+
+    /* We have found the address. Is this a permission violation? */
+    if(((Fault_Reason&RME_C66X_XMC_XMPAXL_UR)!=0)&&((Flags&RME_PGTBL_READ)==0))
+        return RME_ERR_PGT_OPFAIL;
+    if(((Fault_Reason&RME_C66X_XMC_XMPAXL_UW)!=0)&&((Flags&RME_PGTBL_WRITE)==0))
+        return RME_ERR_PGT_OPFAIL;
+    if(((Fault_Reason&RME_C66X_XMC_XMPAXL_UX)!=0)&&((Flags&RME_PGTBL_EXECUTE)==0))
+        return RME_ERR_PGT_OPFAIL;
+
+    /* There is no permission violation. The only explanation is that we need to add this page to
+     * the CPU-local cache. To add it to cache, we need to figure out if there are any vacancy. */
+    Local=&(((struct __RME_C66X_MMU_Data*)(RME_CAP_GETOBJ(Pgtbl,rme_ptr_t)+sizeof(struct __RME_C66X_Pgtbl_Meta)))->Local[CPUID]);
+    /* Are all the pages static? */
+    if((Local->State&RME_MASK(16,RME_C66X_XMC_REGIONS+15))==RME_MASK(16,RME_C66X_XMC_REGIONS+15))
+    {
+        /* All pages are now static. We will have to be static to get mapped in */
+        if((Flags&RME_PGTBL_STATIC)==0)
+            return RME_ERR_PGT_OPFAIL;
+    }
+
+    /* Find an empty slot. If we can't find one, we use the last one that is not static. If all static,
+     * we use the last slot because we know that we must also be static so it's safe to do this */
+    Slot=__RME_C66X_MSB_Get(Local->State&0x0000FFFF);
+    if((Slot>=RME_C66X_XMC_REGIONS)&&(Slot<2))
+    {
+        /* Or with 1 to make sure that we will not input 0 to this function */
+        Slot=__RME_C66X_MSB_Get(((~(Local->State))>>16)|1);
+        if((Slot>=RME_C66X_XMC_REGIONS)&&(Slot<2))
+            Slot=RME_C66X_XMC_REGIONS-1;
+    }
+
+    /* Slot found. Now replace the original entry */
+    Local->Data[Slot].XMPAXL=RME_C66X_XMC_XMPAXL_V(Paddr,Flags);
+    Local->Data[Slot].XMPAXH=RME_C66X_XMC_XMPAXH_V(Map_Vaddr,Size_Order);
+
+    /* In the meantime, update the hardware register */
+    RME_C66X_XMC_XMPAXL(Slot)=Local->Data[Slot].XMPAXL;
+    RME_C66X_XMC_XMPAXH(Slot)=Local->Data[Slot].XMPAXH;
+
+    return 0;
+}
+/* End Function:__RME_C66X_MMU_Update ****************************************/
 
 /* Begin Function:__RME_C66X_Fault_Handler ************************************
 Description : The fault handler of RME. In C66X, this is used to handle multiple
@@ -690,7 +767,9 @@ void __RME_C66X_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause)
         /* Memory management unit fault */
         case RME_C66X_EVT_MDMAERREVT:
         {
-            /* Walk the page table to see if this address is allowed */
+            /* Walk the page table to see if we can update the MMU with this fault */
+            if(__RME_C66X_MMU_Update((RME_CPU_LOCAL()->Cur_Thd)->Sched.Proc->Pgtbl,__RME_C66X_CPUID_Get())!=0)
+                __RME_Thd_Fatal(Reg);
             break;
         }
         /* Memory protection unit faults - we kill the thread */
@@ -702,6 +781,20 @@ void __RME_C66X_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause)
     }
 }
 /* End Function:__RME_C66X_Fault_Handler *************************************/
+
+/* Begin Function:__RME_C66X_Int_Handler **************************************
+Description : The fault handler of RME. In C66X, this is used to handle all other
+              interrupts.
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              rme_ptr_t Cause - The causing event of this interrupt.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : None.
+******************************************************************************/
+void __RME_C66X_Int_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause)
+{
+    /* Handler not installed by now */
+}
+/* End Function:__RME_C66X_Int_Handler ***************************************/
 
 /* Begin Function:__RME_C66X_Generic_Handler **********************************
 Description : The generic interrupt handler of RME for C66X. In C66X, all interrupts are
@@ -771,7 +864,7 @@ void __RME_C66X_Generic_Handler(struct RME_Reg_Struct* Reg)
             /* Handle all other cases */
             default:
             {
-                /* Unhandled for now */
+                __RME_C66X_Int_Handler(Reg,Event_ID);
                 break;
             }
         }
@@ -869,6 +962,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     rme_ptr_t* Ptr;
     rme_ptr_t CPU_Cnt;
     rme_ptr_t Count;
+    struct __RME_C66X_MMU_CPU_Local* MMU_Local;
 
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
@@ -878,18 +972,27 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     ((struct __RME_C66X_Pgtbl_Meta*)Ptr)->Parent_Cnt=0;
     ((struct __RME_C66X_Pgtbl_Meta*)Ptr)->Child_Cnt=0;
     Ptr+=sizeof(struct __RME_C66X_Pgtbl_Meta)/sizeof(rme_ptr_t);
+
     /* Is this a top-level? If it is, we need to clean up the MMU data */
     if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
     {
-        ((struct __RME_C66X_MMU_Data*)Ptr)->State=0;
-
         for(CPU_Cnt=0;CPU_Cnt<RME_C66X_CPU_NUM;CPU_Cnt++)
         {
-            for(Count=0;Count<15;Count++)
+            MMU_Local=&(((struct __RME_C66X_MMU_Data*)Ptr)->Local[CPU_Cnt]);
+            /* Clean up the MMU metadata - region 0 reserved for kernel entry */
+            for(Count=1;Count<RME_C66X_XMC_REGIONS;Count++)
             {
-                ((struct __RME_C66X_MMU_Data*)Ptr)->Data[CPU_Cnt][Count].MPAXH=0;
-                ((struct __RME_C66X_MMU_Data*)Ptr)->Data[CPU_Cnt][Count].MPAXL=0;
+                MMU_Local->Data[Count].XMPAXL=0;
+                MMU_Local->Data[Count].XMPAXH=0;
             }
+            /* Fill the first and second region with kernel entry so that these will be
+             * consulted at last. Actually, in our algorithm, we will never modify these
+             * two regions at all after booting */
+            MMU_Local->State=((rme_ptr_t)0x03<<(RME_C66X_XMC_REGIONS))|0x03;
+            MMU_Local->Data[0].XMPAXL=RME_C66X_XMC_XMPAXL0_DEF;
+            MMU_Local->Data[0].XMPAXH=RME_C66X_XMC_XMPAXH0_DEF;
+            MMU_Local->Data[1].XMPAXL=RME_C66X_XMC_XMPAXL1_DEF;
+            MMU_Local->Data[1].XMPAXH=RME_C66X_XMC_XMPAXH1_DEF;
         }
 
         Ptr+=sizeof(struct __RME_C66X_MMU_Data)/sizeof(rme_ptr_t);
@@ -935,11 +1038,12 @@ Description : Map a page into the page table. If a page is mapped into the slot,
               however, the static pages are only guaranteed to be mapped in after a MMU
               miss. When pages are unmapped or page table deconstructed, the MMU metadata
               must be flushed, and it is the user-level's duty to do so.
+              This architecture requires that the mappings have at least one permission allowed.
 Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
               rme_ptr_t Paddr - The physical address to map to. If we are unmapping, this have no effect.
               rme_ptr_t Pos - The position in the page table.
               rme_ptr_t Flags - The RME standard page attributes. Need to translate them into
-                            architecture specific page table's settings.
+                                architecture specific page table's settings.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
@@ -950,12 +1054,23 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
     rme_ptr_t* Table;
     struct __RME_C66X_Pgtbl_Meta* Meta;
 
+    /* Is the flag valid? */
+    if((Flags&(RME_PGTBL_READ|RME_PGTBL_WRITE|RME_PGTBL_EXECUTE))==0)
+        return RME_ERR_PGT_OPFAIL;
+
     /* Get the metadata */
     Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_C66X_Pgtbl_Meta*);
 
     /* Where is the entry slot? */
     if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    {
+        /* Are we trying to map into the address space that is lower than 2GB? This is not
+         * allowed on this chip, as the lower address contain many peripherals and this
+         * remapping will confuse the application about addresses of these peripherals. */
+        if(Pos<RME_POW2(RME_PGTBL_NUMORD(Meta->Size_Num_Order)))
+            return RME_ERR_PGT_OPFAIL;
         Table=RME_C66X_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
+    }
     else
         Table=RME_C66X_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
 
@@ -1017,7 +1132,8 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 /* End Function:__RME_Pgtbl_Page_Unmap ***************************************/
 
 /* Begin Function:__RME_Pgtbl_Pgdir_Map ***************************************
-Description : Map a page directory into the page table.
+Description : Map a page directory into the page table. This architecture does
+              not support page directory flags.
 Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
               struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
               rme_ptr_t Pos - The position in the destination page table.
@@ -1042,7 +1158,14 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
 
     /* Where is the entry slot for the parent? */
     if(((Pgtbl_Parent->Start_Addr)&RME_PGTBL_TOP)!=0)
+    {
+        /* Are we trying to map into the address space that is lower than 2GB? This is not
+         * allowed on this chip, as the lower address contain many peripherals and this
+         * remapping will confuse the application about addresses of these peripherals. */
+        if(Pos<RME_POW2(RME_PGTBL_NUMORD(Parent_Meta->Size_Num_Order)))
+            return RME_ERR_PGT_OPFAIL;
         Table=RME_C66X_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
+    }
     else
         Table=RME_C66X_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
 

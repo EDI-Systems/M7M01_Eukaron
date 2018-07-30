@@ -980,7 +980,8 @@ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
               required to have the same flags. We take advantage of this to increase
-              the page granularity.
+              the page granularity. This architecture requires that the mapping is
+              always at least readable.
 Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
               rme_ptr_t Paddr - The physical address to map to. If we are unmapping, this have no effect.
               rme_ptr_t Pos - The position in the page table.
@@ -993,6 +994,10 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
 {
     rme_ptr_t* Table;
     struct __RME_CMX_Pgtbl_Meta* Meta;
+
+    /* It should at least be readable */
+    if((Flags&RME_PGTBL_READ)==0)
+        return RME_ERR_PGT_OPFAIL;
         
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 8 are representable for Cortex-M */
@@ -1100,7 +1105,8 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 /* End Function:__RME_Pgtbl_Page_Unmap ***************************************/
 
 /* Begin Function:__RME_Pgtbl_Pgdir_Map ***************************************
-Description : Map a page directory into the page table.
+Description : Map a page directory into the page table. This architecture does not
+              support page directory flags.
 Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
               struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
               rme_ptr_t Pos - The position in the destination page table.

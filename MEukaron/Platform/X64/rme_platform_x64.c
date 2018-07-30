@@ -2053,12 +2053,13 @@ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
 /* End Function:__RME_Pgtbl_Del_Check ****************************************/
 
 /* Begin Function:__RME_Pgtbl_Page_Map ****************************************
-Description : Map a page into the page table.
+Description : Map a page into the page table. This architecture requires that the mapping is
+              always at least readable.
 Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
               rme_ptr_t Paddr - The physical address to map to. If we are unmapping, this have no effect.
               rme_ptr_t Pos - The position in the page table.
               rme_ptr_t Flags - The RME standard page attributes. Need to translate them into
-                            architecture specific page table's settings.
+                                architecture specific page table's settings.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
@@ -2067,12 +2068,12 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
     rme_ptr_t* Table;
     rme_ptr_t X64_Flags;
 
-    /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
-
     /* It should at least be readable */
     if((Flags&RME_PGTBL_READ)==0)
+        return RME_ERR_PGT_OPFAIL;
+
+    /* Are we trying to map into the kernel space on the top level? */
+    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -2144,12 +2145,12 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     rme_ptr_t* Child_Table;
     rme_ptr_t X64_Flags;
 
-    /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Parent->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
-
     /* It should at least be readable */
     if((Flags&RME_PGTBL_READ)==0)
+        return RME_ERR_PGT_OPFAIL;
+
+    /* Are we trying to map into the kernel space on the top level? */
+    if(((Pgtbl_Parent->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
