@@ -199,13 +199,6 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 /* End System macros *********************************************************/
 
 /* X64 specific macros *******************************************************/
-/* Number of CPUs in the system - max. 4096 ones are supported */
-#define RME_X64_CPU_NUM                      256
-/* Number of IOAPICs in the system - max. 256 ones are supported */
-#define RME_X64_IOAPIC_NUM                   8
-
-/* Make 2-level capability */
-#define RME_CAPID(X,Y)                       (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
 /* Initial boot capabilities */
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                      0
