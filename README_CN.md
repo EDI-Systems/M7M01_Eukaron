@@ -6,7 +6,7 @@
 [![Github release](https://img.shields.io/github/release/EDI-Systems/M7M1_MuEukaron.svg)](https://github.com/EDI-Systems/M7M1_MuEukaron/releases/latest)
 [![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M1_MuEukaron/master@{30day}.svg)](https://github.com/EDI-Systems/M7M1_MuEukaron/compare/master@{30day}...master)
 ![language](https://img.shields.io/badge/language-C-orange.svg)
-![Build](https://travis-ci.org/EDI-Systems/M7M1_MuEukaron.svg?branch=master) 
+[![Build](https://travis-ci.org/EDI-Systems/M7M1_MuEukaron.svg?branch=master)](https://travis-ci.org/EDI-Systems/M7M1_MuEukaron)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1836/badge)](https://bestpractices.coreinfrastructure.org/projects/1836) 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/81c7e91dfb0a478d985a82409538e3b9)](https://www.codacy.com/app/EDI-Systems/M7M1_MuEukaron?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=EDI-Systems/M7M1_MuEukaron&amp;utm_campaign=Badge_Grade) 
 [![Join the chat at https://gitter.im/M7M1_MuEukaron/Lobby](https://badges.gitter.im/M7M1_MuEukaron/Lobby.svg)](https://gitter.im/M7M1_MuEukaron/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
