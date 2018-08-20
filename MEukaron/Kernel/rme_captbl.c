@@ -82,6 +82,7 @@ Use            Use            It is OK.
 #include "Kernel/rme_captbl.h"
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_kotbl.h"
+#include "Kernel/rme_prcthd.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
@@ -90,6 +91,7 @@ Use            Use            It is OK.
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_kotbl.h"
+#include "Kernel/rme_prcthd.h"
 #undef __HDR_STRUCTS__
 
 /* Private include */

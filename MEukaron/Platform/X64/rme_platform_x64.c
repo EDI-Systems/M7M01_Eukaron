@@ -1969,8 +1969,8 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag,
                             rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
-    /* Is the start address and table address aligned to 4kB? */
-    if(((Start_Addr&0xFFF)!=0)||((Vaddr&0xFFF)!=0))
+    /* Is the table address aligned to 4kB? */
+    if((Vaddr&0xFFF)!=0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Is the size order allowed? */
