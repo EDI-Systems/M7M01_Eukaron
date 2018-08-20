@@ -11,6 +11,7 @@ Description : The kernel object table for the RME RTOS.
 #include "Platform/rme_platform.h"
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_kotbl.h"
+#include "Kernel/rme_prcthd.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
@@ -18,6 +19,7 @@ Description : The kernel object table for the RME RTOS.
 #include "Kernel/rme_captbl.h"
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_kotbl.h"
+#include "Kernel/rme_prcthd.h"
 #undef __HDR_STRUCTS__
 
 /* Private include */
