@@ -842,8 +842,7 @@ struct RME_Iret_Struct
  *  Pgreg          : Page table registration table.
  *  Kmem1          : Kernel memory 1, linear mapping, allow creation of page tables.
  *  Hole           : Memory hole present at 3.25G-4G. For PCI devices.
- *  Kmem2          : Ker
- * The C snippet to generate this table is shown below (gcc x64):nel memory 2, nonlinear mapping, no page table creation allowed.
+ *  Kmem2          : Kernel memory 2, nonlinear mapping, no page table creation allowed.
  *  Stacks         : Kernel stacks, per-CPU.
  *  All values are in bytes, and are virtual addresses.
  */
@@ -888,8 +887,8 @@ struct RME_X64_Features
 /* Page table registration table */
 struct __RME_X64_Pgreg
 {
-	/* What is the PCID of this page table? - This can be set through kernel function caps */
-	rme_u32_t PCID;
+    /* What is the PCID of this page table? - This can be set through kernel function caps */
+    rme_u32_t PCID;
     /* How many child page tables does this page table have? - this can never overflow */
     rme_u32_t Child_Cnt;
     /* How many parent page tables does this page table have? */
