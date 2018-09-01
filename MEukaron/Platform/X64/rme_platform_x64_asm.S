@@ -312,11 +312,10 @@ __RME_X64_Kern_Boot_Stack:
 /* End Memory Init ***********************************************************/
 
 /* Begin Function:__RME_X64_In ************************************************
-Description    : The function for outputting something to an I/O port.
-Input          : ptr_t Port - The port to output to.
-Output         : None.
-Return         : ptr_t - The data received from that port.
-Register Usage : None.
+Description : The function for outputting something to an I/O port.
+Input       : ptr_t Port - The port to output to.
+Output      : None.
+Return      : ptr_t - The data received from that port.
 ******************************************************************************/
 __RME_X64_In:
     PUSHQ               %RDX
@@ -333,7 +332,6 @@ Input          : ptr_t Port - The port to output to.
                  ptr_t Data - The data to send to that port.
 Output         : None.
 Return         : None.
-Register Usage : None.
 ******************************************************************************/
 __RME_X64_Out:
     PUSHQ               %RDX
@@ -347,11 +345,10 @@ __RME_X64_Out:
 /* End Function:__RME_X64_Out ************************************************/
 
 /* Begin Function:__RME_X64_Read_MSR ******************************************
-Description    : The function for reading a MSR.
-Input          : ptr_t MSR - The MSR to read.
-Output         : None.
-Return         : ptr_t - The content of the MSR.
-Register Usage : None.
+Description : The function for reading a MSR.
+Input       : ptr_t MSR - The MSR to read.
+Output      : None.
+Return      : ptr_t - The content of the MSR.
 ******************************************************************************/
 __RME_X64_Read_MSR:
     PUSHQ               %RCX
@@ -367,12 +364,11 @@ __RME_X64_Read_MSR:
 /* End Function:__RME_X64_Read_MSR *******************************************/
 
 /* Begin Function:__RME_X64_Write_MSR *****************************************
-Description    : The function for writing a MSR.
-Input          : ptr_t MSR - The MSR to write.
-                 ptr_t Value - The value to write to it.
-Output         : None.
-Return         : None.
-Register Usage : None.
+Description : The function for writing a MSR.
+Input       : ptr_t MSR - The MSR to write.
+              ptr_t Value - The value to write to it.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_X64_Write_MSR:
     PUSHQ               %RCX
@@ -402,16 +398,15 @@ __RME_X64_CPU_Local_Get:
 /* End Function:__RME_X64_CPU_Local_Get **************************************/
 
 /* Begin Function:__RME_X64_CPUID_Get *****************************************
-Description    : The function for outputting something to an I/O port.
-Input          : ptr_t EAX - The EAX value to get the CPUID for.
-                 ptr_t* EBX - The EBX info.
-                 ptr_t* ECX - The ECX info.
-                 ptr_t* EDX - The EDX info.
-Output         : ptr_t* EBX - The EBX info.
-                 ptr_t* ECX - The ECX info.
-                 ptr_t* EDX - The EDX info.
-Return         : ptr_t - The maximum number for CPUID instruction.
-Register Usage : None.
+Description : The function for outputting something to an I/O port.
+Input       : ptr_t EAX - The EAX value to get the CPUID for.
+              ptr_t* EBX - The EBX info.
+              ptr_t* ECX - The ECX info.
+              ptr_t* EDX - The EDX info.
+Output      : ptr_t* EBX - The EBX info.
+              ptr_t* ECX - The ECX info.
+              ptr_t* EDX - The EDX info.
+Return      : ptr_t - The maximum number for CPUID instruction.
 ******************************************************************************/
 __RME_X64_CPUID_Get:
     PUSHQ               %R8
@@ -441,13 +436,12 @@ __RME_X64_CPUID_Get:
 /* End Function:__RME_X64_CPUID_Get ******************************************/
 
 /* Begin Function:__RME_X64_GDT_Load ******************************************
-Description    : The function for loading the GDT. Every CPU needs to load their
-                 own GDT. No need to flush segment registers cause we're in 64-bit
-                 mode.
-Input          : ptr_t* GDTR - The pointer to the GDT descriptor.
-Output         : None.
-Return         : None.
-Register Usage : None.
+Description : The function for loading the GDT. Every CPU needs to load their
+              own GDT. No need to flush segment registers cause we're in 64-bit
+              mode.
+Input       : ptr_t* GDTR - The pointer to the GDT descriptor.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_X64_GDT_Load:
     LGDT                (%RDI)
@@ -455,12 +449,11 @@ __RME_X64_GDT_Load:
 /* End Function:__RME_X64_GDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_IDT_Load ******************************************
-Description    : The function for loading the IDT. Every CPU needs to load their
-                 own IDT.
-Input          : ptr_t* IDTR - The pointer to the IDT descriptor.
-Output         : None.
-Return         : None.
-Register Usage : None.
+Description : The function for loading the IDT. Every CPU needs to load their
+              own IDT.
+Input       : ptr_t* IDTR - The pointer to the IDT descriptor.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_X64_IDT_Load:
     LIDT                (%RDI)
@@ -468,11 +461,10 @@ __RME_X64_IDT_Load:
 /* End Function:__RME_X64_IDT_Load *******************************************/
 
 /* Begin Function:__RME_X64_TSS_Load ******************************************
-Description    : The function for loading the TSS's entry in GDT.
-Input          : ptr_t TSS - The TSS's position in GDT.
-Output         : None.
-Return         : None.
-Register Usage : None.
+Description : The function for loading the TSS's entry in GDT.
+Input       : ptr_t TSS - The TSS's position in GDT.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_X64_TSS_Load:
     LTR                 %DI
@@ -552,10 +544,10 @@ __RME_X64_Pgtbl_Set:
 /* End Function:__RME_X64_Pgtbl_Set ******************************************/
 
 /* Begin Function:__RME_Disable_Int *******************************************
-Description    : The function for disabling all interrupts.
-Input          : None.
-Output         : None.
-Register Usage : None.
+Description : The function for disabling all interrupts.
+Input       : None.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_Disable_Int:
     /* Disable all interrupts */
@@ -564,10 +556,10 @@ __RME_Disable_Int:
 /* End Function:__RME_Disable_Int ********************************************/
 
 /* Begin Function:__RME_Enable_Int ********************************************
-Description    : The function for enabling all interrupts.
-Input          : None.
-Output         : None.
-Register Usage : None.
+Description : The function for enabling all interrupts.
+Input       : None.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_Enable_Int:
     /* Enable all interrupts */
@@ -576,10 +568,10 @@ __RME_Enable_Int:
 /* End Function:__RME_Enable_Int *********************************************/
 
 /* Begin Function:__RME_X64_Halt **********************************************
-Description    : Wait until a new interrupt comes, to save power.
-Input          : None.
-Output         : None.
-Register Usage : None.
+Description : Wait until a new interrupt comes, to save power.
+Input       : None.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_X64_Halt:
     /* Wait for interrupt */
@@ -588,11 +580,10 @@ __RME_X64_Halt:
 /* End Function:__RME_X64_Halt ***********************************************/
 
 /* Begin Function:_RME_Kmain **************************************************
-Description    : The entry address of the kernel. Never returns.
-Input          : ptr_t Stack - The stack address to set SP to.
-Output         : None.
-Return         : None.
-Register Usage : None.
+Description : The entry address of the kernel. Never returns.
+Input       : ptr_t Stack - The stack address to set SP to.
+Output      : None.
+Return      : None.
 ******************************************************************************/
 _RME_Kmain:
     MOVQ                %RDI,%RSP
@@ -600,13 +591,12 @@ _RME_Kmain:
 /* End Function:_RME_Kmain ***************************************************/
 
 /* Begin Function:__RME_X64_MSB_Get *******************************************
-Description    : Get the MSB of the word. The kernel is guaranteed not to call this
-                 function with a zero word, so we don't need to handle this edge case
-                 actually.
-Input          : ptr_t Val - The value.
-Output         : None.
-Return         : ptr_t - The MSB position.
-Register Usage : None.
+Description : Get the MSB of the word. The kernel is guaranteed not to call this
+              function with a zero word, so we don't need to handle this edge case
+              actually.
+Input       : ptr_t Val - The value.
+Output      : None.
+Return      : ptr_t - The MSB position.
 ******************************************************************************/
 __RME_X64_MSB_Get:
     BSRQ                %RDI,%RAX
@@ -621,6 +611,7 @@ Input       : ptr_t Entry - The user execution startpoint.
               ptr_t Stack - The user stack.
               ptr_t CPUID - The CPUID.
 Output      : None.
+Return      : None.
 ******************************************************************************/
 __RME_Enter_User_Mode:
     MOVQ                %RDI,%RCX           /* Entry */
@@ -637,6 +628,7 @@ Description : The multi-purpose fault handler routine. This macro will in fact
               the error code push is already complete, if any.
 Input       : None.
 Output      : None.
+Return      : None.
 ******************************************************************************/
     .set                KERNEL_CODE,(1*8)
     .set                KERNEL_DATA,(2*8)
@@ -745,6 +737,7 @@ Description : The General Interrupt handler routine. This will in fact call a
               C function to resolve the system service routines.
 Input       : None.
 Output      : None.
+Return      : None.
 ******************************************************************************/
 /* User generic interrupt handler macro */
 .macro USER_HANDLER NAME VECTNUM
@@ -1020,6 +1013,7 @@ Description : The ticker timer handler for all other processors. This is in fact
               a handler triggered by IPI from the main processor.
 Input       : None.
 Output      : None.
+Return      : None.
 ******************************************************************************/
 SysTick_SMP_Handler:
     .global             SysTick_SMP_Handler
@@ -1043,6 +1037,7 @@ Description : The System Tick Timer handler routine. This will in fact call a
               C function to resolve the system service routines.
 Input       : None.
 Output      : None.
+Return      : None.
 ******************************************************************************/
 SysTick_Handler:
     .global             SysTick_Handler
@@ -1080,6 +1075,7 @@ Description : The SVC handler routine. This will in fact call a C function to re
                  restoration stub.
 Input       : None.
 Output      : None.
+Return      : None.
 ******************************************************************************/
 SVC_Handler:
     .global             SVC_Handler

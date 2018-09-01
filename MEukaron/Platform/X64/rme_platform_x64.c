@@ -25,8 +25,7 @@ Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
                  more complex peripherals.
               10. Run this on a real machine to watch output.
               11. Consider complex PCI device support and driver compatibility.
-              12. If all this works, consider Cortex-A53 support.
-              13. Make the system NUMA-aware.
+              12. Make the system NUMA-aware.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -2022,8 +2021,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
             Ptr[Count]=0;
     }
 
-    /* Initialize its pgreg table to all zeros, except for the PCID, which
-     * always increases as we initializes a top-level */
+    /* Initialize its pgreg table to all zeros */
     RME_X64_PGREG_POS(Ptr).Parent_Cnt=0;
     RME_X64_PGREG_POS(Ptr).Child_Cnt=0;
 
@@ -2323,7 +2321,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
             if(Size_Order!=0)
                 *Size_Order=Size_Cnt;
             if(Num_Order!=0)
-                *Num_Order=9;
+                *Num_Order=RME_PGTBL_NUM_512;
             if(Flags!=0)
                 *Flags=RME_X64_PGFLG_NAT2RME(No_Execute|(Temp&Flags_Accum));
 
@@ -2340,6 +2338,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
         /* The size order always decreases by 512 */
         Size_Cnt-=RME_PGTBL_SIZE_512B;
     }
+
     return 0;
 }
 /* End Function:__RME_Pgtbl_Walk *********************************************/
