@@ -403,7 +403,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             Retval=_RME_Captbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl_Crt */,
                                            RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                            RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Crt */,
-                                           Param[1]               /* rme_ptr_t Vaddr */,
+                                           Param[1]               /* rme_ptr_t Raddr */,
                                            Param[2]               /* rme_ptr_t Entry_Num */);
             break;
         }
@@ -441,7 +441,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             Retval=_RME_Pgtbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
                                           RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                           RME_PARAM_Q1(Param[0]) /* rme_cid_t Cap_Pgtbl */,
-                                          Param[1]               /* rme_ptr_t Vaddr */,
+                                          Param[1]               /* rme_ptr_t Raddr */,
                                           Param[2]               /* rme_ptr_t Start_Addr */,
                                           RME_PARAM_PT(Param[2]) /* rme_ptr_t Top_Flag */,
                                           RME_PARAM_Q0(Param[0]) /* rme_ptr_t Size_Order */,
@@ -492,7 +492,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                          RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Proc */,
                                          RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Captbl */,
                                          RME_PARAM_D0(Param[1]) /* rme_cid_t Cap_Pgtbl */,
-                                         Param[2]               /* rme_ptr_t Vaddr */);
+                                         Param[2]               /* rme_ptr_t Raddr */);
             break;
         }
         case RME_SVC_PROC_DEL:
@@ -521,7 +521,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                         RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Thd */,
                                         RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Proc */,
                                         RME_PARAM_D0(Param[1]) /* rme_ptr_t Max_Prio */,
-                                        Param[2]               /* rme_ptr_t Vaddr */);
+                                        Param[2]               /* rme_ptr_t Raddr */);
             break;
         }
         case RME_SVC_THD_DEL:
@@ -564,7 +564,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             Retval=_RME_Sig_Crt(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                         Param[0] /* rme_cid_t Cap_Kmem */,
                                         Param[1] /* rme_cid_t Cap_Sig */, 
-                                        Param[2] /* rme_ptr_t Vaddr */);
+                                        Param[2] /* rme_ptr_t Raddr */);
             break;
         }
         case RME_SVC_SIG_DEL:
@@ -580,7 +580,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                         RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                         RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Inv */,
                                         Param[1]               /* rme_cid_t Cap_Proc */,
-                                        Param[2]               /* rme_ptr_t Vaddr */);
+                                        Param[2]               /* rme_ptr_t Raddr */);
             break;
         }
         case RME_SVC_INV_DEL:

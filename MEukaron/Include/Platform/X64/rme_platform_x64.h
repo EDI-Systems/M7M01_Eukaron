@@ -110,6 +110,8 @@ typedef rme_s64_t rme_ret_t;
 #define RME_VA_EQU_PA                        (RME_FALSE)
 /* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
 #define RME_QUIE_TIME                        10
+/* Captbl size limit - not restricted, user-level decides this */
+#define RME_CAPTBL_LIMIT                     0
 /* Normal page directory size calculation macro */
 #define RME_PGTBL_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
 /* Top-level page directory size calculation macro */

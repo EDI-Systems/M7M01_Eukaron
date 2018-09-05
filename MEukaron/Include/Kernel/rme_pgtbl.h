@@ -132,7 +132,7 @@ __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, 
                                          rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                    rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr,
+                                    rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
                                     rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,  rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl, 
