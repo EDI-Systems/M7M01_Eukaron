@@ -44,14 +44,13 @@ Description : The signal and invocation management code of RME RTOS.
 Description : Create a boot-time kernel signal capability. This is not a system 
               call, and is only used at boot-time to create endpoints that are
               related directly to hardware interrupts.
-              This function will not ask for a kernel memory capability.
+              This function does not require a kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table to use
-                                 for this signal. 2-Level.
+                                     for this signal. 2-Level.
               rme_cid_t Cap_Inv - The capability slot that you want this newly created
-                              signal capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel data. This must fall
-                            within the kernel virtual address.
+                                  signal capability to be in. 1-Level.
+              rme_ptr_t Vaddr - The virtual address to store the signal endpoint kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -104,23 +103,24 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
 Description : Create a signal capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table to use
-                                 for this signal. 2-Level.
+                                     for this signal. 2-Level.
               rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
               rme_cid_t Cap_Inv - The capability slot that you want this newly created
-                              signal capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel data. This must fall
-                            within the kernel virtual address.
+                                  signal capability to be in. 1-Level.
+              rme_ptr_t Raddr - The relative virtual address to store the signal endpoint
+                                kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                       rme_cid_t Cap_Kmem, rme_cid_t Cap_Sig, rme_ptr_t Vaddr)
+                       rme_cid_t Cap_Kmem, rme_cid_t Cap_Sig, rme_ptr_t Raddr)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
     struct RME_Cap_Sig* Sig_Crt;
     struct RME_Sig_Struct* Sig_Struct;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -128,7 +128,7 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Check if the captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_SIG,Vaddr,RME_SIG_SIZE);
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_SIG,Raddr,Vaddr,RME_SIG_SIZE);
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Sig,struct RME_Cap_Sig*,Sig_Crt);
@@ -164,7 +164,7 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
 Description : Delete a signal capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table to delete from.
-                                 2-Level.
+                                     2-Level.
               rme_cid_t Cap_Sig - The capability to the signal. 1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
@@ -435,18 +435,18 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Sig - The capability to the signal. 2-Level.
               rme_ptr_t Option - The option to the receive. There are 4 operations
-                             available on one endpoint:
-                             0 - Blocking single receive. This will possibly block
-                                 and will receive a single signal.
-                             1 - Blocking multi receive. This will possibly lock
-                                 and will receive all signals on that endpoint.
-                             2 - Non-blocking single receive. This will return immediately
-                                 on failure and will receive a single signal.
-                             3 - Non-blocking multi receive. This will return immediately
-                                 on failure and will receive all signals on that endpoint.
+                                 available on one endpoint:
+                                 0 - Blocking single receive. This will possibly block
+                                     and will receive a single signal.
+                                 1 - Blocking multi receive. This will possibly lock
+                                     and will receive all signals on that endpoint.
+                                 2 - Non-blocking single receive. This will return immediately
+                                     on failure and will receive a single signal.
+                                 3 - Non-blocking multi receive. This will return immediately
+                                     on failure and will receive all signals on that endpoint.
 Output      : None.
 Return      : rme_ret_t - If successful, a non-negative number containing the number of signals
-                      received will be returned; else an error code.
+                          received will be returned; else an error code.
 ******************************************************************************/
 rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Sig, rme_ptr_t Option)
@@ -541,18 +541,18 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
 Description : Create an invocation capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table to use
-                                 for this process. 2-Level.
+                                     for this process. 2-Level.
               rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
               rme_cid_t Cap_Inv - The capability slot that you want this newly created
-                              invocation capability to be in. 1-Level.
+                                  invocation capability to be in. 1-Level.
               rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel data. This must fall
-                            within the kernel virtual address.
+              rme_ptr_t Raddr - The relative virtual address to store the invocation port
+                                kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                       rme_cid_t Cap_Kmem, rme_cid_t Cap_Inv, rme_cid_t Cap_Proc, rme_ptr_t Vaddr)
+                       rme_cid_t Cap_Kmem, rme_cid_t Cap_Inv, rme_cid_t Cap_Proc, rme_ptr_t Raddr)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Proc* Proc_Op;
@@ -560,6 +560,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     struct RME_Cap_Inv* Inv_Crt;
     struct RME_Inv_Struct* Inv_Struct;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -569,7 +570,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     RME_CAP_CHECK(Proc_Op,RME_PROC_FLAG_INV);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_INV,Vaddr,RME_INV_SIZE);
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_INV,Raddr,Vaddr,RME_INV_SIZE);
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Inv,struct RME_Cap_Inv*,Inv_Crt);
@@ -607,7 +608,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
 Description : Delete an invocation capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table to delete from.
-                                 2-Level.
+                                     2-Level.
               rme_cid_t Cap_Inv - The capability to the invocation stub. 1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.

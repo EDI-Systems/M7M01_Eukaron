@@ -137,7 +137,7 @@ struct RME_Cap_Inv
 __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                    rme_cid_t Cap_Sig, rme_ptr_t Vaddr);
 __EXTERN__ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                  rme_cid_t Cap_Kmem, rme_cid_t Cap_Sig, rme_ptr_t Vaddr);
+                                  rme_cid_t Cap_Kmem, rme_cid_t Cap_Sig, rme_ptr_t Raddr);
 __EXTERN__ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
 __EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local);
 __EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig);
@@ -146,7 +146,7 @@ __EXTERN__ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
                                   rme_cid_t Cap_Sig, rme_ptr_t Option);
 
 __EXTERN__ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                  rme_cid_t Cap_Kmem, rme_cid_t Cap_Inv, rme_cid_t Cap_Proc, rme_ptr_t Vaddr);
+                                  rme_cid_t Cap_Kmem, rme_cid_t Cap_Inv, rme_cid_t Cap_Proc, rme_ptr_t Raddr);
 __EXTERN__ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Inv);
 __EXTERN__ rme_ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Inv,
                                   rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Fault_Ret_Flag);

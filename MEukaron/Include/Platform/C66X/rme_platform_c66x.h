@@ -99,6 +99,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_VA_EQU_PA                   (RME_TRUE)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
+/* Captbl size limit - not restricted */
+#define RME_CAPTBL_LIMIT                0
 /* Normal page directory size calculation macro */
 #define RME_PGTBL_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(rme_ptr_t)+sizeof(struct __RME_C66X_Pgtbl_Meta))
 /* Top-level page directory size calculation macro */
@@ -674,6 +676,7 @@ struct __RME_C66X_Flag_Set
     rme_ptr_t Group;
     rme_ptr_t Flags[32];
 };
+
 
 struct __RME_C66X_Flags
 {

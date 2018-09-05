@@ -49,14 +49,13 @@ Description : Create a boot-time page table, and put that capability into a desi
               enough, and how it has been typed; if the function found out that it is
               impossible to create a page table due to some error, it will return an
               error.
-              This function will not ask for a kernel memory capability.
+              This function does not require a kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
                                      to new captbl. 2-Level.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The physical address to store the page table. This must fall
-                                within the kernel virtual address.
+              rme_ptr_t Vaddr - The virtual address to store the page table kernel object.
               rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
                                      This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
@@ -79,16 +78,16 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
      * addressible memory under the machine word length */
     if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
         return RME_ERR_PGT_HW;
-    
-    /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
-        return RME_ERR_PGT_HW;
-    
+
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
+    /* Check if these parameters are feasible */
+    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+        return RME_ERR_PGT_HW;
+
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
     /* Take the slot if possible */
@@ -144,7 +143,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
 
 /* Begin Function:_RME_Pgtbl_Boot_Con *****************************************
 Description : At boot-time, map a child page table from the parent page table. 
-              Basically, we are doing the construction of a page table.
+              In other words, we are doing the construction of a page table tree.
               This operation is only used at boot-time and does not check for flags.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
@@ -269,8 +268,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The physical address to store the page table. This must fall
-                                within the kernel virtual address.
+              rme_ptr_t Raddr - The relative virtual address to store the page table kernel object.
               rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
                                      This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
@@ -282,21 +280,18 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                         rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr,
+                         rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
                          rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
     struct RME_Cap_Pgtbl* Pgtbl_Crt;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
     
     /* Check if the total representable memory exceeds our maximum possible
      * addressible memory under the machine word length */
     if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
-        return RME_ERR_PGT_HW;
-    
-    /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
         return RME_ERR_PGT_HW;
     
     /* Get the cap location that we care about */
@@ -306,10 +301,14 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
     if(Top_Flag!=0)
-        RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Vaddr,RME_PGTBL_SIZE_TOP(Num_Order));
+        RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Raddr,Vaddr,RME_PGTBL_SIZE_TOP(Num_Order));
     else
-        RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Vaddr,RME_PGTBL_SIZE_NOM(Num_Order));
-    
+        RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Raddr,Vaddr,RME_PGTBL_SIZE_NOM(Num_Order));
+
+    /* Check if these parameters are feasible */
+    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+        return RME_ERR_PGT_HW;  
+
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
     /* Take the slot if possible */

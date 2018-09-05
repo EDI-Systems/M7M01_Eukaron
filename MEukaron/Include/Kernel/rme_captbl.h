@@ -136,16 +136,27 @@ while(0)
 /* Check if the kernel memory capability range is valid.
  * CAP - The kernel memory capability to check.
  * FLAG - The flags to check against the kernel memory capability.
- * START - The start address of the kernel memory.
+ * RADDR - The relative start address of the kernel object in kernel memory.
+ * VADDR - The true start address of the kernel object in kernel memory, output.
  * SIZE - The size of the kernel memory trunk. */
-#define RME_KMEM_CHECK(CAP,FLAG,START,SIZE) \
+/* This have wraparounds now */
+#define RME_KMEM_CHECK(CAP,FLAG,RADDR,VADDR,SIZE) \
 do \
 { \
     /* See if the creation of such capability is allowed */ \
     if(RME_UNLIKELY(((CAP)->Head.Flags&(FLAG))!=(FLAG))) \
         return RME_ERR_CAP_FLAG; \
-    /* The end is always aligned to 256 bytes in the kernel, and does not include the ending byte */ \
-    if(RME_UNLIKELY(((CAP)->Start>(START))||((CAP)->End<((START)+(SIZE))))) \
+    /* Convert relative address to virtual address */ \
+    (VADDR)=(RADDR)+(CAP)->Start; \
+    /* Check start boundary and its possible wraparound */ \
+    if(RME_UNLIKELY((VADDR)<(RADDR))) \
+        return RME_ERR_CAP_FLAG; \
+    if(RME_UNLIKELY(((CAP)->Start>(VADDR)))) \
+        return RME_ERR_CAP_FLAG; \
+    /* Check end boundary and its possible wraparound */ \
+    if(RME_UNLIKELY((((VADDR)+(SIZE))<(VADDR)))) \
+        return RME_ERR_CAP_FLAG; \
+    if(RME_UNLIKELY((CAP)->End<((VADDR)+(SIZE)))) \
         return RME_ERR_CAP_FLAG; \
 } \
 while(0)
@@ -439,7 +450,7 @@ __EXTERN__ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr
 __EXTERN__ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                                           rme_cid_t Cap_Crt, rme_ptr_t Vaddr, rme_ptr_t Entry_Num);
 __EXTERN__ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt, 
-                                     rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Vaddr, rme_ptr_t Entry_Num);
+                                     rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Raddr, rme_ptr_t Entry_Num);
 __EXTERN__ rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Del, rme_cid_t Cap_Del);
 __EXTERN__ rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Frz, rme_cid_t Cap_Frz);
 __EXTERN__ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,

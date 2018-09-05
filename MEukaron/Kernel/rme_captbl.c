@@ -108,10 +108,10 @@ Use            Use            It is OK.
 Description : Create the first boot-time capability table. This will be the first
               capability table created in the system. This function must be called
               at system startup first before setting up any other kernel objects.
-              This function does not ask for kernel memory capability.
+              This function does not require a kernel memory capability.
 Input       : rme_cid_t Cap_Captbl - The capability slot that you want this newly created
                                      capability table capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the capability table.
+              rme_ptr_t Vaddr - The virtual address to store the capability table kernel object.
               rme_ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -151,12 +151,12 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t
 
 /* Begin Function:_RME_Captbl_Boot_Crt ****************************************
 Description : Create a boot-time capability table at the memory segment designated.
-              This function does not ask for kernel memory capability.
+              This function does not ask require a kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
                                          the cap to new captbl. 2-Level.
               rme_cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the capability table.
+              rme_ptr_t Vaddr - The virtual address to store the capability table kernel object.
               rme_ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -168,7 +168,7 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Capt
     struct RME_Cap_Captbl* Captbl_Crt;
     rme_ptr_t Type_Ref;
     
-    /* See if the entry number is too big */
+    /* See if the entry number is too big - this is not restricted by RME_CAPTBL_LIMIT */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
         return RME_ERR_CAP_RANGE;
 
@@ -208,29 +208,35 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Capt
 /* End Function:_RME_Captbl_Boot_Crt *****************************************/
 
 /* Begin Function:_RME_Captbl_Crt *********************************************
-Description : Create a capability table at the memory segment designated. The table
-              must be located in a memory segment that is designated as kernel memory.
+Description : Create a capability table.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
                                          the cap to new captbl. 2-Level.
               rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
               rme_cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the capability table.
+              rme_ptr_t Raddr - The relative virtual address to store the capability table.
               rme_ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
-                          rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Vaddr, rme_ptr_t Entry_Num)
+                          rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Raddr, rme_ptr_t Entry_Num)
 {
     rme_cnt_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
     struct RME_Cap_Captbl* Captbl_Crt;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
 
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
         return RME_ERR_CAP_RANGE;
+
+    /* Are we overrunning the size limit? */
+#if(RME_CAPTBL_LIMIT!=0)
+    if(Entry_Num>RME_CAPTBL_LIMIT)
+        return RME_ERR_CAP_RANGE;
+#endif
 
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -238,7 +244,7 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Cr
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_CAPTBL,Vaddr,RME_CAPTBL_SIZE(Entry_Num));
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_CAPTBL,Raddr,Vaddr,RME_CAPTBL_SIZE(Entry_Num));
 
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Crt,struct RME_Cap_Captbl*,Captbl_Crt);
@@ -469,13 +475,23 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         Kmem_End=RME_ROUND_DOWN(Kmem_End,RME_KMEM_SLOT_ORDER);
         Kmem_Start=RME_ROUND_UP(Kmem_Start,RME_KMEM_SLOT_ORDER);
 #endif
-        if(Kmem_End==Kmem_Start)
+        if(Kmem_End<=Kmem_Start)
             return RME_ERR_CAP_FLAG;
-        /* Kernel memory capabilities have ranges and flags - check both, and we use extended flags */
+
+        /* Convert relative addresses to absolute addresses and check for overflow */
+        Kmem_Start+=((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start;
+        if(Kmem_Start<((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start)
+            return RME_ERR_CAP_FLAG;
+        Kmem_End+=((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start;
+        if(Kmem_End<((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start)
+            return RME_ERR_CAP_FLAG;
+
+        /* Check the ranges of kernel memory */
         if(((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start>Kmem_Start)
             return RME_ERR_CAP_FLAG;
         if(((struct RME_Cap_Kmem*)Cap_Src_Struct)->End<(Kmem_End-1))
             return RME_ERR_CAP_FLAG;
+        
         /* Check the flags - if there are extra ones, or all zero */
         if(Kmem_Flags==0)
             return RME_ERR_CAP_FLAG;

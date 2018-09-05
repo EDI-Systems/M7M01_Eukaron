@@ -307,7 +307,7 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
 /* Begin Function:_RME_Proc_Boot_Crt ******************************************
 Description : Create a process. A process is in fact a protection domain associated
               with a set of capabilities.
-              This function will not ask for a kernel memory capability.
+              This function does not require a kernel memory capability.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl_Crt - The capability to the capability table to use
                                          for this process. 2-Level.
@@ -317,8 +317,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
                                      this process. 2-Level.
               rme_cid_t Cap_Pgtbl - The capability to the page table to use for this process.
                                     2-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel data. This must fall
-                                within the kernel virtual address.
+              rme_ptr_t Vaddr - The virtual address to store the process kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -360,6 +359,7 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
     Proc_Struct=((struct RME_Proc_Struct*)Vaddr);
     /* Reference it to make the process undeletable */
     Proc_Struct->Refcnt=1;
+    
     /* Set the capability table, reference it and check for overflow */
     Proc_Struct->Captbl=Captbl_Op;
     Type_Ref=RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), 1);
@@ -370,6 +370,7 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
+    
     /* Set the page table, reference it and check for overflow */
     Proc_Struct->Pgtbl=Pgtbl_Op;
     Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
@@ -401,13 +402,12 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
                                      this process. 2-Level.
               rme_cid_t Cap_Pgtbl - The capability to the page table to use for this process.
                                     2-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel data. This must fall
-                                within the kernel virtual address.
+              rme_ptr_t Raddr - The relative virtual address to store the process kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt, rme_cid_t Cap_Kmem,
-                        rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr)
+                        rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr)
 {
     struct RME_Cap_Captbl* Captbl_Crt;
     struct RME_Cap_Captbl* Captbl_Op;
@@ -416,6 +416,7 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     struct RME_Cap_Proc* Proc_Crt;
     struct RME_Proc_Struct* Proc_Struct;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Crt,Type_Ref);
@@ -427,7 +428,7 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_PROC_CRT);
     RME_CAP_CHECK(Pgtbl_Op,RME_PGTBL_FLAG_PROC_CRT);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PROC,Vaddr,RME_PROC_SIZE);
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PROC,Raddr,Vaddr,RME_PROC_SIZE);
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Crt,Cap_Proc,struct RME_Cap_Proc*,Proc_Crt);
@@ -446,6 +447,7 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     Proc_Crt->Head.Flags=RME_PROC_FLAG_INV|RME_PROC_FLAG_THD|
                          RME_PROC_FLAG_CPT|RME_PROC_FLAG_PGT;
     Proc_Struct=((struct RME_Proc_Struct*)Vaddr);
+    
     /* Set the capability table, reference it and check for overflow */
     Proc_Struct->Captbl=Captbl_Op;
     Proc_Struct->Refcnt=0;
@@ -457,6 +459,7 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
     }
+    
     /* Set the page table, reference it and check for overflow */
     Proc_Struct->Pgtbl=Pgtbl_Op;
     Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
@@ -636,14 +639,14 @@ Description : Create a boot-time thread. The boot-time thread is per-core, and
               by passing a CPUID parameter. Therefore, it is recommended to
               create the threads sequentially during boot-up; if you create threads
               in parallel, be sure to only create the thread on your local core.
-              This function will not ask for a kernel memory capability, and 
+              This function does not require a kernel memory capability, and 
               the initial threads' maximum priority will be set by the system.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Captbl - The capability to the capability table. 2-Level.
               rme_cid_t Cap_Thd - The capability slot that you want this newly created
                                   thread capability to be in. 1-Level.
               rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
-              rme_ptr_t Vaddr - The physical address to store the kernel object.
+              rme_ptr_t Vaddr - The virtual address to store the thread kernel object.
               rme_ptr_t Prio - The priority level of the thread.
               struct RME_CPU_Local* CPU_Local - The CPU-local data structure of the CPU
                                                 to bind this thread to.
@@ -743,12 +746,12 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
               rme_ptr_t Max_Prio - The maximum priority allowed for this thread. Once set,
                                    this cannot be changed.
-              rme_ptr_t Vaddr - The physical address to store the kernel object.
+              rme_ptr_t Raddr - The relative virtual address to store the thread kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Kmem,
-                       rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Max_Prio, rme_ptr_t Vaddr)
+                       rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Max_Prio, rme_ptr_t Raddr)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Proc* Proc_Op;
@@ -756,6 +759,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     struct RME_Cap_Thd* Thd_Crt;
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Vaddr;
     
     /* See if the maximum priority relationship is correct - a thread can never create
      * a thread with higher maximum priority */
@@ -770,7 +774,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     RME_CAP_CHECK(Proc_Op,RME_PROC_FLAG_THD);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_THD,Vaddr,RME_THD_SIZE);
+    RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_THD,Raddr,Vaddr,RME_THD_SIZE);
     
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Thd,struct RME_Cap_Thd*,Thd_Crt);
