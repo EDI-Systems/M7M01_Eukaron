@@ -60,6 +60,7 @@ Documents/*
 # Keil/eclipse specific
 Project/**/Debug/*
 !Project/ECLIPSE-GCC-X64/RME/Debug/*
+!Project/ECLIPSE-GCC-STM32F767IGT6/RME/Debug/*
 *.tmp
 *.uvgui*
 *.uvopt*
