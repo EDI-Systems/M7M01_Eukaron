@@ -21,8 +21,8 @@ Description: The configuration file for STM32F767IG.
 #define RME_HYP_SIZE                            0x60000
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KMEM_SLOT_ORDER                     4
-/* Kernel stack size and address */
-#define RME_KMEM_STACK_ADDR                     0x20001FF0
+/* Kernel stack address - we have 4kB stack */
+#define RME_KMEM_STACK_ADDR                     0x20000FF0
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                    32

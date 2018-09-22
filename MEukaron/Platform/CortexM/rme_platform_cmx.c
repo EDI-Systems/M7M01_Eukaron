@@ -156,12 +156,13 @@ Description : The entrance of the operating system. This function is for compati
               with the ARM toolchain.
 Input       : None.
 Output      : None.
-Return      : int - This function never returns.
+Return      : int - Dummy value, this function never returns.
 ******************************************************************************/
 int main(void)
 {
     /* The main function of the kernel - we will start our kernel boot here */
     _RME_Kmain(RME_KMEM_STACK_ADDR);
+    return 0;
 }
 /* End Function:main *********************************************************/
 
@@ -797,7 +798,7 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
      * see if it can be ignored. If not, we just lockup */
     if((Cur_HFSR&RME_CMX_HFSR_FORCED)!=0)
     {
-        /* This must be a debug event */
+        /* This must be a debug event - shouldn't be */
         RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_DEBUGEVT)!=0);
         return;
     }
@@ -832,8 +833,8 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
             }
         }
     }
-    /* Clear all bits in these status registers */
-    SCB->HFSR=(rme_ptr_t)(-1);
+    /* Clear all bits in these status registers - they are sticky */
+    SCB->HFSR=((rme_ptr_t)(-1))>>1;
     SCB->CFSR=(rme_ptr_t)(-1);
 }
 /* End Function:__RME_CMX_Fault_Handler **************************************/

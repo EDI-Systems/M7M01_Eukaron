@@ -1,11 +1,11 @@
 ;/*****************************************************************************
-;Filename    : platform_cmx.s
+;Filename    : rme_platform_cmx_asm.s
 ;Author      : pry
 ;Date        : 19/01/2017
 ;Description : The Cortex-M assembly support of the RME RTOS.
 ;*****************************************************************************/
 
-;/* The ARM Cortex-M3/4/7 Structure *******************************************
+;/* The ARM Cortex-M3/4/7 Architecture ****************************************
 ;R0-R7:General purpose registers that are accessible. 
 ;R8-R12:general purpose registers that can only be reached by 32-bit instructions.
 ;R13:SP/SP_process/SP_main    Stack pointer
@@ -32,7 +32,7 @@ __heap_base
 Heap_Mem                SPACE Heap_Size
 __heap_limit
 ;/* End Stacks ***************************************************************/
-            
+
 ;/* Begin Header *************************************************************/
     ;The align is "(2^3)/8=1(Byte)." In fact it does not take effect.
     AREA                RESET,CODE,READONLY,ALIGN=3
@@ -61,270 +61,6 @@ __heap_limit
     EXPORT              ___RME_CMX_Thd_Cop_Restore
     ;The MPU setup routine
     EXPORT              ___RME_CMX_MPU_Set
-    ;All the handlers that you may want to customize
-    EXPORT              IRQ0_Handler
-    EXPORT              IRQ1_Handler
-    EXPORT              IRQ2_Handler
-    EXPORT              IRQ3_Handler
-    EXPORT              IRQ4_Handler
-    EXPORT              IRQ5_Handler
-    EXPORT              IRQ6_Handler
-    EXPORT              IRQ7_Handler
-    EXPORT              IRQ8_Handler
-    EXPORT              IRQ9_Handler
-
-    EXPORT              IRQ10_Handler
-    EXPORT              IRQ11_Handler
-    EXPORT              IRQ12_Handler
-    EXPORT              IRQ13_Handler
-    EXPORT              IRQ14_Handler
-    EXPORT              IRQ15_Handler
-    EXPORT              IRQ16_Handler
-    EXPORT              IRQ17_Handler
-    EXPORT              IRQ18_Handler
-    EXPORT              IRQ19_Handler
-
-    EXPORT              IRQ20_Handler
-    EXPORT              IRQ21_Handler
-    EXPORT              IRQ22_Handler
-    EXPORT              IRQ23_Handler
-    EXPORT              IRQ24_Handler
-    EXPORT              IRQ25_Handler
-    EXPORT              IRQ26_Handler
-    EXPORT              IRQ27_Handler
-    EXPORT              IRQ28_Handler
-    EXPORT              IRQ29_Handler
-
-    EXPORT              IRQ30_Handler
-    EXPORT              IRQ31_Handler
-    EXPORT              IRQ32_Handler
-    EXPORT              IRQ33_Handler
-    EXPORT              IRQ34_Handler
-    EXPORT              IRQ35_Handler
-    EXPORT              IRQ36_Handler
-    EXPORT              IRQ37_Handler
-    EXPORT              IRQ38_Handler
-    EXPORT              IRQ39_Handler
-
-    EXPORT              IRQ40_Handler
-    EXPORT              IRQ41_Handler
-    EXPORT              IRQ42_Handler
-    EXPORT              IRQ43_Handler
-    EXPORT              IRQ44_Handler
-    EXPORT              IRQ45_Handler
-    EXPORT              IRQ46_Handler
-    EXPORT              IRQ47_Handler
-    EXPORT              IRQ48_Handler
-    EXPORT              IRQ49_Handler
-
-    EXPORT              IRQ50_Handler
-    EXPORT              IRQ51_Handler
-    EXPORT              IRQ52_Handler
-    EXPORT              IRQ53_Handler
-    EXPORT              IRQ54_Handler
-    EXPORT              IRQ55_Handler
-    EXPORT              IRQ56_Handler
-    EXPORT              IRQ57_Handler
-    EXPORT              IRQ58_Handler
-    EXPORT              IRQ59_Handler
-
-    EXPORT              IRQ60_Handler
-    EXPORT              IRQ61_Handler
-    EXPORT              IRQ62_Handler
-    EXPORT              IRQ63_Handler
-    EXPORT              IRQ64_Handler
-    EXPORT              IRQ65_Handler
-    EXPORT              IRQ66_Handler
-    EXPORT              IRQ67_Handler
-    EXPORT              IRQ68_Handler
-    EXPORT              IRQ69_Handler
- 
-    EXPORT              IRQ70_Handler
-    EXPORT              IRQ71_Handler
-    EXPORT              IRQ72_Handler
-    EXPORT              IRQ73_Handler
-    EXPORT              IRQ74_Handler
-    EXPORT              IRQ75_Handler
-    EXPORT              IRQ76_Handler
-    EXPORT              IRQ77_Handler
-    EXPORT              IRQ78_Handler
-    EXPORT              IRQ79_Handler
-
-    EXPORT              IRQ80_Handler
-    EXPORT              IRQ81_Handler
-    EXPORT              IRQ82_Handler
-    EXPORT              IRQ83_Handler
-    EXPORT              IRQ84_Handler
-    EXPORT              IRQ85_Handler
-    EXPORT              IRQ86_Handler
-    EXPORT              IRQ87_Handler
-    EXPORT              IRQ88_Handler
-    EXPORT              IRQ89_Handler
- 
-    EXPORT              IRQ90_Handler
-    EXPORT              IRQ91_Handler
-    EXPORT              IRQ92_Handler
-    EXPORT              IRQ93_Handler
-    EXPORT              IRQ94_Handler
-    EXPORT              IRQ95_Handler
-    EXPORT              IRQ96_Handler
-    EXPORT              IRQ97_Handler
-    EXPORT              IRQ98_Handler
-    EXPORT              IRQ99_Handler
-
-    EXPORT              IRQ100_Handler
-    EXPORT              IRQ101_Handler
-    EXPORT              IRQ102_Handler
-    EXPORT              IRQ103_Handler
-    EXPORT              IRQ104_Handler
-    EXPORT              IRQ105_Handler
-    EXPORT              IRQ106_Handler
-    EXPORT              IRQ107_Handler
-    EXPORT              IRQ108_Handler
-    EXPORT              IRQ109_Handler
-
-    EXPORT              IRQ110_Handler
-    EXPORT              IRQ111_Handler
-    EXPORT              IRQ112_Handler
-    EXPORT              IRQ113_Handler
-    EXPORT              IRQ114_Handler
-    EXPORT              IRQ115_Handler
-    EXPORT              IRQ116_Handler
-    EXPORT              IRQ117_Handler
-    EXPORT              IRQ118_Handler
-    EXPORT              IRQ119_Handler
-
-    EXPORT              IRQ120_Handler
-    EXPORT              IRQ121_Handler
-    EXPORT              IRQ122_Handler
-    EXPORT              IRQ123_Handler
-    EXPORT              IRQ124_Handler
-    EXPORT              IRQ125_Handler
-    EXPORT              IRQ126_Handler
-    EXPORT              IRQ127_Handler
-    EXPORT              IRQ128_Handler
-    EXPORT              IRQ129_Handler
-
-    EXPORT              IRQ130_Handler
-    EXPORT              IRQ131_Handler
-    EXPORT              IRQ132_Handler
-    EXPORT              IRQ133_Handler
-    EXPORT              IRQ134_Handler
-    EXPORT              IRQ135_Handler
-    EXPORT              IRQ136_Handler
-    EXPORT              IRQ137_Handler
-    EXPORT              IRQ138_Handler
-    EXPORT              IRQ139_Handler
-
-    EXPORT              IRQ140_Handler
-    EXPORT              IRQ141_Handler
-    EXPORT              IRQ142_Handler
-    EXPORT              IRQ143_Handler
-    EXPORT              IRQ144_Handler
-    EXPORT              IRQ145_Handler
-    EXPORT              IRQ146_Handler
-    EXPORT              IRQ147_Handler
-    EXPORT              IRQ148_Handler
-    EXPORT              IRQ149_Handler
-
-    EXPORT              IRQ150_Handler
-    EXPORT              IRQ151_Handler
-    EXPORT              IRQ152_Handler
-    EXPORT              IRQ153_Handler
-    EXPORT              IRQ154_Handler
-    EXPORT              IRQ155_Handler
-    EXPORT              IRQ156_Handler
-    EXPORT              IRQ157_Handler
-    EXPORT              IRQ158_Handler
-    EXPORT              IRQ159_Handler
-
-    EXPORT              IRQ160_Handler
-    EXPORT              IRQ161_Handler
-    EXPORT              IRQ162_Handler
-    EXPORT              IRQ163_Handler
-    EXPORT              IRQ164_Handler
-    EXPORT              IRQ165_Handler
-    EXPORT              IRQ166_Handler
-    EXPORT              IRQ167_Handler
-    EXPORT              IRQ168_Handler
-    EXPORT              IRQ169_Handler
-
-    EXPORT              IRQ170_Handler
-    EXPORT              IRQ171_Handler
-    EXPORT              IRQ172_Handler
-    EXPORT              IRQ173_Handler
-    EXPORT              IRQ174_Handler
-    EXPORT              IRQ175_Handler
-    EXPORT              IRQ176_Handler
-    EXPORT              IRQ177_Handler
-    EXPORT              IRQ178_Handler
-    EXPORT              IRQ179_Handler
-
-    EXPORT              IRQ180_Handler
-    EXPORT              IRQ181_Handler
-    EXPORT              IRQ182_Handler
-    EXPORT              IRQ183_Handler
-    EXPORT              IRQ184_Handler
-    EXPORT              IRQ185_Handler
-    EXPORT              IRQ186_Handler
-    EXPORT              IRQ187_Handler
-    EXPORT              IRQ188_Handler
-    EXPORT              IRQ189_Handler
-
-    EXPORT              IRQ190_Handler
-    EXPORT              IRQ191_Handler
-    EXPORT              IRQ192_Handler
-    EXPORT              IRQ193_Handler
-    EXPORT              IRQ194_Handler
-    EXPORT              IRQ195_Handler
-    EXPORT              IRQ196_Handler
-    EXPORT              IRQ197_Handler
-    EXPORT              IRQ198_Handler
-    EXPORT              IRQ199_Handler
-
-    EXPORT              IRQ200_Handler
-    EXPORT              IRQ201_Handler
-    EXPORT              IRQ202_Handler
-    EXPORT              IRQ203_Handler
-    EXPORT              IRQ204_Handler
-    EXPORT              IRQ205_Handler
-    EXPORT              IRQ206_Handler
-    EXPORT              IRQ207_Handler
-    EXPORT              IRQ208_Handler
-    EXPORT              IRQ209_Handler
-
-    EXPORT              IRQ210_Handler
-    EXPORT              IRQ211_Handler
-    EXPORT              IRQ212_Handler
-    EXPORT              IRQ213_Handler
-    EXPORT              IRQ214_Handler
-    EXPORT              IRQ215_Handler
-    EXPORT              IRQ216_Handler
-    EXPORT              IRQ217_Handler
-    EXPORT              IRQ218_Handler
-    EXPORT              IRQ219_Handler
-
-    EXPORT              IRQ220_Handler
-    EXPORT              IRQ221_Handler
-    EXPORT              IRQ222_Handler
-    EXPORT              IRQ223_Handler
-    EXPORT              IRQ224_Handler
-    EXPORT              IRQ225_Handler
-    EXPORT              IRQ226_Handler
-    EXPORT              IRQ227_Handler
-    EXPORT              IRQ228_Handler
-    EXPORT              IRQ229_Handler
-
-    EXPORT              IRQ230_Handler
-    EXPORT              IRQ231_Handler
-    EXPORT              IRQ232_Handler
-    EXPORT              IRQ233_Handler
-    EXPORT              IRQ234_Handler
-    EXPORT              IRQ235_Handler
-    EXPORT              IRQ236_Handler
-    EXPORT              IRQ237_Handler
-    EXPORT              IRQ238_Handler
-    EXPORT              IRQ239_Handler
 ;/* End Exports **************************************************************/
 
 ;/* Begin Imports ************************************************************/
@@ -1208,10 +944,10 @@ IRQ239_Handler
 ;/* End Handlers *************************************************************/
 
 ;/* Begin Function:__RME_Disable_Int ******************************************
-;Description    : The function for disabling all interrupts.
-;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : The function for disabling all interrupts.
+;Input       : None.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/    
 __RME_Disable_Int
     ;Disable all interrupts (I is primask, F is faultmask.)
@@ -1220,10 +956,10 @@ __RME_Disable_Int
 ;/* End Function:__RME_Disable_Int *******************************************/
 
 ;/* Begin Function:__RME_Enable_Int *******************************************
-;Description    : The function for enabling all interrupts.
-;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : The function for enabling all interrupts.
+;Input       : None.
+;Output      : None.    
+;Return      : None.
 ;*****************************************************************************/
 __RME_Enable_Int
     ;Enable all interrupts.
@@ -1232,10 +968,10 @@ __RME_Enable_Int
 ;/* End Function:__RME_Enable_Int ********************************************/
 
 ;/* Begin Function:__RME_CMX_Wait_Int *****************************************
-;Description    : Wait until a new interrupt comes, to save power.
-;Input          : None.
-;Output         : None.    
-;Register Usage : None.                                  
+;Description : Wait until a new interrupt comes, to save power.
+;Input       : None.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_CMX_Wait_Int
     ;Wait for interrupt.
@@ -1244,11 +980,10 @@ __RME_CMX_Wait_Int
 ;/* End Function:__RME_CMX_Wait_Int ******************************************/
 
 ;/* Begin Function:_RME_Kmain *************************************************
-;Description    : The entry address of the kernel. Never returns.
-;Input          : ptr_t Stack - The stack address to set SP to.
-;Output         : None.
-;Return         : None.   
-;Register Usage : None. 
+;Description : The entry address of the kernel. Never returns.
+;Input       : ptr_t Stack - The stack address to set SP to.
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 _RME_Kmain
     MOV                 SP,R0
@@ -1257,11 +992,10 @@ _RME_Kmain
 ;/* End Function:_RME_Kmain **************************************************/
 
 ;/* Begin Function:__RME_CMX_MSB_Get ******************************************
-;Description    : Get the MSB of the word.
-;Input          : ptr_t Val - The value.
-;Output         : None.
-;Return         : ptr_t - The MSB position.   
-;Register Usage : None. 
+;Description : Get the MSB of the word.
+;Input       : ptr_t Val - The value.
+;Output      : None.
+;Return      : ptr_t - The MSB position.
 ;*****************************************************************************/
 __RME_CMX_MSB_Get
     CLZ                 R1,R0
@@ -1277,7 +1011,8 @@ __RME_CMX_MSB_Get
 ;Input       : ptr_t Entry - The user execution startpoint.
 ;              ptr_t Stack - The user stack.
 ;              ptr_t CPUID - The CPUID.
-;Output      : None.                              
+;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 __RME_Enter_User_Mode
     MSR                 PSP,R1              ; Set the stack pointer
@@ -1294,6 +1029,7 @@ __RME_Enter_User_Mode
 ;              C function to resolve the system service routines.             
 ;Input       : None.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 SysTick_Handler
     PUSH                {LR}
@@ -1316,6 +1052,7 @@ SysTick_Handler
 ;              the system service routines.             
 ;Input       : None.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 SVC_Handler
     PUSH                {LR}
@@ -1338,6 +1075,7 @@ SVC_Handler
 ;              a C function to resolve the system service routines.             
 ;Input       : None.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 NMI_Handler
     NOP
@@ -1372,6 +1110,7 @@ UsageFault_Handler
 ;Description : Save the coprocessor context on switch.         
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 ___RME_CMX_Thd_Cop_Save
     ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
@@ -1386,6 +1125,7 @@ ___RME_CMX_Thd_Cop_Save
 ;Description : Restore the coprocessor context on switch.             
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 ___RME_CMX_Thd_Cop_Restore                
     ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
@@ -1400,6 +1140,7 @@ ___RME_CMX_Thd_Cop_Restore
 ;Description : Set the MPU context. We write 8 registers at a time to increase efficiency.            
 ;Input       : R0 - The pointer to the MPU content.
 ;Output      : None.
+;Return      : None.
 ;*****************************************************************************/
 ___RME_CMX_MPU_Set
     PUSH                {R4-R9}             ; Clobber registers manually
