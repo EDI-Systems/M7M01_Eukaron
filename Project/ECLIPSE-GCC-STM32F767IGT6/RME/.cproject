@@ -46,7 +46,7 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.linker.2001253426" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker">
 								<option id="gnu.c.link.option.nostart.1424970338" name="Do not use standard start files (-nostartfiles)" superClass="gnu.c.link.option.nostart" useByScannerDiscovery="false" value="true" valueType="boolean"/>
-								<option id="gnu.c.link.option.ldflags.405471088" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="-mcpu=cortex-m7 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mno-unaligned-access -Xlinker -m -Xlinker armelf -Xlinker -T -Xlinker  ${workspace_loc:/${ProjName}}/../../../MEukaron/Include/Platform/CortexM/Chips/STM32F767IG/rme_platform_STM32F767IG.ld" valueType="string"/>
+								<option id="gnu.c.link.option.ldflags.405471088" name="Linker flags" superClass="gnu.c.link.option.ldflags" useByScannerDiscovery="false" value="-mcpu=cortex-m7 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mno-unaligned-access -Xlinker -m -Xlinker armelf -Xlinker -T -Xlinker  ${workspace_loc}/../../MEukaron/Include/Platform/CortexM/Chips/STM32F767IG/rme_platform_STM32F767IG.ld" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.other.916349677" name="Other options (-Xlinker [option])" superClass="gnu.c.link.option.other" useByScannerDiscovery="false" valueType="stringList">
 									<listOptionValue builtIn="false" value="--gc-sections "/>
 									<listOptionValue builtIn="false" value="-Map=RME.map"/>

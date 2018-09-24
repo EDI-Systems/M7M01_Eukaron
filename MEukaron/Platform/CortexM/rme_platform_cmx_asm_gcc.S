@@ -29,7 +29,7 @@ a double-precision FPU.
     .arch               armv7-m
     .thumb_func
     .syntax             unified
-    .align              16
+    .align              3
 /* End Header ****************************************************************/
 
 /* Begin Exports *************************************************************/

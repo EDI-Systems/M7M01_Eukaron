@@ -37,7 +37,7 @@ main-build: RME
 RME: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	arm-none-eabi-gcc -nostartfiles -mcpu=cortex-m7 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mno-unaligned-access -Xlinker -m -Xlinker armelf -Xlinker -T -Xlinker  /media/pry/Code/Code_Library/MCU/Mutatus/M7M1_MuEukaron/Project/ECLIPSE-GCC-STM32F767IGT6/RME/../../../MEukaron/Include/Platform/CortexM/Chips/STM32F767IG/rme_platform_STM32F767IG.ld -Xlinker --gc-sections -Xlinker -Map=RME.map -o "RME" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-gcc -nostartfiles -mcpu=cortex-m7 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mno-unaligned-access -Xlinker -m -Xlinker armelf -Xlinker -T -Xlinker  /media/pry/Code/Code_Library/MCU/Mutatus/M7M1_MuEukaron/Project/ECLIPSE-GCC-STM32F767IGT6/../../MEukaron/Include/Platform/CortexM/Chips/STM32F767IG/rme_platform_STM32F767IG.ld -Xlinker --gc-sections -Xlinker -Map=RME.map -o "RME" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build
