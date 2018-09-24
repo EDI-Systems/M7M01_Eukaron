@@ -147,12 +147,12 @@
 		<link>
 			<name>User/M7M2_Init.c</name>
 			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/M7M2_MuAmmonite/Project/RVMDK-STM32F767IG/Debug/Output/M7M2_Init.c</locationURI>
+			<locationURI>PARENT-4-PROJECT_LOC/M7M2_MuAmmonite/Project/ECLIPSE-GCC-STM32F767IG/RVM/Debug/M7M2_Init.c</locationURI>
 		</link>
 		<link>
 			<name>User/VM1.c</name>
 			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/M5P1_MuProkaron/Project/RVMDK-STM32F767IGT6-RVM/Debug/Output/VM1.c</locationURI>
+			<locationURI>PARENT-4-PROJECT_LOC/M5P1_MuProkaron/Project/ECLIPSE-GCC-STM32F767IGT6-RVM/RMP/Debug/VM1.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
