@@ -23,7 +23,7 @@ Click **[HERE](README.md)** for English version.
 - [网络功能虚拟化](https://en.wikipedia.org/wiki/Network_function_virtualization)（Network function virtualization，NFV）技术应用；
 - 实时（real-time）多核[混合关键度](https://en.wikipedia.org/wiki/Mixed_criticality)（mixed-criticality）系统等等。
 
-&emsp;&emsp;本系统的手册可以在 **[这里](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M5P1_%E8%BD%BB%E9%87%8F%E7%BA%A7%E5%AE%9E%E6%97%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E%E4%B9%A6.pdf)** 找到。
+&emsp;&emsp;本系统的手册可以在 **[这里](https://github.com/EDI-Systems/M7M1_MuEukaron/blob/master/Documents/M7M1_%E5%BE%AE%E5%86%85%E6%A0%B8%E5%AE%9E%E6%97%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F_%E6%8A%80%E6%9C%AF%E6%89%8B%E5%86%8C.pdf)** 找到。
 
 &emsp;&emsp;如果想要参与开发，请阅读 **[参与](CONTRIBUTING.md)** 和 **[规范](CODE_OF_CONDUCT.md)** 两个指导文档。如果要提交拉取请求，请使用 **[拉取请求模板](PULL_REQUEST_TEMPLATE.md)** 。
 本软件采用 **三种不同的授权** ：你可以选择 **[LGPL v3](LICENSE.md)** ，也可以选择 **[经修改的MIT协议](MODMIT.md)** 。 如果有特殊需求， 也可以联系我们请求**商业授权**。
