@@ -51,10 +51,10 @@ Return      : None.
 ******************************************************************************/
 void _RME_Clear(void* Addr, rme_ptr_t Size)
 {
-	rme_cnt_t Count;
+    rme_cnt_t Count;
 
     for(Count=0;Count<Size;Count++)
-    	((rme_u8_t*)Addr)[Count]=0;
+        ((rme_u8_t*)Addr)[Count]=0;
 }
 /* End Function:_RME_Clear ***************************************************/
 
@@ -79,8 +79,8 @@ rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
 
     for(Count=0;Count<Num;Count++)
     {
-    	if(Dst[Count]!=Src[Count])
-    		return Dst[Count]-Src[Count];
+        if(Dst[Count]!=Src[Count])
+            return Dst[Count]-Src[Count];
     }
 
     return 0;
@@ -215,7 +215,7 @@ Output      : None.
 Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
 rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-		                     rme_cid_t Cap_Kmem, rme_ptr_t Start, rme_ptr_t End, rme_ptr_t Flags)
+                             rme_cid_t Cap_Kmem, rme_ptr_t Start, rme_ptr_t End, rme_ptr_t Flags)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Crt;
@@ -302,7 +302,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     if(Svc_Num==RME_SVC_INV_RET)
     {
         Retval=_RME_Inv_Ret(Reg      /* struct RME_Reg_Struct* Reg */,
-        		            Param[0] /* rme_ptr_t Retval */,
+                            Param[0] /* rme_ptr_t Retval */,
                             0        /* rme_ptr_t Fault_Flag */);
         RME_SWITCH_RETURN(Reg,Retval);
     }
@@ -345,7 +345,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             Retval=_RME_Sig_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                         Param[0] /* rme_cid_t Cap_Sig */,
-										Param[1] /* rme_ptr_t Option */);
+                                        Param[1] /* rme_ptr_t Option */);
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Call kernel functions */
@@ -547,9 +547,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_THD_SCHED_BIND:
         {
             Retval=_RME_Thd_Sched_Bind(Captbl, Capid                  /* rme_cid_t Cap_Thd */,
-            								   RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Thd_Sched */,
-											   RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Sig */,
-											   Param[1]               /* rme_tid_t TID */,
+                                               RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Thd_Sched */,
+                                               RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Sig */,
+                                               Param[1]               /* rme_tid_t TID */,
                                                Param[2]               /* rme_ptr_t Prio */);
             break;
         }
@@ -618,30 +618,30 @@ Return      : None.
 ******************************************************************************/
 void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
 {
-	struct RME_CPU_Local* CPU_Local;
+    struct RME_CPU_Local* CPU_Local;
 
-	CPU_Local=RME_CPU_LOCAL();
-	if((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME)
-	{
-		/* Decrease timeslice count */
-		(CPU_Local->Cur_Thd)->Sched.Slices--;
-		/* See if the current thread's timeslice is used up */
-		if((CPU_Local->Cur_Thd)->Sched.Slices==0)
-		{
-			/* Running out of time. Kick this guy out and pick someone else */
-			(CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
-			/* Delete it from runqueue */
-			_RME_Run_Del(CPU_Local->Cur_Thd);
-			/* Send a scheduler notification to its parent */
-			_RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
-		}
-	}
+    CPU_Local=RME_CPU_LOCAL();
+    if((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME)
+    {
+        /* Decrease timeslice count */
+        (CPU_Local->Cur_Thd)->Sched.Slices--;
+        /* See if the current thread's timeslice is used up */
+        if((CPU_Local->Cur_Thd)->Sched.Slices==0)
+        {
+            /* Running out of time. Kick this guy out and pick someone else */
+            (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
+            /* Delete it from runqueue */
+            _RME_Run_Del(CPU_Local->Cur_Thd);
+            /* Send a scheduler notification to its parent */
+            _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+        }
+    }
 
-	/* Send to the system ticker receive endpoint. This endpoint is per-core */
-	_RME_Kern_Snd(Reg, CPU_Local->Tick_Sig);
+    /* Send to the system ticker receive endpoint. This endpoint is per-core */
+    _RME_Kern_Snd(Reg, CPU_Local->Tick_Sig);
 
-	/* All kernel send complete, now pick the highest priority thread to run */
-	_RME_Kern_High(Reg, CPU_Local);
+    /* All kernel send complete, now pick the highest priority thread to run */
+    _RME_Kern_High(Reg, CPU_Local);
 }
 /* End Function:_RME_Tick_SMP_Handler ****************************************/
 
