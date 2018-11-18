@@ -250,7 +250,9 @@ do \
 while(0)
 
 /* Check if we can take the slot, if we can, just take it. This also updates the timestamp,
- * so that we can enforce creation-freezing quiescence.
+ * so that we can enforce creation-freezing quiescence. We must update the counter after we
+ * freeze the slot to ensure that we obtain exclusive access to it, and we must ensure that
+ * other cores also see it that way.
  * CAP - The pointer to the capability slot to occupy.
  * TEMP - A temporary variable, for compare-and-swap. */
 #define RME_CAPTBL_OCCUPY(CAP,TEMP) \
