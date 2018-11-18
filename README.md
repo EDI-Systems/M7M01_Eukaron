@@ -14,7 +14,7 @@
 点击 **[这里](README_CN.md)** 查看中文版。
 
 &ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system supports many advanced features not found in any other OSes, e.g. _FreeRTOS_, _RT-Thread_ ,_VxWorks_ or _Linux_. On multiple cores, it is as scalable as the Linux kernel. When using the system, the best way is to pull ready-made ports and even binaries from the repository rather than to port or configure by yourself. The advanced features that are intrinsic to this operating system includes:
-- [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based mutable protection domains;
+- [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based configurable protection domains;
 - Massive [scalability](https://en.wikipedia.org/wiki/Scalability) and [parallelism](https://en.wikipedia.org/wiki/Parallel_computing);
 - [Fault-tolerance](https://en.wikipedia.org/wiki/Fault_tolerance) and [attack resilience](https://en.wikipedia.org/wiki/Resilience_(network));
 - User-level [hierachical scheduling](https://en.wikipedia.org/wiki/Hierarchical_control_system);
