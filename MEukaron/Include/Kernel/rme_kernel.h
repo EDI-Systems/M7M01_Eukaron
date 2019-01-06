@@ -898,8 +898,6 @@ static rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgt
 
 /* Kernel Memory *************************************************************/
 static rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words);
-static rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size);
-static rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size);
 
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
@@ -1014,6 +1012,9 @@ __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_
                                          rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
 
 /* Kernel Memory *************************************************************/
+/* Kernel memory operations (in case HAL needs to allocate kernel memory) */
+__EXTERN__ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                         rme_cid_t Cap_Kmem, rme_ptr_t Start, rme_ptr_t End, rme_ptr_t Flags);

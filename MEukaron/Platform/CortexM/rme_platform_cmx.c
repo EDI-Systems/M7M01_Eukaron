@@ -7,29 +7,21 @@ Description : The hardware abstraction layer for Cortex-M microcontrollers.
 
 * Generic Code Section *******************************************************
 Small utility functions that can be either implemented with C or assembly, and 
-the entry of the kernel.
+the entry of the kernel. Also responsible for debug printing and CPUID getting.
 
 * Handler Code Section *******************************************************
-Contains fault handlers and generic interrupt handlers.
+Contains fault handlers, generic interrupt handlers and kernel function handlers.
 
 * Initialization Code Section ************************************************
-Low-level initialization and booting.
+Low-level initialization and booting. If we have multiple processors, the 
+booting of all processors are dealt with here.
 
+* Register Manipulation Section **********************************************
+Low-level register manipulations and parameter extractions.
 
+* Page Table Section *********************************************************
+Page table related operations are all here.
 
-The segments of this file are:
-
-平台支持方面迄今为止我们都依赖于STM32的标准库 - 这是非常消耗资源的。而且，实际上毫无必要。
-我们的东西是绝对不需要标准库的 - 要它干嘛？这东西除了增加内核体积之外就没有别的好处了。
-内核融合之后，接下来就是底层的一些问题了。
-底层怎么做呢？
-目前我们是一个单一的C文件加上一堆头文件。但是，底层是用户完全可能去改的东西。
-这样好了 - 把那些玩意放在配置头文件里面去。凡是不标准的东西都放在配置头里面去。
-调试谁会调试？肯定是我们自己人调试了
-别考虑其他开发者会调试的事情。
-
-
-27412,24352,20,513716
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -127,6 +119,32 @@ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
     return Old;
 }
 /* End Function:__RME_CMX_Fetch_And ******************************************/
+
+/* Begin Function:__RME_Putchar ***********************************************
+Description : Output a character to console. In Cortex-M, under most circumstances, 
+              we should use the ITM for such outputs.
+Input       : char Char - The character to print.
+Output      : None.
+Return      : rme_ptr_t - Always 0.
+******************************************************************************/
+rme_ptr_t __RME_Putchar(char Char)
+{
+    RME_CMX_PUTCHAR(Char);
+    return 0;
+}
+/* End Function:__RME_Putchar ************************************************/
+
+/* Begin Function:__RME_CPUID_Get *********************************************
+Description : Get the CPUID. This is to identify where we are executing.
+Input       : None.
+Output      : None.
+Return      : rme_ptr_t - The CPUID. On Cortex-M, this is certainly always 0.
+******************************************************************************/
+rme_ptr_t __RME_CPUID_Get(void)
+{
+    return 0;
+}
+/* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_CMX_Fault_Handler *************************************
 Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
@@ -233,19 +251,57 @@ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
 }
 /* End Function:__RME_CMX_Generic_Handler ************************************/
 
-/* Begin Function:__RME_Putchar ***********************************************
-Description : Output a character to console. In Cortex-M, under most circumstances, 
-              we should use the ITM for such outputs.
-Input       : char Char - The character to print.
+/* Begin Function:__RME_Kern_Func_Handler *************************************
+Description : Handle kernel function calls.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
+              rme_ptr_t Func_ID - The function ID.
+              rme_ptr_t Sub_ID - The subfunction ID.
+              rme_ptr_t Param1 - The first parameter.
+              rme_ptr_t Param2 - The second parameter.
 Output      : None.
-Return      : rme_ptr_t - Always 0.
+Return      : rme_ptr_t - The value that the function returned.
 ******************************************************************************/
-rme_ptr_t __RME_Putchar(char Char)
+rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
+                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
-    RME_CMX_PUTCHAR(Char);
-    return 0;
+    /* It must be interrupt-related operations */
+    if(Func_ID<240)
+    {
+        if(Param1==RME_CMX_INT_OP)
+        {
+            if(Param2==RME_CMX_INT_ENABLE)
+            {
+                NVIC_DisableIRQ((IRQn_Type)Func_ID);
+                /* When the IRQ is newly enabled, we set its priority to as low as the rest as always */
+                NVIC_SetPriority((IRQn_Type)Func_ID, 0xFF);
+                NVIC_EnableIRQ((IRQn_Type)Func_ID);
+            }
+            else
+                NVIC_DisableIRQ((IRQn_Type)Func_ID);
+            
+            __RME_Set_Syscall_Retval(Reg,0);
+            return 0;
+        }
+        else if(Param1==RME_CMX_INT_PRIO)
+        {
+            /* Only changing the subpriority is allowed. main priority is as low as the rest */
+            NVIC_SetPriority((IRQn_Type)Func_ID,((0xFF<<(RME_CMX_NVIC_GROUPING+1))|Param2)&0xFF);
+            __RME_Set_Syscall_Retval(Reg,0);
+            return 0;
+        }
+    }
+    else if(Func_ID==240)
+    {
+        /* Wait for interrupt to happen */
+        __RME_CMX_Wait_Int();
+        __RME_Set_Syscall_Retval(Reg,0);
+        return 0;
+    }
+    
+    /* If it gets here, we must have failed */
+    return RME_ERR_PGT_OPFAIL;
 }
-/* End Function:__RME_Putchar ************************************************/
+/* End Function:__RME_Kern_Func_Handler **************************************/
 
 /* Begin Function:__RME_Low_Level_Init ****************************************
 Description : Initialize the low-level hardware. Currently this function works on
@@ -366,18 +422,6 @@ rme_ptr_t __RME_Boot(void)
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
-
-/* Begin Function:__RME_CPUID_Get *********************************************
-Description : Get the CPUID. This is to identify where we are executing.
-Input       : None.
-Output      : None.
-Return      : rme_ptr_t - The CPUID. On Cortex-M, this is certainly always 0.
-******************************************************************************/
-rme_ptr_t __RME_CPUID_Get(void)
-{
-    return 0;
-}
-/* End Function:__RME_CPUID_Get **********************************************/
 
 /* Begin Function:__RME_Get_Syscall_Param *************************************
 Description : Get the system call parameters from the stack frame.
@@ -551,57 +595,112 @@ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
-/* Begin Function:__RME_Kern_Func_Handler *************************************
-Description : Handle kernel function calls.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
-              rme_ptr_t Func_ID - The function ID.
-              rme_ptr_t Sub_ID - The subfunction ID.
-              rme_ptr_t Param1 - The first parameter.
-              rme_ptr_t Param2 - The second parameter.
+/* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
+Description : Initialize the kernel mapping tables, so it can be added to all the
+              top-level page tables. In Cortex-M, we do not need to add such pages.
+Input       : None.
 Output      : None.
-Return      : rme_ptr_t - The value that the function returned.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
 {
-    /* It must be interrupt-related operations */
-    if(Func_ID<240)
+    /* Empty function, always immediately successful */
+    return 0;
+}
+/* End Function:__RME_Pgtbl_Kmem_Init ****************************************/
+
+/* Begin Function:__RME_Pgtbl_Init ********************************************
+Description : Initialize the page table data structure, according to the capability.
+Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
+Output      : None.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+******************************************************************************/
+rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
+{
+    rme_cnt_t Count;
+    rme_ptr_t* Ptr;
+    
+    /* Get the actual table */
+    Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    
+    /* Initialize the causal metadata */
+    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Start_Addr=Pgtbl_Op->Start_Addr;
+    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Toplevel=0;
+    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Size_Num_Order=Pgtbl_Op->Size_Num_Order;
+    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0;
+    Ptr+=sizeof(struct __RME_CMX_Pgtbl_Meta)/sizeof(rme_ptr_t);
+    
+    /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
+     * environments, if it is top-level, we need to add kernel pages as well */
+    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
     {
-        if(Param1==RME_CMX_INT_OP)
+        ((struct __RME_CMX_MPU_Data*)Ptr)->State=0;
+        
+        for(Count=0;Count<RME_CMX_MPU_REGIONS;Count++)
         {
-            if(Param2==RME_CMX_INT_ENABLE)
-            {
-                NVIC_DisableIRQ((IRQn_Type)Func_ID);
-                /* When the IRQ is newly enabled, we set its priority to as low as the rest as always */
-                NVIC_SetPriority((IRQn_Type)Func_ID, 0xFF);
-                NVIC_EnableIRQ((IRQn_Type)Func_ID);
-            }
-            else
-                NVIC_DisableIRQ((IRQn_Type)Func_ID);
-            
-            __RME_Set_Syscall_Retval(Reg,0);
-            return 0;
+            ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_CMX_MPU_VALID|Count;
+            ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0;
         }
-        else if(Param1==RME_CMX_INT_PRIO)
-        {
-            /* Only changing the subpriority is allowed. main priority is as low as the rest */
-            NVIC_SetPriority((IRQn_Type)Func_ID,((0xFF<<(RME_CMX_NVIC_GROUPING+1))|Param2)&0xFF);
-            __RME_Set_Syscall_Retval(Reg,0);
-            return 0;
-        }
-    }
-    else if(Func_ID==240)
-    {
-        /* Wait for interrupt to happen */
-        __RME_CMX_Wait_Int();
-        __RME_Set_Syscall_Retval(Reg,0);
-        return 0;
+        
+        Ptr+=sizeof(struct __RME_CMX_MPU_Data)/sizeof(rme_ptr_t);
     }
     
-    /* If it gets here, we must have failed */
-    return RME_ERR_PGT_OPFAIL;
+    /* Clean up the table itself - This is could be virtually unbounded if the user
+     * pass in some very large length value */
+    for(Count=0;Count<RME_POW2(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order));Count++)
+        Ptr[Count]=0;
+    
+    return 0;
 }
-/* End Function:__RME_Kern_Func_Handler **************************************/
+/* End Function:__RME_Pgtbl_Init *********************************************/
+
+/* Begin Function:__RME_Pgtbl_Check *******************************************
+Description : Check if the page table parameters are feasible, according to the
+              parameters. This is only used in page table creation.
+Input       : rme_ptr_t Start_Addr - The start mapping address.
+              rme_ptr_t Top_Flag - The top-level flag,
+              rme_ptr_t Size_Order - The size order of the page directory.
+              rme_ptr_t Num_Order - The number order of the page directory.
+              rme_ptr_t Vaddr - The virtual address of the page directory.
+Output      : None.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+******************************************************************************/
+rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
+                        rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
+{
+    if(Num_Order<RME_PGTBL_NUM_2)
+        return RME_ERR_PGT_OPFAIL;
+    if(Num_Order>RME_PGTBL_NUM_256)
+        return RME_ERR_PGT_OPFAIL;
+    if(Size_Order<RME_PGTBL_SIZE_32B)
+        return RME_ERR_PGT_OPFAIL;
+    if(Size_Order>RME_PGTBL_SIZE_2G)
+        return RME_ERR_PGT_OPFAIL;
+    if((Vaddr&0x03)!=0)
+        return RME_ERR_PGT_OPFAIL;
+    
+    return 0;
+}
+/* End Function:__RME_Pgtbl_Check ********************************************/
+
+/* Begin Function:__RME_Pgtbl_Del_Check ***************************************
+Description : Check if the page table can be deleted.
+Input       : struct RME_Cap_Pgtbl Pgtbl_Op* - The capability to the page table to operate on.
+Output      : None.
+Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
+******************************************************************************/
+rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
+{
+    /* Check if we are standalone */
+    if(((RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_CMX_Pgtbl_Meta*)->Dir_Page_Count)>>16)!=0)
+        return RME_ERR_PGT_OPFAIL;
+    
+    if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_CMX_Pgtbl_Meta*)->Toplevel!=0)
+        return RME_ERR_PGT_OPFAIL;
+    
+    return 0;
+}
+/* End Function:__RME_Pgtbl_Del_Check ****************************************/
 
 /* Begin Function:___RME_Pgtbl_MPU_Gen_RASR ***********************************
 Description : Generate the RASR metadata for this level of page table.
@@ -858,113 +957,6 @@ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
 }
 /* End Function:__RME_Pgtbl_Set **********************************************/
 
-/* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
-Description : Initialize the kernel mapping tables, so it can be added to all the
-              top-level page tables. In Cortex-M, we do not need to add such pages.
-Input       : None.
-Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
-******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
-{
-    /* Empty function, always immediately successful */
-    return 0;
-}
-/* End Function:__RME_Pgtbl_Kmem_Init ****************************************/
-
-/* Begin Function:__RME_Pgtbl_Check *******************************************
-Description : Check if the page table parameters are feasible, according to the
-              parameters. This is only used in page table creation.
-Input       : rme_ptr_t Start_Addr - The start mapping address.
-              rme_ptr_t Top_Flag - The top-level flag,
-              rme_ptr_t Size_Order - The size order of the page directory.
-              rme_ptr_t Num_Order - The number order of the page directory.
-              rme_ptr_t Vaddr - The virtual address of the page directory.
-Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
-******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
-                        rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
-{
-    if(Num_Order<RME_PGTBL_NUM_2)
-        return RME_ERR_PGT_OPFAIL;
-    if(Num_Order>RME_PGTBL_NUM_256)
-        return RME_ERR_PGT_OPFAIL;
-    if(Size_Order<RME_PGTBL_SIZE_32B)
-        return RME_ERR_PGT_OPFAIL;
-    if(Size_Order>RME_PGTBL_SIZE_2G)
-        return RME_ERR_PGT_OPFAIL;
-    if((Vaddr&0x03)!=0)
-        return RME_ERR_PGT_OPFAIL;
-    
-    return 0;
-}
-/* End Function:__RME_Pgtbl_Check ********************************************/
-
-/* Begin Function:__RME_Pgtbl_Init ********************************************
-Description : Initialize the page table data structure, according to the capability.
-Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
-Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
-******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
-{
-    rme_cnt_t Count;
-    rme_ptr_t* Ptr;
-    
-    /* Get the actual table */
-    Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
-    
-    /* Initialize the causal metadata */
-    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Start_Addr=Pgtbl_Op->Start_Addr;
-    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Toplevel=0;
-    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Size_Num_Order=Pgtbl_Op->Size_Num_Order;
-    ((struct __RME_CMX_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0;
-    Ptr+=sizeof(struct __RME_CMX_Pgtbl_Meta)/sizeof(rme_ptr_t);
-    
-    /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
-     * environments, if it is top-level, we need to add kernel pages as well */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
-    {
-        ((struct __RME_CMX_MPU_Data*)Ptr)->State=0;
-        
-        for(Count=0;Count<RME_CMX_MPU_REGIONS;Count++)
-        {
-            ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_CMX_MPU_VALID|Count;
-            ((struct __RME_CMX_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0;
-        }
-        
-        Ptr+=sizeof(struct __RME_CMX_MPU_Data)/sizeof(rme_ptr_t);
-    }
-    
-    /* Clean up the table itself - This is could be virtually unbounded if the user
-     * pass in some very large length value */
-    for(Count=0;Count<RME_POW2(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order));Count++)
-        Ptr[Count]=0;
-    
-    return 0;
-}
-/* End Function:__RME_Pgtbl_Init *********************************************/
-
-/* Begin Function:__RME_Pgtbl_Del_Check ***************************************
-Description : Check if the page table can be deleted.
-Input       : struct RME_Cap_Pgtbl Pgtbl_Op* - The capability to the page table to operate on.
-Output      : None.
-Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
-******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
-{
-    /* Check if we are standalone */
-    if(((RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_CMX_Pgtbl_Meta*)->Dir_Page_Count)>>16)!=0)
-        return RME_ERR_PGT_OPFAIL;
-    
-    if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_CMX_Pgtbl_Meta*)->Toplevel!=0)
-        return RME_ERR_PGT_OPFAIL;
-    
-    return 0;
-}
-/* End Function:__RME_Pgtbl_Del_Check ****************************************/
-
 /* Begin Function:__RME_Pgtbl_Page_Map ****************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
@@ -972,7 +964,7 @@ Description : Map a page into the page table. If a page is mapped into the slot,
               the page granularity. This architecture requires that the mapping is
               always at least readable.
 Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
-              rme_ptr_t Paddr - The physical address to map to. If we are unmapping, this have no effect.
+              rme_ptr_t Paddr - The physical address to map to. No effect if we are unmapping.
               rme_ptr_t Pos - The position in the page table.
               rme_ptr_t Flags - The RME standard page attributes. Need to translate them into 
                                 architecture specific page table's settings.

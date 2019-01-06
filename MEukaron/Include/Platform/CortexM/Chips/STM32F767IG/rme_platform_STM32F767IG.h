@@ -11,6 +11,8 @@ Description: The configuration file for STM32F767IG.
 #include "stm32f7xx.h"
 #include "core_cm7.h"
 #include "stm32f7xx_hal.h"
+
+/* Generic *******************************************************************/
 /* The virtual memory start address for the kernel objects */
 #define RME_KMEM_VA_START                       0x20003000
 /* The size of the kernel object virtual memory */
@@ -27,6 +29,7 @@ Description: The configuration file for STM32F767IG.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                    32
 
+/* Cortex-M ******************************************************************/
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_CMX_INT_FLAG_ADDR                   0x20010000
 /* Initial kenel object frontier limit */
@@ -52,7 +55,7 @@ Description: The configuration file for STM32F767IG.
 #define RME_CMX_INT_PRIO                        1
 #define RME_CMX_KERN_PWR                        240
 
-/* Interrupt handler definitions - to facilitate transparent interrupts */
+/* Interrupt *****************************************************************/
 #define  WWDG_IRQHandler                         IRQ0_Handler        /* Window WatchDog */                                       
 #define  PVD_IRQHandler                          IRQ1_Handler        /* PVD through EXTI Line detection */
 #define  TAMP_STAMP_IRQHandler                   IRQ2_Handler        /* Tamper and TimeStamps through the EXTI line */
