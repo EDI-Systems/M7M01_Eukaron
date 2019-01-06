@@ -262,6 +262,9 @@ do \
     ITM_SendChar((rme_s8_t)(CHAR)); \
 } \
 while(0)
+
+/* Shutdown debugging */
+#define RME_ASSERT(X)
 /* End Defines ***************************************************************/
 
 /* End Of File ***************************************************************/
