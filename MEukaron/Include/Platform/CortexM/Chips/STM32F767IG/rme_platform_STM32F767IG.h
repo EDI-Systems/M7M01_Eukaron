@@ -34,23 +34,23 @@ Description: The configuration file for STM32F767IG.
 /* Number of MPU regions available */
 #define RME_CMX_MPU_REGIONS                     8
 /* Init process's first thread's entry point address */
-#define RME_CMX_INIT_ENTRY           0x08010001
+#define RME_CMX_INIT_ENTRY                      0x08010001
 /* Init process's first thread's stack address */
-#define RME_CMX_INIT_STACK           0x2001FFF0
+#define RME_CMX_INIT_STACK                      0x2001FFF0
 /* What is the FPU type? */
-#define RME_CMX_FPU_TYPE             RME_CMX_FPV5_DP
+#define RME_CMX_FPU_TYPE                        RME_CMX_FPV5_DP
 /* What is the NVIC priority grouping? */
-#define RME_CMX_NVIC_GROUPING        RME_CMX_NVIC_GROUPING_P2S6
+#define RME_CMX_NVIC_GROUPING                   RME_CMX_NVIC_GROUPING_P2S6
 /* What is the Systick value? - 10ms per tick*/
-#define RME_CMX_SYSTICK_VAL          2160000
+#define RME_CMX_SYSTICK_VAL                     2160000
 
 /* Kernel functions standard to Cortex-M, interrupt management and power */
-#define RME_CMX_KERN_INT(X)          (X)
-#define RME_CMX_INT_OP               0
-#define RME_CMX_INT_ENABLE           1
-#define RME_CMX_INT_DISABLE          0
-#define RME_CMX_INT_PRIO             1
-#define RME_CMX_KERN_PWR             240
+#define RME_CMX_KERN_INT(X)                     (X)
+#define RME_CMX_INT_OP                          0
+#define RME_CMX_INT_ENABLE                      1
+#define RME_CMX_INT_DISABLE                     0
+#define RME_CMX_INT_PRIO                        1
+#define RME_CMX_KERN_PWR                        240
 
 /* Interrupt handler definitions - to facilitate transparent interrupts */
 #define  WWDG_IRQHandler                         IRQ0_Handler        /* Window WatchDog */                                       
@@ -262,9 +262,6 @@ do \
     ITM_SendChar((rme_s8_t)(CHAR)); \
 } \
 while(0)
-
-/* Shutdown debugging */
-#define RME_ASSERT(X)
 /* End Defines ***************************************************************/
 
 /* End Of File ***************************************************************/

@@ -163,9 +163,8 @@ rme_ret_t RME_Kmain(void)
     
     /* Boot into the first process, and handle it all the other cases&enable the interrupt */
     __RME_Boot();
-    /* Should never reach here. If it reached here, we reboot */
-    __RME_Reboot();
     
+    /* Should never reach here */
     return 0;
 }
 /* End Function:RME_Kmain ****************************************************/
