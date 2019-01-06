@@ -389,6 +389,110 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Set entry&stack */
 #define RME_SVC_INV_SET             34
 /* End System Calls **********************************************************/
+
+/* Kernel Functions **********************************************************/
+/* Page table operations *****************************************************/
+/* Clear the whole TLB */
+#define RME_KERN_PGTBL_CACHE_CLR    0xF000
+/* Clear a single TLB line */
+#define RME_KERN_PGTBL_LINE_CLR     0xF001
+/* Set the ASID of a page table */
+#define RME_KERN_PGTBL_ASID_SET     0xF002
+/* Lock a page into the TLB */
+#define RME_KERN_PGTBL_TLB_LOCK     0xF003
+/* Query or modify the content of an entry */
+#define RME_KERN_PGTBL_ENTRY_MOD    0xF004
+/* Interrupt controller operations *******************************************/
+/* Modify local interrupt controller */
+#define RME_KERN_INT_LOCAL_MOD      0xF100
+/* Modify global interrupt controller */
+#define RME_KERN_INT_GLOBAL_MOD     0xF101
+/* Trigger a local interrupt */
+#define RME_KERN_INT_LOCAL_TRIG     0xF102
+/* Cache operations **********************************************************/
+/* Enable cache */
+#define RME_KERN_CACHE_ENABLE       0xF200
+/* Disable cache */
+#define RME_KERN_CACHE_DISABLE      0xF201
+/* Configure cache */
+#define RME_KERN_CACHE_CONFIG       0xF202
+/* Invalidate cache */
+#define RME_KERN_CACHE_INVALIDATE   0xF203
+/* Lock cache */
+#define RME_KERN_CACHE_LOCK         0xF204
+/* Enable prefetching */
+#define RME_KERN_PRFTH_ENABLE       0xF205
+/* Disable prefetching */
+#define RME_KERN_PRFTH_DISABLE      0xF206
+/* Hot plug and pull operations **********************************************/
+/* Modify physical CPU configuration */
+#define RME_KERN_HPNP_PCPU_MOD      0xF300
+/* Modify logical CPU configuration */
+#define RME_KERN_HPNP_LCPU_MOD      0xF301
+/* Modify physical memory configuration */
+#define RME_KERN_HPNP_PMEM_MOD      0xF302
+/* Hot plug and pull operations **********************************************/
+/* Modify voltage configuration */
+#define RME_KERN_VOLTAGE_MOD        0xF400
+/* Modify frequency configuration */
+#define RME_KERN_FREQ_MOD           0xF401
+/* Modify power state */
+#define RME_KERN_POWER_MOD          0xF402
+/* Modify safety lock state */
+#define RME_KERN_SAFETY_MOD         0xF403
+/* Performance monitoring operations *****************************************/
+/* Query or modify CPU function configuration */
+#define RME_KERN_PERF_CPU_FUNC      0xF500
+/* Query or modify performance monitor configuration */
+#define RME_KERN_PERF_MON_MOD       0xF501
+/* Query or modify counting performance monitor register */
+#define RME_KERN_PERF_CNT_MOD       0xF502
+/* Query or modify clock cycle performance monitor register */
+#define RME_KERN_PERF_CYCLE_MOD     0xF503
+/* Query or modify data performance monitor register */
+#define RME_KERN_PERF_DATA_MOD      0xF504
+/* Query or modify physical monitor register */
+#define RME_KERN_PERF_PHYS_MOD      0xF505
+/* Query or modify cumulative monitor register */
+#define RME_KERN_PERF_CUMUL_MOD     0xF506
+/* Hardware virtualization operations ****************************************/
+/* Create a virtual machine */
+#define RME_KERN_VM_CRT             0xF600
+/* Delete a virtual machine */
+#define RME_KERN_VM_DEL             0xF601
+/* Assign a user-level page table to the virtual machine */
+#define RME_KERN_VM_PGT             0xF602
+/* Query or modify virtual machine state */
+#define RME_KERN_VM_MOD             0xF603
+/* Create a virtual CPU */
+#define RME_KERN_VCPU_CRT           0xF604
+/* Bind a virtual CPU to a virtual machine */
+#define RME_KERN_VCPU_BIND          0xF605
+/* Free a virtual CPU from a virtual machine */
+#define RME_KERN_VCPU_FREE          0xF606
+/* Delete a virtual CPU */
+#define RME_KERN_VCPU_DEL           0xF607
+/* Query or modify virtual registers */
+#define RME_KERN_VCPU_MOD           0xF608
+/* Run the VCPU on this thread */
+#define RME_KERN_VCPU_RUN           0xF609
+/* Security monitor operations ***********************************************/
+/* Work in progress */
+
+/* Debugging operations ******************************************************/
+/* Debug printing - a single character or a series of characters */
+#define RME_KERN_DEBUG_PRINT        0xF800
+/* Modify thread register content */
+#define RME_KERN_DEBUG_REG_MOD      0xF801
+/* Modify thread invocation register content */
+#define RME_KERN_DEBUG_INV_MOD      0xF802
+/* Modify debug engine configuration */
+#define RME_KERN_DEBUG_MODE_MOD     0xF803
+/* Modify instruction breakpoint state */
+#define RME_KERN_DEBUG_IBP_MOD      0xF804
+/* Modify data breakpoint state */
+#define RME_KERN_DEBUG_DBP_MOD      0xF805
+/* End Kernel Functions ******************************************************/
 /* End Defines ***************************************************************/
 
 #endif /* __RME_H__ */

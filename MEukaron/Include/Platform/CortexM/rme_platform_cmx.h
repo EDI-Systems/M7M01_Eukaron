@@ -125,83 +125,7 @@ typedef rme_s32_t rme_ret_t;
 /* End System macros *********************************************************/
 
 /* Cortex-M specific macros **************************************************/
-/* Initial boot capabilities */
-/* The capability table of the init process */
-#define RME_BOOT_CAPTBL                 0
-/* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGTBL                  1
-/* The init process */
-#define RME_BOOT_INIT_PROC              2
-/* The init thread */
-#define RME_BOOT_INIT_THD               3
-/* The initial kernel function capability */
-#define RME_BOOT_INIT_KERN              4
-/* The initial kernel memory capability */
-#define RME_BOOT_INIT_KMEM              5
-/* The initial timer endpoint */
-#define RME_BOOT_INIT_TIMER             6
-/* The initial default endpoint for all other interrupts */
-#define RME_BOOT_INIT_INT               7
-
-/* Booting capability layout */
-#define RME_CMX_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
-/* SRAM base */
-#define RME_CMX_SRAM_BASE               0x20000000
-/* For Cortex-M:
- * The layout of the page entry is:
- * [31:5] Paddr - The physical address to map this page to, or the physical
- *                address of the next layer of page table. This address is
- *                always aligned to 32 bytes.
- * [4:2] Reserved - Because subregions must share attributes, we have the permission
- *                  flags in the page table headers ("Page_Flags" field). These flags
- *                  are completely identical to RME standard page flags.
- * [1] Terminal - Is this page a terminal page, or points to another page table?
- * [0] Present - Is this entry present?
- *
- * The layout of a directory entry is:
- * [31:2] Paddr - The in-kernel physical address of the lower page directory.
- * [1] Terminal - Is this page a terminal page, or points to another page table?
- * [0] Present - Is this entry present?
- */
-/* Get the actual table positions */
-#define RME_CMX_PGTBL_TBL_NOM(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)/sizeof(rme_ptr_t)))
-#define RME_CMX_PGTBL_TBL_TOP(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)+sizeof(struct __RME_CMX_MPU_Data))/sizeof(rme_ptr_t))
-
-/* Page entry bit definitions */
-#define RME_CMX_PGTBL_PRESENT           (1<<0)
-#define RME_CMX_PGTBL_TERMINAL          (1<<1)
-/* The address mask for the actual page address */
-#define RME_CMX_PGTBL_PTE_ADDR(X)       ((X)&0xFFFFFFFC)
-/* The address mask for the next level page table address */
-#define RME_CMX_PGTBL_PGD_ADDR(X)       ((X)&0xFFFFFFFC)
-/* Page table metadata definitions */
-#define RME_CMX_PGTBL_START(X)          ((X)&0xFFFFFFFE)
-#define RME_CMX_PGTBL_SIZEORD(X)        ((X)>>16)
-#define RME_CMX_PGTBL_NUMORD(X)         ((X)&0x0000FFFF)
-#define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
-#define RME_CMX_PGTBL_PAGENUM(X)        ((X)&0x0000FFFF)
-#define RME_CMX_PGTBL_INC_PAGENUM(X)    ((X)+=0x00000001)
-#define RME_CMX_PGTBL_DEC_PAGENUM(X)    ((X)-=0x00000001)
-#define RME_CMX_PGTBL_INC_DIRNUM(X)     ((X)+=0x00010000)
-#define RME_CMX_PGTBL_DEC_DIRNUM(X)     ((X)-=0x00010000)
-/* MPU operation flag */
-#define RME_CMX_MPU_CLR                 (0)
-#define RME_CMX_MPU_UPD                 (1)
-/* MPU definitions */
-/* Extract address for/from MPU */
-#define RME_CMX_MPU_ADDR(X)             ((X)&0xFFFFFFE0)
-/* Get info from MPU */
-#define RME_CMX_MPU_SZORD(X)            ((((X)&0x3F)>>1)-2)
-/* Write info to MPU */
-#define RME_CMX_MPU_VALID               (1<<4)
-#define RME_CMX_MPU_SRDCLR              (0x0000FF00)
-#define RME_CMX_MPU_XN                  (1<<28)
-#define RME_CMX_MPU_RO                  (2<<24)
-#define RME_CMX_MPU_RW                  (3<<24)
-#define RME_CMX_MPU_CACHEABLE           (1<<17)
-#define RME_CMX_MPU_BUFFERABLE          (1<<16)
-#define RME_CMX_MPU_REGIONSIZE(X)       ((X+2)<<1)
-#define RME_CMX_MPU_SZENABLE            (1)
+/* Generic *******************************************************************/
 /* Cortex-M (ARMv8) EXC_RETURN values */
 #define RME_CMX_EXC_RET_BASE            (0xFFFFFF80)
 /* Whether we are returning to secure stack. 1 means yes, 0 means no */
@@ -222,6 +146,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_CMX_FPU_FPV5_SP             (2)
 #define RME_CMX_FPU_FPV5_DP             (3)
 
+/* Handler *******************************************************************/
 /* Some useful SCB definitions */
 #define RME_CMX_SHCSR_USGFAULTENA       (1<<18)
 #define RME_CMX_SHCSR_BUSFAULTENA       (1<<17)
@@ -289,7 +214,6 @@ typedef rme_s32_t rme_ret_t;
  * instruction fetch has occurred. The fault is signalled only if the
  * instruction is issued */
 #define RME_CMX_MFSR_IACCVIOL           (1<<0)
-
 /* These faults cannot be recovered and will lead to termination immediately */
 #define RME_CMX_FAULT_FATAL             (RME_CMX_UFSR_DIVBYZERO|RME_CMX_UFSR_UNALIGNED| \
                                          RME_CMX_UFSR_NOCP|RME_CMX_UFSR_INVPC| \
@@ -297,6 +221,85 @@ typedef rme_s32_t rme_ret_t;
                                          RME_CMX_BFSR_LSPERR|RME_CMX_BFSR_STKERR| \
                                          RME_CMX_BFSR_UNSTKERR|RME_CMX_BFSR_IMPRECISERR| \
                                          RME_CMX_BFSR_PRECISERR|RME_CMX_BFSR_IBUSERR)
+
+/* Initialization ************************************************************/
+/* The capability table of the init process */
+#define RME_BOOT_CAPTBL                 0
+/* The top-level page table of the init process - always 4GB full range split into 8 pages */
+#define RME_BOOT_PGTBL                  1
+/* The init process */
+#define RME_BOOT_INIT_PROC              2
+/* The init thread */
+#define RME_BOOT_INIT_THD               3
+/* The initial kernel function capability */
+#define RME_BOOT_INIT_KERN              4
+/* The initial kernel memory capability */
+#define RME_BOOT_INIT_KMEM              5
+/* The initial timer endpoint */
+#define RME_BOOT_INIT_TIMER             6
+/* The initial default endpoint for all other interrupts */
+#define RME_BOOT_INIT_INT               7
+
+/* Booting capability layout */
+#define RME_CMX_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
+/* SRAM base */
+#define RME_CMX_SRAM_BASE               0x20000000
+
+/* Page Table ****************************************************************/
+/* For Cortex-M:
+ * The layout of the page entry is:
+ * [31:5] Paddr - The physical address to map this page to, or the physical
+ *                address of the next layer of page table. This address is
+ *                always aligned to 32 bytes.
+ * [4:2] Reserved - Because subregions must share attributes, we have the permission
+ *                  flags in the page table headers ("Page_Flags" field). These flags
+ *                  are completely identical to RME standard page flags.
+ * [1] Terminal - Is this page a terminal page, or points to another page table?
+ * [0] Present - Is this entry present?
+ *
+ * The layout of a directory entry is:
+ * [31:2] Paddr - The in-kernel physical address of the lower page directory.
+ * [1] Terminal - Is this page a terminal page, or points to another page table?
+ * [0] Present - Is this entry present?
+ */
+/* Get the actual table positions */
+#define RME_CMX_PGTBL_TBL_NOM(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)/sizeof(rme_ptr_t)))
+#define RME_CMX_PGTBL_TBL_TOP(X)        ((X)+(sizeof(struct __RME_CMX_Pgtbl_Meta)+sizeof(struct __RME_CMX_MPU_Data))/sizeof(rme_ptr_t))
+/* Page entry bit definitions */
+#define RME_CMX_PGTBL_PRESENT           (1<<0)
+#define RME_CMX_PGTBL_TERMINAL          (1<<1)
+/* The address mask for the actual page address */
+#define RME_CMX_PGTBL_PTE_ADDR(X)       ((X)&0xFFFFFFFC)
+/* The address mask for the next level page table address */
+#define RME_CMX_PGTBL_PGD_ADDR(X)       ((X)&0xFFFFFFFC)
+/* Page table metadata definitions */
+#define RME_CMX_PGTBL_START(X)          ((X)&0xFFFFFFFE)
+#define RME_CMX_PGTBL_SIZEORD(X)        ((X)>>16)
+#define RME_CMX_PGTBL_NUMORD(X)         ((X)&0x0000FFFF)
+#define RME_CMX_PGTBL_DIRNUM(X)         ((X)>>16)
+#define RME_CMX_PGTBL_PAGENUM(X)        ((X)&0x0000FFFF)
+#define RME_CMX_PGTBL_INC_PAGENUM(X)    ((X)+=0x00000001)
+#define RME_CMX_PGTBL_DEC_PAGENUM(X)    ((X)-=0x00000001)
+#define RME_CMX_PGTBL_INC_DIRNUM(X)     ((X)+=0x00010000)
+#define RME_CMX_PGTBL_DEC_DIRNUM(X)     ((X)-=0x00010000)
+/* MPU operation flag */
+#define RME_CMX_MPU_CLR                 (0)
+#define RME_CMX_MPU_UPD                 (1)
+/* MPU definitions */
+/* Extract address for/from MPU */
+#define RME_CMX_MPU_ADDR(X)             ((X)&0xFFFFFFE0)
+/* Get info from MPU */
+#define RME_CMX_MPU_SZORD(X)            ((((X)&0x3F)>>1)-2)
+/* Write info to MPU */
+#define RME_CMX_MPU_VALID               (1<<4)
+#define RME_CMX_MPU_SRDCLR              (0x0000FF00)
+#define RME_CMX_MPU_XN                  (1<<28)
+#define RME_CMX_MPU_RO                  (2<<24)
+#define RME_CMX_MPU_RW                  (3<<24)
+#define RME_CMX_MPU_CACHEABLE           (1<<17)
+#define RME_CMX_MPU_BUFFERABLE          (1<<16)
+#define RME_CMX_MPU_REGIONSIZE(X)       ((X+2)<<1)
+#define RME_CMX_MPU_SZENABLE            (1)
 /*****************************************************************************/
 /* __RME_PLATFORM_CMX_H_DEFS__ */
 #endif
@@ -314,6 +317,23 @@ typedef rme_s32_t rme_ret_t;
 #define __HDR_DEFS__
 #undef __HDR_DEFS__
 /*****************************************************************************/
+/* Handler *******************************************************************/
+/* Interrupt flag structure */
+struct __RME_CMX_Flag_Set
+{
+    rme_ptr_t Lock;
+    rme_ptr_t Group;
+    rme_ptr_t Flags[32];
+};
+
+/* Interrupt flag pair structure */
+struct __RME_CMX_Flags
+{
+    struct __RME_CMX_Flag_Set Set0;
+    struct __RME_CMX_Flag_Set Set1;
+};
+
+/* Register Manipulation *****************************************************/
 /* The register set struct - R0-R3, R12, PC, LR, xPSR is automatically pushed.
  * Here we need LR to decide EXC_RETURN, that's why it is here */
 struct RME_Reg_Struct
@@ -352,19 +372,21 @@ struct RME_Cop_Struct
     rme_ptr_t S31;
 };
 
-/* The registers to keep to remember where to return after an invocation */
+/* Invocation register set structure */
 struct RME_Iret_Struct
 {
     rme_ptr_t LR;
     rme_ptr_t SP;
 };
 
+/* Page Table ****************************************************************/
+/* MPU entry structure */
 struct __RME_CMX_MPU_Entry
 {
     rme_ptr_t MPU_RBAR;
     rme_ptr_t MPU_RASR;
 };
-
+/* Page table metadata structure */
 struct __RME_CMX_Pgtbl_Meta
 {
     /* The MPU setting is always in the top level. This is a pointer to the top level */
@@ -380,25 +402,12 @@ struct __RME_CMX_Pgtbl_Meta
     rme_ptr_t Page_Flags;
 };
 
+/* MPU metadata structure */
 struct __RME_CMX_MPU_Data
 {
     /* [31:16] Static [15:0] Present */
     rme_ptr_t State;
     struct __RME_CMX_MPU_Entry Data[RME_CMX_MPU_REGIONS];
-};
-
-/* Interrupt flags - this type of flags will only appear on MPU-based systems */
-struct __RME_CMX_Flag_Set
-{
-    rme_ptr_t Lock;
-    rme_ptr_t Group;
-    rme_ptr_t Flags[32];
-};
-
-struct __RME_CMX_Flags
-{
-    struct __RME_CMX_Flag_Set Set0;
-    struct __RME_CMX_Flag_Set Set1;
 };
 /*****************************************************************************/
 /* __RME_PLATFORM_CMX_H_STRUCTS__ */
@@ -429,7 +438,7 @@ struct __RME_CMX_Flags
 /* End Private Global Variables **********************************************/
 
 /* Private C Function Prototypes *********************************************/ 
-/*****************************************************************************/
+/* Page Table ****************************************************************/
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, rme_ptr_t Entry_Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_CMX_MPU_Data* Top_MPU, 
                                         rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
@@ -467,30 +476,33 @@ EXTERN rme_ptr_t __RME_CMX_MSB_Get(rme_ptr_t Val);
 __EXTERN__ rme_ptr_t __RME_CMX_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+/* Debugging */
+__EXTERN__ rme_ptr_t __RME_Putchar(char Char);
+/* Getting CPUID */
+__EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 
 /* Handler *******************************************************************/
-/* Kernel function handler */
-__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
-                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
 __EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
+/* Kernel function handler */
+__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
+                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 
-/* Debugging */
-__EXTERN__ rme_ptr_t __RME_Putchar(char Char);
+/* Initialization ************************************************************/
+EXTERN void _RME_Kmain(rme_ptr_t Stack);
+__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ rme_ptr_t __RME_Boot(void);
+EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
+
+/* Register Manipulation *****************************************************/
 /* Coprocessor */
 EXTERN void ___RME_CMX_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 EXTERN void ___RME_CMX_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
-/* Booting */
-EXTERN void _RME_Kmain(rme_ptr_t Stack);
-EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
-__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
-__EXTERN__ rme_ptr_t __RME_Boot(void);
-/* Syscall & invocation */
-__EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
+/* Syscall parameter */
 __EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
-                                         rme_ptr_t* Capid, rme_ptr_t* Param);
+                                        rme_ptr_t* Capid, rme_ptr_t* Param);
 __EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
 __EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
@@ -502,21 +514,30 @@ __EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop
 __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 __EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
-/* Page table operations */
+
+/* Page Table ****************************************************************/
+/* Initialization */
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
+/* Checking */
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
+                                       rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
+/* Setting the page table */
 EXTERN void ___RME_CMX_MPU_Set(rme_ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
+/* Table operations */
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
                                            struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
+/* Lookup and walking */
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
-                                      rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
+                                      rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr,
+                                      rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
+
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
