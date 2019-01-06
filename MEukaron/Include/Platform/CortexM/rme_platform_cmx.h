@@ -456,17 +456,27 @@ __EXTERN__ struct RME_CPU_Local RME_CMX_Local;
 /* End Public Global Variables ***********************************************/
 
 /* Public C Function Prototypes **********************************************/
-/*****************************************************************************/
+/* Generic *******************************************************************/
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
 EXTERN void __RME_CMX_Wait_Int(void);
+/* MSB counting */
+EXTERN rme_ptr_t __RME_CMX_MSB_Get(rme_ptr_t Val);
 /* Atomics */
 __EXTERN__ rme_ptr_t __RME_CMX_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
-/* MSB counting */
-EXTERN rme_ptr_t __RME_CMX_MSB_Get(rme_ptr_t Val);
+
+/* Handler *******************************************************************/
+/* Kernel function handler */
+__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
+                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+/* Fault handler */
+__EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg);
+/* Generic interrupt handler */
+__EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
+
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */
@@ -477,8 +487,6 @@ EXTERN void _RME_Kmain(rme_ptr_t Stack);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
-__EXTERN__ void __RME_Reboot(void);
-__EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
 __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 __EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
@@ -494,13 +502,6 @@ __EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop
 __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 __EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
-/* Kernel function handler */
-__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
-                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
-/* Fault handler */
-__EXTERN__ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg);
-/* Generic interrupt handler */
-__EXTERN__ void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
 EXTERN void ___RME_CMX_MPU_Set(rme_ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);

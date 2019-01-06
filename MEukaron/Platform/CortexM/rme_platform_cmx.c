@@ -4,16 +4,20 @@ Author      : pry
 Date        : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
 Description : The hardware abstraction layer for Cortex-M microcontrollers.
-The segments of this file are:
 
-两个抉择：
-1.要不要整合内核
-2.整合内核之后，各方面变简单了吗？
-效率：+
-开发效率：？
-各方面都有一些问题啊。不是很好解决
-从某种方面讲，整合内核是完全有理由的。
-那么，平台支持方面应该怎么做呢？
+* Generic Code Section *******************************************************
+Small utility functions that can be either implemented with C or assembly, and 
+the entry of the kernel.
+
+* Handler Code Section *******************************************************
+Contains fault handlers and generic interrupt handlers.
+
+* Initialization Code Section ************************************************
+Low-level initialization and booting.
+
+
+
+The segments of this file are:
 
 平台支持方面迄今为止我们都依赖于STM32的标准库 - 这是非常消耗资源的。而且，实际上毫无必要。
 我们的东西是绝对不需要标准库的 - 要它干嘛？这东西除了增加内核体积之外就没有别的好处了。
@@ -24,23 +28,14 @@ The segments of this file are:
 调试谁会调试？肯定是我们自己人调试了
 别考虑其他开发者会调试的事情。
 
-把pcmx分段，然后每段处理每段的事情。
-
-整个内核的顺序应该是
-kotbl.c
-captbl.c
-pgtbl.c
-prcthd.c
-siginv.c
-kernel.c
 
 27412,24352,20,513716
 ******************************************************************************/
 
 /* Includes ******************************************************************/
 #define __HDR_DEFS__
-#include "Kernel/rme_kernel.h"
 #include "Platform/CortexM/rme_platform_cmx.h"
+#include "Kernel/rme_kernel.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
@@ -55,6 +50,21 @@ kernel.c
 #include "Kernel/rme_kernel.h"
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
+
+/* Begin Function:main ********************************************************
+Description : The entry of the operating system. This function is for compatibility
+              with the toolchains.
+Input       : None.
+Output      : None.
+Return      : int - Dummy value, this function never returns.
+******************************************************************************/
+int main(void)
+{
+    /* The main function of the kernel - we will start our kernel boot here */
+    _RME_Kmain(RME_KMEM_STACK_ADDR);
+    return 0;
+}
+/* End Function:main *********************************************************/
 
 /* Begin Function:__RME_CMX_Comp_Swap *****************************************
 Description : The compare-and-swap atomic instruction. If the Old value is equal to
@@ -118,6 +128,111 @@ rme_ptr_t __RME_CMX_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 }
 /* End Function:__RME_CMX_Fetch_And ******************************************/
 
+/* Begin Function:__RME_CMX_Fault_Handler *************************************
+Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
+              faults.
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : None.
+******************************************************************************/
+void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
+{
+    rme_ptr_t Cur_HFSR;
+    rme_ptr_t Cur_CFSR;
+    rme_ptr_t Cur_MMFAR;
+    rme_ptr_t Flags;
+    struct RME_Proc_Struct* Proc;
+    struct RME_Inv_Struct* Inv_Top;
+    struct __RME_CMX_Pgtbl_Meta* Meta;
+    
+    /* Is it a kernel-level fault? If yes, panic */
+    RME_ASSERT((Reg->LR&RME_CMX_EXC_RET_RET_USER)!=0);
+    
+    /* Get the address of this faulty address, and what caused this fault */
+    Cur_HFSR=SCB->HFSR;
+    Cur_CFSR=SCB->CFSR;
+    Cur_MMFAR=SCB->MMFAR;
+    
+    /* Are we activating the NMI? If yes, we directly lockup */
+    RME_ASSERT((SCB->ICSR&RME_CMX_ICSR_NMIPENDSET)==0);
+    /* If this is a hardfault, make sure that it is not the vector table problem */
+    RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_VECTTBL)==0);
+    /* Is this a escalated hard fault? If yes, we continue processing; If not,
+     * see if it can be ignored. If not, we just lockup */
+    if((Cur_HFSR&RME_CMX_HFSR_FORCED)!=0)
+    {
+        /* This must be a debug event - shouldn't be */
+        RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_DEBUGEVT)!=0);
+        return;
+    }
+    
+    /* Can we cover from this? */
+    if(((Cur_CFSR&RME_CMX_FAULT_FATAL)!=0)||((Cur_CFSR&RME_CMX_MFSR_MMARVALID)==0))
+        __RME_Thd_Fatal(Reg);
+    else
+    {
+        /* See if the fault address can be found in our current page table, and
+         * if it is there, we only care about the flags */
+        Inv_Top=RME_INVSTK_TOP(RME_CMX_Local.Cur_Thd);
+        if(Inv_Top==0)
+            Proc=(RME_CMX_Local.Cur_Thd)->Sched.Proc;
+        else
+            Proc=Inv_Top->Proc;
+        
+        if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+            __RME_Thd_Fatal(Reg);
+        else
+        {
+            /* This fault involves instruction fetch, and that page would not allow this */
+            if(((Cur_CFSR&RME_CMX_MFSR_IACCVIOL)!=0)&&((Flags&RME_PGTBL_EXECUTE)==0))
+                __RME_Thd_Fatal(Reg);
+            else
+            {
+                /* This must be a dynamic page. Or there must be something wrong in the kernel */
+                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
+                /* Try to update the dynamic page */
+                if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
+                    __RME_Thd_Fatal(Reg);
+            }
+        }
+    }
+    /* Clear all bits in these status registers - they are sticky */
+    SCB->HFSR=((rme_ptr_t)(-1))>>1;
+    SCB->CFSR=(rme_ptr_t)(-1);
+}
+/* End Function:__RME_CMX_Fault_Handler **************************************/
+
+/* Begin Function:__RME_CMX_Generic_Handler ***********************************
+Description : The generic interrupt handler of RME for Cortex-M.
+Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              rme_ptr_t Int_Num - The interrupt number.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : None.
+******************************************************************************/
+void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
+{
+    struct __RME_CMX_Flag_Set* Flags;
+
+#ifdef RME_CMX_VECT_HOOK
+    /* Do in-kernel processing first */
+    RME_CMX_VECT_HOOK(Int_Num);
+#endif
+    
+    /* Choose a data structure that is not locked at the moment */
+    if(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0.Lock==0)
+        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0);
+    else
+        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set1);
+    
+    /* Set the flags for this interrupt source */
+    Flags->Group|=(((rme_ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
+    Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((rme_ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
+    _RME_Kern_Snd(Reg, RME_CMX_Local.Int_Sig);
+    /* Remember to pick the guy with the highest priority after we did all sends */
+    _RME_Kern_High(Reg, &RME_CMX_Local);
+}
+/* End Function:__RME_CMX_Generic_Handler ************************************/
+
 /* Begin Function:__RME_Putchar ***********************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
               we should use the ITM for such outputs.
@@ -169,21 +284,6 @@ rme_ptr_t __RME_Low_Level_Init(void)
     return 0;
 }
 /* End Function:__RME_Low_Level_Init *****************************************/
-
-/* Begin Function:main ********************************************************
-Description : The entrance of the operating system. This function is for compatibility
-              with the ARM toolchain.
-Input       : None.
-Output      : None.
-Return      : int - Dummy value, this function never returns.
-******************************************************************************/
-int main(void)
-{
-    /* The main function of the kernel - we will start our kernel boot here */
-    _RME_Kmain(RME_KMEM_STACK_ADDR);
-    return 0;
-}
-/* End Function:main *********************************************************/
 
 /* Begin Function:__RME_Boot **************************************************
 Description : Boot the first process in the system.
@@ -266,32 +366,6 @@ rme_ptr_t __RME_Boot(void)
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
-
-/* Begin Function:__RME_Reboot ************************************************
-Description : Reboot the machine, abandon all operating system states.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_Reboot(void)
-{
-    /* While(1) loop */
-    RME_ASSERT(RME_WORD_BITS!=RME_POW2(RME_WORD_ORDER));
-}
-/* End Function:__RME_Reboot *************************************************/
-
-/* Begin Function:__RME_Shutdown **********************************************
-Description : Shutdown the machine, abandon all operating system states.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_Shutdown(void)
-{
-    /* While(1)loop */
-    RME_ASSERT(RME_WORD_BITS!=RME_POW2(RME_WORD_ORDER));
-}
-/* End Function:__RME_Shutdown ***********************************************/
 
 /* Begin Function:__RME_CPUID_Get *********************************************
 Description : Get the CPUID. This is to identify where we are executing.
@@ -783,111 +857,6 @@ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
     ___RME_CMX_MPU_Set((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
 }
 /* End Function:__RME_Pgtbl_Set **********************************************/
-
-/* Begin Function:__RME_CMX_Fault_Handler *************************************
-Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
-              faults.
-Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
-Return      : None.
-******************************************************************************/
-void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
-{
-    rme_ptr_t Cur_HFSR;
-    rme_ptr_t Cur_CFSR;
-    rme_ptr_t Cur_MMFAR;
-    rme_ptr_t Flags;
-    struct RME_Proc_Struct* Proc;
-    struct RME_Inv_Struct* Inv_Top;
-    struct __RME_CMX_Pgtbl_Meta* Meta;
-    
-    /* Is it a kernel-level fault? If yes, panic */
-    RME_ASSERT((Reg->LR&RME_CMX_EXC_RET_RET_USER)!=0);
-    
-    /* Get the address of this faulty address, and what caused this fault */
-    Cur_HFSR=SCB->HFSR;
-    Cur_CFSR=SCB->CFSR;
-    Cur_MMFAR=SCB->MMFAR;
-    
-    /* Are we activating the NMI? If yes, we directly lockup */
-    RME_ASSERT((SCB->ICSR&RME_CMX_ICSR_NMIPENDSET)==0);
-    /* If this is a hardfault, make sure that it is not the vector table problem */
-    RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_VECTTBL)==0);
-    /* Is this a escalated hard fault? If yes, we continue processing; If not,
-     * see if it can be ignored. If not, we just lockup */
-    if((Cur_HFSR&RME_CMX_HFSR_FORCED)!=0)
-    {
-        /* This must be a debug event - shouldn't be */
-        RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_DEBUGEVT)!=0);
-        return;
-    }
-    
-    /* Can we cover from this? */
-    if(((Cur_CFSR&RME_CMX_FAULT_FATAL)!=0)||((Cur_CFSR&RME_CMX_MFSR_MMARVALID)==0))
-        __RME_Thd_Fatal(Reg);
-    else
-    {
-        /* See if the fault address can be found in our current page table, and
-         * if it is there, we only care about the flags */
-        Inv_Top=RME_INVSTK_TOP(RME_CMX_Local.Cur_Thd);
-        if(Inv_Top==0)
-            Proc=(RME_CMX_Local.Cur_Thd)->Sched.Proc;
-        else
-            Proc=Inv_Top->Proc;
-        
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
-            __RME_Thd_Fatal(Reg);
-        else
-        {
-            /* This fault involves instruction fetch, and that page would not allow this */
-            if(((Cur_CFSR&RME_CMX_MFSR_IACCVIOL)!=0)&&((Flags&RME_PGTBL_EXECUTE)==0))
-                __RME_Thd_Fatal(Reg);
-            else
-            {
-                /* This must be a dynamic page. Or there must be something wrong in the kernel */
-                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
-                /* Try to update the dynamic page */
-                if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
-                    __RME_Thd_Fatal(Reg);
-            }
-        }
-    }
-    /* Clear all bits in these status registers - they are sticky */
-    SCB->HFSR=((rme_ptr_t)(-1))>>1;
-    SCB->CFSR=(rme_ptr_t)(-1);
-}
-/* End Function:__RME_CMX_Fault_Handler **************************************/
-
-/* Begin Function:__RME_CMX_Generic_Handler ***********************************
-Description : The generic interrupt handler of RME for Cortex-M.
-Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
-              rme_ptr_t Int_Num - The interrupt number.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
-Return      : None.
-******************************************************************************/
-void __RME_CMX_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
-{
-    struct __RME_CMX_Flag_Set* Flags;
-
-#ifdef RME_CMX_VECT_HOOK
-    /* Do in-kernel processing first */
-    RME_CMX_VECT_HOOK(Int_Num);
-#endif
-    
-    /* Choose a data structure that is not locked at the moment */
-    if(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0.Lock==0)
-        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set0);
-    else
-        Flags=&(((struct __RME_CMX_Flags*)RME_CMX_INT_FLAG_ADDR)->Set1);
-    
-    /* Set the flags for this interrupt source */
-    Flags->Group|=(((rme_ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
-    Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((rme_ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
-    _RME_Kern_Snd(Reg, RME_CMX_Local.Int_Sig);
-    /* Remember to pick the guy with the highest priority after we did all sends */
-    _RME_Kern_High(Reg, &RME_CMX_Local);
-}
-/* End Function:__RME_CMX_Generic_Handler ************************************/
 
 /* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the

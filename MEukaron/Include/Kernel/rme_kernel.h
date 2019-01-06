@@ -85,9 +85,11 @@ Description : The header of kernel system call path.
 #define RME_PRINTK_I(INT)               RME_Print_Int((INT))
 #define RME_PRINTK_U(UINT)              RME_Print_Uint((UINT))
 #define RME_PRINTK_S(STR)               RME_Print_String((rme_s8_t*)(STR))
-    
-/* Default assert macro - used only when not user supplied */
-#ifndef RME_ASSERT
+
+/* Shutdown debugging */
+#define RME_ASSERT_CORRECT
+/* Default assert macro - used only when internal development option is on */
+#ifndef RME_ASSERT_CORRECT
 #define RME_ASSERT(X) \
 do \
 { \
@@ -103,6 +105,15 @@ do \
         RME_PRINTK_S((rme_s8_t*)__TIME__); \
         RME_PRINTK_S((rme_s8_t*)"\r\n"); \
         while(1); \
+    } \
+} \
+while(0)
+#else
+#define RME_ASSERT(X) \
+do \
+{ \
+    if(RME_UNLIKELY((X)==0)) \
+    { \
     } \
 } \
 while(0)
