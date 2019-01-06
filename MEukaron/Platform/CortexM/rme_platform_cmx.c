@@ -4,25 +4,48 @@ Author      : pry
 Date        : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
 Description : The hardware abstraction layer for Cortex-M microcontrollers.
+The segments of this file are:
+
+两个抉择：
+1.要不要整合内核
+2.整合内核之后，各方面变简单了吗？
+效率：+
+开发效率：？
+各方面都有一些问题啊。不是很好解决
+从某种方面讲，整合内核是完全有理由的。
+那么，平台支持方面应该怎么做呢？
+
+平台支持方面迄今为止我们都依赖于STM32的标准库 - 这是非常消耗资源的。而且，实际上毫无必要。
+我们的东西是绝对不需要标准库的 - 要它干嘛？这东西除了增加内核体积之外就没有别的好处了。
+内核融合之后，接下来就是底层的一些问题了。
+底层怎么做呢？
+目前我们是一个单一的C文件加上一堆头文件。但是，底层是用户完全可能去改的东西。
+这样好了 - 把那些玩意放在配置头文件里面去。凡是不标准的东西都放在配置头里面去。
+调试谁会调试？肯定是我们自己人调试了
+别考虑其他开发者会调试的事情。
+
+把pcmx分段，然后每段处理每段的事情。
+
+整个内核的顺序应该是
+kotbl.c
+captbl.c
+pgtbl.c
+prcthd.c
+siginv.c
+kernel.c
+
+27412,24352,20,513716
 ******************************************************************************/
 
 /* Includes ******************************************************************/
 #define __HDR_DEFS__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_kotbl.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
 #include "Platform/CortexM/rme_platform_cmx.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
 #include "Platform/CortexM/rme_platform_cmx.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
+#include "Kernel/rme_kernel.h"
 #undef __HDR_STRUCTS__
 
 /* Private include */
@@ -30,10 +53,6 @@ Description : The hardware abstraction layer for Cortex-M microcontrollers.
 
 #define __HDR_PUBLIC_MEMBERS__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
