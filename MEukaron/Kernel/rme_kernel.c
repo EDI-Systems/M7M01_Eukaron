@@ -256,7 +256,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         Captbl=(CPU_Local->Cur_Thd)->Sched.Proc->Captbl;
     else
         Captbl=Inv_Top->Proc->Captbl;
-    
+
     /* Fast path - synchronous invocation activation */
     if(Svc_Num==RME_SVC_INV_ACT)
     {
@@ -265,7 +265,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                     Param[1] /* rme_ptr_t Param */);
         RME_SWITCH_RETURN(Reg,Retval);
     }
-     
+
     /* See if this operation can potentially cause a register set switch. All the 
      * functions that may cause a register set switch is listed here. The behavior
      * of these functions shall be: If the function is successful, they shall
@@ -3048,7 +3048,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
-		                    rme_cid_t Cap_Thd, rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param)
+                            rme_cid_t Cap_Thd, rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -3756,6 +3756,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Inv - The capability slot that you want this newly created
                                   signal capability to be in. 1-Level.
               rme_ptr_t Vaddr - The virtual address to store the signal endpoint kernel object.
+
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
