@@ -350,8 +350,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Enable all fault handlers */
     SCB->SHCSR|=RME_CMX_SHCSR_USGFAULTENA|RME_CMX_SHCSR_BUSFAULTENA|RME_CMX_SHCSR_MEMFAULTENA;
     
-    /* Set the priority of timer, svc and faults to the lowest. The derived fault issue
-     * (STKERR, UNSTKERR, MSTKERR and MUNSTKERR) can only happen after the current vector. */
+    /* Set the priority of timer, svc and faults to the lowest */
     NVIC_SetPriorityGrouping(RME_CMX_NVIC_GROUPING);
     NVIC_SetPriority(SVCall_IRQn, 0xFF);
     NVIC_SetPriority(PendSV_IRQn, 0xFF);
@@ -366,7 +365,9 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Configure systick */
     SysTick_Config(RME_CMX_SYSTICK_VAL);
     
-    /* If there is a FPU on Cortex-M4/M7, guarantee that lazy stacking is off */
+    /* We do not need to turn off lazy stacking, because even if a fault occurs,
+     * it will get dropped by our handler deliberately and will not cause wrong
+     * attribution. They can be alternatively disabled as well if you wish */
     
     return 0;
 }
