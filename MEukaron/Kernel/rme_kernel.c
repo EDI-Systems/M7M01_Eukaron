@@ -2266,6 +2266,13 @@ Description : The fatal fault handler of RME. This handler will be called by the
               be sent to its parent, and if we try to delegate time to it, the time
               delegation will just fail. A thread execution set is required to clear
               the fatal fault status of the thread.
+              Some processors may raise some faults that are difficult to attribute to
+              a particular thread, either due to the fact that they are asynchronous, or
+              they are derived from exception entry. A good example is Cortex-M: its
+              autostacking feature derives fault from exception entry, and some of its
+              bus faults are asynchronous and can cross context boundaries. RME requires
+              that all these exceptions be dropped rather than handled; or there will be
+              integrity and availability compromises.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - Always 0.
@@ -3132,7 +3139,7 @@ Description : Set a thread's priority level, and its scheduler thread. When ther
               The scheduler and the threads that it schedule must be on the same
               core. When a thread wants to go from one core to another, its notification
               to the scheduler must all be processed, and it must have no scheduler
-              notifications in itself. 
+              notifications in itself (That is, unbinded). 
               This must be called on the same core with the Cap_Thd_Sched, and the
               Cap_Thd itself must be free.
               It is impossible to set a thread's priority beyond its maximum priority. 
@@ -3358,7 +3365,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     /* If the thread is running, or ready to run, kick it out of the run queue.
      * If it is blocked on some endpoint, end the blocking and set the return
      * value to RME_ERR_SIV_FREE. If the thread is killed due to a fault, we will
-     * not clear the fault here */
+     * not clear the fault here, and we will wait for the Exec_Set to clear it. */
     if(Thd_Struct->Sched.State!=RME_THD_BLOCKED)
     {
         if((Thd_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Struct->Sched.State==RME_THD_READY))
@@ -3543,7 +3550,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     Thd_Src_Struct=RME_CAP_GETOBJ(Thd_Src,struct RME_Thd_Struct*);
     if(Thd_Src_Struct->Sched.CPU_Local!=CPU_Local)
         return RME_ERR_PTH_INVSTATE;
-    /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED */
+    /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED, or even FAULT */
     if(Thd_Src_Struct->Sched.Slices==0)
         return RME_ERR_PTH_INVSTATE;
     Thd_Dst_Struct=RME_CAP_GETOBJ(Thd_Dst,struct RME_Thd_Struct*);
@@ -3604,8 +3611,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     }
 
     /* Is the source time used up? If yes, delete it from the run queue, and notify its 
-     * parent. If it is not in the run queue, The state of the source must be BLOCKED. We
-     * notify its parent when we are waking it up in the future, so do nothing here */
+     * parent. If it is not in the run queue, The state of the source must be BLOCKED. */
     if(Thd_Src_Struct->Sched.Slices==0)
     {
     	/* If it is blocked, we do not change its state, and only sends the scheduler notification */
@@ -3614,6 +3620,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
             _RME_Run_Del(Thd_Src_Struct);
             Thd_Src_Struct->Sched.State=RME_THD_TIMEOUT;
         }
+
         /* Notify the parent about this */
         _RME_Run_Notif(Reg, Thd_Src_Struct);
     }
@@ -3648,11 +3655,14 @@ Description : Switch to another thread. The thread to switch to must have the sa
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table. 
               struct RME_Reg_Struct* Reg - The register set structure.
               rme_cid_t Cap_Thd - The capability to the thread. 2-Level. If this is
-                                  smaller than zero, the kernel will pickup whatever thread
-                                  that have the highest priority and have time to run. 
-              rme_ptr_t Full_Yield - This is a flag to indicate whether this is a full yield.
-                                     If it is, the kernel will kill all the time allocated for 
-                                     this thread.
+                                  smaller than zero, the kernel will pickup whatever
+                                  thread that have the highest priority and have time
+                                  to run. 
+              rme_ptr_t Full_Yield - This is a flag to indicate whether this is a 
+                                     full yield. If it is, the kernel will kill all
+                                     the time allocated for this thread. Full yield
+                                     only works for threads that have non-infinite
+                                     timeslices.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -3664,7 +3674,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     struct RME_Thd_Struct* High_Thd;
     struct RME_CPU_Local* CPU_Local;
     rme_ptr_t Type_Ref;
-    
+
     /* See if the scheduler is given the right to pick a thread to run */
     CPU_Local=RME_CPU_LOCAL();                                                   
     if(Cap_Thd<RME_CAPID_NULL)
@@ -3680,15 +3690,14 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         if((CPU_Local->Cur_Thd)->Sched.Prio!=Next_Thd->Sched.Prio)
             return RME_ERR_PTH_PRIO;
         /* See if the state will allow us to do this */
-        if((Next_Thd->Sched.State==RME_THD_BLOCKED)||
-           (Next_Thd->Sched.State==RME_THD_TIMEOUT))
+        if((Next_Thd->Sched.State==RME_THD_BLOCKED)||(Next_Thd->Sched.State==RME_THD_TIMEOUT))
             return RME_ERR_PTH_INVSTATE;
         /* See if the target is in a fault state */
         if(Next_Thd->Sched.State==RME_THD_FAULT)
             return RME_ERR_PTH_FAULT;
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices!=RME_THD_INIT_TIME))
+        if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME))
         {
             _RME_Run_Del(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
@@ -3697,7 +3706,8 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
             /* See if the next thread is on the same priority level with the designated thread.
              * because we have sent a notification, we are not sure about this now. Additionally,
-             * if the next thread is the current thread, we are forced to switch to someone else. */
+             * if the next thread is the current thread, we are forced to switch to someone else,
+             * because our timeslice have certainly exhausted. */
             High_Thd=_RME_Run_High(CPU_Local);
             if((High_Thd->Sched.Prio>Next_Thd->Sched.Prio)||(CPU_Local->Cur_Thd==Next_Thd))
             	Next_Thd=High_Thd;
@@ -3708,7 +3718,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     else
     {
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices!=RME_THD_INIT_TIME))
+        if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME))
         {
             _RME_Run_Del(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
@@ -3727,14 +3737,15 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         Next_Thd=_RME_Run_High(CPU_Local);
     }
     
-    /* Now save the system call return value to the caller stack */
+    /* Now that we are successful, save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);
+
 
     /* Set the next thread's state first */
     Next_Thd->Sched.State=RME_THD_RUNNING;
     /* Here we do not need to call _RME_Kern_High because we have picked the
      * highest priority thread according to the logic above. We just check if
-     * it happens to be ourself */
+     * it happens to be ourself so we can return from the fast path. */
     if(CPU_Local->Cur_Thd==Next_Thd)
         return 0;
     /* We have a solid context switch */

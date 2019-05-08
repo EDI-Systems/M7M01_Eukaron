@@ -171,26 +171,38 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
     Cur_CFSR=SCB->CFSR;
     Cur_MMFAR=SCB->MMFAR;
     
-    /* Are we activating the NMI? If yes, we directly lockup */
+    /* Are we activating the NMI? If yes, we directly soft lockup */
     RME_ASSERT((SCB->ICSR&RME_CMX_ICSR_NMIPENDSET)==0);
-    /* If this is a hardfault, make sure that it is not the vector table problem */
+    /* If this is a hardfault, make sure that it is not the vector table problem, or we lockup */
     RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_VECTTBL)==0);
-    /* Is this a escalated hard fault? If yes, we continue processing; If not,
-     * see if it can be ignored. If not, we just lockup */
+    /* Is this a escalated hard fault? If yes, and this is not a trivial debug fault, we lockup */
     if((Cur_HFSR&RME_CMX_HFSR_FORCED)!=0)
-    {
-        /* This must be a debug event - shouldn't be */
         RME_ASSERT((Cur_HFSR&RME_CMX_HFSR_DEBUGEVT)!=0);
-        return;
-    }
     
-    /* Can we cover from this? */
-    if(((Cur_CFSR&RME_CMX_FAULT_FATAL)!=0)||((Cur_CFSR&RME_CMX_MFSR_MMARVALID)==0))
-        __RME_Thd_Fatal(Reg);
-    else
+    /* We cannot recover from the following: */
+    if(Cur_CFSR&
+         (RME_CMX_UFSR_DIVBYZERO||      /* Division by zero errors */
+          RME_CMX_UFSR_UNALIGNED||      /* Unaligned access errors */
+          RME_CMX_UFSR_NOCP||           /* Unpresenting coprocessor errors */
+          RME_CMX_UFSR_INVPC||          /* Invalid PC from return load errors */
+          RME_CMX_UFSR_INVSTATE||       /* Invalid EPSR state errors */
+          RME_CMX_UFSR_UNDEFINSTR||     /* Undefined instruction errors */
+          RME_CMX_BFSR_UNSTKERR||       /* Bus unstacking errors */ 
+          RME_CMX_BFSR_PRECISERR||      /* Precise bus data errors */
+          RME_CMX_BFSR_IBUSERR||        /* Bus instruction errors */
+          RME_CMX_MFSR_MUNSTKERR||      /* MPU unstacking errors */
+          RME_CMX_MFSR_IACCVIOL)!=0)    /* MPU instruction access errors */
     {
-        /* See if the fault address can be found in our current page table, and
-         * if it is there, we only care about the flags */
+        
+        __RME_Thd_Fatal(Reg);
+    }
+    /* Attempt recovery from memory management fault by MPU region swapping */
+    else if((Cur_CFSR&RME_CMX_MFSR_MMARVALID)!=0)
+    {
+        /* This must be a data violation. This is the only case where MMAR will be loaded */
+        RME_ASSERT((Cur_HFSR&RME_CMX_MFSR_DACCVIOL)!=0);
+        /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
+         * can be found in our current page table, and if it is there, we only care about the flags */
         Inv_Top=RME_INVSTK_TOP(RME_CMX_Local.Cur_Thd);
         if(Inv_Top==0)
             Proc=(RME_CMX_Local.Cur_Thd)->Sched.Proc;
@@ -201,19 +213,34 @@ void __RME_CMX_Fault_Handler(struct RME_Reg_Struct* Reg)
             __RME_Thd_Fatal(Reg);
         else
         {
-            /* This fault involves instruction fetch, and that page would not allow this */
-            if(((Cur_CFSR&RME_CMX_MFSR_IACCVIOL)!=0)&&((Flags&RME_PGTBL_EXECUTE)==0))
+            /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
+            RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
+            /* Try to update the dynamic page */
+            if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
                 __RME_Thd_Fatal(Reg);
-            else
-            {
-                /* This must be a dynamic page. Or there must be something wrong in the kernel */
-                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
-                /* Try to update the dynamic page */
-                if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
-                    __RME_Thd_Fatal(Reg);
-            }
         }
     }
+    /* Drop anything else. Imprecise bus faults, stacking errors, because they cannot be attributed
+     * correctly (The unstacking errors are attributable). Imprecise bus faults can happen over context
+     * boundaries, while the stacking errors may happen with the old thread but be arrributed to the new.
+     * If we incorrectly handle and attribute these, a malicious thread can trigger these spurious
+     * asynchronous bus faults and stacking errors in the hope that they might be attributed to some other
+     * thread. This compromises integrity and availability of other threads. Still, even if they go
+     * unhandled, these faults may still comsume the timeslices of other threads (because they do happen
+     * in other threads' context), and may lead to slight service quality degredation. This is an inherent
+     * issue in the Cortex-M architecture and we will never be able to address this perfectly. */  
+    else
+    {
+        /* Additional remarks: the LSPERR, STKERR, MLSPERR and MSTKERR will soon develop into larger
+         * other faults that can be handled because the stacks are corrupted. Thus, they are less harmful.
+         * The IMPRECISERR either go undetected (the bus data fault may be transient), or keeps spinning. */
+        /* RME_CMX_BFSR_LSPERR - Bus FP lazy stacking errors */
+        /* RME_CMX_BFSR_STKERR - Bus stacking errors */
+        /* RME_CMX_BFSR_IMPRECISERR - Imprecise bus data errors */
+        /* RME_CMX_MFSR_MLSPERR - MPU FP lazy stacking errors */
+        /* RME_CMX_MFSR_MSTKERR - MPU stacking errors */
+    }
+    
     /* Clear all bits in these status registers - they are sticky */
     SCB->HFSR=((rme_ptr_t)(-1))>>1;
     SCB->CFSR=(rme_ptr_t)(-1);
@@ -323,7 +350,8 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Enable all fault handlers */
     SCB->SHCSR|=RME_CMX_SHCSR_USGFAULTENA|RME_CMX_SHCSR_BUSFAULTENA|RME_CMX_SHCSR_MEMFAULTENA;
     
-    /* Set the priority of timer, svc and faults to the lowest */
+    /* Set the priority of timer, svc and faults to the lowest. The derived fault issue
+     * (STKERR, UNSTKERR, MSTKERR and MUNSTKERR) can only happen after the current vector. */
     NVIC_SetPriorityGrouping(RME_CMX_NVIC_GROUPING);
     NVIC_SetPriority(SVCall_IRQn, 0xFF);
     NVIC_SetPriority(PendSV_IRQn, 0xFF);
@@ -337,6 +365,9 @@ rme_ptr_t __RME_Low_Level_Init(void)
     
     /* Configure systick */
     SysTick_Config(RME_CMX_SYSTICK_VAL);
+    
+    /* If there is a FPU on Cortex-M4/M7, guarantee that lazy stacking is off */
+    
     return 0;
 }
 /* End Function:__RME_Low_Level_Init *****************************************/
