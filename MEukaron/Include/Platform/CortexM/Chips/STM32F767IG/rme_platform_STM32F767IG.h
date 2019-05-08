@@ -32,7 +32,7 @@ Description: The configuration file for STM32F767IG.
 /* Cortex-M ******************************************************************/
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_CMX_INT_FLAG_ADDR                   0x20010000
-/* Initial kenel object frontier limit */
+/* Initial kernel object frontier limit */
 #define RME_CMX_KMEM_BOOT_FRONTIER              0x20003400
 /* Number of MPU regions available */
 #define RME_CMX_MPU_REGIONS                     8

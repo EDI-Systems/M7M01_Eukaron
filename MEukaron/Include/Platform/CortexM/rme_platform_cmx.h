@@ -214,14 +214,6 @@ typedef rme_s32_t rme_ret_t;
  * instruction fetch has occurred. The fault is signalled only if the
  * instruction is issued */
 #define RME_CMX_MFSR_IACCVIOL           (1<<0)
-/* These faults cannot be recovered and will lead to termination immediately */
-#define RME_CMX_FAULT_FATAL             (RME_CMX_UFSR_DIVBYZERO|RME_CMX_UFSR_UNALIGNED| \
-                                         RME_CMX_UFSR_NOCP|RME_CMX_UFSR_INVPC| \
-                                         RME_CMX_UFSR_INVSTATE|RME_CMX_UFSR_UNDEFINSTR| \
-                                         RME_CMX_BFSR_LSPERR|RME_CMX_BFSR_STKERR| \
-                                         RME_CMX_BFSR_UNSTKERR|RME_CMX_BFSR_IMPRECISERR| \
-                                         RME_CMX_BFSR_PRECISERR|RME_CMX_BFSR_IBUSERR)
-
 /* Initialization ************************************************************/
 /* The capability table of the init process */
 #define RME_BOOT_CAPTBL                 0
