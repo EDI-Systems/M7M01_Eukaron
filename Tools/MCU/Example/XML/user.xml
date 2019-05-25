@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Project> 
+    <Name> M7M1 </Name>                                                         <!-- The name of the whole project, no special characters -->
+    <Chip> STM32F767IG </Chip>                                                  <!-- The full name of the chip -->
+    <RME>                                                                       <!-- OS configuration description -->
+        <Compiler>
+            <Optimization> O2 </Optimization>
+            <Library> Small </Library>
+        </Compiler>
+        <General>                                                               <!-- The settings that will apply to all ports -->
+            <Code_Start> 0x08000000 </Code_Start>                               <!-- The start code address -->
+            <Code_Size> 0x20000 </Code_Size>                                    <!-- The code size - adjust if compilation of kernel fails -->
+            <Data_Start> 0x20000000 </Data_Start>                               <!-- The start data address - adjust if compilation of kernel fails -->
+            <Data_Size> 0x10000 </Data_Size>                                    <!-- The data size -->
+            <Extra_Kmem> 0x8000 </Extra_Kmem>                                   <!-- How much extra kernel memory does the user want? -->
+            <Kmem_Order> 4 </Kmem_Order>                                        <!-- The order of allocation for the kernel memory -->
+            <Priorities> 32 </Priorities>                                       <!-- The maximum number of priorities in the system -->
+        </General>
+        <CMX>                                                                   <!-- The settings that applies specifically to this port -->
+            <NVIC_Grouping> 2-6 </NVIC_Grouping>                                <!-- The grouping for NVIC -->
+            <Timer_Interval> 2160000 </Timer_Interval>                          <!-- The timer interrupt interval -->
+        </CMX>
+        <STM32F767IG>                                                           <!-- The settings for this chip - we know we gonna use this template anyway, so useless -->
+            <XTAL> 25 </XTAL>                                                   <!-- The external crystal frequency -->
+            <PLLM> 25 </PLLM>
+            <PLLN> 432 </PLLN>
+            <PLLP> 2 </PLLP>
+            <PLLQ> 9 </PLLQ>
+            <IRQ> WWDG,EXTI0 </IRQ>                                             <!-- IRQs potentially in use -->
+        </STM32F767IG>
+    </RME>
+    <RVM>
+        <Compiler>                                                              <!-- Currently this design does not have VMM functionality, we will add later on. If VMM functionality is used -->
+            <Optimization> O2 </Optimization>
+            <Library> Small </Library>
+        </Compiler>
+        <Captbl_Size> 128/AUTO </Captbl_Size>                                   <!-- Capability table initial size -->
+        <Recovery> Process </Recovery>                                          <!-- Rerun policy for the processes: thread, process, or terminate -->
+        <VMM>                                                                   <!-- Currently empty, if VMM functionality is used, we will add this -->
+        </VMM>
+    </RVM>
+    <Proc>                                                                      <!-- The user compartments -->
+        <P1>
+            <Compiler>
+                <Optimization> O2 </Optimization>
+                <Library> Small </Library>
+            </Compiler>
+            <Memories>                                                          <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
+                <M1>
+                    <Name> Mem </Name>                                          <!-- Code section -->
+                    <Start> 0x20000000 </Start>
+                    <Size> 0x10000 </Size>
+                    <Type> CODE/DATA/NOINIT </Type>                             <!-- Where your code goes to -->
+                    <Attr> RWXBCS </Attr>                                       <!-- Read, Write, Execute, Bufferable, Cacheable, Static -->
+                </M1>
+            </Memories>
+            <Captbl>
+                <Captbl_Size> 9/AUTO </Captbl_Size>                              <!-- Size of the capability table, can be a number or something else -->
+                <Contents>
+                    <C1>
+                        <Type> Thread </Type>                                   <!-- Thread typed object, only managed by the scheduler. The scheduler always have access to all memory. -->
+                        <Name> Motor_Control </Name>
+                        <Entry> Func_Calc </Entry>
+                        <Stack_Addr> 0x20003000/AUTO </Stack_Addr>
+                        <Stack_Size> 0x1000 </Stack_Size>
+                        <Parameter> 0x1234 </Parameter>
+                        <Priority> 3 </Priority>
+                    </C1>
+                    <C2>
+                        <Type> Invocation </Type>                               <!-- Invocation typed object -->
+                        <Name> Motor_Adjust </Name>
+                        <Entry> Func_Adjust </Entry>
+                        <Stack_Addr> 0x20004000/AUTO </Stack_Addr>
+                        <Stack_Size> 0x1000 </Stack_Size>
+                    </C2>
+                    <C3>
+                        <Type> Port </Type>                                     <!-- Port typed object -->
+                        <Name> Get_UI_Data </Name>
+                    </C3>
+                    <C4>                                                        <!-- Send endpoint typed object -->
+                        <Type> Endpoint </Type>
+                        <Name> EP_Motor </Name>
+                        <Type> Send/Receive/Handler </Type>
+                    </C4>
+                </Contents>
+            </Captbl>
+        </P1>
+    </Proc>
+</Project>
