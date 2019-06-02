@@ -90,6 +90,9 @@ Description : The configuration generator for the MCU ports. This does not
 #define ENDP_SEND       0
 #define ENDP_RECEIVE    1
 #define ENDP_HANDLER    2
+/* Option types */
+#define OPTION_RANGE    0
+#define OPTION_SELECT   1
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -236,19 +239,23 @@ struct Proj_Info
 	cnt_t Proc_Num;
 	struct Proc_Info* Proc;
 };
-/* Chip macro informations */
-struct Macro_Info
+/* Chip option macro informations */
+struct Option_Info
 {
 	s8* Name;
 	cnt_t Type;
-	s8* Macro_Name;
-	s8* Range;
+	s8* Macro;
+    /* Only one of these will take effect */
+    ptr_t Range_Min;
+    ptr_t Range_Max;
+    ptr_t Select_Num;
+	s8** Select_Opt;
 };
 /* Vector informations */
 struct Vect_Info
 {
 	s8* Name;
-	s8* Vect_Name;
+	ptr_t Number;
 };
 /* Chip information - this is platform independent as well */
 struct Chip_Info
@@ -258,8 +265,8 @@ struct Chip_Info
 	cnt_t Cores;
 	cnt_t Mem_Num;
 	struct Mem_Info* Mem;
-	cnt_t Macro_Num;
-	struct Macro_Info* Macro;
+	cnt_t Option_Num;
+	struct Option_Info* Option;
 	cnt_t Vect_Num;
 	struct Vect_Info* Vect;
 };
@@ -1048,7 +1055,7 @@ ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
 }
 /* End Function:Parse_RVM ****************************************************/
 
-/* Begin Function:Parse_Mem ***************************************************
+/* Begin Function:Parse_Process_Memory ****************************************
 Description : Parse the memory section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               cnt_t Proc_Num - The process number.
@@ -1058,7 +1065,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Mem(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Memory(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1067,7 +1074,6 @@ ret_t Parse_Mem(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_S
     s8* Val_Start;
     s8* Val_End;
     s8* Attr_Temp;
-    cnt_t Count;
 
     Start=Str_Start;
     End=Str_End;
@@ -1093,7 +1099,7 @@ ret_t Parse_Mem(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_S
     else
         EXIT_FAIL("The memory type is malformed.");
     /* Attribute */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Attr");
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Attribute");
     Proj->Proc[Proc_Num].Mem[Mem_Num].Attr=0;
     Attr_Temp=Get_String(Val_Start, Val_End);
     if(strchr(Attr_Temp,'R')!=0)
@@ -1114,9 +1120,9 @@ ret_t Parse_Mem(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_S
 
     return 0;
 }
-/* End Function:Parse_Mem ****************************************************/
+/* End Function:Parse_Process_Memory *****************************************/
 
-/* Begin Function:Parse_Thd ***************************************************
+/* Begin Function:Parse_Thread ************************************************
 Description : Parse the thread section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               cnt_t Proc_Num - The process number.
@@ -1126,7 +1132,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Thd(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Thread(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1171,7 +1177,7 @@ ret_t Parse_Thd(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* Str_S
 
     return 0;
 }
-/* End Function:Parse_Thd ****************************************************/
+/* End Function:Parse_Thread *************************************************/
 
 /* Begin Function:Parse_Invocation ********************************************
 Description : Parse the invocation section of a particular process.
@@ -1331,16 +1337,16 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     s8* General_End;
     s8* Compiler_Start;
     s8* Compiler_End;
-    s8* Memories_Start;
-    s8* Memories_End;
-    s8* Threads_Start;
-    s8* Threads_End;
-    s8* Invocations_Start;
-    s8* Invocations_End;
-    s8* Ports_Start;
-    s8* Ports_End;
-    s8* Endpoints_Start;
-    s8* Endpoints_End;
+    s8* Memory_Start;
+    s8* Memory_End;
+    s8* Thread_Start;
+    s8* Thread_End;
+    s8* Invocation_Start;
+    s8* Invocation_End;
+    s8* Port_Start;
+    s8* Port_End;
+    s8* Endpoint_Start;
+    s8* Endpoint_End;
 
     Start=Str_Start;
     End=Str_End;
@@ -1354,25 +1360,25 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     Compiler_Start=Val_Start;
     Compiler_End=Val_End;
     /* Memories section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memories");
-    Memories_Start=Val_Start;
-    Memories_End=Val_End;
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memory");
+    Memory_Start=Val_Start;
+    Memory_End=Val_End;
     /* Threads section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Threads");
-    Threads_Start=Val_Start;
-    Threads_End=Val_End;
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Thread");
+    Thread_Start=Val_Start;
+    Thread_End=Val_End;
     /* Invocations section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Invocations");
-    Invocations_Start=Val_Start;
-    Invocations_End=Val_End;
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Invocation");
+    Invocation_Start=Val_Start;
+    Invocation_End=Val_End;
     /* Ports section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Ports");
-    Ports_Start=Val_Start;
-    Ports_End=Val_End;
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Port");
+    Port_Start=Val_Start;
+    Port_End=Val_End;
     /* Endpoints section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Endpoints");
-    Endpoints_Start=Val_Start;
-    Endpoints_End=Val_End;
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Endpoint");
+    Endpoint_Start=Val_Start;
+    Endpoint_End=Val_End;
 
     /* Parse general section */
     Start=General_Start;
@@ -1414,7 +1420,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     else
         EXIT_FAIL("The library option is malformed.");
 
-    /* Parse memories section */
+    /* Parse memory section */
     Start=Memories_Start;
     End=Memories_End;
     Proj->Proc[Num].Mem_Num=XML_Num(Start, End);
@@ -1427,12 +1433,12 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing memories section.");
-        Parse_Memory(Proj, Num, Count, Val_Start, Val_End);
+        Parse_Process_Memory(Proj, Num, Count, Val_Start, Val_End);
     }
 
     /* Parse threads section */
-    Start=Threads_Start;
-    End=Threads_End;
+    Start=Thread_Start;
+    End=Thread_End;
     Proj->Proc[Num].Thd_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Thd_Num!=0)
     {
@@ -1448,8 +1454,8 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     }
 
     /* Parse invocations section */
-    Start=Invocations_Start;
-    End=Invocations_End;
+    Start=Invocation_Start;
+    End=Invocation_End;
     Proj->Proc[Num].Inv_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Inv_Num==0)
     {
@@ -1470,8 +1476,8 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     }
     
     /* Parse ports section */
-    Start=Ports_Start;
-    End=Ports_End;
+    Start=Port_Start;
+    End=Port_End;
     Proj->Proc[Num].Port_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Port_Num!=0)
     {
@@ -1487,8 +1493,8 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     }
 
     /* Parse endpoints section */
-    Start=Endpoints_Start;
-    End=Endpoints_End;
+    Start=Endpoint_Start;
+    End=Endpoint_End;
     Proj->Proc[Num].Endp_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Endp_Num!=0)
     {
@@ -1499,7 +1505,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing endpoint section.");
-            Parse_Endpoing(Proj, Num, Count, Val_Start, Val_End);
+            Parse_Endpoint(Proj, Num, Count, Val_Start, Val_End);
         }
     }
 
@@ -1507,54 +1513,13 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
 }
 /* End Function:Parse_Process ************************************************/
 
-/* Begin Function:Parse_Application *******************************************
-Description : Parse the application section in the configuration file. An application
-              is a set of processes.
-Input       : struct Proj_Info* Proj - The project structure.
-              s8* Str_Start - The start position of the string.
-              s8* Str_End - The end position of the string.
-Output      : struct Proj_Info* Proj - The updated project structure.
-Return      : ret_t - Always 0.
-******************************************************************************/
-ret_t Parse_Application(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
-{
-    s8* Proc_Start;
-    s8* Proc_End;
-    s8* Start;
-    s8* End;
-    s8* Label_Start;
-    s8* Label_End;
-    s8* Val_Start;
-    s8* Val_End;
-    cnt_t Count;
-
-    /* We need to figure out how many projects are there and deal with them one by one */
-    Start=Str_Start;
-    End=Str_End;
-    Proj->Proc_Num=XML_Num(Start, End);
-    if(Proj->Proc_Num==0)
-        EXIT_FAIL("The project section is malformed.");
-    Proj->Proc=Malloc(sizeof(struct Proc_Info)*Proj->Proc_Num);
-    if(Proj->Proc==0)
-        EXIT_FAIL("The process structure allocation failed.");
-    for(Count=0;Count<Proj->Proc_Num;Count++)
-    {
-        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
-            EXIT_FAIL("Unexpected error when parsing process section.");
-        Parse_Process(Proj, Count, Val_Start, Val_End);
-    }
-
-    return 0;
-}
-/* End Function:Parse_Application ********************************************/
-
-/* Begin Function:Parse_Proj **************************************************
+/* Begin Function:Parse_Project ***********************************************
 Description : Parse the project description file, and fill in the struct.
 Input       : s8* Proj_File - The buffer containing the project file contents.
 Output      : None.
 Return      : struct Proj_Info* - The struct containing the project information.
 ******************************************************************************/
-struct Proj_Info* Parse_Proj(s8* Proj_File)
+struct Proj_Info* Parse_Project(s8* Proj_File)
 {
 	s8* Start;
 	s8* End;
@@ -1614,29 +1579,340 @@ struct Proj_Info* Parse_Proj(s8* Proj_File)
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "RVM");
     if(Parse_RVM(Proj, Val_Start, Val_End)!=0)
         EXIT_FAIL("RVM section parsing failed.");
-    /* Project */
+    /* Process */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
-    if(Parse_Application(Proj, Val_Start, Val_End)!=0)
-        EXIT_FAIL("Pricess section parsing failed.");
+    Start=Val_Start;
+    End=Val_End;
+    Proj->Proc_Num=XML_Num(Start, End);
+    if(Proj->Proc_Num==0)
+        EXIT_FAIL("The project section is malformed.");
+    Proj->Proc=Malloc(sizeof(struct Proc_Info)*Proj->Proc_Num);
+    if(Proj->Proc==0)
+        EXIT_FAIL("The process structure allocation failed.");
+    for(Count=0;Count<Proj->Proc_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing process section.");
+        Parse_Process(Proj, Count, Val_Start, Val_End);
+    }
 
     return Proj;
 }
-/* End Function:Parse_Proj ***************************************************/
+/* End Function:Parse_Project ************************************************/
+
+/* Begin Function:Parse_Chip_Memory *******************************************
+Description : Parse the memory section of a particular chip.
+Input       : struct Chip_Info* Chip - The project structure.
+              cnt_t Num - The memory number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Chip_Info* Chip - The updated chip structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Chip_Memory(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Start */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Start");
+    Chip->Mem[Num].Start=Get_Hex(Val_Start,Val_End);
+    if(Chip->Mem[Num].Start>=INVALID)
+        EXIT_FAIL("Memory start address read failed.");
+    /* Size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Size");
+    Chip->Mem[Num].Size=Get_Hex(Val_Start,Val_End);
+    if(Chip->Mem[Num].Size>=INVALID)
+        EXIT_FAIL("Memory size read failed.");
+    /* Type */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
+    if(strncmp(Val_Start,"Code",4)==0)
+        Chip->Mem[Num].Type=MEM_CODE;
+    else if(strncmp(Val_Start,"Data",4)==0)
+        Chip->Mem[Num].Type=MEM_DATA;
+    else if(strncmp(Val_Start,"Device",6)==0)
+        Chip->Mem[Num].Type=MEM_DEVICE;
+    else
+        EXIT_FAIL("The memory type is malformed.");
+
+    return 0;
+}
+/* End Function:Parse_Chip_Memory ********************************************/
+
+/* Begin Function:Parse_Option ************************************************
+Description : Parse the option section of a particular chip.
+Input       : struct Chip_Info* Chip - The project structure.
+              cnt_t Num - The option number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Chip_Info* Chip - The updated chip structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    s8* Value_Temp;
+    cnt_t Count;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Chip->Option[Num].Name=Get_String(Val_Start,Val_End);
+    if(Chip->Option[Num].Name==0)
+        EXIT_FAIL("Option name read failed.");
+    /* Type */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
+    if(strncmp(Val_Start,"Range",5)==0)
+        Chip->Option[Num].Type=OPTION_RANGE;
+    else if(strncmp(Val_Start,"Select",6)==0)
+        Chip->Option[Num].Type=OPTION_SELECT;
+    else
+        EXIT_FAIL("The option type is malformed.");
+    /* Macro */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Macro");
+    Chip->Option[Num].Macro=Get_String(Val_Start,Val_End);
+    if(Chip->Option[Num].Macro==0)
+        EXIT_FAIL("Option macro read failed.");
+    /* Value */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Macro");
+    Value_Temp=Get_String(Val_Start,Val_End);
+    if(Value_Temp==0)
+        EXIT_FAIL("Option macro read failed.");
+    if(strstr(Value_Temp,",,")!=0)
+        EXIT_FAIL("Option macro read failed.");
+    if(Chip->Option[Num].Type==OPTION_RANGE)
+    {
+        /* Find the start and end of this */
+        for(Start=Val_Start;Start<=Val_End;Start++)
+        {
+            if(Start==',')
+                break;
+        }
+        if(Start>=Val_End)
+            EXIT_FAIL("Incorrect range.");
+        Chip->Option[Num].Range_Min=Get_Uint(Val_Start,Start-1);
+        Chip->Option[Num].Range_Max=Get_Uint(Start+1,Val_End);
+        if((Chip->Option[Num].Range_Min>=INVALID)||(Chip->Option[Num].Range_Max>=INVALID))
+            EXIT_FAIL("Incorrect range.");
+        if(Chip->Option[Num].Range_Min>=Chip->Option[Num].Range_Max)
+            EXIT_FAIL("Incorrect range.");
+    }
+    else
+    {
+        /* See how many options exist */
+        Count=0;
+        for(Start=Val_Start;Start<=Val_End;Start++)
+        {
+            if(Start==',')
+                Count++;
+        }
+        if(Count==0)
+            EXIT_FAIL("Incorrect options.");
+        Chip->Option[Num].Select_Num=Count+1;
+        Chip->Option[Num].Select_Opt=Malloc(sizeof(s8*)*Chip->Option[Num].Select_Num);
+        Start=Val_Start;
+        End=Val_Start;
+        for(Count=0;Count<Chip->Option[Num].Select_Num;Count++)
+        {
+            while((End[0]!=',')&&(End<=Val_End))
+                End++;
+
+            Chip->Option[Num].Select_Opt[Count]=Get_String(Start,End-1);
+            Start=End+1;
+            End=Start;
+            if(Chip->Option[Num].Select_Opt[Count]==0)
+                EXIT_FAIL("Chip select option memory allocation failed.");
+        }
+    }
+
+    Free(Value_Temp);
+    return 0;
+}
+/* End Function:Parse_Option *************************************************/
+
+/* Begin Function:Parse_Vector ************************************************
+Description : Parse the vector section of a particular chip.
+Input       : struct Chip_Info* Chip - The project structure.
+              cnt_t Num - The option number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Chip_Info* Chip - The updated chip structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Vector(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vector");
+    Chip->Vect[Num].Name=Get_String(Val_Start,Val_End);
+    if(Chip->Vect[Num].Name==0)
+        EXIT_FAIL("Vector name read failed.");
+
+    /* Number */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Number");
+    Chip->Vect[Num].Number=Get_Uint(Val_Start,Val_End);
+    if(Chip->Vect[Num].Number>=INVALID)
+        EXIT_FAIL("Vector number read failed.");
+
+    return 0;
+}
+/* Begin Function:Parse_Vector ************************************************
 
 /* Begin Function:Parse_Chip **************************************************
 Description : Parse the chip description file, and fill in the struct.
-Input       : s8* Proj_File - The buffer containing the chip file contents.
+Input       : s8* Chip_File - The buffer containing the chip file contents.
 Output      : None.
-Return      : struct Proj_Info* - The struct containing the chip information.
+Return      : struct Chip_Info* - The struct containing the chip information.
 ******************************************************************************/
 struct Chip_Info* Parse_Chip(s8* Chip_File)
 {
+	s8* Start;
+	s8* End;
+    cnt_t Count;
+    s8* Label_Start;
+    s8* Laben_End;
+    s8* Val_Start;
+    s8* Val_End;
+    struct Chip_Info* Chip;
+    s8* Memory_Start;
+    s8* Memory_End;
+    s8* Option_Start;
+    s8* Option_End;
+    s8* Vector_Start;
+    s8* Vector_End;
 
+    /* Allocate the project information structure */
+    Chip=Malloc(sizeof(struct Chip_Info));
+    if(Chip==0)
+        EXIT_FAIL("Chip structure allocation failed.");
+    
+    /* How long is the file? */
+    Count=strlen(Chip_File);
+    Start=Chip_File;
+    End=&Chip_File[Count-1];
+
+    /* Skip the xml header */
+    Start++；
+    while(Start[0]!='\0')
+    {
+        if(Start[0]=='<')
+            break;
+        Start++;
+    }
+    if(Start[0]=='\0')
+        EXIT_FAIL("Chip XML header is malformed.");
+
+    /* Read basics of the chip */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Chip");
+    Start=Val_Start;
+    End=Val_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Chip->Name=Get_String(Val_Start,Val_End);
+    if(Chip->Name==0)
+        EXIT_FAIL("Name value read failed.");
+    /* Platform */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Platform");
+    Chip->Platform=Get_String(Val_Start,Val_End);
+    if(Chip->Platform==0)
+        EXIT_FAIL("Platform value read failed.");
+    /* Cores */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Cores");
+    Chip->Cores=Get_Uint(Val_Start,Val_End);
+    if((Chip->Cores==0)||(Chip->Cores>=INVALID))
+        EXIT_FAIL("Chip cores read failed.");
+    /* Memory */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memory");
+    Memory_Start=Val_Start;
+    Memory_End=Val_End;
+    /* Option */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Option");
+    Option_Start=Val_Start;
+    Option_End=Val_End;
+    /* Vector */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vector");
+    Vectors_Start=Val_Start;
+    Vectors_End=Val_End;
+
+    /* Memory */
+    Start=Memory_Start;
+    End=Memory_End;
+    Chip->Mem_Num=XML_Num(Start, End);
+    if(Chip->Mem_Num==0)
+        EXIT_FAIL("The memory section is malformed.");
+    Chip->Mem=Malloc(sizeof(struct Mem_Info)*Chip->Mem_Num);
+    if(Chip->Mem==0)
+        EXIT_FAIL("The memory structure allocation failed.");
+    for(Count=0;Count<Chip->Mem_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing memory section.");
+        Parse_Chip_Memory(Chip, Count, Val_Start, Val_End);
+    }
+
+    /* Option */
+    Start=Option_Start;
+    End=Option_End;
+    Chip->Option_Num=XML_Num(Start, End);
+    if(Chip->Option_Num==0)
+        EXIT_FAIL("The option section is malformed.");
+    Chip->Option=Malloc(sizeof(struct Option_Info)*Chip->Option_Num);
+    if(Chip->Option==0)
+        EXIT_FAIL("The option structure allocation failed.");
+    for(Count=0;Count<Chip->Option_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing option section.");
+        Parse_Option(Chip, Count, Val_Start, Val_End);
+    }
+
+    /* Vector */
+    Start=Vector_Start;
+    End=Vector_End;
+    Chip->Vector_Num=XML_Num(Start, End);
+    if(Chip->Vector_Num==0)
+        EXIT_FAIL("The option section is malformed.");
+    Chip->Vector=Malloc(sizeof(struct Option_Info)*Chip->Vector_Num);
+    if(Chip->Vector==0)
+        EXIT_FAIL("The option structure allocation failed.");
+    for(Count=0;Count<Chip->Vector_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing option section.");
+        Parse_Vector(Chip, Count, Val_Start, Val_End);
+    }
+    
+    return Chip;
 }
 /* End Function:Parse_Chip ***************************************************/
 
 /* Begin Function:Align_Mem ***************************************************
 Description : Align the memory according to the platform's alignment functions.
+              We will only align the memory of the processes.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
               ret_t (*Align)(struct Mem_Info*) - The platform's alignment function pointer.
 Output      : struct Proj_Info* Proj - The struct containing the project information,
@@ -1740,7 +2016,7 @@ int main(int argc, char* argv[])
 
 	/* Read the project contents */
 	Input_Buf=Read_File(Input_Path);
-	Proj=Parse_Proj(Input_Buf);
+	Proj=Parse_Project(Input_Buf);
 	Free(Input_Buf);
 
 	/* Parse the chip in a platform-agnostic way */
