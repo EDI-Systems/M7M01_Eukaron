@@ -1,7 +1,7 @@
 /******************************************************************************
 Filename    : rme_mcu.c
 Author      : pry
-Date        : 23/03/2017
+Date        : 20/04/2019
 Licence     : LGPL v3+; see COPYING for details.
 Description : The configuration generator for the MCU ports. This does not
               apply to the desktop or mainframe port; it uses its own generator.
@@ -63,16 +63,6 @@ Description : The configuration generator for the MCU ports. This does not
 /* End Includes **************************************************************/
 
 /* Defines *******************************************************************/
-/* Platform type */
-#define PLAT_CMX	    1
-#define PLAT_MIPS       2
-#define PLAT_RISCV      3
-#define PLAT_TCORE      4
-/* Output type */
-#define OUTPUT_NONE     0
-#define OUTPUT_KEIL     1
-#define OUTPUT_ECLIPSE  2
-#define OUTPUT_MAKEFILE 3
 /* Optimization levels */
 #define OPT_O0          0
 #define OPT_O1          1
@@ -83,7 +73,23 @@ Description : The configuration generator for the MCU ports. This does not
 #define LIB_SMALL       0
 #define LIB_FULL        1
 /* Capability ID placement */
-#define AUTO_PLACE     (-1)
+#define AUTO            ((ptr_t)(-1))
+#define INVALID         ((ptr_t)(-2))
+/* Memory types */
+#define MEM_CODE        0
+#define MEM_DATA        1
+#define MEM_DEVICE      2
+/* Memory access permissions */
+#define MEM_READ        0
+#define MEM_WRITE       1
+#define MEM_EXECUTE     2
+#define MEM_BUFFERABLE  3
+#define MEM_CACHEABLE   4
+#define MEM_STATIC      5
+/* Endpoint types */
+#define ENDP_SEND       0
+#define ENDP_RECEIVE    1
+#define ENDP_HANDLER    2
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -92,6 +98,17 @@ do \
     printf("\n\n"); \
     Free_All(); \
     exit(-1); \
+} \
+while(0)
+/* Extract the content of the next label */
+#define GET_NEXT_LABEL(START, END, LABEL_START, LABEL_END, VAL_START, VAL_END, NAME) \
+do \
+{ \
+    if(XML_Get_Next((START),(END),&(LABEL_START),&(LABEL_END),&(VAL_START),&(VAL_END))!=0) \
+        EXIT_FAIL("%s label is malformed.", (NAME)); \
+    if(Compare_Label((LABEL_START), (LABEL_END), (NAME))!=0) \
+        EXIT_FAIL("%s label not found.", (NAME)); \
+    Start=Val_End; \
 } \
 while(0)
 /* End Defines ***************************************************************/
@@ -142,12 +159,8 @@ struct RME_Info
 	cnt_t Extra_Kmem;
 	cnt_t Kmem_Order;
 	cnt_t Kern_Prios;
-	s8* Plat_Name;
 	struct Raw_Info Plat_Raw;
-	s8* Plat_Data;
-	s8* Chip_Name;
 	struct Raw_Info Chip_Raw;
-	s8* Chip_Data;
 };
 /* RVM user-level library information */
 struct RVM_Info
@@ -163,8 +176,6 @@ struct Mem_Info
 	ptr_t Size;
 	cnt_t Type;
 	ptr_t Attr;
-	/* This is only useful when the memory is auto located */
-	ptr_t Align;
 };
 /* Thread information */
 struct Thd_Info
@@ -188,20 +199,23 @@ struct Inv_Info
 struct Port_Info
 {
 	s8* Name;
+    s8* Process;
 };
 /* Endpoint information */
 struct Endp_Info
 {
 	s8* Name;
-	ptr_t Attr;
+	ptr_t Type;
+    s8* Process;
 };
 /* Process information */
 struct Proc_Info
 {
+    s8* Name;
+	ptr_t Extra_Captbl;
 	struct Comp_Info Comp;
 	cnt_t Mem_Num;
 	struct Mem_Info* Mem;
-	cnt_t Captbl_Spare;
 	cnt_t Thd_Num;
 	struct Thd_Info* Thd;
 	cnt_t Inv_Num;
@@ -215,6 +229,7 @@ struct Proc_Info
 struct Proj_Info
 {
 	s8* Name;
+    s8* Platform;
 	s8* Chip;
 	struct RME_Info RME;
 	struct RVM_Info RVM;
@@ -627,14 +642,14 @@ ret_t XML_Strcmp(s8* Start1, s8* End1, s8* Start2, s8* End2)
 /* End Function:XML_Strcmp ***************************************************/
 
 /* Begin Function:XML_Get_Next ************************************************
-Description : Get the next xml element.
+Description : Get the next XML element.
 Input       : s8* Start - The start position of the string.
               s8* End - The end position of the string.
 Output      : s8** Label_Start - The start position of the label.
 		      s8** Label_End - The end position of the label.
 			  s8** Val_Start - The start position of the label's content.
 			  s8** Val_End - The end position of the label's content.
-Return      : If 0, successful; if -1, failure.
+Return      : ret_t - If 0, successful; if -1, failure.
 ******************************************************************************/
 ret_t XML_Get_Next(s8* Start, s8* End,
 	               s8** Label_Start, s8** Label_End,
@@ -705,6 +720,834 @@ ret_t XML_Get_Next(s8* Start, s8* End,
 }
 /* End Function:XML_Get_Next *************************************************/
 
+/* Begin Function:XML_Num***** ************************************************
+Description : Get the number of XML elements in a given section.
+Input       : s8* Start - The start position of the string.
+              s8* End - The end position of the string.
+Output      : None.
+Return      : cnt_t - The number of elements found.
+******************************************************************************/
+cnt_t XML_Num(s8* Start, s8* End)
+{
+    cnt_t Num;
+    s8* Start_Ptr;
+    s8* Val_Start;
+    s8* Val_End;
+    s8* Label_Start;
+    s8* Label_End;
+
+    Start_Ptr=Start;
+    Num=0;
+    while(XML_Get_Next(Start_Ptr, End, &Label_Start, &Label_End, &Val_Start, &Val_End)==0)
+    {
+        Start_Ptr=Val_End;
+        Num++;
+    }
+    
+    return Num;
+}
+/* End Function:XML_Num ******************************************************/
+
+/* Begin Function:Get_String **************************************************
+Description : Extract the string value from the XML to another buffer.
+Input       : s8* Start - The start position of the string.
+              s8* End - The end position of the string.
+Output      : None.
+Return      : s8* - The extracted string with newly allocated memory.
+******************************************************************************/
+s8* Get_String(s8* Start, s8* End)
+{
+    s8* Buf;
+    
+    if((End<Start)||(Start==0)||(End==0))
+        return 0;
+
+    Buf=Malloc(End-Start+2);
+    if(Buf==0)
+        return 0;
+
+    memcpy(Buf,Start,End-Start+1);
+    Buf[End-Start+1]='\0';
+    return Buf;
+}
+/* Begin Function:Get_String *************************************************/
+
+/* Begin Function:Get_Hex *****************************************************
+Description : Extract the hex value from the XML.
+Input       : s8* Start - The start position of the string.
+              s8* End - The end position of the string.
+Output      : None.
+Return      : ptr_t - The extracted hex number.
+******************************************************************************/
+ptr_t Get_Hex(s8* Start, s8* End)
+{
+    ptr_t Val;
+    s8* Start_Ptr;
+
+    if((End<Start)||(Start==0)||(End==0))
+        return 0;
+
+    Val=0;
+    if((Start[0]!='0')||((Start[1]!='x')&&(Start[1]!='X')))
+    {
+        if(strncmp(Start,"Auto",4)==0)
+            return AUTO;
+        else
+            return INVALID;
+    }
+
+    for(Start_Ptr=Start+2;Start_Ptr<=End;Start_Ptr++)
+    {
+        Val*=16;
+        if((Start_Ptr[0]>='0')&&(Start_Ptr[0]<='9'))
+            Val+=Start_Ptr[0]-'0';
+        else if((Start_Ptr[0]>='A')&&(Start_Ptr[0]<='F'))
+            Val+=Start_Ptr[0]-'A'+10;
+        else if((Start_Ptr[0]>='a')&&(Start_Ptr[0]<='f'))
+            Val+=Start_Ptr[0]-'a'+10;
+        else
+            return INVALID;
+    }
+
+    return INVALID;
+}
+/* End Function:Get_Hex ******************************************************/
+
+/* Begin Function:Get_Uint ****************************************************
+Description : Extract the unsigned integer value from the XML.
+Input       : s8* Start - The start position of the string.
+              s8* End - The end position of the string.
+Output      : None.
+Return      : ptr_t - The extracted unsigned integer number.
+******************************************************************************/
+ptr_t Get_Uint(s8* Start, s8* End)
+{
+    ptr_t Val;
+    s8* Start_Ptr;
+
+    if((End<Start)||(Start==0)||(End==0))
+        return 0;
+
+    Val=0;
+    if(strncmp(Start,"Auto",4)==0)
+        return AUTO;
+
+    for(Start_Ptr=Start;Start_Ptr<=End;Start_Ptr++)
+    {
+        Val*=16;
+        if((Start_Ptr[0]>='0')&&(Start_Ptr[0]<='9'))
+            Val+=Start_Ptr[0]-'0';
+        else
+            return INVALID;
+    }
+
+    return INVALID;
+}
+/* End Function:Get_Uint *****************************************************/
+
+/* Begin Function:Compare_Label ***********************************************
+Description : See if the two labels are the same.
+Input       : s8* Start - The start position of the string.
+              s8* End - The end position of the string.
+              s8* Label - The label to compare with.
+Output      : None.
+Return      : ret_t - If same, 0; else -1.
+******************************************************************************/
+ret_t Compare_Label(s8* Start, s8* End, s8* Label)
+{
+    cnt_t Len;
+
+    Len=End-Start+1;
+    if(Len!=strlen(Label))
+        return -1;
+
+    if(strncmp(Start,Label,Len)!=0)
+        return -1;
+    
+    return 0;
+}
+/* End Function:Compare_Label ************************************************/
+
+/* Begin Function:Parse_RME ***************************************************
+Description : Parse the RME section of the user-supplied project configuration file.
+Input       : struct Proj_Info* Proj - The project structure.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    s8* Compiler_Start;
+    s8* Compiler_End;
+    s8* General_Start;
+    s8* General_End;
+    s8* Platform_Start;
+    s8* Platform_End;
+    s8* Chip_Start;
+    s8* Chip_End;
+    cnt_t Count;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Compiler */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Compiler");
+    Compiler_Start=Val_Start;
+    Compiler_End=Val_End;
+    /* General */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "General");
+    General_Start=Val_Start;
+    General_End=Val_End;
+    /* Platform-Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, Proj->Platform);
+    Platform_Start=Val_Start;
+    Platform_End=Val_End;
+    /* Chip-Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, Proj->Chip);
+    Chip_Start=Val_Start;
+    Chip_End=Val_End;
+
+    /* Now read the contents of the Compiler section */
+    Start=Compiler_Start;
+    End=Compiler_End;
+    /* Optimization level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Optimization");
+    if(strncmp(Val_Start,"O0",2)==0)
+        Proj->RME.Comp.Opt=OPT_O0;
+    else if(strncmp(Val_Start,"O1",2)==0)
+        Proj->RME.Comp.Opt=OPT_O1;
+    else if(strncmp(Val_Start,"O2",2)==0)
+        Proj->RME.Comp.Opt=OPT_O2;
+    else if(strncmp(Val_Start,"O3",2)==0)
+        Proj->RME.Comp.Opt=OPT_O3;
+    else if(strncmp(Val_Start,"OS",2)==0)
+        Proj->RME.Comp.Opt=OPT_OS;
+    else
+        EXIT_FAIL("The optimization option is malformed.");
+    /* Library level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
+    if(strncmp(Val_Start,"Small",5)==0)
+        Proj->RME.Comp.Lib=LIB_SMALL;
+    else if(strncmp(Val_Start,"Full",4)==0)
+        Proj->RME.Comp.Lib=LIB_FULL;
+    else
+        EXIT_FAIL("The library option is malformed.");
+
+    /* Now read the contents of the General section */
+    Start=General_Start;
+    End=General_End;
+    /* Code start address */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Code_Start");
+    Proj->RME.Code_Start=Get_Hex(Val_Start,Val_End);
+    if(Proj->RME.Code_Start>=INVALID)
+        EXIT_FAIL("Code section start address is malformed. This cannot be Auto.");
+    /* Code size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Code_Size");
+    Proj->RME.Code_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->RME.Code_Size>=INVALID)
+        EXIT_FAIL("Code section size is malformed. This cannot be Auto.");
+    /* Data start address */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Data_Start");
+    Proj->RME.Data_Start=Get_Hex(Val_Start,Val_End);
+    if(Proj->RME.Data_Start>=INVALID)
+        EXIT_FAIL("Data section start address is malformed. This cannot be Auto.");
+    /* Data size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Data_Size");
+    Proj->RME.Data_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->RME.Data_Size>=INVALID)
+        EXIT_FAIL("Data section size is malformed. This cannot be Auto.");
+    /* Extra Kmem */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Extra_Kmem");
+    Proj->RME.Extra_Kmem=Get_Hex(Val_Start,Val_End);
+    if(Proj->RME.Extra_Kmem>=INVALID)
+        EXIT_FAIL("Extra kernel memory size is malformed. This cannot be Auto.");
+    /* Kmem_Order */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Kmem_Order");
+    Proj->RME.Kmem_Order=Get_Uint(Val_Start,Val_End);
+    if(Proj->RME.Kmem_Order>=INVALID)
+        EXIT_FAIL("Kernel memory slot order is malformed. This cannot be Auto.");
+    /* Priorities */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Priorities");
+    Proj->RME.Priorities=Get_Uint(Val_Start,Val_End);
+    if(Proj->RME.Priorities>=INVALID)
+        EXIT_FAIL("Priority number is malformed. This cannot be Auto.");
+
+    /* Now read the platform section */
+    Start=Platform_Start;
+    End=Platform_End;
+    Proj->RME.Plat_Raw.Num=XML_Num(Start,End);
+    if(Proj->RME.Plat_Raw.Num!=0)
+    {
+        Proj->RME.Plat_Raw.Tag=Malloc(sizeof(s8*)*Proj->RME.Plat_Raw.Num);
+        if(Proj->RME.Plat_Raw.Tag==0)
+            EXIT_FAIL("Platform raw tag buffer allocation failed.");
+        Proj->RME.Plat_Raw.Value=Malloc(sizeof(s8*)*Proj->RME.Plat_Raw.Num);
+        if(Proj->RME.Plat_Raw.Value==0)
+            EXIT_FAIL("Platform raw value buffer allocation failed.");
+        for(Count=0;Count<Proj->RME.Plat_Raw.Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing platform section.");
+            Proj->RME.Plat_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            if(Proj->RME.Plat_Raw.Tag[Count]==0)
+                EXIT_FAIL("Platform section tag read failed.");
+            Proj->RME.Plat_Raw.Value[Count]=Get_String(Val_Start, Val_End);
+            if(Proj->RME.Plat_Raw.Value[Count]==0)
+                EXIT_FAIL("Platform section value read failed.");
+        }
+    }
+
+    /* Now read the chip section */
+    Start=Chip_Start;
+    End=Chip_End;
+    Proj->RME.Chip_Raw.Num=XML_Num(Start,End);
+    if(Proj->RME.Chip_Raw.Num!=0)
+    {
+        Proj->RME.Chip_Raw.Tag=Malloc(sizeof(s8*)*Proj->RME.Chip_Raw.Num);
+        if(Proj->RME.Chip_Raw.Tag==0)
+            EXIT_FAIL("Chip raw tag buffer allocation failed.");
+        Proj->RME.Chip_Raw.Value=Malloc(sizeof(s8*)*Proj->RME.Chip_Raw.Num);
+        if(Proj->RME.Chip_Raw.Value==0)
+            EXIT_FAIL("Chip raw value buffer allocation failed.");
+        for(Count=0;Count<Proj->RME.Chip_Raw.Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing chip section.");
+            Proj->RME.Chip_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            if(Proj->RME.Chip_Raw.Tag[Count]==0)
+                EXIT_FAIL("Chip section tag read failed.");
+            Proj->RME.Chip_Raw.Value[Count]=Get_String(Val_Start, Val_End);
+            if(Proj->RME.Chip_Raw.Value[Count]==0)
+                EXIT_FAIL("Chip section value read failed.");
+        }
+    }
+
+    return 0;
+}
+/* End Function:Parse_RME ****************************************************/
+
+/* Begin Function:Parse_RVM ***************************************************
+Description : Parse the RVM section of the user-supplied project configuration file.
+Input       : struct Proj_Info* Proj - The project structure.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
+{
+    /* We don't parse RVM now as the functionality is not supported */
+    return 0;
+}
+/* End Function:Parse_RVM ****************************************************/
+
+/* Begin Function:Parse_Mem ***************************************************
+Description : Parse the memory section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Proc_Num - The process number.
+              cnt_t Mem_Num - The memory number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Mem(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    s8* Attr_Temp;
+    cnt_t Count;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Start */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Start");
+    Proj->Proc[Proc_Num].Mem[Mem_Num].Start=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Mem[Mem_Num].Start==INVALID)
+        EXIT_FAIL("Memory start address read failed.");
+    /* Size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Size");
+    Proj->Proc[Proc_Num].Mem[Mem_Num].Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Mem[Mem_Num].Size>=INVALID)
+        EXIT_FAIL("Memory size read failed.");
+    /* Type */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
+    if(strncmp(Val_Start,"Code",4)==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Type=MEM_CODE;
+    else if(strncmp(Val_Start,"Data",4)==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Type=MEM_DATA;
+    else if(strncmp(Val_Start,"Device",6)==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Type=MEM_DEVICE;
+    else
+        EXIT_FAIL("The memory type is malformed.");
+    /* Attribute */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Attr");
+    Proj->Proc[Proc_Num].Mem[Mem_Num].Attr=0;
+    Attr_Temp=Get_String(Val_Start, Val_End);
+    if(strchr(Attr_Temp,'R')!=0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_READ;
+    else if(strchr(Attr_Temp,'W')==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_WRITE;
+    else if(strchr(Attr_Temp,'X')==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_EXECUTE;
+    else
+        EXIT_FAIL("No access to the memory is allowed.");
+    if(strchr(Attr_Temp,'B')!=0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_BUFFERABLE;
+    else if(strchr(Attr_Temp,'W')==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_CACHEABLE;
+    else if(strchr(Attr_Temp,'X')==0)
+        Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_STATIC;
+    Free(Attr_Temp);
+
+    return 0;
+}
+/* End Function:Parse_Mem ****************************************************/
+
+/* Begin Function:Parse_Thd ***************************************************
+Description : Parse the thread section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Proc_Num - The process number.
+              cnt_t Thd_Num - The thread number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Thd(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Name==0)
+        EXIT_FAIL("Thread name value read failed.");
+    /* Entry */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Entry");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Entry=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Entry==0)
+        EXIT_FAIL("Thread entry value read failed.");
+    /* Stack address */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Addr");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Stack_Addr=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Stack_Addr==INVALID)
+        EXIT_FAIL("Thread stack address read failed.");
+    /* Stack size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Size");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Entry=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Entry>=INVALID)
+        EXIT_FAIL("Thread stack size read failed.");
+    /* Parameter */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Parameter");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Parameter=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Parameter==0)
+        EXIT_FAIL("Thread parameter value read failed.");
+    /* Priority level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Priority");
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Entry=Get_Uint(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Entry>=INVALID)
+        EXIT_FAIL("Thread priority read failed.");
+
+    return 0;
+}
+/* End Function:Parse_Thd ****************************************************/
+
+/* Begin Function:Parse_Invocation ********************************************
+Description : Parse the invocation section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Proc_Num - The process number.
+              cnt_t Inv_Num - The invocation number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Invocation(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Inv_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Inv[Inv_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Name==0)
+        EXIT_FAIL("Invocation name value read failed.");
+    /* Entry */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Entry");
+    Proj->Proc[Proc_Num].Inv[Inv_Num].Entry=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Entry==0)
+        EXIT_FAIL("Invocation entry value read failed.");
+    /* Stack address */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Addr");
+    Proj->Proc[Proc_Num].Inv[Inv_Num].Stack_Addr=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Inv[Thd_Num].Stack_Addr==INVALID)
+        EXIT_FAIL("Invocation stack address read failed.");
+    /* Stack size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Size");
+    Proj->Proc[Proc_Num].Inv[Inv_Num].Entry=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Entry>=INVALID)
+        EXIT_FAIL("Invocation stack size read failed.");
+    
+    return 0;
+}
+/* End Function:Parse_Invocation *********************************************/
+
+/* Begin Function:Parse_Port **************************************************
+Description : Parse the port section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Proc_Num - The process number.
+              cnt_t Port_Num - The port number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Port(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Port_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Port[Port_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Port[Port_Num].Name==0)
+        EXIT_FAIL("Port name value read failed.");
+    /* Process */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
+    Proj->Proc[Proc_Num].Port[Port_Num].Process=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Port[Port_Num].Process==0)
+        EXIT_FAIL("Port process value read failed.");
+    
+    return 0;
+}
+/* End Function:Parse_Port ***************************************************/
+
+/* Begin Function:Parse_Endpoint **********************************************
+Description : Parse the endpoint section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Proc_Num - The process number.
+              cnt_t Endp_Num - The endpoint number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Endpoint(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Endp_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Endp[Endp_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Endp[Endp_Num].Name==0)
+        EXIT_FAIL("Thread name value read failed.");
+    /* Type */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
+    if(strncmp(Val_Start,"Send",4)==0)
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_SEND;
+    else if(strncmp(Val_Start,"Receive",7)==0)
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_RECEIVE;
+    else if(strncmp(Val_Start,"Handler",7)==0)
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_HANDLER;
+    else
+        EXIT_FAIL("The endpoint type is malformed.");
+    /* Process */
+    if(Proj->Proc[Proc_Num].Endp[Endp_Num].Type==ENDP_SEND)
+    {
+        GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Process=Get_String(Val_Start,Val_End);
+        if(Proj->Proc[Proc_Num].Endp[Endp_Num].Process==0)
+            EXIT_FAIL("Endpoint process value read failed.");
+    }
+    else
+        Proj->Proc[Proc_Num].Port[Endp_Num].Process=0;
+
+    return 0;
+}
+/* End Function:Parse_Endpoint ***********************************************/
+
+/* Begin Function:Parse_Process ***********************************************
+Description : Parse a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              cnt_t Num - The process number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    cnt_t Count;
+    s8* General_Start;
+    s8* General_End;
+    s8* Compiler_Start;
+    s8* Compiler_End;
+    s8* Memories_Start;
+    s8* Memories_End;
+    s8* Threads_Start;
+    s8* Threads_End;
+    s8* Invocations_Start;
+    s8* Invocations_End;
+    s8* Ports_Start;
+    s8* Ports_End;
+    s8* Endpoints_Start;
+    s8* Endpoints_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* General section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "General");
+    General_Start=Val_Start;
+    General_End=Val_End;
+    /* Compiler section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Compiler");
+    Compiler_Start=Val_Start;
+    Compiler_End=Val_End;
+    /* Memories section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memories");
+    Memories_Start=Val_Start;
+    Memories_End=Val_End;
+    /* Threads section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Threads");
+    Threads_Start=Val_Start;
+    Threads_End=Val_End;
+    /* Invocations section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Invocations");
+    Invocations_Start=Val_Start;
+    Invocations_End=Val_End;
+    /* Ports section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Ports");
+    Ports_Start=Val_Start;
+    Ports_End=Val_End;
+    /* Endpoints section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Endpoints");
+    Endpoints_Start=Val_Start;
+    Endpoints_End=Val_End;
+
+    /* Parse general section */
+    Start=General_Start;
+    End=General_End;
+    /* Process name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Num].Name==0)
+        EXIT_FAIL("Name value read failed.");
+    /* Capability extra size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Extra_Captbl");
+    Proj->Proc[Num].Extra_Captbl=Get_Uint(Val_Start,Val_End);
+    if(Proj->Proc[Num].Extra_Captbl>=INVALID)
+        EXIT_FAIL("Extra capability table size value read failed.");
+    
+    /* Parse compiler section */
+    Start=Compiler_Start;
+    End=Compiler_End;
+    /* Optimization level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Optimization");
+    if(strncmp(Val_Start,"O0",2)==0)
+        Proj->Proc[Num].Comp.Opt=OPT_O0;
+    else if(strncmp(Val_Start,"O1",2)==0)
+        Proj->Proc[Num].Comp.Opt=OPT_O1;
+    else if(strncmp(Val_Start,"O2",2)==0)
+        Proj->Proc[Num].Comp.Opt=OPT_O2;
+    else if(strncmp(Val_Start,"O3",2)==0)
+        Proj->Proc[Num].Comp.Opt=OPT_O3;
+    else if(strncmp(Val_Start,"OS",2)==0)
+        Proj->Proc[Num].Comp.Opt=OPT_OS;
+    else
+        EXIT_FAIL("The optimization option is malformed.");
+    /* Library level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
+    if(strncmp(Val_Start,"Small",5)==0)
+        Proj->Proc[Num].Comp.Lib=LIB_SMALL;
+    else if(strncmp(Val_Start,"Full",4)==0)
+        Proj->Proc[Num].Comp.Lib=LIB_FULL;
+    else
+        EXIT_FAIL("The library option is malformed.");
+
+    /* Parse memories section */
+    Start=Memories_Start;
+    End=Memories_End;
+    Proj->Proc[Num].Mem_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Mem_Num==0)
+        EXIT_FAIL("The memories section is malformed.");
+    Proj->Proc[Num].Mem=Malloc(sizeof(struct Mem_Info)*Proj->Proc[Num].Mem_Num);
+    if(Proj->Proc[Num].Mem==0)
+        EXIT_FAIL("The memory structure allocation failed.");
+    for(Count=0;Count<Proj->Proc[Num].Mem_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing memories section.");
+        Parse_Memory(Proj, Num, Count, Val_Start, Val_End);
+    }
+
+    /* Parse threads section */
+    Start=Threads_Start;
+    End=Threads_End;
+    Proj->Proc[Num].Thd_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Thd_Num!=0)
+    {
+        Proj->Proc[Num].Thd=Malloc(sizeof(struct Thd_Info)*Proj->Proc[Num].Mem_Num);
+        if(Proj->Proc[Num].Thd==0)
+            EXIT_FAIL("The thread structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Thd_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing thread section.");
+            Parse_Thread(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+
+    /* Parse invocations section */
+    Start=Invocations_Start;
+    End=Invocations_End;
+    Proj->Proc[Num].Inv_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Inv_Num==0)
+    {
+        if(Proj->Proc[Num].Thd_Num==0)
+            EXIT_FAIL("The process is malformed, doesn't contain any threads or invocations.");
+    }
+    else
+    {
+        Proj->Proc[Num].Inv=Malloc(sizeof(struct Inv_Info)*Proj->Proc[Num].Inv_Num);
+        if(Proj->Proc[Num].Inv==0)
+            EXIT_FAIL("The invocation structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Inv_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing invocation section.");
+            Parse_Invocation(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+    
+    /* Parse ports section */
+    Start=Ports_Start;
+    End=Ports_End;
+    Proj->Proc[Num].Port_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Port_Num!=0)
+    {
+        Proj->Proc[Num].Port=Malloc(sizeof(struct Port_Info)*Proj->Proc[Num].Port_Num);
+        if(Proj->Proc[Num].Port==0)
+            EXIT_FAIL("The port structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Port_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing port section.");
+            Parse_Port(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+
+    /* Parse endpoints section */
+    Start=Endpoints_Start;
+    End=Endpoints_End;
+    Proj->Proc[Num].Endp_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Endp_Num!=0)
+    {
+        Proj->Proc[Num].Endp=Malloc(sizeof(struct Endp_Info)*Proj->Proc[Num].Endp_Num);
+        if(Proj->Proc[Num].Endp==0)
+            EXIT_FAIL("The endpoint structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Endp_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing endpoint section.");
+            Parse_Endpoing(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+
+    return 0;
+}
+/* End Function:Parse_Process ************************************************/
+
+/* Begin Function:Parse_Application *******************************************
+Description : Parse the application section in the configuration file. An application
+              is a set of processes.
+Input       : struct Proj_Info* Proj - The project structure.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Application(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
+{
+    s8* Proc_Start;
+    s8* Proc_End;
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    cnt_t Count;
+
+    /* We need to figure out how many projects are there and deal with them one by one */
+    Start=Str_Start;
+    End=Str_End;
+    Proj->Proc_Num=XML_Num(Start, End);
+    if(Proj->Proc_Num==0)
+        EXIT_FAIL("The project section is malformed.");
+    Proj->Proc=Malloc(sizeof(struct Proc_Info)*Proj->Proc_Num);
+    if(Proj->Proc==0)
+        EXIT_FAIL("The process structure allocation failed.");
+    for(Count=0;Count<Proj->Proc_Num;Count++)
+    {
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing process section.");
+        Parse_Process(Proj, Count, Val_Start, Val_End);
+    }
+
+    return 0;
+}
+/* End Function:Parse_Application ********************************************/
+
 /* Begin Function:Parse_Proj **************************************************
 Description : Parse the project description file, and fill in the struct.
 Input       : s8* Proj_File - The buffer containing the project file contents.
@@ -715,6 +1558,68 @@ struct Proj_Info* Parse_Proj(s8* Proj_File)
 {
 	s8* Start;
 	s8* End;
+    cnt_t Count;
+    s8* Label_Start;
+    s8* Laben_End;
+    s8* Val_Start;
+    s8* Val_End;
+    struct Proj_Info* Proj;
+
+    /* Allocate the project information structure */
+    Proj=Malloc(sizeof(struct Proj_Info));
+    if(Proj==0)
+        EXIT_FAIL("Project structure allocation failed.");
+    
+    /* How long is the file? */
+    Count=strlen(Proj_File);
+    Start=Proj_File;
+    End=&Proj_File[Count-1];
+
+    /* Skip the xml header */
+    Start++；
+    while(Start[0]!='\0')
+    {
+        if(Start[0]=='<')
+            break;
+        Start++;
+    }
+    if(Start[0]=='\0')
+        EXIT_FAIL("Project XML header is malformed.");
+
+    /* Read basics of the project */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Project");
+    Start=Val_Start;
+    End=Val_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Name=Get_String(Val_Start,Val_End);
+    if(Proj->Name==0)
+        EXIT_FAIL("Name value read failed.");
+    /* Platform */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Platform");
+    Proj->Platform=Get_String(Val_Start,Val_End);
+    if(Proj->Platform==0)
+        EXIT_FAIL("Platform value read failed.");
+    /* Chip */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Chip");
+    Proj->Chip=Get_String(Val_Start,Val_End);
+    if(Proj->Chip==0)
+        EXIT_FAIL("Chip value read failed.");
+    /* RME */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "RME");
+    if(Parse_RME(Proj, Val_Start, Val_End)!=0)
+        EXIT_FAIL("RME section parsing failed.");
+    /* RVM */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "RVM");
+    if(Parse_RVM(Proj, Val_Start, Val_End)!=0)
+        EXIT_FAIL("RVM section parsing failed.");
+    /* Project */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
+    if(Parse_Application(Proj, Val_Start, Val_End)!=0)
+        EXIT_FAIL("Pricess section parsing failed.");
+
+    return Proj;
 }
 /* End Function:Parse_Proj ***************************************************/
 
