@@ -50,15 +50,15 @@
                 <Optimization>O2</Optimization>
                 <Library>Small</Library>
             </Compiler>
-            <Memories>                                                          <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
+            <Memory>                                                          <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
                 <M1>
                     <Start>0x20000000</Start>
                     <Size>0x10000</Size>
                     <Type>CODE/DATA/DEV</Type>                                  <!-- Where your code goes to -->
                     <Attribute>RWXBCS</Attribute>                               <!-- Read, Write, Execute, Bufferable, Cacheable, Static -->
                 </M1>
-            </Memories>
-            <Threads>
+            </Memory>
+            <Thread>
                 <T1>
                     <Name>Motor_Control</Name>
                     <Entry>Func_Calc</Entry>
@@ -67,28 +67,28 @@
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
                 </T1>
-            </Threads>
-            <Invocations>
+            </Thread>
+            <Invocation>
                 <I1>
                     <Name>Motor_Adjust</Name>
                     <Entry>Func_Adjust</Entry>
                     <Stack_Addr>0x20004000/Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                 </I1>
-            </Invocations>
+            </Invocation>
             <Ports>
                 <P1>
                     <Name>Get_UI_Data</Name>
                     <Process>Domain1</Process>
                 </P1>
             </Ports>
-            <Endpoints>
+            <Endpoint>
                 <E1>
                      <Name>EP_Motor</Name>
                      <Type>Send/Receive/Handler</Type>
                      <Process>Domain1</Process>
                 </E1>
-            </Endpoints>
+            </Endpoint>
         </P1>
-    </Proc>
+    </Process>
 </Project>

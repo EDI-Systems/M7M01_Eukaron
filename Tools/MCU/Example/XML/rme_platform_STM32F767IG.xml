@@ -1,67 +1,75 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
-    <Name> STM32F767IG </Name>
-    <Platform> CMX </Platform>                                                  <!-- The architecture family -->
-    <Cores> 1 </Cores>                                                          <!-- The number of cores -->
+    <Name>STM32F767IG</Name>
+    <Platform>CMX</Platform>                                                    <!-- The architecture family -->
+    <Cores>1</Cores>                                                            <!-- The number of cores -->
     <Memory>                                                                    <!-- Read-only memory description -->
         <M1>                                                                    <!-- The first segment -->
-            <Start> 0x08000000 </Start>                                         <!-- Start address -->
-            <Size> 0x00100000 </Size>                                           <!-- Size of that segment -->
-            <Type> CODE </Type>
+            <Start>0x08000000</Start>                                           <!-- Start address -->
+            <Size>0x00100000</Size>                                             <!-- Size of that segment -->
+            <Type>Code</Type>
+            <Description>The main code memory.</Description>
         </M1>
         <M2>                                                                    <!-- The first segment -->
-            <Start> 0x20000000 </Start>                                         <!-- Start address -->
-            <Size> 0x00080000 </Size>                                           <!-- Size of that segment -->
-            <Type> DATA </Type>
+            <Start>0x20000000</Start>                                           <!-- Start address -->
+            <Size>0x00080000</Size>                                             <!-- Size of that segment -->
+            <Type>Data</Type>
+            <Description>The main data memory.</Description>
         </M2>
         <M3>
-            <Start> 0x40000000 </Start>                                         <!-- Start address -->
-            <Size> 0xC0000000 </Size>                                           <!-- Size of that segment -->
-            <Type> NOINIT </Type>                                               <!-- Device meory that cannot be populted with code or data -->
+            <Start>0x40000000</Start>                                           <!-- Start address -->
+            <Size>0xC0000000</Size>                                             <!-- Size of that segment -->
+            <Type>Device</Type>                                                 <!-- Device meory that cannot be populted with code or data -->
+            <Description>The main device memory.</Description>
         </M3>
     </Memory>
-    <Options>
+    <Option>
         <O1>
-            <Name> XTAL </Name>
-            <Description> The external crystal frequency. </Description>
-            <Type> Range </Type>
-            <Macro> RME_CMX_STM32F767IG_XTAL </Macro>
-            <Range> 8,25 </Range>
+            <Name>XTAL</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_XTAL</Macro>
+            <Value>8,25</Value>
+            <Description>The external crystal frequency.</Description>
         </O1>
         <O2>
-            <Name> PLLM </Name>
-            <Description> The PLL M factor. </Description>
-            <Type> Range </Type>
-            <Macro> RME_CMX_STM32F767IG_PLLM </Macro>
-            <Range> 2,63 </Range>
+            <Name>PLLM</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLM</Macro>
+            <Value>2,63 </Value>
+            <Description>The PLL M factor.</Description>
         </O2>
         <O3>
-            <Name> PLLN </Name>
-            <Description> The PLL N factor. </Description>
-            <Type> Range </Type>
-            <Macro> RME_CMX_STM32F767IG_PLLN </Macro>
-            <Range> 50,432 </Range>
+            <Name>PLLN</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLN</Macro>
+            <Value>50,432</Value>
+            <Description>The PLL N factor.</Description>
         </O3>
         <O4>
-            <Name> PLLP </Name>
-            <Description> The PLL P factor. </Description>
-            <Type> Options </Type>
-            <Macro> RME_CMX_STM32F767IG_PLLP </Macro>
-            <Options> 2,4,6,8 </Options>
+            <Name>PLLP</Name>
+            <Type>Select</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLP</Macro>
+            <Value>2,4,6,8</Value>
+            <Description>The PLL P factor.</Description>
         </O4>
         <O5>
-            <Name> PLLQ </Name>
-            <Description> The PLL Q factor. </Description>
-            <Type> Range </Type>
-            <Macro> RME_CMX_STM32F767IG_PLLQ </Macro>
-            <Range> 2,15 </Range>
+            <Name>PLLQ</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLQ</Macro>
+            <Value>2,15</Value>
+            <Description>The PLL Q factor.</Description>
         </O5>
-    </Options>
-    <Vectors>
+    </Option>
+    <Vector>
         <V1>
-            <Name> WWDG </Name>
-            <Description> Window watchdog vector </Description>
+            <Name>TIM1</Name>
+            <Number>8</Number>
+            <Description>Timer1 interrupt vector.</Description>
         </V1>
-        ... Fill in these later, use macros to control whether these are enabled, and when creating captbls, need to accomodate these.
-    </Vectors>
+        <V2>
+            <Name>TIM2</Name>
+            <Number>8</Number>
+            <Description>Timer2 interrupt vector</Description>
+        </V2>
+    </Vector>
 </Chip>
