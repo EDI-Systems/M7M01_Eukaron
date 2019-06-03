@@ -2483,7 +2483,7 @@ struct CMX_Pgtbl
     ptr_t Start_Addr;
     ptr_t Size_Order;
     ptr_t Num_Order;
-    ptr_t Attribute;
+    ptr_t Attr;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
     struct CMX_Pgtbl* Mapping[8];
 }
@@ -2559,15 +2559,35 @@ void CMX_Gen_Makefile(void)
 
 }
 
-struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num)
+/* Begin Function:CMX_Gen_Pgtbl ***********************************************
+Description : Recursively construct the page table for the Cortex-M port. 
+              This only works for ARMv7-M. The port for ARMv8-M is still
+              in progress.
+Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
+                                     into this level (and below).
+              cnt_t Num - The number of memory segments to fit in.
+              ptr_t Total_Max - The maximum total order of the page table, cannot
+                                be exceeded when deciding the total order of
+                                the page table.
+Output      : None.
+Return      : struct CMX_Pgtbl* - The page table structure returned.
+******************************************************************************/
+struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max)
 {
     ptr_t Start;
     ptr_t End;
     cnt_t Count;
+    cnt_t Mem_Cnt;
     cnt_t Total_Order;
     cnt_t Size_Order;
     cnt_t Num_Order;
+    ptr_t Pivot_Addr;
+    cnt_t Cut_Apart;
+    ptr_t Page_Start;
+    ptr_t Page_End;
     struct CMX_Pgtbl* Pgtbl;
+    cnt_t Mem_Num;
+    struct Mem_Info* Mem_List;
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct CMX_Pgtbl));
@@ -2577,12 +2597,12 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num)
     /* What ranges does these stuff cover? */
     Start=(ptr_t)(-1);
     End=0;
-    for(Count=0;Count<Num;Count++)
+    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
     {
-        if(Start>Mem[Count].Start)
-            Start=Mem[Count].Start;
-        if(End<(Mem[Count].Start+Mem[Count].Size))
-            End=Mem[Count].Start+Mem[Count].Size;
+        if(Start>Mem[Mem_Cnt].Start)
+            Start=Mem[Mem_Cnt].Start;
+        if(End<(Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size))
+            End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
     }
     
     /* Which power-of-2 box is this in? */
@@ -2596,46 +2616,97 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num)
     /* If the total order less than 8, we wish to extend that to 8 */
     if(Total_Order<8)
         Total_Order=8;
+
+    /* See if this will violate the extension limit */
+    if(Total_Order>Total_Max)
+        EXIT_FAIL("Memory segment too small, cannot find a reasonable placement.");
     
     Pgtbl->Start_Addr=(Start>>Total_Order)<<Total_Order;
 
-    /* Can we map them in here with one table at all, use table sized 8? This is done by:
-     1. There cannot be any two with different access permissions. 
-     2. All memories must be mapped into this. 
-        minimum page size is always 32 byte. This cannot be violated.
-        still, veruy hard. 
-     */
-    for(Num_Order=2;Num_Order<=8;Num_Order*=2)
+    /* Can the memory segments get fully mapped in? If yes, there are two conditions
+     * that must be met:
+     * 1. There cannot be different access permissions in these memory segments.
+     * 2. The memory start address and the size must be fully divisible by 1<<(Total_Order-3). */
+    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
     {
-        for(Count=0;Count<Num;Count++)
+        if(Mem[Mem_Cnt].Attr!=Mem[0].Attr)
+            break;
+        if(((Mem[Mem_Cnt].Start%(1<<(Total_Order-3)))!=0)||((Mem[Mem_Cnt].Size%(1<<(Total_Order-3)))!=0))
+            break;
+    }
+
+    /* Is this directly mappable? */
+    if(Mem_Cnt==Num)
+    {
+        /* Yes, we know that number order=3 */
+        Num_Order=3;
+    }
+    else
+    {
+        /* Not directly mappable. What's the maximum number order that do not cut things apart? If we
+        * are forced to cut things apart, we prefer the smallest number order, which is 2 */
+        Cut_Apart=0;
+        for(Num_Order=1;Num_Order<=3;Num_Order++)
         {
-            
+            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            {
+                for(Count=1;Count<(1<<Num_Order);Count++)
+                {
+                    Pivot_Addr=(End-Start)/(1<<Num_Order)*Count+Start;
+                    if((Mem[Mem_Cnt].Start<Pivot_Addr)&&((Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size)>Pivot_Addr))
+                    {
+                        Cut_Apart=1;
+                        break;
+                    }
+                }
+                if(Cut_Apart!=0)
+                    break;
+            }
+            if(Cut_Apart!=0)
+                break;
+        }
+
+        if(Num_Order>1)
+        {
+            if(Cut_Apart!=0)
+                Num_Order--;
         }
     }
+    
     Size_Order=Total_Order-Num_Order;
-    /* If we are forced to cut anything apart, we prefer 2 */
 
-
-    /* Find the range... */
-
-    /* Create the top-level... */
-
-/* Also, how do we support MPUs that have arbitrary range? we are wasting it as we currently use it. */
-each region is a page, simple indeed. just make it like that. Feel free to use a certain range as the page table.
-In the page table, only consecutive pages may be mapped, that easy. 
-This algorithm guarantees consecutive pages. 
-    splice memory... Can we map in all things with this?
-    Yes, we can! find the smallest that can map.
-    No, we can't... always use 8.
-    for(0 to 7)...
-    [0]=...
+    /* We already know the size and number order of this layer. Map whatever we can map, and 
+     * postpone whatever we will have to postpone */
+    for(Count=0;Count<(1<<Num_Order);Count++)
     {
-        /* map in actual stuff */
+        Page_Start=Start+Count*(1<<Size_Order);
+        Page_End=Start+(Count+1)*(1<<Size_Order);
 
-        /* else */
-        =CMX_Gen_Pgtbl(Mem, Num);
+        Pgtbl->Mapping[Count]=0;
+        /* Can this compartment be mapped? It can if there is one segment covering the range */
+        for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+        {
+            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size)>=Page_End))
+            {
+                Pgtbl->Mapping[Count]=1;
+                Pgtbl->Attr=Mem[Mem_Cnt].Attr;
+            }
+        }
+
+        if(Pgtbl->Mapping[Count]==0)
+        {
+            /* No pages mapped. See if any residue memory list are here */
+#error make up the pages, see if there are residue in this range. If there is, create the residue list 
+            if(residue)
+                Pgtbl->Mapping[Count]=CMX_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
+        }
     }
-} 
+
+    Pgtbl->Size_Order=Size_Order;
+    Pgtbl->Num_Order=Num_Order;
+    return Pgtbl;
+}
+/* End Function:CMX_Gen_Pgtbl ************************************************/
 
 void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
