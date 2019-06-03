@@ -2683,20 +2683,27 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
         Page_End=Start+(Count+1)*(1<<Size_Order);
 
         Pgtbl->Mapping[Count]=0;
+        Pgtbl->Attr=0;
         /* Can this compartment be mapped? It can if there is one segment covering the range */
         for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
         {
             if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size)>=Page_End))
             {
-                Pgtbl->Mapping[Count]=1;
-                Pgtbl->Attr=Mem[Mem_Cnt].Attr;
+                /* The first one that gets mapped in always takes the attribute, and the next ones will have
+                 * to use their separate regions. Thus, it is best to avoid many trunks of small memory segments
+                 * with distinct attributes, or this allocator may not be able to allocate. This is a restriction
+                 * that is applied here, and is only for Cortex-M. */
+                if(Pgtbl->Attr==0)
+                    Pgtbl->Attr=Mem[Mem_Cnt].Attr;
+                if(Pgtbl->Attr==Mem[Mem_Cnt].Attr)
+                    Pgtbl->Mapping[Count]=1;
             }
         }
-
+        /* For some reason, we cannot map anything here */
         if(Pgtbl->Mapping[Count]==0)
         {
-            /* No pages mapped. See if any residue memory list are here */
-#error make up the pages, see if there are residue in this range. If there is, create the residue list 
+            /* See if any residue memory list are here */
+#error make up the pages, see if there are residue in this range. If there is, create the residue list.
             if(residue)
                 Pgtbl->Mapping[Count]=CMX_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
         }
