@@ -3,6 +3,7 @@
     <Name>STM32F767IG</Name>
     <Platform>CMX</Platform>                                                    <!-- The architecture family -->
     <Cores>1</Cores>                                                            <!-- The number of cores -->
+    <Regions>8</Regions>
     <Memory>                                                                    <!-- Read-only memory description -->
         <M1>                                                                    <!-- The first segment -->
             <Start>0x08000000</Start>                                           <!-- Start address -->

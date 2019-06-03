@@ -31,13 +31,20 @@
         </STM32F767IG>
     </RME>
     <RVM>
-        <Compiler>                                                              <!-- Currently this design does not have VMM, we will add later on. If VMM functionality is used -->
+        <Compiler>                                                              <!-- Currently this design does not have VMM, we will add later on. RVM always map in all memory -->
             <Optimization>O2</Optimization>
             <Library>Small</Library>
         </Compiler>
-        <Captbl_Size>128/AUTO</Captbl_Size>                                     <!-- Capability table initial size -->
-        <Recovery>Process</Recovery>                                            <!-- Rerun policy for the processes: thread, process, or terminate -->
+        <General>
+            <Code_Size>0x1000</Code_Size>                                       <!-- RVM always immediately follow RME -->
+            <Data_Size>0x1000</Data_Size>
+            <Extra_Captbl>128</Extra_Captbl>                                   <!-- Capability table initial size -->
+            <Recovery>Process</Recovery>                                            <!-- Rerun policy for the processes: thread, process, or terminate -->
+        </General>
         <VMM>                                                                   <!-- Currently empty, if VMM functionality is used, we will add this -->
+
+
+    
         </VMM>
     </RVM>
     <Process>                                                                      <!-- The user compartments -->
@@ -50,7 +57,7 @@
                 <Optimization>O2</Optimization>
                 <Library>Small</Library>
             </Compiler>
-            <Memory>                                                          <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
+            <Memory>                                                            <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
                 <M1>
                     <Start>0x20000000</Start>
                     <Size>0x10000</Size>
