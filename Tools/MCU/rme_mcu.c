@@ -61,6 +61,20 @@ Are we really gonna do that? Or, what will M7M2 do? We cannot always rely on the
 Or, consider removing M7M2, and make the whole thing, including all drivers, M7M1. This is 
 sensible, but there's the risk of producing something very large and very complex.
 
+Additionally - how is this going to integrate with the rest of the stuff? How? this is going to
+be very hard again. 
+Anything that is standalone compilable should be a standalone project. Or, it should not be
+standalone at all.
+M7M2 should be merged with M7M1, due to the fact that it is not standalone testable.
+Because all user-level test cases should involve M7M2. 
+
+Very hard still. we have RVM now, and we know how to do it, and it can compile to a standalone
+binary.
+simple. Just use two stuff, one is the RVM, another is the binary, in the same folder. 
+we still need M7M2 path. This is still necessary.
+For this project to compile, you need all three in the same folder to work together, as
+they are made to work together.
+Let's just provide all MCU examples with that. This is probably the best we can do.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -500,20 +514,23 @@ Input       : int argc - The number of arguments.
               char* argv[] - The arguments.
 Output      : s8** Input_File - The input project file path.
               s8** Output_File - The output folder path, must be empty.
-			  s8** Root_Path - The root folder path, must contain RME files.
+			  s8** RME_Path - The RME root folder path, must contain RME files.
+			  s8** RVM_Path - The RME root folder path, must contain RME files.
 			  cnt_t* Output_Type - The output type.
 Return      : None.
 ******************************************************************************/
-void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path, s8** Root_Path, cnt_t* Output_Type)
+void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path,
+                  s8** RME_Path, s8** RVM_Path, cnt_t* Output_Type)
 {
     cnt_t Count;
 
-    if(argc!=9)
+    if(argc!=11)
         EXIT_FAIL("Too many or too few input parameters.\n"
-                  "Usage: -i input.xml -o output_path -r rme_root -f format.\n"
+                  "Usage: -i input.xml -o output_path -k rme_root -u rvm_root -f format.\n"
                   "       -i: Project description file name and path, with extension.\n"
                   "       -o: Output path, must be empty.\n"
-                  "       -r: RME root path, must contain all necessary files.\n"
+                  "       -k: RME root path, must contain all necessary files.\n"
+                  "       -u: RVM root path, must contain all necessary files.\n"
                   "       -f: Output file format.\n"
                   "           keil: Keil uVision IDE.\n"
                   "           eclipse: Eclipse IDE.\n"
@@ -521,7 +538,8 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path, s8**
 
 	*Input_File=0;
 	*Output_Path=0;
-	*Root_Path=0;
+	*RME_Path=0;
+	*RVM_Path=0;
 	*Output_Type=0;
 
     Count=1;
@@ -553,16 +571,30 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path, s8**
             Count+=2;
         }
         /* We need to check the RME root folder. */
-        else if(strcmp(argv[Count],"-r")==0)
+        else if(strcmp(argv[Count],"-k")==0)
         {
-            if(*Root_Path!=0)
-                EXIT_FAIL("More than one output path.");
+            if(*RME_Path!=0)
+                EXIT_FAIL("More than one RME root folder.");
 
-            *Root_Path=argv[Count+1];
-            if(Dir_Present(*Root_Path)!=0)
-                EXIT_FAIL("Root path is not present.");
-            if(Dir_Empty(*Root_Path)==0)
-                EXIT_FAIL("Root path is empty, wrong path selected.");
+            *RME_Path=argv[Count+1];
+            if(Dir_Present(*RME_Path)!=0)
+                EXIT_FAIL("RME root path is not present.");
+            if(Dir_Empty(*RME_Path)==0)
+                EXIT_FAIL("RME root path is empty, wrong path selected.");
+
+            Count+=2;
+        }
+        /* We need to check the RVM root folder. */
+        else if(strcmp(argv[Count],"-u")==0)
+        {
+            if(*RVM_Path!=0)
+                EXIT_FAIL("More than one RVM root folder.");
+
+            *RVM_Path=argv[Count+1];
+            if(Dir_Present(*RVM_Path)!=0)
+                EXIT_FAIL("RVM root path is not present.");
+            if(Dir_Empty(*RVM_Path)==0)
+                EXIT_FAIL("RVM root path is empty, wrong path selected.");
 
             Count+=2;
         }
@@ -594,8 +626,10 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path, s8**
         EXIT_FAIL("No input file specified.");
     if(*Output_Path==0)
         EXIT_FAIL("No output path specified.");
-    if(*Root_Path==0)
+    if(*RME_Path==0)
         EXIT_FAIL("No RME root path specified.");
+    if(*RVM_Path==0)
+        EXIT_FAIL("No RVM root path specified.");
     if(*Output_Type==0)
         EXIT_FAIL("No output project type specified.");
 }
@@ -2362,7 +2396,8 @@ int main(int argc, char* argv[])
 	/* The command line arguments */
 	s8* Input_Path;
 	s8* Output_Path;
-	s8* Root_Path;
+	s8* RME_Path;
+	s8* RVM_Path;
 	cnt_t Output_Type;
 	/* The input buffer */
 	s8* Input_Buf=0;
@@ -2377,7 +2412,7 @@ int main(int argc, char* argv[])
 	List_Crt(&Mem_List);
 
     /* Process the command line first */
-    Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &Root_Path, &Output_Type);
+    Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Output_Type);
 
 	/* Read the project contents */
 	Input_Buf=Read_File(Input_Path);
@@ -2442,15 +2477,34 @@ struct CMX_Vect_Info
 	s8* Vect_Name;
 	s8* Vect_Stat;
 };
+
+struct CMX_Pgtbl
+{
+    ptr_t Start_Addr;
+    ptr_t Size_Order;
+    ptr_t Num_Order;
+    ptr_t Attribute;
+    /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
+    struct CMX_Pgtbl* Mapping[8];
+}
+
+struct CMX_Proc
+{
+    /* The process information structure */
+    struct Proc_Info* Proc;
+    /* What leaf page tables are actually needed to conjure this memory map */
+    cnt_t Leaf_Pgtbl_Num;
+    struct CMX_Pgtbl* Leaf_Pgtbl;
+    /* Done. make the higher-level page tables */
+};
+
 /* Cortex-M information */
-struct CMX_Info
+struct CMX_Proj_Info
 {
 	cnt_t NVIC_Grouping;
 	ptr_t Systick_Val;
-	cnt_t Chip_Info_Num;
-	struct CMX_Chip_Info* Chip_Info;
-	cnt_t Vect_Info_Num;
-	struct CMX_Vect_Info* Vect_Info;
+    
+    /* This alignment is really fucking. */
 };
 /* End Structs ***************************************************************/
 
@@ -2471,6 +2525,7 @@ ret_t CMX_Align(struct Mem_Info* Mem)
             return -1;
         if((Mem->Size&0x1F)!=0)
             return -1;
+        /* This is terrible. Or even horrible, this mapping algorithm is really hard */
     }
     else
     {
@@ -2504,8 +2559,102 @@ void CMX_Gen_Makefile(void)
 
 }
 
+struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num)
+{
+    ptr_t Start;
+    ptr_t End;
+    cnt_t Count;
+    cnt_t Total_Order;
+    cnt_t Size_Order;
+    cnt_t Num_Order;
+    struct CMX_Pgtbl* Pgtbl;
+
+    /* Allocate the page table data structure */
+    Pgtbl=Malloc(sizeof(struct CMX_Pgtbl));
+    if(Pgtbl==0)
+        EXIT_FAIL("Page table data structure allocation failed.");
+
+    /* What ranges does these stuff cover? */
+    Start=(ptr_t)(-1);
+    End=0;
+    for(Count=0;Count<Num;Count++)
+    {
+        if(Start>Mem[Count].Start)
+            Start=Mem[Count].Start;
+        if(End<(Mem[Count].Start+Mem[Count].Size))
+            End=Mem[Count].Start+Mem[Count].Size;
+    }
+    
+    /* Which power-of-2 box is this in? */
+    Total_Order=0;
+    while(1)
+    {
+        if(End<=((Start>>Total_Order)<<Total_Order)+(1<<Total_Order))
+            break;
+        Total_Order++;
+    }
+    /* If the total order less than 8, we wish to extend that to 8 */
+    if(Total_Order<8)
+        Total_Order=8;
+    
+    Pgtbl->Start_Addr=(Start>>Total_Order)<<Total_Order;
+
+    /* Can we map them in here with one table at all, use table sized 8? This is done by:
+     1. There cannot be any two with different access permissions. 
+     2. All memories must be mapped into this. 
+        minimum page size is always 32 byte. This cannot be violated.
+        still, veruy hard. 
+     */
+    for(Num_Order=2;Num_Order<=8;Num_Order*=2)
+    {
+        for(Count=0;Count<Num;Count++)
+        {
+            
+        }
+    }
+    Size_Order=Total_Order-Num_Order;
+    /* If we are forced to cut anything apart, we prefer 2 */
+
+
+    /* Find the range... */
+
+    /* Create the top-level... */
+
+/* Also, how do we support MPUs that have arbitrary range? we are wasting it as we currently use it. */
+each region is a page, simple indeed. just make it like that. Feel free to use a certain range as the page table.
+In the page table, only consecutive pages may be mapped, that easy. 
+This algorithm guarantees consecutive pages. 
+    splice memory... Can we map in all things with this?
+    Yes, we can! find the smallest that can map.
+    No, we can't... always use 8.
+    for(0 to 7)...
+    [0]=...
+    {
+        /* map in actual stuff */
+
+        /* else */
+        =CMX_Gen_Pgtbl(Mem, Num);
+    }
+} 
+
 void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
+    Step1. Create top-level page table. What addresses will this access? What are the two ends?
+    Map whatever can be mapped in (8), and pass down whatever that cannot be mapped in.
+    Collect the next one. pass down.
+
+    Until all are mapped in.
+
+    Now we know the top-level's content. The top-level always get mapped in with 2 entries.
+
+    We are sure that after each alignment run, each segment can only be 
+    for each page table, we may need a series of things to actually implement it.... This is the very hard part.
+    Page table setup.
+    one memory segment can have many page tables. 
+    This should be run for all processes.
+    /* Now we are fully clear where the segments are. Need to construct the page table for
+     * all these - that's the hard part.
+     struct
     /* Further processing, decide the page table layout of everything, and some Cortex-M 
      * macro values */
 
