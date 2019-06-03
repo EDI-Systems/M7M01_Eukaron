@@ -18,7 +18,7 @@ Description : The configuration generator for the MCU ports. This does not
                 3.Generate memory map. This places all the memory segments into
                   the memory map, and fixes their specific size, etc. If the chip's
                   memory is deemed too small, we will resort to a larger chip.
-                4.Generate the kernel object map. This now fleshes out all the kernel
+                4.Generate the kernel object script. This now fleshes out all the kernel
                   objects which the Init is responsible for creation in the system.
                   Vectors is an exception: the kernel creates these endpoints and 
                   the Init just makes necessary endpoint delegations. If we encounter
@@ -38,6 +38,29 @@ Description : The configuration generator for the MCU ports. This does not
                   8. Then generates project for RVM. 
                   9. And generates project for all other processes.
               3.Report to the user that the project generation is complete.
+
+#error: add m7m2-root folder. RVM is always necessary. Hand-crafted stuff should always be there for convenience. 
+when making init, always run one virtual machine??? Current organization is just terrible.
+Additionally, how much memory does it take? totally unknown to us.
+Another issue: how to make the example programs? Is the current one too hard? 
+We should remove the VMM functionality now, maybe we can add it back later on.
+We also have a bunch of other stuff that is waiting for us. How to deal with this?
+The MCU user-level lib includes the following:
+
+Basics -> Some to be created, some is there.
+VMM -> This is the VMM.
+Posix -> This is the posix.
+This is going to look very bad. Very bad.
+How to make the example project - That becomes really tough. Can't make use of the VMM anymore.Try_Bitmap
+We cannot delete the project folder either. This is nuts. 
+Or, maybe, we can consider merging the RVM with the RME, combined in a single file implementation of the user-level.
+Additionally, The performance of the system is still unmeasured. This is not good at all.
+The HAL organization is also nuts.
+
+Are we really gonna do that? Or, what will M7M2 do? We cannot always rely on the M5P1.
+Or, consider removing M7M2, and make the whole thing, including all drivers, M7M1. This is 
+sensible, but there's the risk of producing something very large and very complex.
+
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -75,6 +98,10 @@ Description : The configuration generator for the MCU ports. This does not
 /* Capability ID placement */
 #define AUTO            ((ptr_t)(-1))
 #define INVALID         ((ptr_t)(-2))
+/* Recovery options */
+#define RECOVERY_THD    (0)
+#define RECOVERY_PROC   (1)
+#define RECOVERY_SYS    (2)
 /* Memory types */
 #define MEM_CODE        0
 #define MEM_DATA        1
@@ -159,18 +186,20 @@ struct RME_Info
 	ptr_t Code_Size;
 	ptr_t Data_Start;
 	ptr_t Data_Size;
-	cnt_t Extra_Kmem;
-	cnt_t Kmem_Order;
-	cnt_t Kern_Prios;
+	ptr_t Extra_Kmem;
+	ptr_t Kmem_Order;
+	ptr_t Kern_Prios;
 	struct Raw_Info Plat_Raw;
 	struct Raw_Info Chip_Raw;
 };
-/* RVM user-level library information */
+/* RVM user-level library information. */
 struct RVM_Info
 {
 	struct Comp_Info Comp;
-	cnt_t Captbl_Spare;
-	cnt_t Recovery;
+    ptr_t Code_Size;
+    ptr_t Data_Size;
+	ptr_t Extra_Captbl;
+	ptr_t Recovery;
 };
 /* Memory segment information */
 struct Mem_Info
@@ -179,6 +208,7 @@ struct Mem_Info
 	ptr_t Size;
 	cnt_t Type;
 	ptr_t Attr;
+    ptr_t Align;
 };
 /* Thread information */
 struct Thd_Info
@@ -261,9 +291,10 @@ struct Vect_Info
 struct Chip_Info
 {
 	s8* Name;
-	cnt_t Plat_Type;
-	cnt_t Cores;
-	cnt_t Mem_Num;
+	ptr_t Plat_Type;
+	ptr_t Cores;
+    ptr_t Regions;
+	ptr_t Mem_Num;
 	struct Mem_Info* Mem;
 	cnt_t Option_Num;
 	struct Option_Info* Option;
@@ -271,29 +302,15 @@ struct Chip_Info
 	struct Vect_Info* Vect;
 };
 
-/* Platform specific structures */
-/* Cortex-M */
-/* Chip-specific macros */
-struct CMX_Chip_Info
+/* Memory map information - min granularity 4B */
+struct Mem_Map
 {
-	s8* Macro_Name;
-	s8* Macro_Val;
-};
-/* Enabled interrupt endpoints */
-struct CMX_Vect_Info
-{
-	s8* Vect_Name;
-	s8* Vect_Stat;
-};
-/* Cortex-M information */
-struct CMX_Info
-{
-	cnt_t NVIC_Grouping;
-	ptr_t Systick_Val;
-	cnt_t Chip_Info_Num;
-	struct CMX_Chip_Info* Chip_Info;
-	cnt_t Vect_Info_Num;
-	struct CMX_Vect_Info* Vect_Info;
+    ptr_t Mem_Num;
+    s8** Mem_Bitmap;
+    struct Mem_Info** Mem_Array;
+
+    ptr_t Proc_Mem_Num;
+    struct Mem_Info** Proc_Mem_Array;
 };
 /* End Structs ***************************************************************/
 
@@ -1051,6 +1068,93 @@ Return      : ret_t - Always 0.
 ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
 {
     /* We don't parse RVM now as the functionality is not supported */
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+    s8* Compiler_Start;
+    s8* Compiler_End;
+    s8* General_Start;
+    s8* General_End;
+    s8* VMM_Start;
+    s8* VMM_End;
+    cnt_t Count;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Compiler */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Compiler");
+    Compiler_Start=Val_Start;
+    Compiler_End=Val_End;
+    /* General */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "General");
+    General_Start=Val_Start;
+    General_End=Val_End;
+    /* Platform-Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, VMM);
+    VMM_Start=Val_Start;
+    VMM_End=Val_End;
+
+    /* Now read the contents of the Compiler section */
+    Start=Compiler_Start;
+    End=Compiler_End;
+    /* Optimization level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Optimization");
+    if(strncmp(Val_Start,"O0",2)==0)
+        Proj->RVM.Comp.Opt=OPT_O0;
+    else if(strncmp(Val_Start,"O1",2)==0)
+        Proj->RVM.Comp.Opt=OPT_O1;
+    else if(strncmp(Val_Start,"O2",2)==0)
+        Proj->RVM.Comp.Opt=OPT_O2;
+    else if(strncmp(Val_Start,"O3",2)==0)
+        Proj->RVM.Comp.Opt=OPT_O3;
+    else if(strncmp(Val_Start,"OS",2)==0)
+        Proj->RVM.Comp.Opt=OPT_OS;
+    else
+        EXIT_FAIL("The optimization option is malformed.");
+    /* Library level */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
+    if(strncmp(Val_Start,"Small",5)==0)
+        Proj->RVM.Comp.Lib=LIB_SMALL;
+    else if(strncmp(Val_Start,"Full",4)==0)
+        Proj->RVM.Comp.Lib=LIB_FULL;
+    else
+        EXIT_FAIL("The library option is malformed.");
+
+    /* Now read the contents of the General section */
+    Start=General_Start;
+    End=General_End;
+    /* Code size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Code_Size");
+    Proj->RVM.Code_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->RVM.Code_Size>=INVALID)
+        EXIT_FAIL("Code section size is malformed. This cannot be Auto.");
+    /* Data size */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Data_Size");
+    Proj->RVM.Data_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->RVM.Data_Size>=INVALID)
+        EXIT_FAIL("Data section size is malformed. This cannot be Auto.");
+    /* Extra Kmem */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Extra_Captbl");
+    Proj->RVM.Extra_Captbl=Get_Uint(Val_Start,Val_End);
+    if(Proj->RVM.Extra_Captbl>=INVALID)
+        EXIT_FAIL("Extra kernel memory size is malformed. This cannot be Auto.");
+    /* Recovery */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Recovery");
+    if(strncmp(Val_Start,"Thread",6)==0)
+        Proj->RVM.Recovery=RECOVERY_THD;
+    else if(strncmp(Val_Start,"Process",7)==0)
+        Proj->RVM.Recovery=RECOVERY_PROC;
+    else if(strncmp(Val_Start,"System",6)==0)
+        Proj->RVM.Recovery=RECOVERY_SYS;
+    else
+        EXIT_FAIL("The recovery option is malformed.");
+
+    /* The VMM section is currently unused. We don't care about this now */
+    
     return 0;
 }
 /* End Function:Parse_RVM ****************************************************/
@@ -1845,6 +1949,11 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     Chip->Cores=Get_Uint(Val_Start,Val_End);
     if((Chip->Cores==0)||(Chip->Cores>=INVALID))
         EXIT_FAIL("Chip cores read failed.");
+    /* Regions */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Regions");
+    Chip->Regions=Get_Uint(Val_Start,Val_End);
+    if((Chip->Regions<=2)||(Chip->Regions>=INVALID))
+        EXIT_FAIL("Chip regions read failed.");
     /* Memory */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memory");
     Memory_Start=Val_Start;
@@ -1921,70 +2030,326 @@ Return      : None.
 ******************************************************************************/
 void Align_Mem(struct Proj_Info* Proj, ret_t (*Align)(struct Mem_Info*))
 {
-	/* We have already parsed the whole stuff */
+    cnt_t Proc_Cnt;
+    cnt_t Mem_Cnt;
 
-	/* Then bring up the architecture-specific parser */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Align(&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt])!=0)
+                EXIT_FAIL("Memory aligning failed.");
+        }
+    }
 }
 /* End Function:Align_Mem ****************************************************/
 
-/* Begin Function:Alloc_Mem ***************************************************
-Description : Actually allocate all the memories that are undecided to their specific
-              addresses. After this, all memories will have fixed address ranges.
+/* Begin Function:Insert_Mem **************************************************
+Description : Insert memory blocks into a queue with increasing start address/size.
+Input       : struct Mem_Info** Array - The array containing all the memory blocks to sort.
+              ptr_t Len - The maximum length of the array.
+              struct Mem_Info* Mem - The memory block to insert.
+              ptr_t Category - The insert option, 0 for start address, 1 for size.
+Output      : struct Mem_Info** Array - The updated array.
+Return      : ret_t - If successful, 0; else -1.
+******************************************************************************/
+ret_t Insert_Mem(struct Mem_Info** Array, ptr_t Len, struct Mem_Info* Mem, ptr_t Category)
+{
+    cnt_t Pos;
+    cnt_t End;
+
+    for(Pos=0;Pos<Len;Pos++)
+    {
+        if(Array[Pos]==0)
+            break;
+        if(Category==0)
+        {
+            if(Array[Pos]->Start>Mem->Start)
+                break;
+        }
+        else
+        {
+            if(Array[Pos]->Size>Mem->Size)
+                break;
+        }
+    }
+    if(Pos>=Len)
+        return -1;
+    for(End=Pos;End<Len;End++)
+    {
+        if(Array[End]==0)
+            break;
+    }
+    for(End--;End>=Pos;End--)
+        Array[End+1]=Array[End];
+    
+    Array[Pos]=Mem;
+    return 0;
+}
+/* End Function:Insert_Mem ***************************************************/
+
+/* Begin Function:Try_Bitmap **************************************************
+Description : See if this bitmap segment is already covered.
+Input       : s8* Bitmap - The bitmap.
+              ptr_t Start - The starting bit location.
+              ptr_t Size - The number of bits.
+Output      : None.
+Return      : ret_t - If can be marked, 0; else -1.
+******************************************************************************/
+ret_t Try_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
+{
+    cnt_t Count;
+
+    for(Count=0;Count<Size;Count++)
+    {
+        if((Bitmap[(Start+Count)/8]&(1<<((Start+Count)%8)))!=0)
+            return -1;
+    }
+    return 0;
+}
+/* End Function:Try_Bitmap ***************************************************/
+
+/* Begin Function:Mark_Bitmap *************************************************
+Description : Actually mark this bitmap segment.
+Input       : s8* Bitmap - The bitmap.
+              ptr_t Start - The starting bit location.
+              ptr_t Size - The number of bits.
+Output      : s8* Bitmap - The updated bitmap.
+Return      : None.
+******************************************************************************/
+void Mark_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
+{
+    cnt_t Count;
+
+    for(Count=0;Count<Size;Count++)
+        Bitmap[(Start+Count)/8]|=1<<((Start+Count)%8);
+}
+/* End Function:Mark_Bitmap **************************************************/
+
+/* Begin Function:Populate_Mem ************************************************
+Description : Populate the memory data structure with this memory segment.
+Input       : struct Mem_Map* Map - The memory map.
+              ptr_t Start - The start address of the memory.
+              ptr_t Size - The size of the memory.
+Output      : struct Mem_Map* Map - The updated memory map.
+Return      : ret_t - If successful, 0; else -1.
+******************************************************************************/
+ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
+{
+    cnt_t Mem_Cnt;
+    ptr_t Rel_Start;
+    cnt_t Mark_Start;
+    cnt_t Mark_End;
+
+    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
+    {
+        if((Start>=Map->Mem_Array[Mem_Cnt]->Start)&&
+           (Start<Map->Mem_Array[Mem_Cnt]->Start+Map->Mem_Array[Mem_Cnt]->Size))
+            break;
+    }
+
+    /* Must be in this segment. See if we can fit there */
+    if(Mem_Cnt==Map->Mem_Num)
+        return -1;
+    if((Map->Mem_Array[Mem_Cnt]->Start+Map->Mem_Array[Mem_Cnt]->Size)<(Start+Size))
+        return -1;
+    
+    /* It is clear that we can fit now. Mark all the bits */
+    Rel_Start=Start-Map->Mem_Array[Mem_Cnt]->Start;
+    Mark_Bitmap(Rel_Start/4,Size/4);
+    return 0;
+}
+/* End Function:Populate_Mem *************************************************/
+
+/* Begin Function:Fit_Mem *****************************************************
+Description : Fit the auto-placed memory segments to a fixed location.
+Input       : struct Mem_Map* Map - The memory map.
+              cnt_t Mem_Num - The memory info number in the process memory array.
+Output      : struct Mem_Map* Map - The updated memory map.
+Return      : ret_t - If successful, 0; else -1.
+******************************************************************************/
+ret_t Fit_Mem(struct Mem_Map* Map, cnt_t Mem_Num)
+{
+    cnt_t Fit_Cnt;
+    ptr_t Start_Addr;
+    ptr_t End_Addr;
+    ptr_t Try_Addr;
+    ptr_t Bitmap_Start;
+    ptr_t Bitmap_End;
+    struct Mem_Info* Mem;
+    struct Mem_Info* Fit;
+
+    Mem=Map->Proc_Mem_Array[Mem_Num];
+    /* Find somewhere to fit this memory trunk, and if found, we will populate it */
+    for(Fit_Cnt=0;Fit_Cnt<Map->Mem_Num;Fit_Cnt++)
+    {
+        Fit=Map->Mem_Array[Fit_Cnt];
+        if(Mem->Size>Fit->Size)
+            continue;
+        /* Round start address up, round end address down, to alignment */
+        Start_Addr=((Fit->Start+Mem->Align-1)/Mem->Align)*Mem->Align;
+        End_Addr=((Fit->Start+Fit->Size)/Mem->Align)*Mem->Align;
+        if(Mem->Size>(End_Addr-Start_Addr))
+            continue;
+        End_Addr-=Mem->Size;
+        for(Try_Addr=Start_Addr;Try_Addr<End_Addr;Try_Addr+=Mem->Align)
+        {
+            Bitmap_Start=(Try_Addr-Fit->Start)/4;
+            Bitmap_End=Mem->Size/4;
+            if(Try_Bitmap(Map->Mem_Bitmap[Fit_Cnt], Bitmap_Start,Bitmap_End)==0)
+            {
+                Mark_Bitmap(Map->Mem_Bitmap[Fit_Cnt], Bitmap_Start,Bitmap_End);
+                Mem->Start=Try_Addr;
+                /* Found a fit */
+                return 0;
+            }
+        }
+    }
+    /* Can't find any fit */
+    return -1;
+}
+/* End Function:Fit_Mem ******************************************************/
+
+/* Begin Function:Alloc_Code **************************************************
+Description : Actually allocate all the code memories that are automatically
+              placed. After this, all memories will have fixed address ranges.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
+              struct Chip_Info* Chip - The struct containing the chip information.
+              ptr_t Type - The type of the memory, either MEM_CODE or MEM_DATA.
 Output      : struct Proj_Info* Proj - The struct containing the project information,
                                        with all memory location allocated.
 Return      : None.
 ******************************************************************************/
-void Alloc_Mem(struct Proj_Info* Proj)
+void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
 {
+    cnt_t Count;
+    cnt_t Proc_Cnt;
+    cnt_t Mem_Cnt;
+    struct Mem_Map* Map;
 
+    if((Type!=MEM_CODE)&&(Type!=MEM_DATA))
+        EXIT_FAIL("Wrong fitting type.");
+
+    Map=Malloc(sizeof(struct Mem_Map));
+    if(Map==0)
+        EXIT_FAIL("Memory map allocation failed.");
+
+    /* Find all code memory sections */
+    Count=0;
+    for(Mem_Cnt=0;Mem_Cnt<Chip->Mem_Num;Mem_Cnt++)
+    {
+        if(Chip->Mem[Mem_Cnt].Type==Type)
+            Count++;
+    }
+
+    Map->Mem_Num=Count;
+    Map->Mem_Array=Malloc(sizeof(struct Mem_Info*)*Count);
+    if(Map->Mem_Array==0)
+        EXIT_FAIL("Memory map allocation failed.");
+    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Count)
+    Map->Mem_Bitmap=Malloc(sizeof(s8*)*Mem_Cnt);
+    if(Map->Mem_Bitmap==0)
+        EXIT_FAIL("Memory map allocation failed.");
+    
+    /* Insert sort according to the start address */
+    for(Mem_Cnt=0;Mem_Cnt<Chip->Mem_Num;Mem_Cnt++)
+    {
+        if(Chip->Mem[Mem_Cnt].Type==Type)
+        {
+            if(Insert_Mem(Map->Mem_Array,&Chip->Mem[Mem_Cnt],0)!=0)
+                EXIT_FAIL("Code memory insertion sort failed.");
+        }
+    }
+
+    /* Now allocate the bitmap array according to their size */
+    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
+    {
+        /* We insist that one bit represents 4 bytes in the bitmap */
+        Map->Mem_Bitmap[Mem_Cnt]=Malloc((Map->Mem_Array[Mem_Cnt]->Size/4)+1);
+        if(Map->Mem_Bitmap[Mem_Cnt]==0)
+            EXIT_FAIL("Code bitmap allocation failed");
+        memset(Map->Mem_Bitmap[Mem_Cnt],0,(Map->Mem_Array[Mem_Cnt]->Size/4)+1);
+    }
+
+    /* Now populate the RME & RVM sections */
+    if(Type==MEM_CODE)
+    {
+        if(Populate_Mem(Map, Proj->RME.Code_Start,Proj->RME.Code_Size)!=0)
+            EXIT_FAIL("Invalid address designated.");
+        if(Populate_Mem(Map, Proj->RME.Code_Start+Proj->RME.Code_Size,Proj->RVM.Code_Size)!=0)
+            EXIT_FAIL("Invalid address designated.");
+    }
+    else
+    {
+        if(Populate_Mem(Map, Proj->RME.Code_Start,Proj->RME.Data_Size)!=0)
+            EXIT_FAIL("Invalid address designated.");
+        if(Populate_Mem(Map, Proj->RME.Code_Start+Proj->RME.Data_Size,Proj->RVM.Data_Size)!=0)
+            EXIT_FAIL("Invalid address designated.");
+    }
+
+    /* Find all project code memory sections */
+    Count=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
+            {
+                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
+                    Count++;
+                else
+                {
+                    if(Populate_Mem(Map, Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start, Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Size)!=0)
+                        EXIT_FAIL("Invalid address designated.");
+                }
+            }
+        }
+    }
+
+    Map->Proc_Mem_Num=Count;
+    Map->Proc_Mem_Array=Malloc(sizeof(struct Mem_Info*)*Count);
+    if(Map->Proc_Mem_Array==0)
+        EXIT_FAIL("Memory map allocation failed.");
+
+    /* Insert sort according to size */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
+            {
+                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
+                {
+                    if(Insert_Mem(Map->Proc_Mem_Array,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
+                        EXIT_FAIL("Code memory insertion sort failed.");
+                }
+            }
+        }
+    }
+
+    /* Fit whatever that does not have a fixed address */
+    for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
+    {
+        if(Fit_Mem(Map,Mem_Cnt)!=0)
+            EXIT_FAIL("Memory fitter failed.");
+    }
+
+    /* Clean up before returning */
+    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
+        Free(Map->Mem_Bitmap[Mem_Cnt]);
+    for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
+        Free(Map->Proc_Mem_Bitmap[Mem_Cnt]);
+    
+    Free(Map->Mem_Array);
+    Free(Map->Mem_Bitmap);
+    Free(Map->Proc_Mem_Array);
+    Free(Map);
 }
 /* End Function:Alloc_Mem ****************************************************/
 
-/* Cortex-M (CMX) Toolset *****************************************************
-This toolset is for Cortex-M. Specifically, this suits Cortex-M0+, Cortex-M1,
-Cortex-M3, Cortex-M7. Cortex-M23 and Cortex-M33 support is still pending at the
-moment.
-******************************************************************************/
-
-/* Begin Function:CMX_Align ***************************************************
-Description : Align the memory according to Cortex-M platform's requirements.
-Input       : struct Mem_Info* Mem - The struct containing memory information.
-Output      : struct Mem_Info* Mem - The struct containing memory information,
-                                     with all memory size aligned.
-Return      : ret_t - If the start address and size is acceptable, 0; else -1.
-******************************************************************************/
-ret_t CMX_Align(struct Mem_Info* Mem)
-{
-	return 0;
-}
-/* End Function:CMX_Align ****************************************************/
-
-/* Why not consider embedding all the stuff inside this application binary blob and just... generate everything? might be a good idea for productivity.
-It will be nice if we can put them together. However, this seems to be very hard. */
-
-/* Hierachy: Project generator (OS generator, Driver generator, Middleware generator). Don't pack them; it is fine if we unpack on spot. */
-void CMX_Gen_Keil(void)
-{
-
-}
-
-void CMX_Gen_Eclipse(void)
-{
-
-}
-
-void CMX_Gen_Makefile(void)
-{
-
-}
-
-void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
-{
-	/* Create the folder first and copy all necessary files into whatever possible */
-}
-
-/* RISC-V Toolset */
+/* CMX Toolset ***************************************************************/
+ret_t CMX_Align(struct Mem_Info* Mem);
+void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -2035,7 +2400,8 @@ int main(int argc, char* argv[])
 	}
 
 	/* Actually allocate the auto memory segments by fixing their start addresses */
-	Alloc_Mem(Proj);
+	Alloc_Mem(Proj, MEM_CODE);
+	Alloc_Mem(Proj, MEM_DATA);
 
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
 	switch (0)
@@ -2052,6 +2418,118 @@ int main(int argc, char* argv[])
     return 0;
 }
 /* End Function:main *********************************************************/
+
+/* Cortex-M (CMX) Toolset *****************************************************
+This toolset is for Cortex-M. Specifically, this suits Cortex-M0+, Cortex-M1,
+Cortex-M3, Cortex-M7. Cortex-M23 and Cortex-M33 support is still pending at the
+moment.
+******************************************************************************/
+
+/* Defines *******************************************************************/
+
+/* End Defines ***************************************************************/
+
+/* Structs *******************************************************************/
+/* Chip-specific macros */
+struct CMX_Chip_Info
+{
+	s8* Macro_Name;
+	s8* Macro_Val;
+};
+/* Enabled interrupt endpoints */
+struct CMX_Vect_Info
+{
+	s8* Vect_Name;
+	s8* Vect_Stat;
+};
+/* Cortex-M information */
+struct CMX_Info
+{
+	cnt_t NVIC_Grouping;
+	ptr_t Systick_Val;
+	cnt_t Chip_Info_Num;
+	struct CMX_Chip_Info* Chip_Info;
+	cnt_t Vect_Info_Num;
+	struct CMX_Vect_Info* Vect_Info;
+};
+/* End Structs ***************************************************************/
+
+/* Begin Function:CMX_Align ***************************************************
+Description : Align the memory according to Cortex-M platform's requirements.
+Input       : struct Mem_Info* Mem - The struct containing memory information.
+Output      : struct Mem_Info* Mem - The struct containing memory information,
+                                     with all memory size aligned.
+Return      : ret_t - If the start address and size is acceptable, 0; else -1.
+******************************************************************************/
+ret_t CMX_Align(struct Mem_Info* Mem)
+{
+    ptr_t Temp;
+    if(Mem->Start!=AUTO)
+    {
+        /* This memory already have a fixed start address. Can we map it in? */
+        if((Mem->Start&0x1F)!=0)
+            return -1;
+        if((Mem->Size&0x1F)!=0)
+            return -1;
+    }
+    else
+    {
+        /* This memory's start address is not designated yet. Decide its size after
+         * alignment and calculate its start address alignment granularity. 
+         * For Cortex-M, the roundup minimum granularity is 1/8 of the nearest power 
+         * of 2 for the size. */
+        Temp=1;
+        while(Temp<Mem->Size)
+            Temp<<=1;
+        Mem->Align=Temp/8;
+        Mem->Size=((Mem->Size-1)/Mem->Align)*Mem->Align;
+    }
+    
+	return 0;
+}
+/* End Function:CMX_Align ****************************************************/
+
+void CMX_Gen_Keil(void)
+{
+
+}
+
+void CMX_Gen_Eclipse(void)
+{
+
+}
+
+void CMX_Gen_Makefile(void)
+{
+
+}
+
+void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    /* Further processing, decide the page table layout of everything, and some Cortex-M 
+     * macro values */
+
+    /* Check if everything else is valid. If yes, all error output is already done, and we
+      will start setting up the project very soon. After this, no error should occur. */
+
+	/* Create the folder first and copy all necessary files into whatever possible */
+
+    /* Write boot-time creation script that creates the interrupt endpoints */
+
+    /* Write the kernel script for sending interrupts to endpoints */
+
+    /* Write boot-time scripts that creates everything else */
+
+    /* Write scripts for all processes */
+
+    /* We're done here. */
+
+    /* Static things are done. What about dynamic things? */
+
+    /* Simple - tweak at your own risk. */
+
+    /* Call project generator to generate the project */
+}
 
 /* End Of File ***************************************************************/
 
