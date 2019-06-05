@@ -47,7 +47,7 @@
     
         </VMM>
     </RVM>
-    <Process>                                                                      <!-- The user compartments -->
+    <Process>                                                                   <!-- The user compartments -->
         <P1>
             <General>
                 <Name>Domain1</Name>
