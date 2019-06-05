@@ -3180,10 +3180,10 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
             Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
             if((Mem_Start<=Page_Start)&&(Mem_End>=Page_End))
             {
-                /* The first one that gets mapped in always takes the attribute, and the next ones will have
-                 * to use their separate regions. Thus, it is best to avoid many trunks of small memory segments
-                 * with distinct attributes, or this allocator may not be able to allocate. This is a restriction
-                 * that is applied here, and is only for Cortex-M. */
+                /* The first one that gets mapped in always takes the attribute, and the next
+                 * ones will have to use their separate regions. Thus, it is best to avoid many
+                 * trunks of small memory segments with distinct attributes, or this allocator
+                 * may not be able to allocate. This is a restriction only for Cortex-M. */
                 if(Pgtbl->Attr==0)
                     Pgtbl->Attr=Mem[Mem_Cnt].Attr;
                 if(Pgtbl->Attr==Mem[Mem_Cnt].Attr)
