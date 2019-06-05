@@ -134,6 +134,12 @@ Let's just provide all MCU examples with that. This is probably the best we can 
 /* Option types */
 #define OPTION_RANGE    0
 #define OPTION_SELECT   1
+/* Kernel object types */
+#define CAP_CAPTBL      0
+#define CAP_PROC        1
+#define CAP_THD         2
+#define CAP_INV         3
+#define CAP_ENDP        4
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -206,14 +212,26 @@ struct RME_Info
 	struct Raw_Info Plat_Raw;
 	struct Raw_Info Chip_Raw;
 };
+/* RVM's capability information, from the user processes */
+struct RVM_Cap_Info
+{
+    /* What process is this capability in? */
+    struct Proc_Info* Proc;
+    /* What capability is it? */
+    ptr_t Type;
+    /* What's the content of the capability, exactly? */
+    void* Cap;
+};
 /* RVM user-level library information. */
 struct RVM_Info
 {
 	struct Comp_Info Comp;
     ptr_t Code_Size;
     ptr_t Data_Size;
+    ptr_t Captbl_Frontier;
 	ptr_t Extra_Captbl;
 	ptr_t Recovery;
+    struct RVM_Cap_Info* Captbl;
 };
 /* Memory segment information */
 struct Mem_Info
@@ -228,6 +246,8 @@ struct Mem_Info
 struct Thd_Info
 {
 	s8* Name;
+    ptr_t Capid;
+    ptr_t RVM_Capid;
 	s8* Entry;
 	ptr_t Stack_Addr;
 	ptr_t Stack_Size;
@@ -238,6 +258,8 @@ struct Thd_Info
 struct Inv_Info
 {
 	s8* Name;
+    ptr_t Capid;
+    ptr_t RVM_Capid;
 	s8* Entry;
 	ptr_t Stack_Addr;
 	ptr_t Stack_Size;
@@ -246,12 +268,16 @@ struct Inv_Info
 struct Port_Info
 {
 	s8* Name;
+    ptr_t Capid;
+    ptr_t RVM_Capid;
     s8* Process;
 };
 /* Endpoint information */
 struct Endp_Info
 {
 	s8* Name;
+    ptr_t Capid;
+    ptr_t RVM_Capid;
 	ptr_t Type;
     s8* Process;
 };
@@ -259,7 +285,10 @@ struct Endp_Info
 struct Proc_Info
 {
     s8* Name;
+    ptr_t RVM_Proc_Capid;
+    ptr_t RVM_Captbl_Capid;
 	ptr_t Extra_Captbl;
+    ptr_t Captbl_Frontier;
 	struct Comp_Info Comp;
 	cnt_t Mem_Num;
 	struct Mem_Info* Mem;
@@ -2381,6 +2410,462 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
 }
 /* End Function:Alloc_Mem ****************************************************/
 
+/* Begin Function:Strcicmp ****************************************************
+Description : Compare two strings in a case insensitive way.
+Input       : s8* Str1 - The first string.
+              s8* Str2 - The second string.
+Output      : None.
+Return      : ret_t - If two strings are equal, then 0; if the first is bigger, 
+                      then positive; else negative.
+******************************************************************************/
+ret_t Strcicmp(s8* Str1, s8* Str2)
+{
+    cnt_t Count;
+    ret_t Result;
+    while(1)
+    {
+        Result=tolower(Str1[Count])-tolower(Str2[Count]);
+        if(Result!=0)
+            return Result;
+        
+        if(Str1[Count]=='\0')
+            break;
+    }
+    return Result;
+}
+/* End Function:Strcicmp *****************************************************/
+
+/* Begin Function:Validate_Name ***********************************************
+Description : See if the names are validate C identifiers.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : ret_t - If no conflict, 0; else -1.
+******************************************************************************/
+ret_t Validate_Name(s8* Name)
+{
+    cnt_t Count;
+    /* Should not begin with number */
+    if((Name[0]>='0')&&(Name[0]<='9'))
+        return -1;
+    Count=0;
+    while(1)
+    {
+        Count++;
+        if(Name[Count]=='\0')
+            return 0;
+        if((Name[Count]>='a')&&(Name[Count]<='z'))
+            continue;
+        if((Name[Count]>='A')&&(Name[Count]<='Z'))
+            continue;
+        if((Name[Count]>='0')&&(Name[Count]<='9'))
+            continue;
+        if(Name[Count]=='_')
+            continue;
+        break;
+    }
+    return -1;
+}
+/* End Function:Validate_Name ************************************************/
+
+/* Begin Function:Detect_Handler **********************************************
+Description : Detect handler conflicts in the system.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Detect_Handler(struct Proj_Info* Proj)
+{
+    cnt_t Proc_Cnt;
+    cnt_t Proc_Tmp_Cnt;
+    cnt_t Obj_Cnt;
+    cnt_t Obj_Tmp_Cnt;
+    struct Proc_Info* Proc;
+    struct Endp_Info* Endp;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        /* Check that every handler name is globally unique */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            Endp=&(Proc->Port[Obj_Cnt]);
+            if(Endp->Type!=ENDP_HANDLER)
+                continue;
+            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
+            {
+                for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
+                {
+                    if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)
+                        EXIT_FAIL("Duplicate handlers found.");
+                }
+            }
+        }
+    }       
+}
+/* End Function:Detect_Handler ***********************************************/
+
+/* Begin Function:Detect_Conflict *********************************************
+Description : Detect namespace conflicts in the system. It also checks if the
+              names are at least regular C identifiers.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Detect_Conflict(struct Proj_Info* Proj)
+{
+    cnt_t Proc_Cnt;
+    cnt_t Obj_Cnt;
+    cnt_t Count;
+    struct Proc_Info* Proc;
+
+    /* Are there two processes with the same name? */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        /* Check for duplicate processes */
+        if(Validate_Name(Proc->Name)!=0)
+            EXIT_FAIL("Invalid process name.");
+        for(Count=0;Count<Proj->Proc_Num;Count++)
+        {
+            if((Count!=Proc_Cnt)&&(Strcicmp(Proc->Name,Proj->Proc[Count].Name)==0))
+                EXIT_FAIL("Duplicate process name.");
+        }
+        /* Check for duplicate threads */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Thd_Num;Obj_Cnt++)
+        {
+            if(Validate_Name(Proc->Thd[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid thread name.");
+            for(Count=0;Count<Proc->Thd_Num;Count++)
+            {
+                if((Count!=Obj_Cnt)&&(Strcicmp(Proc->Thd[Count].Name,Proc->Thd[Obj_Cnt].Name)==0))
+                    EXIT_FAIL("Duplicate thread name.");
+            }
+        }
+        /* Check for duplicate invocations */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Inv_Num;Obj_Cnt++)
+        {
+            if(Validate_Name(Proc->Inv[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid invocation name.");
+            for(Count=0;Count<Proc->Inv_Num;Count++)
+            {
+                if((Count!=Obj_Cnt)&&(Strcicmp(Proc->Inv[Count].Name,Proc->Inv[Obj_Cnt].Name)==0))
+                    EXIT_FAIL("Duplicate invocation name");
+            }
+        }
+        /* Check for duplicate ports */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Port_Num;Obj_Cnt++)
+        {
+            if(Validate_Name(Proc->Port[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid port name.");
+            if(Validate_Name(Proc->Port[Obj_Cnt].Process)!=0)
+                EXIT_FAIL("Invalid port process name.");
+            if(Strcicmp(Proc->Port[Obj_Cnt].Name,Proc->Name)==0)
+                EXIT_FAIL("Port cannot target within the same process.");
+            for(Count=0;Count<Proc->Port_Num;Count++)
+            {
+                if((Count!=Obj_Cnt)&&
+                   (Strcicmp(Proc->Port[Count].Name,Proc->Port[Obj_Cnt].Name)==0)&&
+                   (Strcicmp(Proc->Port[Count].Process,Proc->Port[Obj_Cnt].Process)==0))
+                    EXIT_FAIL("Duplicate port name");
+            }
+        }
+        /* Check for duplicate endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            if(Validate_Name(Proc->Endp[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid endpoint name.");
+            if(Proc->Endp[Obj_Cnt].Type==ENDP_SEND)
+            {
+                if(Validate_Name(Proc->Endp[Obj_Cnt].Process)!=0)
+                    EXIT_FAIL("Invalid endpoint process name.");
+            }
+            for(Count=0;Count<Proc->Endp_Num;Count++)
+            {
+                if(Count!=Obj_Cnt)
+                {
+                    if((Proc->Endp[Count].Type==ENDP_RECEIVE)&&(Proc->Endp[Obj_Cnt].Type==ENDP_RECEIVE))
+                    {
+                        if(Strcicmp(Proc->Endp[Count].Name,Proc->Endp[Obj_Cnt].Name)==0)
+                            EXIT_FAIL("Duplicate receive or endpoint name");
+                    }
+                    else if((Proc->Endp[Count].Type==ENDP_SEND)&&(Proc->Endp[Obj_Cnt].Type==ENDP_SEND))
+                    {
+                        if((Strcicmp(Proc->Endp[Count].Name,Proc->Endp[Obj_Cnt].Name)==0)&&
+                           (Strcicmp(Proc->Endp[Count].Process,Proc->Endp[Obj_Cnt].Process)==0))
+                            EXIT_FAIL("Duplicate send endpoint name");
+                    }
+                }
+            }
+        }
+    }
+    
+    /* Handler endpoints needs to be unique across the system, and should not share the same name
+     * with any other endpoint. Let's check this with a dedicated function */
+    Detect_Handler(Proj);
+}
+/* End Function:Detect_Conflict **********************************************/
+
+/* Begin Function:Alloc_Local_ID **********************************************
+Description : Allocate local capability IDs for all kernel objects. 
+              We always allocate threads first, then invocations, then ports,
+              then endpoints.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Local_ID(struct Proj_Info* Proj)
+{
+    cnt_t Proc_Cnt;
+    cnt_t Obj_Cnt;
+    cnt_t Capid;
+    struct Proc_Info* Proc;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Capid=0;
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Thd_Num;Obj_Cnt++)
+        {
+            Proc->Thd[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Inv_Num;Obj_Cnt++)
+        {
+            Proc->Inv[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Port_Num;Obj_Cnt++)
+        {
+            Proc->Port[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            Proc->Endp[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        Proc->Captbl_Frontier=Capid;
+    }
+}
+/* End Function:Alloc_Local_ID ***********************************************/
+
+/* Begin Function:Get_Global_Number *******************************************
+Description : Get the number of global objects. 
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : None.
+Return      : cnt_t - The number of objects.
+******************************************************************************/
+cnt_t Get_Global_Number(struct Proj_Info* Proj)
+{
+    cnt_t Capid;
+    cnt_t Proc_Cnt;
+    cnt_t Obj_Cnt;
+
+    Capid=0;
+    /* Capability tables */
+    Capid+=Proj->Proc_Num;
+    /* Processes */
+    Capid+=Proj->Proc_Num;
+    /* Kernel objects of processes */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Capid+=Proj->Proc[Proc_Cnt].Thd_Num;
+        Capid+=Proj->Proc[Proc_Cnt].Inv_Num;
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_RECEIVE)
+               Capid++;
+        }
+    }
+    return Capid;
+}
+/* End Function:Get_Global_Number ********************************************/
+
+/* Begin Function:Alloc_Global_ID *********************************************
+Description : Allocate (relative) global capability IDs for all kernel objects. 
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Global_ID(struct Proj_Info* Proj)
+{
+    /* How many distinct kernel objects are there? We just need to add up the
+     * following: All captbls (each process have one), all processes, all threads,
+     * all invocations, all receive endpoints. The ports and send endpoints do not
+     * have a distinct kernel object; the handler endpoints are created by the kernel
+     * at boot-time, while the pgtbls are decided by architecture-specific code. */
+    cnt_t Proc_Cnt;
+    cnt_t Obj_Cnt;
+    cnt_t Capid;
+    struct Proc_Info* Proc;
+
+    Proj->RVM.Captbl_Frontier=Get_Global_Number(Proj);
+    Proj->RVM.Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Captbl_Frontier);
+    if(Proj->RVM.Captbl==0)
+        EXIT_FAIL("Global capability table allocation failed.");
+
+    /* Fill in all captbls */
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        Proj->RVM.Captbl[Capid].Proc=Proc;
+        Proj->RVM.Captbl[Capid].Type=CAP_CAPTBL;
+        Proj->RVM.Captbl[Capid].Cap=Proc;
+        Proc->RVM_Captbl_Capid=Capid;
+        Capid++;
+    }
+    /* Fill in all processes */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        Proj->RVM.Captbl[Capid].Proc=Proc;
+        Proj->RVM.Captbl[Capid].Type=CAP_PROC;
+        Proj->RVM.Captbl[Capid].Cap=Proc;
+        Proc->RVM_Proc_Capid=Capid;
+        Capid++;
+    }
+    /* Fill in all threads */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Thd_Num;Obj_Cnt++)
+        {
+            Proj->RVM.Captbl[Capid].Proc=Proc;
+            Proj->RVM.Captbl[Capid].Type=CAP_THD;
+            Proj->RVM.Captbl[Capid].Cap=Proc->Thd[Obj_Cnt];
+            Proc->Thd[Obj_Cnt].RVM_Capid=Capid;
+            Capid++;
+        }
+    }
+    /* Fill in all invocations */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Inv_Num;Obj_Cnt++)
+        {
+            Proj->RVM.Captbl[Capid].Proc=Proc;
+            Proj->RVM.Captbl[Capid].Type=CAP_INV;
+            Proj->RVM.Captbl[Capid].Cap=Proc->Inv[Obj_Cnt];
+            Proc->Inv[Obj_Cnt].RVM_Capid=Capid;
+            Capid++;
+        }
+    }
+    /* Fill in all receive endpoints */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            if(Proc->Endp[Obj_Cnt].Type==ENDP_RECEIVE)
+            {
+                Proj->RVM.Captbl[Capid].Proc=Proc;
+                Proj->RVM.Captbl[Capid].Type=CAP_ENDP;
+                Proj->RVM.Captbl[Capid].Cap=Proc->Endp[Obj_Cnt];
+                Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
+                Capid++;
+            }
+        }
+    }
+    /* Check if the capid is the current frontier */
+    if(Proj->RVM.Captbl_Frontier!=Capid)
+        EXIT_FAIL("Internal global capability ID allocator failure.");
+}
+/* End Function:Alloc_Global_ID **********************************************/
+
+/* Begin Function:Backprop_Global_ID ******************************************
+Description : Back propagate the global ID to all the ports and send endpoints,
+              which are derived from kernel objects. Also detects if all the port
+              and send endpoint names in the system are valid. If any of them includes
+              dangling references to invocations and receive endpoints, abort.
+Input       : struct Proj_Info* Proj - The project information structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Backprop_Global_ID(struct Proj_Info* Proj)
+{
+    cnt_t Proc_Cnt;
+    cnt_t Proc_Tmp_Cnt;
+    cnt_t Obj_Cnt;
+    cnt_t Obj_Tmp_Cnt;
+    struct Proc_Info* Proc;
+    struct Port_Info* Port;
+    struct Endp_Info* Endp;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        /* For every port, there must be a invocation somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Port_Num;Obj_Cnt++)
+        {
+            Port=&(Proc->Port[Obj_Cnt]);
+            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
+            {
+                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Name, Port->Name)==0)
+                    break;
+            }
+            if(Proc_Tmp_Cnt==Proj->Proc_Num)
+                EXIT_FAIL("Invalid process for port.");
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Inv_Num;Obj_Tmp_Cnt++)
+            {
+                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].Name, Port->Name)==0)
+                {
+                    Port->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].RVM_Capid;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Inv_Num)
+                EXIT_FAIL("One of the ports does not have a corresponding invocation.");
+        }
+        /* For every send endpoint, there must be a receive endpoint somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            Endp=&(Proc->Endp[Obj_Cnt]);
+            if(Endp->Type!=ENDP_SEND)
+                continue;
+            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
+            {
+                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Name, Endp->Name)==0)
+                    break;
+            }
+            if(Proc_Tmp_Cnt==Proj->Proc_Num)
+                EXIT_FAIL("Invalid process for endpoint.");
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
+            {
+                if((Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)&&
+                   (Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Type==ENDP_RECEIVE))
+                {
+                    Endp->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].RVM_Capid;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Endp_Num)
+                EXIT_FAIL("One of the send endpoints does not have a corresponding receive endpoint.");
+        }
+    }
+}
+/* End Function:Backprop_Global_ID *******************************************/
+
+/* Begin Function:Alloc_Captbl ************************************************
+Description : Allocate the capability table entries for the processes, then for
+              the RVM.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Captbl(struct Proj_Info* Proj)
+{
+    /* First, check whether there are conflicts - this is not case insensitive */
+    Detect_Conflict(Proj);
+    /* Allocate local project IDs for all entries */
+    Alloc_Local_ID(Proj);
+    /* Allocate global project IDs for kernel object entries */
+    Alloc_Global_ID(Proj);
+    /* Back propagate global entrie number to the ports and send endpoints */
+    Backprop_Global_ID(Proj);
+}
+/* End Function:Alloc_Captbl *************************************************/
+
 /* CMX Toolset ***************************************************************/
 ret_t CMX_Align(struct Mem_Info* Mem);
 void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
@@ -2438,6 +2923,9 @@ int main(int argc, char* argv[])
 	Alloc_Mem(Proj, MEM_CODE);
 	Alloc_Mem(Proj, MEM_DATA);
 
+    /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
+    Alloc_Captbl(Proj);
+
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
 	switch (0)
 	{
@@ -2488,14 +2976,10 @@ struct CMX_Pgtbl
     struct CMX_Pgtbl* Mapping[8];
 }
 
-struct CMX_Proc
+struct CMX_Proc_Info
 {
-    /* The process information structure */
-    struct Proc_Info* Proc;
-    /* What leaf page tables are actually needed to conjure this memory map */
-    cnt_t Leaf_Pgtbl_Num;
-    struct CMX_Pgtbl* Leaf_Pgtbl;
-    /* Done. make the higher-level page tables */
+    /* The process information structure */  /* I guess then we need to set up the capability table as such */
+    struct CMX_Pgtbl* Pgtbl;
 };
 
 /* Cortex-M information */
@@ -2503,7 +2987,7 @@ struct CMX_Proj_Info
 {
 	cnt_t NVIC_Grouping;
 	ptr_t Systick_Val;
-    
+    struct CMX_Pgtbl* Pgtbl;
     /* This alignment is really fucking. */
 };
 /* End Structs ***************************************************************/
@@ -2585,9 +3069,12 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
     cnt_t Cut_Apart;
     ptr_t Page_Start;
     ptr_t Page_End;
+    ptr_t Mem_Start;
+    ptr_t Mem_End;
     struct CMX_Pgtbl* Pgtbl;
     cnt_t Mem_Num;
     struct Mem_Info* Mem_List;
+    cnt_t Mem_List_Ptr;
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct CMX_Pgtbl));
@@ -2653,7 +3140,9 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
                 for(Count=1;Count<(1<<Num_Order);Count++)
                 {
                     Pivot_Addr=(End-Start)/(1<<Num_Order)*Count+Start;
-                    if((Mem[Mem_Cnt].Start<Pivot_Addr)&&((Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size)>Pivot_Addr))
+                    Mem_Start=Mem[Mem_Cnt].Start;
+                    Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
+                    if((Mem_Start<Pivot_Addr)&&(Mem_End>Pivot_Addr))
                     {
                         Cut_Apart=1;
                         break;
@@ -2687,7 +3176,9 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
         /* Can this compartment be mapped? It can if there is one segment covering the range */
         for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
         {
-            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size)>=Page_End))
+            Mem_Start=Mem[Mem_Cnt].Start;
+            Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
+            if((Mem_Start<=Page_Start)&&(Mem_End>=Page_End))
             {
                 /* The first one that gets mapped in always takes the attribute, and the next ones will have
                  * to use their separate regions. Thus, it is best to avoid many trunks of small memory segments
@@ -2703,9 +3194,45 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
         if(Pgtbl->Mapping[Count]==0)
         {
             /* See if any residue memory list are here */
-#error make up the pages, see if there are residue in this range. If there is, create the residue list.
-            if(residue)
+            Mem_Num=0;
+            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            {
+                Mem_Start=Mem[Mem_Cnt].Start;
+                Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
+                if((Mem_Start>=Page_End)||(Mem_End<=Page_Start))
+                    continue;
+                Mem_Num++;
+            }
+            if(Mem_Num!=0)
+            {
+                Mem_List=Malloc(sizeof(struct Mem_Info)*Mem_Num);
+                if(Mem_List==0)
+                    EXIT_FAIL("Memory list allocation failed.");
+                
+                /* Collect the memory list */
+                Mem_List_Ptr=0;
+                for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+                {
+                    Mem_Start=Mem[Mem_Cnt].Start;
+                    Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
+                    if((Mem_Start>=Page_End)||(Mem_End<=Page_Start))
+                        continue;
+                    /* Round anything inside to this range */
+                    if(Mem_Start<Page_Start)
+                        Mem_Start=Page_Start;
+                    if(Mem_End>Page_End)
+                        Mem_End=Page_End;
+                    Mem_List[Mem_List_Ptr].Start=Mem_Start;
+                    Mem_List[Mem_List_Ptr].Size=Mem_End-Mem_Start;
+                    Mem_List[Mem_List_Ptr].Attr=Mem[Mem_Cnt].Attr;
+                    Mem_List[Mem_List_Ptr].Type=Mem[Mem_Cnt].Type;
+                    /* The alignment is no longer important */
+                    Mem_List_Ptr++;
+                }
+                if(Mem_List_Ptr!=Mem_Num)
+                    EXIT_FAIL("Internal bug occurred at page table allocator.");
                 Pgtbl->Mapping[Count]=CMX_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
+            }
         }
     }
 
@@ -2717,6 +3244,9 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
 
 void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
+    cnt_t Proc_Cnt;
+
+    for cmx
     Step1. Create top-level page table. What addresses will this access? What are the two ends?
     Map whatever can be mapped in (8), and pass down whatever that cannot be mapped in.
     Collect the next one. pass down.
