@@ -2929,7 +2929,7 @@ int main(int argc, char* argv[])
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
 	switch (0)
 	{
-		case PLAT_CMX:CMX_Gen_Proj(Proj, Chip); break;
+		case PLAT_CMX:CMX_Gen_Proj(Proj, Chip, Output_Path, RME_Path, ); break;
 		case PLAT_MIPS:EXIT_FAIL("MIPS not currently supported.");
 		case PLAT_RISCV:EXIT_FAIL("RISC-V not currently supported.");
 		case PLAT_TCORE:EXIT_FAIL("Tricore not currently supported.");
@@ -2976,19 +2976,13 @@ struct CMX_Pgtbl
     struct CMX_Pgtbl* Mapping[8];
 }
 
-struct CMX_Proc_Info
-{
-    /* The process information structure */  /* I guess then we need to set up the capability table as such */
-    struct CMX_Pgtbl* Pgtbl;
-};
-
 /* Cortex-M information */
 struct CMX_Proj_Info
 {
 	cnt_t NVIC_Grouping;
 	ptr_t Systick_Val;
-    struct CMX_Pgtbl* Pgtbl;
-    /* This alignment is really fucking. */
+    /* The page tables for all processes */
+    struct CMX_Pgtbl** Pgtbl;
 };
 /* End Structs ***************************************************************/
 
@@ -3242,32 +3236,40 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
 }
 /* End Function:CMX_Gen_Pgtbl ************************************************/
 
+/* Begin Function:CMX_Gen_Proj ************************************************
+Description : .
+Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
+                                     into this level (and below).
+              cnt_t Num - The number of memory segments to fit in.
+              ptr_t Total_Max - The maximum total order of the page table, cannot
+                                be exceeded when deciding the total order of
+                                the page table.
+Output      : None.
+Return      : struct CMX_Pgtbl* - The page table structure returned.
+******************************************************************************/
 void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     cnt_t Proc_Cnt;
+    struct CMX_Proj_Info* CMX_Proj;
 
-    for cmx
-    Step1. Create top-level page table. What addresses will this access? What are the two ends?
-    Map whatever can be mapped in (8), and pass down whatever that cannot be mapped in.
-    Collect the next one. pass down.
+    /* Allocate architecture-specific project structure */
+    CMX_Proj=Malloc(sizeof(struct CMX_Proj_Info));
+    if(CMX_Proj==0)
+        EXIT_FAIL("Project struct allocation failed.");
 
-    Until all are mapped in.
+    /* Allocate page tables for all processes */
+    CMX_Proj->Pgtbl=Malloc(sizeof(struct CMX_Pgtbl*)*Proj->Proc_Num);
+    if(CMX_Proj->Pgtbl==0)
+        EXIT_FAIL("Project page table allocation failed.");
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        CMX_Proj->Pgtbl[Proc_Cnt]=CMX_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
+        if(CMX_Proj->Pgtbl[Proc_Cnt]==0)
+            EXIT_FAIL("Page table generation failed.");
+    }
 
-    Now we know the top-level's content. The top-level always get mapped in with 2 entries.
+    /* At this point, we've finally decided everything. Copy the files, setup the project, etc */
 
-    We are sure that after each alignment run, each segment can only be 
-    for each page table, we may need a series of things to actually implement it.... This is the very hard part.
-    Page table setup.
-    one memory segment can have many page tables. 
-    This should be run for all processes.
-    /* Now we are fully clear where the segments are. Need to construct the page table for
-     * all these - that's the hard part.
-     struct
-    /* Further processing, decide the page table layout of everything, and some Cortex-M 
-     * macro values */
-
-    /* Check if everything else is valid. If yes, all error output is already done, and we
-      will start setting up the project very soon. After this, no error should occur. */
 
 	/* Create the folder first and copy all necessary files into whatever possible */
 
