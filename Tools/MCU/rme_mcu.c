@@ -38,43 +38,6 @@ Description : The configuration generator for the MCU ports. This does not
                   8. Then generates project for RVM. 
                   9. And generates project for all other processes.
               3.Report to the user that the project generation is complete.
-
-#error: add m7m2-root folder. RVM is always necessary. Hand-crafted stuff should always be there for convenience. 
-when making init, always run one virtual machine??? Current organization is just terrible.
-Additionally, how much memory does it take? totally unknown to us.
-Another issue: how to make the example programs? Is the current one too hard? 
-We should remove the VMM functionality now, maybe we can add it back later on.
-We also have a bunch of other stuff that is waiting for us. How to deal with this?
-The MCU user-level lib includes the following:
-
-Basics -> Some to be created, some is there.
-VMM -> This is the VMM.
-Posix -> This is the posix.
-This is going to look very bad. Very bad.
-How to make the example project - That becomes really tough. Can't make use of the VMM anymore.Try_Bitmap
-We cannot delete the project folder either. This is nuts. 
-Or, maybe, we can consider merging the RVM with the RME, combined in a single file implementation of the user-level.
-Additionally, The performance of the system is still unmeasured. This is not good at all.
-The HAL organization is also nuts.
-
-Are we really gonna do that? Or, what will M7M2 do? We cannot always rely on the M5P1.
-Or, consider removing M7M2, and make the whole thing, including all drivers, M7M1. This is 
-sensible, but there's the risk of producing something very large and very complex.
-
-Additionally - how is this going to integrate with the rest of the stuff? How? this is going to
-be very hard again. 
-Anything that is standalone compilable should be a standalone project. Or, it should not be
-standalone at all.
-M7M2 should be merged with M7M1, due to the fact that it is not standalone testable.
-Because all user-level test cases should involve M7M2. 
-
-Very hard still. we have RVM now, and we know how to do it, and it can compile to a standalone
-binary.
-simple. Just use two stuff, one is the RVM, another is the binary, in the same folder. 
-we still need M7M2 path. This is still necessary.
-For this project to compile, you need all three in the same folder to work together, as
-they are made to work together.
-Let's just provide all MCU examples with that. This is probably the best we can do.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -100,15 +63,22 @@ Let's just provide all MCU examples with that. This is probably the best we can 
 /* End Includes **************************************************************/
 
 /* Defines *******************************************************************/
+/* Output type - 4 proprietary and 2 individual */
+#define OUTPUT_KEIL     (0)
+#define OUTPUT_IAR      (1)
+#define OUTPUT_MPLAB    (2)
+#define OUTPUT_CCS      (3)
+#define OUTPUT_ECLIPSE  (4)
+#define OUTPUT_MAKEFILE (5)
 /* Optimization levels */
-#define OPT_O0          0
-#define OPT_O1          1
-#define OPT_O2          2
-#define OPT_O3          3
-#define OPT_OS          4
+#define OPT_O0          (0)
+#define OPT_O1          (1)
+#define OPT_O2          (2)
+#define OPT_O3          (3)
+#define OPT_OS          (4)
 /* Library choice */
-#define LIB_SMALL       0
-#define LIB_FULL        1
+#define LIB_SMALL       (0)
+#define LIB_FULL        (1)
 /* Capability ID placement */
 #define AUTO            ((ptr_t)(-1))
 #define INVALID         ((ptr_t)(-2))
@@ -117,29 +87,29 @@ Let's just provide all MCU examples with that. This is probably the best we can 
 #define RECOVERY_PROC   (1)
 #define RECOVERY_SYS    (2)
 /* Memory types */
-#define MEM_CODE        0
-#define MEM_DATA        1
-#define MEM_DEVICE      2
+#define MEM_CODE        (0)
+#define MEM_DATA        (1)
+#define MEM_DEVICE      (2)
 /* Memory access permissions */
-#define MEM_READ        0
-#define MEM_WRITE       1
-#define MEM_EXECUTE     2
-#define MEM_BUFFERABLE  3
-#define MEM_CACHEABLE   4
-#define MEM_STATIC      5
+#define MEM_READ        (0)
+#define MEM_WRITE       (1)
+#define MEM_EXECUTE     (2)
+#define MEM_BUFFERABLE  (3)
+#define MEM_CACHEABLE   (4)
+#define MEM_STATIC      (5)
 /* Endpoint types */
-#define ENDP_SEND       0
-#define ENDP_RECEIVE    1
-#define ENDP_HANDLER    2
+#define ENDP_SEND       (0)
+#define ENDP_RECEIVE    (1)
+#define ENDP_HANDLER    (2)
 /* Option types */
-#define OPTION_RANGE    0
-#define OPTION_SELECT   1
+#define OPTION_RANGE    (0)
+#define OPTION_SELECT   (1)
 /* Kernel object types */
-#define CAP_CAPTBL      0
-#define CAP_PROC        1
-#define CAP_THD         2
-#define CAP_INV         3
-#define CAP_ENDP        4
+#define CAP_CAPTBL      (0)
+#define CAP_PROC        (1)
+#define CAP_THD         (2)
+#define CAP_INV         (3)
+#define CAP_ENDP        (4)
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -535,6 +505,68 @@ ret_t Dir_Empty(s8* Path)
 #endif
 }
 /* End Function:Dir_Empty ****************************************************/
+
+/* Begin Function:Make_Dir ****************************************************
+Description : Create a directory if it does not exist.
+Input       : s8* Path - The path to the directory.
+Output      : None.
+Return      : ret_t - 0 for successful, -1 for failure.
+******************************************************************************/
+ret_t Make_Dir(s8* Path)
+{
+    if(Dir_Present(Path)==0)
+        return 0;
+
+#ifdef _WIN32
+    if(CreateDirectory(Path, NULL)!=0)
+        return 0;
+#else
+    if(mkdir(Path, S_IRWXU)==0)
+        return 0;
+#endif
+
+    return -1;
+}
+/* End Function:Make_Dir *****************************************************/
+
+/* Begin Function:Copy_File ***************************************************
+Description : Copy a file from some position to another position. If the file
+              exists, we need to overwrite it with the new files.
+Input       : s8* Dst - The destination path.
+              s8* Src - The source path.
+Output      : None.
+Return      : ret_t - 0 for successful, -1 for failure.
+******************************************************************************/
+ret_t Copy_File(s8* Dst, s8* Src)
+{
+    FILE* Dst_File;
+    FILE* Src_File;
+    s8 Buf[128];
+    ptr_t Size;
+
+    Src_File=fopen(Src, "rb");
+    if(Src_File==0)
+        return -1;
+    /* This will wipe the contents of the file */
+    Dst_File=fopen(Dst, "wb");
+    if(Dst_File==0)
+    {
+        fclose(Src_File);
+        return -1;
+    }
+
+    Size=fread(Buf, 1, 128, Src_File);
+    while (Size!=0) {
+        fwrite(Buf, 1, Size, Dst_File);
+        Size=fread(Buf, 1, 128, Src_File);
+    }
+
+    fclose(Src_File);
+    fclose(Dst_File);
+
+    return 0;
+}
+/* End Function:Copy_File ****************************************************/
 
 /* Begin Function:Cmdline_Proc ************************************************
 Description : Preprocess the input parameters, and generate a preprocessed
@@ -2866,9 +2898,9 @@ void Alloc_Captbl(struct Proj_Info* Proj)
 }
 /* End Function:Alloc_Captbl *************************************************/
 
-/* CMX Toolset ***************************************************************/
-ret_t CMX_Align(struct Mem_Info* Mem);
-void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
+/* A7M Toolset ***************************************************************/
+ret_t A7M_Align(struct Mem_Info* Mem);
+void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -2912,7 +2944,7 @@ int main(int argc, char* argv[])
 	/* Align memory to what it should be */
 	switch(0)
 	{
-	    case PLAT_CMX:Align_Mem(Proj, CMX_Align); break;
+	    case PLAT_A7M:Align_Mem(Proj, A7M_Align); break;
 		case PLAT_MIPS:EXIT_FAIL("MIPS not currently supported.");
 		case PLAT_RISCV:EXIT_FAIL("RISC-V not currently supported.");
 		case PLAT_TCORE:EXIT_FAIL("Tricore not currently supported.");
@@ -2929,7 +2961,7 @@ int main(int argc, char* argv[])
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
 	switch (0)
 	{
-		case PLAT_CMX:CMX_Gen_Proj(Proj, Chip, Output_Path, RME_Path, ); break;
+		case PLAT_A7M:A7M_Gen_Proj(Proj, Chip, Output_Type, Output_Path, RME_Path, RVM_Path); break;
 		case PLAT_MIPS:EXIT_FAIL("MIPS not currently supported.");
 		case PLAT_RISCV:EXIT_FAIL("RISC-V not currently supported.");
 		case PLAT_TCORE:EXIT_FAIL("Tricore not currently supported.");
@@ -2942,7 +2974,7 @@ int main(int argc, char* argv[])
 }
 /* End Function:main *********************************************************/
 
-/* Cortex-M (CMX) Toolset *****************************************************
+/* Cortex-M (A7M) Toolset *****************************************************
 This toolset is for Cortex-M. Specifically, this suits Cortex-M0+, Cortex-M1,
 Cortex-M3, Cortex-M7. Cortex-M23 and Cortex-M33 support is still pending at the
 moment.
@@ -2953,47 +2985,34 @@ moment.
 /* End Defines ***************************************************************/
 
 /* Structs *******************************************************************/
-/* Chip-specific macros */
-struct CMX_Chip_Info
-{
-	s8* Macro_Name;
-	s8* Macro_Val;
-};
-/* Enabled interrupt endpoints */
-struct CMX_Vect_Info
-{
-	s8* Vect_Name;
-	s8* Vect_Stat;
-};
-
-struct CMX_Pgtbl
+struct A7M_Pgtbl
 {
     ptr_t Start_Addr;
     ptr_t Size_Order;
     ptr_t Num_Order;
     ptr_t Attr;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
-    struct CMX_Pgtbl* Mapping[8];
+    struct A7M_Pgtbl* Mapping[8];
 }
 
 /* Cortex-M information */
-struct CMX_Proj_Info
+struct A7M_Info
 {
 	cnt_t NVIC_Grouping;
 	ptr_t Systick_Val;
     /* The page tables for all processes */
-    struct CMX_Pgtbl** Pgtbl;
+    struct A7M_Pgtbl** Pgtbl;
 };
 /* End Structs ***************************************************************/
 
-/* Begin Function:CMX_Align ***************************************************
+/* Begin Function:A7M_Align ***************************************************
 Description : Align the memory according to Cortex-M platform's requirements.
 Input       : struct Mem_Info* Mem - The struct containing memory information.
 Output      : struct Mem_Info* Mem - The struct containing memory information,
                                      with all memory size aligned.
 Return      : ret_t - If the start address and size is acceptable, 0; else -1.
 ******************************************************************************/
-ret_t CMX_Align(struct Mem_Info* Mem)
+ret_t A7M_Align(struct Mem_Info* Mem)
 {
     ptr_t Temp;
     if(Mem->Start!=AUTO)
@@ -3020,26 +3039,49 @@ ret_t CMX_Align(struct Mem_Info* Mem)
     
 	return 0;
 }
-/* End Function:CMX_Align ****************************************************/
+/* End Function:A7M_Align ****************************************************/
 
-void CMX_Gen_Keil(void)
+/* Begin Function:A7M_Gen_Keil ************************************************
+Description : Generate the keil project for ARMv7-M. 
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              cnt_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                  cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
-
+    /* Generate the keil project */
 }
+/* End Function:A7M_Gen_Keil *************************************************/
 
-void CMX_Gen_Eclipse(void)
+/* Begin Function:A7M_Gen_Makefile ********************************************
+Description : Generate the makefile project for ARMv7-M. 
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              cnt_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+Output      : None.
+Return      : struct A7M_Pgtbl* - The page table structure returned.
+******************************************************************************/
+void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
-
+    /* Generate the makefile project */
 }
+/* End Function:A7M_Gen_Makefile *********************************************/
 
-void CMX_Gen_Makefile(void)
-{
-
-}
-
-/* Begin Function:CMX_Gen_Pgtbl ***********************************************
+/* Begin Function:A7M_Gen_Pgtbl ***********************************************
 Description : Recursively construct the page table for the Cortex-M port. 
-              This only works for ARMv7-M. The port for ARMv8-M is still
+              This only works for ARMv7-M (A7M). The port for ARMv8-M is still
               in progress.
 Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
                                      into this level (and below).
@@ -3048,9 +3090,9 @@ Input       : struct Mem_Info* Mem - The struct containing memory segments to fi
                                 be exceeded when deciding the total order of
                                 the page table.
 Output      : None.
-Return      : struct CMX_Pgtbl* - The page table structure returned.
+Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
-struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max)
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max)
 {
     ptr_t Start;
     ptr_t End;
@@ -3065,13 +3107,13 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
     ptr_t Page_End;
     ptr_t Mem_Start;
     ptr_t Mem_End;
-    struct CMX_Pgtbl* Pgtbl;
+    struct A7M_Pgtbl* Pgtbl;
     cnt_t Mem_Num;
     struct Mem_Info* Mem_List;
     cnt_t Mem_List_Ptr;
 
     /* Allocate the page table data structure */
-    Pgtbl=Malloc(sizeof(struct CMX_Pgtbl));
+    Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
     if(Pgtbl==0)
         EXIT_FAIL("Page table data structure allocation failed.");
 
@@ -3225,7 +3267,7 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
                 }
                 if(Mem_List_Ptr!=Mem_Num)
                     EXIT_FAIL("Internal bug occurred at page table allocator.");
-                Pgtbl->Mapping[Count]=CMX_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
+                Pgtbl->Mapping[Count]=A7M_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
             }
         }
     }
@@ -3234,44 +3276,47 @@ struct CMX_Pgtbl* CMX_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
     Pgtbl->Num_Order=Num_Order;
     return Pgtbl;
 }
-/* End Function:CMX_Gen_Pgtbl ************************************************/
+/* End Function:A7M_Gen_Pgtbl ************************************************/
 
-/* Begin Function:CMX_Gen_Proj ************************************************
-Description : .
-Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
-                                     into this level (and below).
-              cnt_t Num - The number of memory segments to fit in.
-              ptr_t Total_Max - The maximum total order of the page table, cannot
-                                be exceeded when deciding the total order of
-                                the page table.
+/* Begin Function:A7M_Copy_Files **********************************************
+Description : Copy all necessary files to the destination folder.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              cnt_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
 Output      : None.
-Return      : struct CMX_Pgtbl* - The page table structure returned.
+Return      : None.
 ******************************************************************************/
-void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
+void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                    cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
-    cnt_t Proc_Cnt;
-    struct CMX_Proj_Info* CMX_Proj;
+    /* Create the RME directory */
+    Make_Dir();
+    
+    /* Create the RVM directory */
+    Make_Dir();
 
-    /* Allocate architecture-specific project structure */
-    CMX_Proj=Malloc(sizeof(struct CMX_Proj_Info));
-    if(CMX_Proj==0)
-        EXIT_FAIL("Project struct allocation failed.");
+    /* Create all other process directories */
+    Make_Dir();
+}
+/* End Function:A7M_Copy_Files ***********************************************/
 
-    /* Allocate page tables for all processes */
-    CMX_Proj->Pgtbl=Malloc(sizeof(struct CMX_Pgtbl*)*Proj->Proc_Num);
-    if(CMX_Proj->Pgtbl==0)
-        EXIT_FAIL("Project page table allocation failed.");
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        CMX_Proj->Pgtbl[Proc_Cnt]=CMX_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
-        if(CMX_Proj->Pgtbl[Proc_Cnt]==0)
-            EXIT_FAIL("Page table generation failed.");
-    }
-
-    /* At this point, we've finally decided everything. Copy the files, setup the project, etc */
-
-
-	/* Create the folder first and copy all necessary files into whatever possible */
+/* Begin Function:A7M_Gen_Scripts *********************************************
+Description : Generate boot-time scripts for ARMv7-M.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              cnt_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                     cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+{
 
     /* Write boot-time creation script that creates the interrupt endpoints */
 
@@ -3281,14 +3326,118 @@ void CMX_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip)
 
     /* Write scripts for all processes */
 
-    /* We're done here. */
-
-    /* Static things are done. What about dynamic things? */
-
-    /* Simple - tweak at your own risk. */
-
-    /* Call project generator to generate the project */
 }
+/* End Function:A7M_Gen_Scripts **********************************************/
+
+/* Begin Function:A7M_Gen_Proj ************************************************
+Description : Generate the project for Cortex-M based processors.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              cnt_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                  cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+{
+    cnt_t Proc_Cnt;
+    struct A7M_Proj_Info* A7M_Proj;
+
+    /* Allocate architecture-specific project structure */
+    A7M_Proj=Malloc(sizeof(struct A7M_Proj_Info));
+    if(A7M_Proj==0)
+        EXIT_FAIL("Project struct allocation failed.");
+    /* Parse the rest of the options, if there is any */
+    A7M_Parse_Options(Proj, Chip);
+    /* Allocate page tables for all processes */
+    A7M_Proj->Pgtbl=Malloc(sizeof(struct A7M_Pgtbl*)*Proj->Proc_Num);
+    if(A7M_Proj->Pgtbl==0)
+        EXIT_FAIL("Project page table allocation failed.");
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        A7M_Proj->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
+        if(A7M_Proj->Pgtbl[Proc_Cnt]==0)
+            EXIT_FAIL("Page table generation failed.");
+    }
+
+    /* Set up the folder structures, and copy all files to where they should be */
+    A7M_Copy_Files(Proj, Chip, A7M_Proj);
+    /* Write the boot-time creation script */
+    A7M_Gen_Scripts(Proj, Chip, A7M_Proj);
+
+	/* Create the folder first and copy all necessary files into whatever possible */
+    switch(Output_Type)
+    {
+        case OUTPUT_KEIL:
+        {
+            A7M_Gen_Keil(Proj, Chip, A7M_Chip, Output_Type, Output_Path, RME_Path, RVM_Path);
+            break;
+        }
+        case OUTPUT_MAKEFILE:
+        {
+            A7M_Gen_Makefile(Proj, Chip, A7M_Chip, Output_Type, Output_Path, RME_Path, RVM_Path);
+            break;
+        }
+        default:break;
+    }
+
+    /*
+#error: add m7m2-root folder. RVM is always necessary. Hand-crafted stuff should always be there for convenience. 
+when making init, always run one virtual machine??? Current organization is just terrible.
+Additionally, how much memory does it take? totally unknown to us.
+Another issue: how to make the example programs? Is the current one too hard? 
+We should remove the VMM functionality now, maybe we can add it back later on.
+We also have a bunch of other stuff that is waiting for us. How to deal with this?
+The MCU user-level lib includes the following:
+
+Basics -> Some to be created, some is there.
+VMM -> This is the VMM.
+Posix -> This is the posix.
+This is going to look very bad. Very bad.
+How to make the example project - That becomes really tough. Can't make use of the VMM anymore.Try_Bitmap
+We cannot delete the project folder either. This is nuts. 
+Or, maybe, we can consider merging the RVM with the RME, combined in a single file implementation of the user-level.
+Additionally, The performance of the system is still unmeasured. This is not good at all.
+The HAL organization is also nuts.
+
+Are we really gonna do that? Or, what will M7M2 do? We cannot always rely on the M5P1.
+Or, consider removing M7M2, and make the whole thing, including all drivers, M7M1. This is 
+sensible, but there's the risk of producing something very large and very complex.
+
+Additionally - how is this going to integrate with the rest of the stuff? How? this is going to
+be very hard again. 
+Anything that is standalone compilable should be a standalone project. Or, it should not be
+standalone at all.
+M7M2 should be merged with M7M1, due to the fact that it is not standalone testable.
+Because all user-level test cases should involve M7M2. 
+
+Very hard still. we have RVM now, and we know how to do it, and it can compile to a standalone
+binary.
+simple. Just use two stuff, one is the RVM, another is the binary, in the same folder. 
+we still need M7M2 path. This is still necessary.
+For this project to compile, you need all three in the same folder to work together, as
+they are made to work together.
+Let's just provide all MCU examples with that. This is probably the best we can do.
+
+ It is obvious that more work is needed on this: the
+              current design is not powerful enough to explore all the possibilities.
+              Also, consider some memory attributes might be helpful, such as
+              locating data to SDRAM and so on. This might be necessary for the
+              system design in the future. The solution on shared memory is imperfect
+              as well, and can require more work in the future.
+              Additionally, it will be icing on the cake to allow for guessing of
+              memory. In that case we don't need to statically allocate them.
+
+              Remeber that simplicity is always the most important facet of the 
+              design: usability matters most.
+
+              We will also need a GUI tool for doing system probing. This c
+     */
+}
+/* End Function:A7M_Gen_Proj *************************************************/
 
 /* End Of File ***************************************************************/
 
