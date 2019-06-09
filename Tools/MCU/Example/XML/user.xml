@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project> 
     <Name>M7M1</Name>                                                           <!-- The name of the whole project, no special characters -->
-    <Platform>CMX</Platform>                                                    <!-- The architecture of the chip -->
-    <Chip>STM32F767IG</Chip>                                                    <!-- The full name of the chip -->
+    <Platform>A7M</Platform>                                                    <!-- The architecture of the chip -->
+    <Chip>STM32F767IG</Chip>                                                    <!-- The class name of the chip -->
+    <Fullname>STM32F767IGT6</Fullname>                                          <!-- The full name of the chip -->
     <RME>                                                                       <!-- OS configuration description -->
         <Compiler>
             <Optimization>O2</Optimization>
@@ -17,10 +18,10 @@
             <Kmem_Order>4</Kmem_Order>                                          <!-- The order of allocation for the kernel memory -->
             <Priorities>32</Priorities>                                         <!-- The maximum number of priorities in the system -->
         </General>
-        <CMX>                                                                   <!-- The settings that applies specifically to this port -->
+        <A7M>                                                                   <!-- The settings that applies specifically to this port -->
             <NVIC_Grouping>2-6</NVIC_Grouping>                                  <!-- The grouping for NVIC -->
             <Timer_Interval>2160000</Timer_Interval>                            <!-- The timer interrupt interval -->
-        </CMX>
+        </A7M>
         <STM32F767IG>                                                           <!-- The settings for this chip - we know we gonna use this template anyway, so useless -->
             <XTAL>25</XTAL>                                                     <!-- The external crystal frequency -->
             <PLLM>25</PLLM>
