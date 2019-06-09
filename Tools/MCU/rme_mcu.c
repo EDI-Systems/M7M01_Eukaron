@@ -2898,6 +2898,28 @@ void Alloc_Captbl(struct Proj_Info* Proj)
 }
 /* End Function:Alloc_Captbl *************************************************/
 
+/* Begin Function:Make_Str ****************************************************
+Description : Concatenate two strings and return the result.
+Input       : s8* Str1 - The first string.
+              s8* Str2 - The second string.
+Output      : None.
+Return      : s8* - The final result.
+******************************************************************************/
+s8* Make_Str(s8* Str1, s8* Str2)
+{
+    s8* Ret;
+
+    Ret=Malloc(strlen(Str1)+strlen(Str2)+1);
+    if(Ret==0)
+        return 0;
+
+    strcpy(Ret, Str1);
+    strcat(Ret, Str2);
+
+    return Ret;
+}
+/* End Function:Make_Str *****************************************************/
+
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
 void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
@@ -3043,6 +3065,10 @@ ret_t A7M_Align(struct Mem_Info* Mem)
 
 /* Begin Function:A7M_Gen_Keil ************************************************
 Description : Generate the keil project for ARMv7-M. 
+              Keil projects include three parts: 
+              .uvmpw (the outside workspace)
+              .uvprojx (the specific project files)
+              .uvoptx (the options for some unimportant stuff)
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
               struct A7M_Info* A7M - The port specific structure.
@@ -3057,6 +3083,299 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
                   cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
     /* Generate the keil project */
+    FILE* Keil;
+
+    /* Do this when we go back - hard to do here! at least after the paper, so we can install keil & msvc13.
+     * This is as minimal as we can get. The truth is that it is good. When using keil, we only allow up to 
+     * 3 segments of IRAM or IROM; if we have more than that, we abort. */
+    fprintf(Keil, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n");
+    fprintf(Keil, "<Project xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"project_projx.xsd\">\n");
+    fprintf(Keil, "  <SchemaVersion>2.1</SchemaVersion>\n");
+    fprintf(Keil, "  <Header>### uVision Project, (C) Keil Software</Header>\n");
+    fprintf(Keil, "  <Targets>\n");
+    fprintf(Keil, "    <Target>\n");
+    fprintf(Keil, "      <TargetName>Target 1</TargetName>\n");
+    fprintf(Keil, "      <ToolsetNumber>0x4</ToolsetNumber>\n");
+    fprintf(Keil, "      <ToolsetName>ARM-ADS</ToolsetName>\n");
+    fprintf(Keil, "      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>\n");
+    fprintf(Keil, "      <uAC6>0</uAC6>\n");
+    fprintf(Keil, "      <TargetOption>\n");
+    fprintf(Keil, "        <TargetCommonOption>\n");
+    fprintf(Keil, "          <Device>STM32F767IGTx</Device>\n");
+    fprintf(Keil, "          <Vendor>STMicroelectronics</Vendor>\n");
+    fprintf(Keil, "          <Cpu>IRAM(0x20000000,0x80000) IROM(0x08000000,0x100000) CPUTYPE(\"Cortex-M7\") FPU3(DFPU) CLOCK(12000000) ELITTLE</Cpu>\n");
+    fprintf(Keil, "          <OutputDirectory>.\\Objects\\</OutputDirectory>\n");
+    fprintf(Keil, "          <OutputName>test</OutputName>\n");
+    fprintf(Keil, "          <CreateExecutable>1</CreateExecutable>\n");
+    fprintf(Keil, "          <CreateHexFile>1</CreateHexFile>\n");
+    fprintf(Keil, "          <DebugInformation>1</DebugInformation>\n");
+    fprintf(Keil, "          <BrowseInformation>1</BrowseInformation>\n");
+    fprintf(Keil, "          <ListingPath>.\\Listings\\</ListingPath>\n");
+    fprintf(Keil, "          <HexFormatSelection>1</HexFormatSelection>\n");
+    fprintf(Keil, "          <AfterMake>\n");
+    fprintf(Keil, "            <RunUserProg1>0</RunUserProg1>\n");
+    fprintf(Keil, "            <RunUserProg2>0</RunUserProg2>\n");
+    fprintf(Keil, "            <UserProg1Name></UserProg1Name>\n");
+    fprintf(Keil, "            <UserProg2Name></UserProg2Name>\n");
+    fprintf(Keil, "            <UserProg1Dos16Mode>0</UserProg1Dos16Mode>\n");
+    fprintf(Keil, "            <UserProg2Dos16Mode>0</UserProg2Dos16Mode>\n");
+    fprintf(Keil, "            <nStopA1X>0</nStopA1X>\n");
+    fprintf(Keil, "            <nStopA2X>0</nStopA2X>\n");
+    fprintf(Keil, "          </AfterMake>\n");
+    fprintf(Keil, "        </TargetCommonOption>\n");
+    fprintf(Keil, "        <CommonProperty>\n");
+    fprintf(Keil, "          <UseCPPCompiler>0</UseCPPCompiler>\n");
+    fprintf(Keil, "          <RVCTCodeConst>0</RVCTCodeConst>\n");
+    fprintf(Keil, "          <RVCTZI>0</RVCTZI>\n");
+    fprintf(Keil, "          <RVCTOtherData>0</RVCTOtherData>\n");
+    fprintf(Keil, "          <ModuleSelection>0</ModuleSelection>\n");
+    fprintf(Keil, "          <IncludeInBuild>1</IncludeInBuild>\n");
+    fprintf(Keil, "          <AlwaysBuild>0</AlwaysBuild>\n");
+    fprintf(Keil, "          <GenerateAssemblyFile>0</GenerateAssemblyFile>\n");
+    fprintf(Keil, "          <AssembleAssemblyFile>0</AssembleAssemblyFile>\n");
+    fprintf(Keil, "          <PublicsOnly>0</PublicsOnly>\n");
+    fprintf(Keil, "          <StopOnExitCode>3</StopOnExitCode>\n");
+    fprintf(Keil, "          <CustomArgument></CustomArgument>\n");
+    fprintf(Keil, "          <IncludeLibraryModules></IncludeLibraryModules>\n");
+    fprintf(Keil, "          <ComprImg>1</ComprImg>\n");
+    fprintf(Keil, "        </CommonProperty>\n");
+    fprintf(Keil, "        <DllOption>\n");
+    fprintf(Keil, "          <SimDllName>SARMCM3.DLL</SimDllName>\n");
+    fprintf(Keil, "          <SimDllArguments> -REMAP -MPU</SimDllArguments>\n");
+    fprintf(Keil, "          <SimDlgDll>DCM.DLL</SimDlgDll>\n");
+    fprintf(Keil, "          <SimDlgDllArguments>-pCM7</SimDlgDllArguments>\n");
+    fprintf(Keil, "          <TargetDllName>SARMCM3.DLL</TargetDllName>\n");
+    fprintf(Keil, "          <TargetDllArguments> -MPU</TargetDllArguments>\n");
+    fprintf(Keil, "          <TargetDlgDll>TCM.DLL</TargetDlgDll>\n");
+    fprintf(Keil, "          <TargetDlgDllArguments>-pCM7</TargetDlgDllArguments>\n");
+    fprintf(Keil, "        </DllOption>\n");
+    fprintf(Keil, "        <TargetArmAds>\n");
+    fprintf(Keil, "          <ArmAdsMisc>\n");
+    fprintf(Keil, "            <useUlib>0</useUlib>\n");
+    fprintf(Keil, "            <OptFeed>0</OptFeed>\n");
+    fprintf(Keil, "          </ArmAdsMisc>\n");
+    fprintf(Keil, "          <Cads>\n");
+    fprintf(Keil, "            <interw>1</interw>\n");
+    fprintf(Keil, "            <Optim>4</Optim>\n");
+    fprintf(Keil, "            <oTime>1</oTime>\n");
+    fprintf(Keil, "            <SplitLS>1</SplitLS>\n");
+    fprintf(Keil, "            <OneElfS>0</OneElfS>\n");
+    fprintf(Keil, "            <Strict>1</Strict>\n");
+    fprintf(Keil, "            <EnumInt>1</EnumInt>\n");
+    fprintf(Keil, "            <PlainCh>1</PlainCh>\n");
+    fprintf(Keil, "            <Ropi>1</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
+    fprintf(Keil, "            <wLevel>1</wLevel>\n");
+    fprintf(Keil, "            <uThumb>0</uThumb>\n");
+    fprintf(Keil, "            <uSurpInc>1</uSurpInc>\n");
+    fprintf(Keil, "            <uC99>1</uC99>\n");
+    fprintf(Keil, "            <uGnu>1</uGnu>\n");
+    fprintf(Keil, "            <useXO>1</useXO>\n");
+    fprintf(Keil, "            <v6Lang>1</v6Lang>\n");
+    fprintf(Keil, "            <v6LangP>1</v6LangP>\n");
+    fprintf(Keil, "            <vShortEn>1</vShortEn>\n");
+    fprintf(Keil, "            <vShortWch>1</vShortWch>\n");
+    fprintf(Keil, "            <v6Lto>0</v6Lto>\n");
+    fprintf(Keil, "            <v6WtE>0</v6WtE>\n");
+    fprintf(Keil, "            <v6Rtti>0</v6Rtti>\n");
+    fprintf(Keil, "            <VariousControls>\n");
+    fprintf(Keil, "              <MiscControls></MiscControls>\n");
+    fprintf(Keil, "              <Define></Define>\n");
+    fprintf(Keil, "              <Undefine></Undefine>\n");
+    fprintf(Keil, "              <IncludePath></IncludePath>\n");
+    fprintf(Keil, "            </VariousControls>\n");
+    fprintf(Keil, "          </Cads>\n");
+    fprintf(Keil, "          <Aads>\n");
+    fprintf(Keil, "            <interw>1</interw>\n");
+    fprintf(Keil, "            <Ropi>1</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
+    fprintf(Keil, "            <thumb>1</thumb>\n");
+    fprintf(Keil, "            <SplitLS>1</SplitLS>\n");
+    fprintf(Keil, "            <SwStkChk>0</SwStkChk>\n");
+    fprintf(Keil, "            <NoWarn>1</NoWarn>\n");
+    fprintf(Keil, "            <uSurpInc>1</uSurpInc>\n");
+    fprintf(Keil, "            <useXO>1</useXO>\n");
+    fprintf(Keil, "            <uClangAs>0</uClangAs>\n");
+    fprintf(Keil, "            <VariousControls>\n");
+    fprintf(Keil, "              <MiscControls></MiscControls>\n");
+    fprintf(Keil, "              <Define></Define>\n");
+    fprintf(Keil, "              <Undefine></Undefine>\n");
+    fprintf(Keil, "              <IncludePath></IncludePath>\n");
+    fprintf(Keil, "            </VariousControls>\n");
+    fprintf(Keil, "          </Aads>\n");
+    fprintf(Keil, "          <LDads>\n");
+    fprintf(Keil, "            <umfTarg>0</umfTarg>\n");
+    fprintf(Keil, "            <Ropi>1</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
+    fprintf(Keil, "            <noStLib>1</noStLib>\n");
+    fprintf(Keil, "            <RepFail>0</RepFail>\n");
+    fprintf(Keil, "            <useFile>0</useFile>\n");
+    fprintf(Keil, "            <TextAddressRange>0x08000000</TextAddressRange>\n");
+    fprintf(Keil, "            <DataAddressRange>0x20020000</DataAddressRange>\n");
+    fprintf(Keil, "            <pXoBase></pXoBase>\n");
+    fprintf(Keil, "            <ScatterFile>.\\Objects\test.sct</ScatterFile>\n");
+    fprintf(Keil, "            <IncludeLibs></IncludeLibs>\n");
+    fprintf(Keil, "            <IncludeLibsPath></IncludeLibsPath>\n");
+    fprintf(Keil, "            <Misc></Misc>\n");
+    fprintf(Keil, "            <LinkerInputFile></LinkerInputFile>\n");
+    fprintf(Keil, "            <DisabledWarnings></DisabledWarnings>\n");
+    fprintf(Keil, "          </LDads>\n");
+    fprintf(Keil, "        </TargetArmAds>\n");
+    fprintf(Keil, "      </TargetOption>\n");
+    fprintf(Keil, "      <Groups>\n");
+    fprintf(Keil, "        <Group>\n");
+    fprintf(Keil, "          <GroupName>Source Group 1</GroupName>\n");
+    fprintf(Keil, "        </Group>\n");
+    fprintf(Keil, "      </Groups>\n");
+    fprintf(Keil, "    </Target>\n");
+    fprintf(Keil, "  </Targets>\n");
+    fprintf(Keil, "</Project>\n");
+
+/*
+
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
+  <SchemaVersion>2.1</SchemaVersion>
+  <Header>### uVision Project, (C) Keil Software</Header>
+  <Targets>
+    <Target>
+      <TargetName>Target 1</TargetName>
+      <ToolsetNumber>0x4</ToolsetNumber>
+      <ToolsetName>ARM-ADS</ToolsetName>
+      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>
+      <uAC6>0</uAC6>
+      <TargetOption>
+        <TargetCommonOption>
+          <Device>STM32F767IGTx</Device>
+          <Vendor>STMicroelectronics</Vendor>
+          <Cpu>IRAM(0x20000000,0x80000) IROM(0x08000000,0x100000) CPUTYPE("Cortex-M7") FPU3(DFPU) CLOCK(12000000) ELITTLE</Cpu>
+          <OutputDirectory>.\Objects\</OutputDirectory>
+          <OutputName>test</OutputName>
+          <CreateExecutable>1</CreateExecutable>
+          <CreateHexFile>1</CreateHexFile>
+          <DebugInformation>1</DebugInformation>
+          <BrowseInformation>1</BrowseInformation>
+          <ListingPath>.\Listings\</ListingPath>
+          <HexFormatSelection>1</HexFormatSelection>
+          <AfterMake>
+            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg2>0</RunUserProg2>
+            <UserProg1Name></UserProg1Name>
+            <UserProg2Name></UserProg2Name>
+            <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
+            <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
+            <nStopA1X>0</nStopA1X>
+            <nStopA2X>0</nStopA2X>
+          </AfterMake>
+        </TargetCommonOption>
+        <CommonProperty>
+          <UseCPPCompiler>0</UseCPPCompiler>
+          <RVCTCodeConst>0</RVCTCodeConst>
+          <RVCTZI>0</RVCTZI>
+          <RVCTOtherData>0</RVCTOtherData>
+          <ModuleSelection>0</ModuleSelection>
+          <IncludeInBuild>1</IncludeInBuild>
+          <AlwaysBuild>0</AlwaysBuild>
+          <GenerateAssemblyFile>0</GenerateAssemblyFile>
+          <AssembleAssemblyFile>0</AssembleAssemblyFile>
+          <PublicsOnly>0</PublicsOnly>
+          <StopOnExitCode>3</StopOnExitCode>
+          <CustomArgument></CustomArgument>
+          <IncludeLibraryModules></IncludeLibraryModules>
+          <ComprImg>1</ComprImg>
+        </CommonProperty>
+        <DllOption>
+          <SimDllName>SARMCM3.DLL</SimDllName>
+          <SimDllArguments> -REMAP -MPU</SimDllArguments>
+          <SimDlgDll>DCM.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pCM7</SimDlgDllArguments>
+          <TargetDllName>SARMCM3.DLL</TargetDllName>
+          <TargetDllArguments> -MPU</TargetDllArguments>
+          <TargetDlgDll>TCM.DLL</TargetDlgDll>
+          <TargetDlgDllArguments>-pCM7</TargetDlgDllArguments>
+        </DllOption>
+        <TargetArmAds>
+          <ArmAdsMisc>
+            <useUlib>0</useUlib>
+            <OptFeed>0</OptFeed>
+          </ArmAdsMisc>
+          <Cads>
+            <interw>1</interw>
+            <Optim>4</Optim>
+            <oTime>1</oTime>
+            <SplitLS>1</SplitLS>
+            <OneElfS>0</OneElfS>
+            <Strict>1</Strict>
+            <EnumInt>1</EnumInt>
+            <PlainCh>1</PlainCh>
+            <Ropi>1</Ropi>
+            <Rwpi>1</Rwpi>
+            <wLevel>1</wLevel>
+            <uThumb>0</uThumb>
+            <uSurpInc>1</uSurpInc>
+            <uC99>1</uC99>
+            <uGnu>1</uGnu>
+            <useXO>1</useXO>
+            <v6Lang>1</v6Lang>
+            <v6LangP>1</v6LangP>
+            <vShortEn>1</vShortEn>
+            <vShortWch>1</vShortWch>
+            <v6Lto>0</v6Lto>
+            <v6WtE>0</v6WtE>
+            <v6Rtti>0</v6Rtti>
+            <VariousControls>
+              <MiscControls></MiscControls>
+              <Define></Define>
+              <Undefine></Undefine>
+              <IncludePath></IncludePath>
+            </VariousControls>
+          </Cads>
+          <Aads>
+            <interw>1</interw>
+            <Ropi>1</Ropi>
+            <Rwpi>1</Rwpi>
+            <thumb>1</thumb>
+            <SplitLS>1</SplitLS>
+            <SwStkChk>0</SwStkChk>
+            <NoWarn>1</NoWarn>
+            <uSurpInc>1</uSurpInc>
+            <useXO>1</useXO>
+            <uClangAs>0</uClangAs>
+            <VariousControls>
+              <MiscControls></MiscControls>
+              <Define></Define>
+              <Undefine></Undefine>
+              <IncludePath></IncludePath>
+            </VariousControls>
+          </Aads>
+          <LDads>
+            <umfTarg>0</umfTarg>
+            <Ropi>1</Ropi>
+            <Rwpi>1</Rwpi>
+            <noStLib>1</noStLib>
+            <RepFail>0</RepFail>
+            <useFile>0</useFile>
+            <TextAddressRange>0x08000000</TextAddressRange>
+            <DataAddressRange>0x20020000</DataAddressRange>
+            <pXoBase></pXoBase>
+            <ScatterFile>.\Objects\test.sct</ScatterFile>
+            <IncludeLibs></IncludeLibs>
+            <IncludeLibsPath></IncludeLibsPath>
+            <Misc></Misc>
+            <LinkerInputFile></LinkerInputFile>
+            <DisabledWarnings></DisabledWarnings>
+          </LDads>
+        </TargetArmAds>
+      </TargetOption>
+      <Groups>
+        <Group>
+          <GroupName>Source Group 1</GroupName>
+        </Group>
+      </Groups>
+    </Target>
+  </Targets>
+</Project>
+ */
 }
 /* End Function:A7M_Gen_Keil *************************************************/
 
@@ -3292,14 +3611,87 @@ Return      : None.
 void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
                     cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
-    /* Create the RME directory */
-    Make_Dir();
-    
-    /* Create the RVM directory */
-    Make_Dir();
+    s8* Buf1;
+    s8* Buf2;
 
-    /* Create all other process directories */
-    Make_Dir();
+    /* Allocate the buffer */
+    Buf1=Malloc(sizeof(s8)*4096);
+    if(Buf1==0)
+        EXIT_FAIL("Buffer allocation failed");
+    Buf2=Malloc(sizeof(s8)*4096);
+    if(Buf2==0)
+        EXIT_FAIL("Buffer allocation failed");
+
+    /* RME directory */
+    sprintf(Buf1,"%s/M7M1_MuEukaron",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/Chips",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/Chips/%s",Output_Path,Chip->Name);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Project",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+
+    /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Kernel/rme_kernel.c",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m.c",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m.c",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    /* The toolchain specific one will be created when we are playing with toolchains */
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Include/Kernel/rme_kernel.h",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/rme_platform_a7m.h",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/A7M/rme_platform_a7m.c",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    
+    /* RVM directory */
+
+    /* Create all other process directories - not dealt with yet */
+
+    Free(Buf1);
+    Free(Buf2);
 }
 /* End Function:A7M_Copy_Files ***********************************************/
 
@@ -3317,9 +3709,8 @@ Return      : None.
 void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
-
     /* Write boot-time creation script that creates the interrupt endpoints */
-
+    /* whatever it is - deal with this when we go back.  */
     /* Write the kernel script for sending interrupts to endpoints */
 
     /* Write boot-time scripts that creates everything else */

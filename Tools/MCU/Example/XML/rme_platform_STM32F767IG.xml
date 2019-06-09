@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
-    <Name>STM32F767IG</Name>
-    <Platform>CMX</Platform>                                                    <!-- The architecture family -->
+    <Name>STM32F767IG</Name>                                                    <!-- The name of the chip -->
+    <Platform>A7M</Platform>                                                    <!-- The architecture family -->
     <Cores>1</Cores>                                                            <!-- The number of cores -->
-    <Regions>8</Regions>
+    <Regions>8</Regions>                                                        <!-- The number of MPU regions -->
+    <Attributes>
+        <Variant>Cortex-M7</Variant>
+        <FPU>Double</FPU>
+        <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
+    </Attrubutes>
     <Memory>                                                                    <!-- Read-only memory description -->
         <M1>                                                                    <!-- The first segment -->
             <Start>0x08000000</Start>                                           <!-- Start address -->
