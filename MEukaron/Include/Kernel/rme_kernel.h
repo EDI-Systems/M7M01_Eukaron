@@ -645,7 +645,7 @@ struct RME_Cap_Pgtbl
     /* We will not place the page table parent/child counter and extra information
      * like ASID here, because we consider that as a inherent part of page table.
      * Because page tables are required to be aligned to some address, thus we 
-     * usually an't simply append data to it. We leave these counters to the HAL */
+     * usually an't simply append data to it. We leave these counters to the HAL. */
     rme_ptr_t Info[1];
 };
 

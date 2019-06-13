@@ -21,6 +21,8 @@ Low-level register manipulations and parameter extractions.
 
 * Page Table Section *********************************************************
 Page table related operations are all here.
+The page table conforms to page table implementation style 1, which
+states that the 
 
 ******************************************************************************/
 
@@ -698,7 +700,7 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
-                        rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
+                            rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     if(Num_Order<RME_PGTBL_NUM_2)
         return RME_ERR_PGT_OPFAIL;

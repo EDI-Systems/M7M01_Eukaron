@@ -63,22 +63,15 @@ Description : The configuration generator for the MCU ports. This does not
 /* End Includes **************************************************************/
 
 /* Defines *******************************************************************/
-/* Output type - 4 proprietary and 2 individual */
-#define OUTPUT_KEIL     (0)
-#define OUTPUT_IAR      (1)
-#define OUTPUT_MPLAB    (2)
-#define OUTPUT_CCS      (3)
-#define OUTPUT_ECLIPSE  (4)
-#define OUTPUT_MAKEFILE (5)
 /* Optimization levels */
 #define OPT_O0          (0)
 #define OPT_O1          (1)
 #define OPT_O2          (2)
 #define OPT_O3          (3)
 #define OPT_OS          (4)
-/* Library choice */
-#define LIB_SMALL       (0)
-#define LIB_FULL        (1)
+/* Time or size optimization choice */
+#define PRIO_SIZE        (0)
+#define PRIO_TIME        (1)
 /* Capability ID placement */
 #define AUTO            ((ptr_t)(-1))
 #define INVALID         ((ptr_t)(-2))
@@ -125,9 +118,15 @@ while(0)
 do \
 { \
     if(XML_Get_Next((START),(END),&(LABEL_START),&(LABEL_END),&(VAL_START),&(VAL_END))!=0) \
-        EXIT_FAIL("%s label is malformed.", (NAME)); \
+	{ \
+        printf("%s", (NAME)); \
+        EXIT_FAIL(" label is malformed."); \
+    } \
     if(Compare_Label((LABEL_START), (LABEL_END), (NAME))!=0) \
-        EXIT_FAIL("%s label not found.", (NAME)); \
+	{ \
+        printf("%s", (NAME)); \
+        EXIT_FAIL(" label not found."); \
+    } \
     Start=Val_End; \
 } \
 while(0)
@@ -143,7 +142,6 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
 typedef s32 ret_t;
-typedef s32 cnt_t;
 typedef u32 ptr_t;
 /* End Typedefs **************************************************************/
 
@@ -158,13 +156,13 @@ struct List
 /* Compiler information */
 struct Comp_Info
 {
-	cnt_t Opt;
-	cnt_t Lib;
+	ptr_t Opt;
+	ptr_t Prio;
 };
 /* Raw information to be fed to the platform-specific parser */
 struct Raw_Info
 {
-	cnt_t Num;
+	ptr_t Num;
 	s8** Tag;
 	s8** Value;
 };
@@ -208,7 +206,7 @@ struct Mem_Info
 {
 	ptr_t Start;
 	ptr_t Size;
-	cnt_t Type;
+	ptr_t Type;
 	ptr_t Attr;
     ptr_t Align;
 };
@@ -221,7 +219,7 @@ struct Thd_Info
 	s8* Entry;
 	ptr_t Stack_Addr;
 	ptr_t Stack_Size;
-	ptr_t Parameter;
+	s8* Parameter;
 	ptr_t Priority;
 };
 /* Invocation information */
@@ -260,15 +258,15 @@ struct Proc_Info
 	ptr_t Extra_Captbl;
     ptr_t Captbl_Frontier;
 	struct Comp_Info Comp;
-	cnt_t Mem_Num;
+	ptr_t Mem_Num;
 	struct Mem_Info* Mem;
-	cnt_t Thd_Num;
+	ptr_t Thd_Num;
 	struct Thd_Info* Thd;
-	cnt_t Inv_Num;
+	ptr_t Inv_Num;
 	struct Inv_Info* Inv;
-	cnt_t Port_Num;
+	ptr_t Port_Num;
 	struct Port_Info* Port;
-	cnt_t Endp_Num;
+	ptr_t Endp_Num;
 	struct Endp_Info* Endp;
 };
 /* Whole project information */
@@ -277,16 +275,17 @@ struct Proj_Info
 	s8* Name;
     s8* Platform;
 	s8* Chip;
+    s8* Fullname;
 	struct RME_Info RME;
 	struct RVM_Info RVM;
-	cnt_t Proc_Num;
+	ptr_t Proc_Num;
 	struct Proc_Info* Proc;
 };
 /* Chip option macro informations */
 struct Option_Info
 {
 	s8* Name;
-	cnt_t Type;
+	ptr_t Type;
 	s8* Macro;
     /* Only one of these will take effect */
     ptr_t Range_Min;
@@ -304,14 +303,16 @@ struct Vect_Info
 struct Chip_Info
 {
 	s8* Name;
-	ptr_t Plat_Type;
+    s8* Vendor;
+	s8* Platform;
 	ptr_t Cores;
     ptr_t Regions;
+    struct Raw_Info Attr_Raw;
 	ptr_t Mem_Num;
 	struct Mem_Info* Mem;
-	cnt_t Option_Num;
+	ptr_t Option_Num;
 	struct Option_Info* Option;
-	cnt_t Vect_Num;
+	ptr_t Vect_Num;
 	struct Vect_Info* Vect;
 };
 
@@ -577,13 +578,13 @@ Output      : s8** Input_File - The input project file path.
               s8** Output_File - The output folder path, must be empty.
 			  s8** RME_Path - The RME root folder path, must contain RME files.
 			  s8** RVM_Path - The RME root folder path, must contain RME files.
-			  cnt_t* Output_Type - The output type.
+			  s8** Format - The output format.
 Return      : None.
 ******************************************************************************/
 void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path,
-                  s8** RME_Path, s8** RVM_Path, cnt_t* Output_Type)
+                  s8** RME_Path, s8** RVM_Path, s8** Format)
 {
-    cnt_t Count;
+    ptr_t Count;
 
     if(argc!=11)
         EXIT_FAIL("Too many or too few input parameters.\n"
@@ -601,11 +602,11 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path,
 	*Output_Path=0;
 	*RME_Path=0;
 	*RVM_Path=0;
-	*Output_Type=0;
+	*Format=0;
 
     Count=1;
     /* Read the command line one by one */
-    while(Count<argc)
+    while(Count<(ptr_t)argc)
     {
         /* We need to open some input file */
         if(strcmp(argv[Count],"-i")==0)
@@ -662,20 +663,10 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path,
         /* We need to set the format of the output project */
         else if(strcmp(argv[Count],"-f")==0)
         {
-            if(*Output_Type!=0)
+            if(*Format!=0)
                 EXIT_FAIL("Conflicting output project format designated.");
-
-            /* Keil uVision output format */
-            if(strcmp(argv[Count+1],"keil")==0)
-                *Output_Type=OUTPUT_KEIL;
-            /* Eclipse output format */
-            else if(strcmp(argv[Count+1],"eclipse")==0)
-                *Output_Type=OUTPUT_ECLIPSE;
-            /* Plain makefile output format */
-            else if(strcmp(argv[Count+1],"makefile")==0)
-                *Output_Type=OUTPUT_MAKEFILE;
-            else
-                EXIT_FAIL("Unrecognized output project format designated.");
+            
+            *Format=argv[Count+1];
 
             Count+=2;
         }
@@ -691,7 +682,7 @@ void Cmdline_Proc(int argc,char* argv[], s8** Input_File, s8** Output_Path,
         EXIT_FAIL("No RME root path specified.");
     if(*RVM_Path==0)
         EXIT_FAIL("No RVM root path specified.");
-    if(*Output_Type==0)
+    if(*Format==0)
         EXIT_FAIL("No output project type specified.");
 }
 /* End Function:Cmdline_Proc *************************************************/
@@ -739,7 +730,7 @@ Return      : If 0, match; if -1, mismatch.
 ******************************************************************************/
 ret_t XML_Strcmp(s8* Start1, s8* End1, s8* Start2, s8* End2)
 {
-	cnt_t Count;
+	ptr_t Count;
 
 	if((Start1==0)||(End1==0)||(Start2==0)||(End2==0))
 		return -1;
@@ -775,7 +766,7 @@ ret_t XML_Get_Next(s8* Start, s8* End,
 	               s8** Val_Start, s8** Val_End)
 {
 	s8* Slide_Ptr;
-	cnt_t Num_Elems;
+	ptr_t Num_Elems;
 	s8* Close_Label_Start;
 	s8* Close_Label_End;
 
@@ -844,11 +835,11 @@ Description : Get the number of XML elements in a given section.
 Input       : s8* Start - The start position of the string.
               s8* End - The end position of the string.
 Output      : None.
-Return      : cnt_t - The number of elements found.
+Return      : ptr_t - The number of elements found.
 ******************************************************************************/
-cnt_t XML_Num(s8* Start, s8* End)
+ptr_t XML_Num(s8* Start, s8* End)
 {
-    cnt_t Num;
+    ptr_t Num;
     s8* Start_Ptr;
     s8* Val_Start;
     s8* Val_End;
@@ -974,7 +965,7 @@ Return      : ret_t - If same, 0; else -1.
 ******************************************************************************/
 ret_t Compare_Label(s8* Start, s8* End, s8* Label)
 {
-    cnt_t Len;
+    ptr_t Len;
 
     Len=End-Start+1;
     if(Len!=strlen(Label))
@@ -1011,7 +1002,7 @@ ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
     s8* Platform_End;
     s8* Chip_Start;
     s8* Chip_End;
-    cnt_t Count;
+    ptr_t Count;
 
     Start=Str_Start;
     End=Str_End;
@@ -1050,14 +1041,14 @@ ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
         Proj->RME.Comp.Opt=OPT_OS;
     else
         EXIT_FAIL("The optimization option is malformed.");
-    /* Library level */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
-    if(strncmp(Val_Start,"Small",5)==0)
-        Proj->RME.Comp.Lib=LIB_SMALL;
-    else if(strncmp(Val_Start,"Full",4)==0)
-        Proj->RME.Comp.Lib=LIB_FULL;
+    /* Time or size optimization */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Prioritization");
+    if(strncmp(Val_Start,"Time",4)==0)
+        Proj->RME.Comp.Prio=PRIO_TIME;
+    else if(strncmp(Val_Start,"Size",4)==0)
+        Proj->RME.Comp.Prio=PRIO_SIZE;
     else
-        EXIT_FAIL("The library option is malformed.");
+        EXIT_FAIL("The prioritization option is malformed.");
 
     /* Now read the contents of the General section */
     Start=General_Start;
@@ -1093,9 +1084,9 @@ ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
     if(Proj->RME.Kmem_Order>=INVALID)
         EXIT_FAIL("Kernel memory slot order is malformed. This cannot be Auto.");
     /* Priorities */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Priorities");
-    Proj->RME.Priorities=Get_Uint(Val_Start,Val_End);
-    if(Proj->RME.Priorities>=INVALID)
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Kern_Prios");
+    Proj->RME.Kern_Prios=Get_Uint(Val_Start,Val_End);
+    if(Proj->RME.Kern_Prios>=INVALID)
         EXIT_FAIL("Priority number is malformed. This cannot be Auto.");
 
     /* Now read the platform section */
@@ -1175,7 +1166,6 @@ ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
     s8* General_End;
     s8* VMM_Start;
     s8* VMM_End;
-    cnt_t Count;
 
     Start=Str_Start;
     End=Str_End;
@@ -1189,7 +1179,7 @@ ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
     General_Start=Val_Start;
     General_End=Val_End;
     /* Platform-Name */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, VMM);
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "VMM");
     VMM_Start=Val_Start;
     VMM_End=Val_End;
 
@@ -1210,14 +1200,14 @@ ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
         Proj->RVM.Comp.Opt=OPT_OS;
     else
         EXIT_FAIL("The optimization option is malformed.");
-    /* Library level */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
-    if(strncmp(Val_Start,"Small",5)==0)
-        Proj->RVM.Comp.Lib=LIB_SMALL;
-    else if(strncmp(Val_Start,"Full",4)==0)
-        Proj->RVM.Comp.Lib=LIB_FULL;
+    /* Time or size optimization */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Prioritization");
+    if(strncmp(Val_Start,"Time",4)==0)
+        Proj->RVM.Comp.Prio=PRIO_TIME;
+    else if(strncmp(Val_Start,"Size",4)==0)
+        Proj->RVM.Comp.Prio=PRIO_SIZE;
     else
-        EXIT_FAIL("The library option is malformed.");
+        EXIT_FAIL("The prioritization option is malformed.");
 
     /* Now read the contents of the General section */
     Start=General_Start;
@@ -1257,14 +1247,14 @@ ret_t Parse_RVM(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
 /* Begin Function:Parse_Process_Memory ****************************************
 Description : Parse the memory section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Proc_Num - The process number.
-              cnt_t Mem_Num - The memory number.
+              ptr_t Proc_Num - The process number.
+              ptr_t Mem_Num - The memory number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Process_Memory(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Memory(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Mem_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1324,14 +1314,14 @@ ret_t Parse_Process_Memory(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Mem_Num
 /* Begin Function:Parse_Thread ************************************************
 Description : Parse the thread section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Proc_Num - The process number.
-              cnt_t Thd_Num - The thread number.
+              ptr_t Proc_Num - The process number.
+              ptr_t Thd_Num - The thread number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Thread(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Thread(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Thd_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1360,8 +1350,8 @@ ret_t Parse_Thread(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* St
         EXIT_FAIL("Thread stack address read failed.");
     /* Stack size */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Size");
-    Proj->Proc[Proc_Num].Thd[Thd_Num].Entry=Get_Hex(Val_Start,Val_End);
-    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Entry>=INVALID)
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Stack_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Stack_Size>=INVALID)
         EXIT_FAIL("Thread stack size read failed.");
     /* Parameter */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Parameter");
@@ -1370,8 +1360,8 @@ ret_t Parse_Thread(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* St
         EXIT_FAIL("Thread parameter value read failed.");
     /* Priority level */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Priority");
-    Proj->Proc[Proc_Num].Thd[Thd_Num].Entry=Get_Uint(Val_Start,Val_End);
-    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Entry>=INVALID)
+    Proj->Proc[Proc_Num].Thd[Thd_Num].Priority=Get_Uint(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Thd[Thd_Num].Priority>=INVALID)
         EXIT_FAIL("Thread priority read failed.");
 
     return 0;
@@ -1381,14 +1371,14 @@ ret_t Parse_Thread(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Thd_Num, s8* St
 /* Begin Function:Parse_Invocation ********************************************
 Description : Parse the invocation section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Proc_Num - The process number.
-              cnt_t Inv_Num - The invocation number.
+              ptr_t Proc_Num - The process number.
+              ptr_t Inv_Num - The invocation number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Invocation(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Inv_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Invocation(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Inv_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1413,12 +1403,12 @@ ret_t Parse_Invocation(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Inv_Num, s8
     /* Stack address */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Addr");
     Proj->Proc[Proc_Num].Inv[Inv_Num].Stack_Addr=Get_Hex(Val_Start,Val_End);
-    if(Proj->Proc[Proc_Num].Inv[Thd_Num].Stack_Addr==INVALID)
+    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Stack_Addr==INVALID)
         EXIT_FAIL("Invocation stack address read failed.");
     /* Stack size */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Stack_Size");
-    Proj->Proc[Proc_Num].Inv[Inv_Num].Entry=Get_Hex(Val_Start,Val_End);
-    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Entry>=INVALID)
+    Proj->Proc[Proc_Num].Inv[Inv_Num].Stack_Size=Get_Hex(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Inv[Inv_Num].Stack_Size>=INVALID)
         EXIT_FAIL("Invocation stack size read failed.");
     
     return 0;
@@ -1428,14 +1418,14 @@ ret_t Parse_Invocation(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Inv_Num, s8
 /* Begin Function:Parse_Port **************************************************
 Description : Parse the port section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Proc_Num - The process number.
-              cnt_t Port_Num - The port number.
+              ptr_t Proc_Num - The process number.
+              ptr_t Port_Num - The port number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Port(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Port_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Port(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Port_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1465,14 +1455,14 @@ ret_t Parse_Port(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Port_Num, s8* Str
 /* Begin Function:Parse_Endpoint **********************************************
 Description : Parse the endpoint section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Proc_Num - The process number.
-              cnt_t Endp_Num - The endpoint number.
+              ptr_t Proc_Num - The process number.
+              ptr_t Endp_Num - The endpoint number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Endpoint(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Endp_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Endpoint(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Endp_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1517,13 +1507,13 @@ ret_t Parse_Endpoint(struct Proj_Info* Proj, cnt_t Proc_Num, cnt_t Endp_Num, s8*
 /* Begin Function:Parse_Process ***********************************************
 Description : Parse a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
-              cnt_t Num - The process number.
+              ptr_t Num - The process number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1531,7 +1521,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
     s8* Label_End;
     s8* Val_Start;
     s8* Val_End;
-    cnt_t Count;
+    ptr_t Count;
     s8* General_Start;
     s8* General_End;
     s8* Compiler_Start;
@@ -1610,18 +1600,18 @@ ret_t Parse_Process(struct Proj_Info* Proj, cnt_t Num, s8* Str_Start, s8* Str_En
         Proj->Proc[Num].Comp.Opt=OPT_OS;
     else
         EXIT_FAIL("The optimization option is malformed.");
-    /* Library level */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Library");
-    if(strncmp(Val_Start,"Small",5)==0)
-        Proj->Proc[Num].Comp.Lib=LIB_SMALL;
-    else if(strncmp(Val_Start,"Full",4)==0)
-        Proj->Proc[Num].Comp.Lib=LIB_FULL;
+    /* Time or size optimization */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Prioritization");
+    if(strncmp(Val_Start,"Time",4)==0)
+        Proj->Proc[Num].Comp.Prio=PRIO_TIME;
+    else if(strncmp(Val_Start,"Size",4)==0)
+        Proj->Proc[Num].Comp.Prio=PRIO_SIZE;
     else
-        EXIT_FAIL("The library option is malformed.");
+        EXIT_FAIL("The prioritization option is malformed.");
 
     /* Parse memory section */
-    Start=Memories_Start;
-    End=Memories_End;
+    Start=Memory_Start;
+    End=Memory_End;
     Proj->Proc[Num].Mem_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Mem_Num==0)
         EXIT_FAIL("The memories section is malformed.");
@@ -1722,9 +1712,9 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
 {
 	s8* Start;
 	s8* End;
-    cnt_t Count;
+    ptr_t Count;
     s8* Label_Start;
-    s8* Laben_End;
+    s8* Label_End;
     s8* Val_Start;
     s8* Val_End;
     struct Proj_Info* Proj;
@@ -1740,7 +1730,7 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
     End=&Proj_File[Count-1];
 
     /* Skip the xml header */
-    Start++；
+    Start++;
     while(Start[0]!='\0')
     {
         if(Start[0]=='<')
@@ -1770,6 +1760,11 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
     Proj->Chip=Get_String(Val_Start,Val_End);
     if(Proj->Chip==0)
         EXIT_FAIL("Chip value read failed.");
+    /* Fullname */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Fullname");
+    Proj->Fullname=Get_String(Val_Start,Val_End);
+    if(Proj->Fullname==0)
+        EXIT_FAIL("Chip fullname value read failed.");
     /* RME */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "RME");
     if(Parse_RME(Proj, Val_Start, Val_End)!=0)
@@ -1802,13 +1797,13 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
 /* Begin Function:Parse_Chip_Memory *******************************************
 Description : Parse the memory section of a particular chip.
 Input       : struct Chip_Info* Chip - The project structure.
-              cnt_t Num - The memory number.
+              ptr_t Num - The memory number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Chip_Info* Chip - The updated chip structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Chip_Memory(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Chip_Memory(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1848,13 +1843,13 @@ ret_t Parse_Chip_Memory(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* St
 /* Begin Function:Parse_Option ************************************************
 Description : Parse the option section of a particular chip.
 Input       : struct Chip_Info* Chip - The project structure.
-              cnt_t Num - The option number.
+              ptr_t Num - The option number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Chip_Info* Chip - The updated chip structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Option(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1863,7 +1858,7 @@ ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End
     s8* Val_Start;
     s8* Val_End;
     s8* Value_Temp;
-    cnt_t Count;
+    ptr_t Count;
 
     Start=Str_Start;
     End=Str_End;
@@ -1898,7 +1893,7 @@ ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End
         /* Find the start and end of this */
         for(Start=Val_Start;Start<=Val_End;Start++)
         {
-            if(Start==',')
+            if(Start[0]==',')
                 break;
         }
         if(Start>=Val_End)
@@ -1916,7 +1911,7 @@ ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End
         Count=0;
         for(Start=Val_Start;Start<=Val_End;Start++)
         {
-            if(Start==',')
+            if(Start[0]==',')
                 Count++;
         }
         if(Count==0)
@@ -1946,13 +1941,13 @@ ret_t Parse_Option(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End
 /* Begin Function:Parse_Vector ************************************************
 Description : Parse the vector section of a particular chip.
 Input       : struct Chip_Info* Chip - The project structure.
-              cnt_t Num - The option number.
+              ptr_t Num - The option number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Chip_Info* Chip - The updated chip structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Vector(struct Chip_Info* Chip, cnt_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Vector(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1990,12 +1985,14 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
 {
 	s8* Start;
 	s8* End;
-    cnt_t Count;
+    ptr_t Count;
     s8* Label_Start;
-    s8* Laben_End;
+    s8* Label_End;
     s8* Val_Start;
     s8* Val_End;
     struct Chip_Info* Chip;
+    s8* Attribute_Start;
+    s8* Attribute_End;
     s8* Memory_Start;
     s8* Memory_End;
     s8* Option_Start;
@@ -2014,7 +2011,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     End=&Chip_File[Count-1];
 
     /* Skip the xml header */
-    Start++；
+    Start++;
     while(Start[0]!='\0')
     {
         if(Start[0]=='<')
@@ -2034,6 +2031,11 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     Chip->Name=Get_String(Val_Start,Val_End);
     if(Chip->Name==0)
         EXIT_FAIL("Name value read failed.");
+    /* Vendor */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vendor");
+    Chip->Vendor=Get_String(Val_Start,Val_End);
+    if(Chip->Vendor==0)
+        EXIT_FAIL("Vendor value read failed.");
     /* Platform */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Platform");
     Chip->Platform=Get_String(Val_Start,Val_End);
@@ -2049,6 +2051,10 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     Chip->Regions=Get_Uint(Val_Start,Val_End);
     if((Chip->Regions<=2)||(Chip->Regions>=INVALID))
         EXIT_FAIL("Chip regions read failed.");
+    /* Attribute */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Attribute");
+    Attribute_Start=Val_Start;
+    Attribute_End=Val_End;
     /* Memory */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Memory");
     Memory_Start=Val_Start;
@@ -2059,8 +2065,33 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     Option_End=Val_End;
     /* Vector */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vector");
-    Vectors_Start=Val_Start;
-    Vectors_End=Val_End;
+    Vector_Start=Val_Start;
+    Vector_End=Val_End;
+
+    /* Attribute */
+    Start=Attribute_Start;
+    End=Attribute_End;
+    Chip->Attr_Raw.Num=XML_Num(Start, End);
+    if(Chip->Attr_Raw.Num!=0)
+    {
+        Chip->Attr_Raw.Tag=Malloc(sizeof(struct Mem_Info)*Chip->Attr_Raw.Num);
+        if(Chip->Attr_Raw.Tag==0)
+            EXIT_FAIL("The attribute structure allocation failed.");
+        Chip->Attr_Raw.Value=Malloc(sizeof(struct Mem_Info)*Chip->Attr_Raw.Num);
+        if(Chip->Attr_Raw.Value==0)
+            EXIT_FAIL("The attribute structure allocation failed.");
+        for(Count=0;Count<Chip->Attr_Raw.Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing chip attribute section.");
+            Chip->Attr_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            if(Chip->Attr_Raw.Tag[Count]==0)
+                EXIT_FAIL("Chip attribute section tag read failed.");
+            Chip->Attr_Raw.Value[Count]=Get_String(Val_Start, Val_End);
+            if(Chip->Attr_Raw.Value[Count]==0)
+                EXIT_FAIL("Chip attribute section value read failed.");
+        }
+    }
 
     /* Memory */
     Start=Memory_Start;
@@ -2097,13 +2128,13 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     /* Vector */
     Start=Vector_Start;
     End=Vector_End;
-    Chip->Vector_Num=XML_Num(Start, End);
-    if(Chip->Vector_Num==0)
+    Chip->Vect_Num=XML_Num(Start, End);
+    if(Chip->Vect_Num==0)
         EXIT_FAIL("The option section is malformed.");
-    Chip->Vector=Malloc(sizeof(struct Option_Info)*Chip->Vector_Num);
-    if(Chip->Vector==0)
+    Chip->Vect=Malloc(sizeof(struct Option_Info)*Chip->Vect_Num);
+    if(Chip->Vect==0)
         EXIT_FAIL("The option structure allocation failed.");
-    for(Count=0;Count<Chip->Vector_Num;Count++)
+    for(Count=0;Count<Chip->Vect_Num;Count++)
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing option section.");
@@ -2125,14 +2156,14 @@ Return      : None.
 ******************************************************************************/
 void Align_Mem(struct Proj_Info* Proj, ret_t (*Align)(struct Mem_Info*))
 {
-    cnt_t Proc_Cnt;
-    cnt_t Mem_Cnt;
+    ptr_t Proc_Cnt;
+    ptr_t Mem_Cnt;
 
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
         {
-            if(Align(&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt])!=0)
+            if(Align(&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]))!=0)
                 EXIT_FAIL("Memory aligning failed.");
         }
     }
@@ -2150,8 +2181,8 @@ Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
 ret_t Insert_Mem(struct Mem_Info** Array, ptr_t Len, struct Mem_Info* Mem, ptr_t Category)
 {
-    cnt_t Pos;
-    cnt_t End;
+    ptr_t Pos;
+    ptr_t End;
 
     for(Pos=0;Pos<Len;Pos++)
     {
@@ -2193,7 +2224,7 @@ Return      : ret_t - If can be marked, 0; else -1.
 ******************************************************************************/
 ret_t Try_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
 {
-    cnt_t Count;
+    ptr_t Count;
 
     for(Count=0;Count<Size;Count++)
     {
@@ -2214,7 +2245,7 @@ Return      : None.
 ******************************************************************************/
 void Mark_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
 {
-    cnt_t Count;
+    ptr_t Count;
 
     for(Count=0;Count<Size;Count++)
         Bitmap[(Start+Count)/8]|=1<<((Start+Count)%8);
@@ -2231,10 +2262,8 @@ Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
 ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
 {
-    cnt_t Mem_Cnt;
+    ptr_t Mem_Cnt;
     ptr_t Rel_Start;
-    cnt_t Mark_Start;
-    cnt_t Mark_End;
 
     for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
     {
@@ -2251,7 +2280,7 @@ ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
     
     /* It is clear that we can fit now. Mark all the bits */
     Rel_Start=Start-Map->Mem_Array[Mem_Cnt]->Start;
-    Mark_Bitmap(Rel_Start/4,Size/4);
+    Mark_Bitmap(Map->Mem_Bitmap[Mem_Cnt],Rel_Start/4,Size/4);
     return 0;
 }
 /* End Function:Populate_Mem *************************************************/
@@ -2259,13 +2288,13 @@ ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
 /* Begin Function:Fit_Mem *****************************************************
 Description : Fit the auto-placed memory segments to a fixed location.
 Input       : struct Mem_Map* Map - The memory map.
-              cnt_t Mem_Num - The memory info number in the process memory array.
+              ptr_t Mem_Num - The memory info number in the process memory array.
 Output      : struct Mem_Map* Map - The updated memory map.
 Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
-ret_t Fit_Mem(struct Mem_Map* Map, cnt_t Mem_Num)
+ret_t Fit_Mem(struct Mem_Map* Map, ptr_t Mem_Num)
 {
-    cnt_t Fit_Cnt;
+    ptr_t Fit_Cnt;
     ptr_t Start_Addr;
     ptr_t End_Addr;
     ptr_t Try_Addr;
@@ -2317,9 +2346,9 @@ Return      : None.
 ******************************************************************************/
 void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
 {
-    cnt_t Count;
-    cnt_t Proc_Cnt;
-    cnt_t Mem_Cnt;
+    ptr_t Count;
+    ptr_t Proc_Cnt;
+    ptr_t Mem_Cnt;
     struct Mem_Map* Map;
 
     if((Type!=MEM_CODE)&&(Type!=MEM_DATA))
@@ -2329,7 +2358,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     if(Map==0)
         EXIT_FAIL("Memory map allocation failed.");
 
-    /* Find all code memory sections */
+    /* Find all memory sections with a particular type */
     Count=0;
     for(Mem_Cnt=0;Mem_Cnt<Chip->Mem_Num;Mem_Cnt++)
     {
@@ -2341,7 +2370,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     Map->Mem_Array=Malloc(sizeof(struct Mem_Info*)*Count);
     if(Map->Mem_Array==0)
         EXIT_FAIL("Memory map allocation failed.");
-    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Count)
+    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Count);
     Map->Mem_Bitmap=Malloc(sizeof(s8*)*Mem_Cnt);
     if(Map->Mem_Bitmap==0)
         EXIT_FAIL("Memory map allocation failed.");
@@ -2351,7 +2380,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     {
         if(Chip->Mem[Mem_Cnt].Type==Type)
         {
-            if(Insert_Mem(Map->Mem_Array,&Chip->Mem[Mem_Cnt],0)!=0)
+            if(Insert_Mem(Map->Mem_Array,Chip->Mem_Num,&Chip->Mem[Mem_Cnt],0)!=0)
                 EXIT_FAIL("Code memory insertion sort failed.");
         }
     }
@@ -2415,7 +2444,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
             {
                 if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
                 {
-                    if(Insert_Mem(Map->Proc_Mem_Array,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
+                    if(Insert_Mem(Map->Proc_Mem_Array,Map->Proc_Mem_Num,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
                         EXIT_FAIL("Code memory insertion sort failed.");
                 }
             }
@@ -2432,8 +2461,6 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     /* Clean up before returning */
     for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
         Free(Map->Mem_Bitmap[Mem_Cnt]);
-    for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
-        Free(Map->Proc_Mem_Bitmap[Mem_Cnt]);
     
     Free(Map->Mem_Array);
     Free(Map->Mem_Bitmap);
@@ -2452,8 +2479,10 @@ Return      : ret_t - If two strings are equal, then 0; if the first is bigger,
 ******************************************************************************/
 ret_t Strcicmp(s8* Str1, s8* Str2)
 {
-    cnt_t Count;
+    ptr_t Count;
     ret_t Result;
+
+    Count=0;
     while(1)
     {
         Result=tolower(Str1[Count])-tolower(Str2[Count]);
@@ -2463,6 +2492,7 @@ ret_t Strcicmp(s8* Str1, s8* Str2)
         if(Str1[Count]=='\0')
             break;
     }
+
     return Result;
 }
 /* End Function:Strcicmp *****************************************************/
@@ -2475,7 +2505,7 @@ Return      : ret_t - If no conflict, 0; else -1.
 ******************************************************************************/
 ret_t Validate_Name(s8* Name)
 {
-    cnt_t Count;
+    ptr_t Count;
     /* Should not begin with number */
     if((Name[0]>='0')&&(Name[0]<='9'))
         return -1;
@@ -2507,10 +2537,10 @@ Return      : None.
 ******************************************************************************/
 void Detect_Handler(struct Proj_Info* Proj)
 {
-    cnt_t Proc_Cnt;
-    cnt_t Proc_Tmp_Cnt;
-    cnt_t Obj_Cnt;
-    cnt_t Obj_Tmp_Cnt;
+    ptr_t Proc_Cnt;
+    ptr_t Proc_Tmp_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Obj_Tmp_Cnt;
     struct Proc_Info* Proc;
     struct Endp_Info* Endp;
 
@@ -2520,7 +2550,7 @@ void Detect_Handler(struct Proj_Info* Proj)
         /* Check that every handler name is globally unique */
         for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
         {
-            Endp=&(Proc->Port[Obj_Cnt]);
+            Endp=&(Proc->Endp[Obj_Cnt]);
             if(Endp->Type!=ENDP_HANDLER)
                 continue;
             for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
@@ -2545,9 +2575,9 @@ Return      : None.
 ******************************************************************************/
 void Detect_Conflict(struct Proj_Info* Proj)
 {
-    cnt_t Proc_Cnt;
-    cnt_t Obj_Cnt;
-    cnt_t Count;
+    ptr_t Proc_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Count;
     struct Proc_Info* Proc;
 
     /* Are there two processes with the same name? */
@@ -2647,9 +2677,9 @@ Return      : None.
 ******************************************************************************/
 void Alloc_Local_ID(struct Proj_Info* Proj)
 {
-    cnt_t Proc_Cnt;
-    cnt_t Obj_Cnt;
-    cnt_t Capid;
+    ptr_t Proc_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Capid;
     struct Proc_Info* Proc;
 
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
@@ -2685,13 +2715,13 @@ void Alloc_Local_ID(struct Proj_Info* Proj)
 Description : Get the number of global objects. 
 Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
-Return      : cnt_t - The number of objects.
+Return      : ptr_t - The number of objects.
 ******************************************************************************/
-cnt_t Get_Global_Number(struct Proj_Info* Proj)
+ptr_t Get_Global_Number(struct Proj_Info* Proj)
 {
-    cnt_t Capid;
-    cnt_t Proc_Cnt;
-    cnt_t Obj_Cnt;
+    ptr_t Capid;
+    ptr_t Proc_Cnt;
+    ptr_t Obj_Cnt;
 
     Capid=0;
     /* Capability tables */
@@ -2726,9 +2756,9 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
      * all invocations, all receive endpoints. The ports and send endpoints do not
      * have a distinct kernel object; the handler endpoints are created by the kernel
      * at boot-time, while the pgtbls are decided by architecture-specific code. */
-    cnt_t Proc_Cnt;
-    cnt_t Obj_Cnt;
-    cnt_t Capid;
+    ptr_t Proc_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Capid;
     struct Proc_Info* Proc;
 
     Proj->RVM.Captbl_Frontier=Get_Global_Number(Proj);
@@ -2765,7 +2795,7 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
         {
             Proj->RVM.Captbl[Capid].Proc=Proc;
             Proj->RVM.Captbl[Capid].Type=CAP_THD;
-            Proj->RVM.Captbl[Capid].Cap=Proc->Thd[Obj_Cnt];
+            Proj->RVM.Captbl[Capid].Cap=&(Proc->Thd[Obj_Cnt]);
             Proc->Thd[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
         }
@@ -2778,7 +2808,7 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
         {
             Proj->RVM.Captbl[Capid].Proc=Proc;
             Proj->RVM.Captbl[Capid].Type=CAP_INV;
-            Proj->RVM.Captbl[Capid].Cap=Proc->Inv[Obj_Cnt];
+            Proj->RVM.Captbl[Capid].Cap=&(Proc->Inv[Obj_Cnt]);
             Proc->Inv[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
         }
@@ -2793,7 +2823,7 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
             {
                 Proj->RVM.Captbl[Capid].Proc=Proc;
                 Proj->RVM.Captbl[Capid].Type=CAP_ENDP;
-                Proj->RVM.Captbl[Capid].Cap=Proc->Endp[Obj_Cnt];
+                Proj->RVM.Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
                 Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
                 Capid++;
             }
@@ -2816,10 +2846,10 @@ Return      : None.
 ******************************************************************************/
 void Backprop_Global_ID(struct Proj_Info* Proj)
 {
-    cnt_t Proc_Cnt;
-    cnt_t Proc_Tmp_Cnt;
-    cnt_t Obj_Cnt;
-    cnt_t Obj_Tmp_Cnt;
+    ptr_t Proc_Cnt;
+    ptr_t Proc_Tmp_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Obj_Tmp_Cnt;
     struct Proc_Info* Proc;
     struct Port_Info* Port;
     struct Endp_Info* Endp;
@@ -2922,7 +2952,8 @@ s8* Make_Str(s8* Str1, s8* Str2)
 
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
-void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip);
+void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path, s8* Format);
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -2937,12 +2968,10 @@ int main(int argc, char* argv[])
 	s8* Output_Path;
 	s8* RME_Path;
 	s8* RVM_Path;
-	cnt_t Output_Type;
+	s8* Format;
 	/* The input buffer */
 	s8* Input_Buf=0;
 	/* The file handle */
-	FILE* File_Handle;
-	ptr_t File_Size;
 	/* The project and chip pointers */
 	struct Proj_Info* Proj;
 	struct Chip_Info* Chip;
@@ -2951,7 +2980,7 @@ int main(int argc, char* argv[])
 	List_Crt(&Mem_List);
 
     /* Process the command line first */
-    Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Output_Type);
+    Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Format);
 
 	/* Read the project contents */
 	Input_Buf=Read_File(Input_Path);
@@ -2963,32 +2992,27 @@ int main(int argc, char* argv[])
 	Chip=Parse_Chip(Input_Buf);
 	Free(Input_Buf);
 
-	/* Align memory to what it should be */
-	switch(0)
-	{
-	    case PLAT_A7M:Align_Mem(Proj, A7M_Align); break;
-		case PLAT_MIPS:EXIT_FAIL("MIPS not currently supported.");
-		case PLAT_RISCV:EXIT_FAIL("RISC-V not currently supported.");
-		case PLAT_TCORE:EXIT_FAIL("Tricore not currently supported.");
-		default:EXIT_FAIL("Platform invalid, please check.");
-	}
+    /* Check if the platform is the same */
+    if(strcmp(Proj->Platform, Chip->Platform)!=0)
+        EXIT_FAIL("The chip description file platform conflicted with the project file.");
 
-	/* Actually allocate the auto memory segments by fixing their start addresses */
-	Alloc_Mem(Proj, MEM_CODE);
-	Alloc_Mem(Proj, MEM_DATA);
+	/* Align memory to what it should be */
+	if(strcmp(Proj->Platform,"A7M")==0)
+	    Align_Mem(Proj, A7M_Align);
+    else
+		EXIT_FAIL("Other platforms not currently supported.");
+
+	/* Actually allocate the auto memory segments by fixing their start addresses.
+     * We don't deal with device memory at all; this is mapped in anyway at usee request. */
+	Alloc_Mem(Proj, Chip, MEM_CODE);
+	Alloc_Mem(Proj, Chip, MEM_DATA);
 
     /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
     Alloc_Captbl(Proj);
 
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
-	switch (0)
-	{
-		case PLAT_A7M:A7M_Gen_Proj(Proj, Chip, Output_Type, Output_Path, RME_Path, RVM_Path); break;
-		case PLAT_MIPS:EXIT_FAIL("MIPS not currently supported.");
-		case PLAT_RISCV:EXIT_FAIL("RISC-V not currently supported.");
-		case PLAT_TCORE:EXIT_FAIL("Tricore not currently supported.");
-		default:EXIT_FAIL("Platform invalid, please check.");
-	}
+	if(strcmp(Proj->Platform,"A7M")==0)
+		A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
 
 	/* All done, free all memory and we quit */
 	Free_All();
@@ -3015,13 +3039,15 @@ struct A7M_Pgtbl
     ptr_t Attr;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
     struct A7M_Pgtbl* Mapping[8];
-}
+};
 
-/* Cortex-M information */
 struct A7M_Info
 {
-	cnt_t NVIC_Grouping;
+	ptr_t NVIC_Grouping;
 	ptr_t Systick_Val;
+    s8* CPU_Type;
+    s8* FPU_Type;
+    s8* Endianness;
     /* The page tables for all processes */
     struct A7M_Pgtbl** Pgtbl;
 };
@@ -3063,49 +3089,67 @@ ret_t A7M_Align(struct Mem_Info* Mem)
 }
 /* End Function:A7M_Align ****************************************************/
 
-/* Begin Function:A7M_Gen_Keil ************************************************
-Description : Generate the keil project for ARMv7-M. 
-              Keil projects include three parts: 
-              .uvmpw (the outside workspace)
-              .uvprojx (the specific project files)
-              .uvoptx (the options for some unimportant stuff)
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
-              cnt_t Output_Type - The output type.
-              s8* Output_Path - The output folder path.
-              s8* RME_Path - The RME root folder path.
-              s8* RVM_Path - The RVM root folder path.
-Output      : None.
+/* Begin Function:A7M_Gen_Keil_Proj *******************************************
+Description : Generate the keil project for ARMv7-M architectures.
+Input       : FILE* Keil - The file pointer to the project file.
+              s8* Target - The target executable name for the project.
+              s8* Device - The device name, must match the keil list.
+              s8* Vendor - The vendor name, must match the keil list.
+              s8* CPU_Type - The CPU type, must match the keil definitions.
+                             "Cortex-M0+", "Cortex-M3"， "Cortex-M4", "Cortex-M7".
+              s8* FPU_Type - The FPU type, must match the keil definition.
+                             "", "FPU2", "FPU3(SP)", "FPU3(DP)" 
+              s8* Endianness - The endianness. "ELITTLE" "EBIG"
+              ptr_t Timeopt - Set to 1 when optimizing for time.
+              ptr_t Opt - Optimization levels, 1 to 4 corresponds to O0-O3.
+              s8** Includes - The include paths.
+              ptr_t Include_Num - The number of include paths.
+              s8** Paths - The path of the files.
+              s8** Files - The file names.
+              ptr_t File_Num - The number of files.
+Output      : FILE* Keil - The file pointer to the project file.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                  cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+void A7M_Gen_Keil_Proj(FILE* Keil,
+                       s8* Target, s8* Device, s8* Vendor, 
+                       s8* CPU_Type, s8* FPU_Type, s8* Endianness,
+                       ptr_t Timeopt, ptr_t Opt,
+                       s8** Includes, ptr_t Include_Num,
+                       s8** Paths, s8** Files, ptr_t File_Num)
 {
-    /* Generate the keil project */
-    FILE* Keil;
+    ptr_t Include_Cnt;
+    ptr_t File_Cnt;
+    s8* Dlloption;
 
-    /* Do this when we go back - hard to do here! at least after the paper, so we can install keil & msvc13.
-     * This is as minimal as we can get. The truth is that it is good. When using keil, we only allow up to 
-     * 3 segments of IRAM or IROM; if we have more than that, we abort. */
+    if(strcmp(CPU_Type, "Cortex-M0+")==0)
+        Dlloption="-pCM0+";
+    else if(strcmp(CPU_Type, "Cortex-M3")==0)
+        Dlloption="-pCM3";
+    else if(strcmp(CPU_Type, "Cortex-M4")==0)
+        Dlloption="-pCM4";
+    else if(strcmp(CPU_Type, "Cortex-M7")==0)
+        Dlloption="-pCM7";
+    else
+        EXIT_FAIL("CPU variant invalid.");
+
     fprintf(Keil, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n");
     fprintf(Keil, "<Project xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"project_projx.xsd\">\n");
     fprintf(Keil, "  <SchemaVersion>2.1</SchemaVersion>\n");
     fprintf(Keil, "  <Header>### uVision Project, (C) Keil Software</Header>\n");
     fprintf(Keil, "  <Targets>\n");
     fprintf(Keil, "    <Target>\n");
-    fprintf(Keil, "      <TargetName>Target 1</TargetName>\n");
+    fprintf(Keil, "      <TargetName>%s</TargetName>\n", Target);
     fprintf(Keil, "      <ToolsetNumber>0x4</ToolsetNumber>\n");
     fprintf(Keil, "      <ToolsetName>ARM-ADS</ToolsetName>\n");
-    fprintf(Keil, "      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>\n");
+    fprintf(Keil, "      <pCCUsed>ARMCC</pCCUsed>\n");
     fprintf(Keil, "      <uAC6>0</uAC6>\n");
     fprintf(Keil, "      <TargetOption>\n");
     fprintf(Keil, "        <TargetCommonOption>\n");
-    fprintf(Keil, "          <Device>STM32F767IGTx</Device>\n");
-    fprintf(Keil, "          <Vendor>STMicroelectronics</Vendor>\n");
-    fprintf(Keil, "          <Cpu>IRAM(0x20000000,0x80000) IROM(0x08000000,0x100000) CPUTYPE(\"Cortex-M7\") FPU3(DFPU) CLOCK(12000000) ELITTLE</Cpu>\n");
+    fprintf(Keil, "          <Device>%s</Device>\n", Device);
+    fprintf(Keil, "          <Vendor>%s</Vendor>\n", Vendor);
+    fprintf(Keil, "          <Cpu>IRAM(0x0,0x1000) IROM(0x0,0x1000) CPUTYPE(\"%s\") %s CLOCK(12000000) %s</Cpu>\n", CPU_Type, FPU_Type, Endianness);
     fprintf(Keil, "          <OutputDirectory>.\\Objects\\</OutputDirectory>\n");
-    fprintf(Keil, "          <OutputName>test</OutputName>\n");
+    fprintf(Keil, "          <OutputName>%s</OutputName>\n", Target);
     fprintf(Keil, "          <CreateExecutable>1</CreateExecutable>\n");
     fprintf(Keil, "          <CreateHexFile>1</CreateHexFile>\n");
     fprintf(Keil, "          <DebugInformation>1</DebugInformation>\n");
@@ -3143,34 +3187,34 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
     fprintf(Keil, "          <SimDllName>SARMCM3.DLL</SimDllName>\n");
     fprintf(Keil, "          <SimDllArguments> -REMAP -MPU</SimDllArguments>\n");
     fprintf(Keil, "          <SimDlgDll>DCM.DLL</SimDlgDll>\n");
-    fprintf(Keil, "          <SimDlgDllArguments>-pCM7</SimDlgDllArguments>\n");
+    fprintf(Keil, "          <SimDlgDllArguments>%s</SimDlgDllArguments>\n", Dlloption);
     fprintf(Keil, "          <TargetDllName>SARMCM3.DLL</TargetDllName>\n");
     fprintf(Keil, "          <TargetDllArguments> -MPU</TargetDllArguments>\n");
     fprintf(Keil, "          <TargetDlgDll>TCM.DLL</TargetDlgDll>\n");
-    fprintf(Keil, "          <TargetDlgDllArguments>-pCM7</TargetDlgDllArguments>\n");
+    fprintf(Keil, "          <TargetDlgDllArguments>%s</TargetDlgDllArguments>\n", Dlloption);
     fprintf(Keil, "        </DllOption>\n");
     fprintf(Keil, "        <TargetArmAds>\n");
     fprintf(Keil, "          <ArmAdsMisc>\n");
-    fprintf(Keil, "            <useUlib>0</useUlib>\n");
+    fprintf(Keil, "            <useUlib>1</useUlib>\n");
     fprintf(Keil, "            <OptFeed>0</OptFeed>\n");
     fprintf(Keil, "          </ArmAdsMisc>\n");
     fprintf(Keil, "          <Cads>\n");
     fprintf(Keil, "            <interw>1</interw>\n");
-    fprintf(Keil, "            <Optim>4</Optim>\n");
-    fprintf(Keil, "            <oTime>1</oTime>\n");
-    fprintf(Keil, "            <SplitLS>1</SplitLS>\n");
-    fprintf(Keil, "            <OneElfS>0</OneElfS>\n");
-    fprintf(Keil, "            <Strict>1</Strict>\n");
+    fprintf(Keil, "            <Optim>%d</Optim>\n", Opt);
+    fprintf(Keil, "            <oTime>%d</oTime>\n", (Timeopt!=0));
+    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
+    fprintf(Keil, "            <OneElfS>1</OneElfS>\n");
+    fprintf(Keil, "            <Strict>0</Strict>\n");
     fprintf(Keil, "            <EnumInt>1</EnumInt>\n");
     fprintf(Keil, "            <PlainCh>1</PlainCh>\n");
-    fprintf(Keil, "            <Ropi>1</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
-    fprintf(Keil, "            <wLevel>1</wLevel>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <wLevel>2</wLevel>\n");
     fprintf(Keil, "            <uThumb>0</uThumb>\n");
-    fprintf(Keil, "            <uSurpInc>1</uSurpInc>\n");
+    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
     fprintf(Keil, "            <uC99>1</uC99>\n");
     fprintf(Keil, "            <uGnu>1</uGnu>\n");
-    fprintf(Keil, "            <useXO>1</useXO>\n");
+    fprintf(Keil, "            <useXO>0</useXO>\n");
     fprintf(Keil, "            <v6Lang>1</v6Lang>\n");
     fprintf(Keil, "            <v6LangP>1</v6LangP>\n");
     fprintf(Keil, "            <vShortEn>1</vShortEn>\n");
@@ -3187,33 +3231,41 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
     fprintf(Keil, "          </Cads>\n");
     fprintf(Keil, "          <Aads>\n");
     fprintf(Keil, "            <interw>1</interw>\n");
-    fprintf(Keil, "            <Ropi>1</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
-    fprintf(Keil, "            <thumb>1</thumb>\n");
-    fprintf(Keil, "            <SplitLS>1</SplitLS>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <thumb>0</thumb>\n");
+    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
     fprintf(Keil, "            <SwStkChk>0</SwStkChk>\n");
-    fprintf(Keil, "            <NoWarn>1</NoWarn>\n");
-    fprintf(Keil, "            <uSurpInc>1</uSurpInc>\n");
-    fprintf(Keil, "            <useXO>1</useXO>\n");
+    fprintf(Keil, "            <NoWarn>0</NoWarn>\n");
+    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
+    fprintf(Keil, "            <useXO>0</useXO>\n");
     fprintf(Keil, "            <uClangAs>0</uClangAs>\n");
     fprintf(Keil, "            <VariousControls>\n");
     fprintf(Keil, "              <MiscControls></MiscControls>\n");
     fprintf(Keil, "              <Define></Define>\n");
     fprintf(Keil, "              <Undefine></Undefine>\n");
-    fprintf(Keil, "              <IncludePath></IncludePath>\n");
+    fprintf(Keil, "              <IncludePath>");
+    /* Print all include paths */
+    for(Include_Cnt=0;Include_Cnt<Include_Num;Include_Cnt++)
+    {
+        fprintf(Keil, "%s", Includes[Include_Cnt]);
+        if(Include_Cnt<(Include_Num-1))
+            fprintf(Keil, ";");
+    }
+    fprintf(Keil, "</IncludePath>\n");
     fprintf(Keil, "            </VariousControls>\n");
     fprintf(Keil, "          </Aads>\n");
     fprintf(Keil, "          <LDads>\n");
     fprintf(Keil, "            <umfTarg>0</umfTarg>\n");
-    fprintf(Keil, "            <Ropi>1</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>1</Rwpi>\n");
-    fprintf(Keil, "            <noStLib>1</noStLib>\n");
-    fprintf(Keil, "            <RepFail>0</RepFail>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <noStLib>0</noStLib>\n");
+    fprintf(Keil, "            <RepFail>1</RepFail>\n");
     fprintf(Keil, "            <useFile>0</useFile>\n");
     fprintf(Keil, "            <TextAddressRange>0x08000000</TextAddressRange>\n");
-    fprintf(Keil, "            <DataAddressRange>0x20020000</DataAddressRange>\n");
+    fprintf(Keil, "            <DataAddressRange>0x20000000</DataAddressRange>\n");
     fprintf(Keil, "            <pXoBase></pXoBase>\n");
-    fprintf(Keil, "            <ScatterFile>.\\Objects\test.sct</ScatterFile>\n");
+    fprintf(Keil, "            <ScatterFile>.\\Objects\\%s.sct</ScatterFile>\n", Target);
     fprintf(Keil, "            <IncludeLibs></IncludeLibs>\n");
     fprintf(Keil, "            <IncludeLibsPath></IncludeLibsPath>\n");
     fprintf(Keil, "            <Misc></Misc>\n");
@@ -3223,159 +3275,116 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
     fprintf(Keil, "        </TargetArmAds>\n");
     fprintf(Keil, "      </TargetOption>\n");
     fprintf(Keil, "      <Groups>\n");
+    /* Print all files. We only have two groups in all cases. */
     fprintf(Keil, "        <Group>\n");
-    fprintf(Keil, "          <GroupName>Source Group 1</GroupName>\n");
+    fprintf(Keil, "          <GroupName>%s</GroupName>\n", Target);
+    fprintf(Keil, "          <Files>\n");
+    for(File_Cnt=0;File_Cnt<File_Num;File_Cnt++)
+    {
+        fprintf(Keil, "            <File>\n");
+        fprintf(Keil, "              <FileName>%s</FileName>\n", Files[File_Cnt]);
+        if(Files[File_Cnt][strlen(Files[File_Cnt])-1]=='c')
+            fprintf(Keil, "              <FileType>1</FileType>\n");
+        else
+            fprintf(Keil, "              <FileType>2</FileType>\n");
+        fprintf(Keil, "              <FilePath>%s/%s</FilePath>\n", Paths[File_Cnt], Files[File_Cnt]);
+        fprintf(Keil, "            </File>\n");
+    }
+    fprintf(Keil, "          </Files>\n");
+    fprintf(Keil, "        </Group>\n");
+    fprintf(Keil, "        <Group>\n");
+    fprintf(Keil, "          <GroupName>User</GroupName>\n");
     fprintf(Keil, "        </Group>\n");
     fprintf(Keil, "      </Groups>\n");
     fprintf(Keil, "    </Target>\n");
     fprintf(Keil, "  </Targets>\n");
     fprintf(Keil, "</Project>\n");
+}
+/* End Function:A7M_Gen_Keil_Proj ********************************************/
 
-/*
+/* Begin Function:A7M_Gen_Keil ************************************************
+Description : Generate the keil project for ARMv7-M. 
+              Keil projects include three parts: 
+              .uvmpw (the outside workspace)
+              .uvprojx (the specific project files)
+              .uvoptx (the options for some unimportant stuff)
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    /* Common for all projects */
+    s8* Device;
+    s8* Vendor;
+    s8* CPU_Type;
+    s8* FPU_Type;
+    s8* Endianness;
+    /* Project specific */
+    FILE* Keil;
+    s8* Proj_Path;
+    s8* Target;
+    ptr_t Opt;
+    ptr_t Timeopt;
 
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
-  <SchemaVersion>2.1</SchemaVersion>
-  <Header>### uVision Project, (C) Keil Software</Header>
-  <Targets>
-    <Target>
-      <TargetName>Target 1</TargetName>
-      <ToolsetNumber>0x4</ToolsetNumber>
-      <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>
-      <uAC6>0</uAC6>
-      <TargetOption>
-        <TargetCommonOption>
-          <Device>STM32F767IGTx</Device>
-          <Vendor>STMicroelectronics</Vendor>
-          <Cpu>IRAM(0x20000000,0x80000) IROM(0x08000000,0x100000) CPUTYPE("Cortex-M7") FPU3(DFPU) CLOCK(12000000) ELITTLE</Cpu>
-          <OutputDirectory>.\Objects\</OutputDirectory>
-          <OutputName>test</OutputName>
-          <CreateExecutable>1</CreateExecutable>
-          <CreateHexFile>1</CreateHexFile>
-          <DebugInformation>1</DebugInformation>
-          <BrowseInformation>1</BrowseInformation>
-          <ListingPath>.\Listings\</ListingPath>
-          <HexFormatSelection>1</HexFormatSelection>
-          <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
-            <UserProg2Name></UserProg2Name>
-            <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
-            <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
-            <nStopA1X>0</nStopA1X>
-            <nStopA2X>0</nStopA2X>
-          </AfterMake>
-        </TargetCommonOption>
-        <CommonProperty>
-          <UseCPPCompiler>0</UseCPPCompiler>
-          <RVCTCodeConst>0</RVCTCodeConst>
-          <RVCTZI>0</RVCTZI>
-          <RVCTOtherData>0</RVCTOtherData>
-          <ModuleSelection>0</ModuleSelection>
-          <IncludeInBuild>1</IncludeInBuild>
-          <AlwaysBuild>0</AlwaysBuild>
-          <GenerateAssemblyFile>0</GenerateAssemblyFile>
-          <AssembleAssemblyFile>0</AssembleAssemblyFile>
-          <PublicsOnly>0</PublicsOnly>
-          <StopOnExitCode>3</StopOnExitCode>
-          <CustomArgument></CustomArgument>
-          <IncludeLibraryModules></IncludeLibraryModules>
-          <ComprImg>1</ComprImg>
-        </CommonProperty>
-        <DllOption>
-          <SimDllName>SARMCM3.DLL</SimDllName>
-          <SimDllArguments> -REMAP -MPU</SimDllArguments>
-          <SimDlgDll>DCM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pCM7</SimDlgDllArguments>
-          <TargetDllName>SARMCM3.DLL</TargetDllName>
-          <TargetDllArguments> -MPU</TargetDllArguments>
-          <TargetDlgDll>TCM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pCM7</TargetDlgDllArguments>
-        </DllOption>
-        <TargetArmAds>
-          <ArmAdsMisc>
-            <useUlib>0</useUlib>
-            <OptFeed>0</OptFeed>
-          </ArmAdsMisc>
-          <Cads>
-            <interw>1</interw>
-            <Optim>4</Optim>
-            <oTime>1</oTime>
-            <SplitLS>1</SplitLS>
-            <OneElfS>0</OneElfS>
-            <Strict>1</Strict>
-            <EnumInt>1</EnumInt>
-            <PlainCh>1</PlainCh>
-            <Ropi>1</Ropi>
-            <Rwpi>1</Rwpi>
-            <wLevel>1</wLevel>
-            <uThumb>0</uThumb>
-            <uSurpInc>1</uSurpInc>
-            <uC99>1</uC99>
-            <uGnu>1</uGnu>
-            <useXO>1</useXO>
-            <v6Lang>1</v6Lang>
-            <v6LangP>1</v6LangP>
-            <vShortEn>1</vShortEn>
-            <vShortWch>1</vShortWch>
-            <v6Lto>0</v6Lto>
-            <v6WtE>0</v6WtE>
-            <v6Rtti>0</v6Rtti>
-            <VariousControls>
-              <MiscControls></MiscControls>
-              <Define></Define>
-              <Undefine></Undefine>
-              <IncludePath></IncludePath>
-            </VariousControls>
-          </Cads>
-          <Aads>
-            <interw>1</interw>
-            <Ropi>1</Ropi>
-            <Rwpi>1</Rwpi>
-            <thumb>1</thumb>
-            <SplitLS>1</SplitLS>
-            <SwStkChk>0</SwStkChk>
-            <NoWarn>1</NoWarn>
-            <uSurpInc>1</uSurpInc>
-            <useXO>1</useXO>
-            <uClangAs>0</uClangAs>
-            <VariousControls>
-              <MiscControls></MiscControls>
-              <Define></Define>
-              <Undefine></Undefine>
-              <IncludePath></IncludePath>
-            </VariousControls>
-          </Aads>
-          <LDads>
-            <umfTarg>0</umfTarg>
-            <Ropi>1</Ropi>
-            <Rwpi>1</Rwpi>
-            <noStLib>1</noStLib>
-            <RepFail>0</RepFail>
-            <useFile>0</useFile>
-            <TextAddressRange>0x08000000</TextAddressRange>
-            <DataAddressRange>0x20020000</DataAddressRange>
-            <pXoBase></pXoBase>
-            <ScatterFile>.\Objects\test.sct</ScatterFile>
-            <IncludeLibs></IncludeLibs>
-            <IncludeLibsPath></IncludeLibsPath>
-            <Misc></Misc>
-            <LinkerInputFile></LinkerInputFile>
-            <DisabledWarnings></DisabledWarnings>
-          </LDads>
-        </TargetArmAds>
-      </TargetOption>
-      <Groups>
-        <Group>
-          <GroupName>Source Group 1</GroupName>
-        </Group>
-      </Groups>
-    </Target>
-  </Targets>
-</Project>
- */
+    /* Decide process specific macros - only STM32 is like this */
+    if((strncmp(Proj->Chip,"STM32", 5)==0))
+    {
+        if(strncmp(Proj->Chip,"STM32F1", 7)==0)
+            Device=Proj->Chip;
+        else
+        {
+            Device=Malloc(strlen(Proj->Fullname)+1);
+            strcpy(Device, Proj->Fullname);
+            /* Except for STM32F1, all chips end with suffix, and the last number is substituted with 'x' */
+            Device[strlen(Proj->Fullname)-1]='x';
+        }
+    }
+    Device=Proj->Chip;
+    Vendor=Chip->Vendor;
+    CPU_Type=A7M->CPU_Type;
+    if(strcmp(A7M->FPU_Type, "NONE")==0)
+        FPU_Type="";
+    else if(strcmp(A7M->FPU_Type, "FPV4")==0)
+        FPU_Type="FPU2";
+    else if(strcmp(A7M->FPU_Type, "FPV5_SP")==0)
+        FPU_Type="FPU3(SP)";
+    else if(strcmp(A7M->FPU_Type, "FPV5_DP")==0)
+        FPU_Type="FPU3(DP)";
+    else
+        EXIT_FAIL("FPU type is invalid.");
+
+    if(strcmp(A7M->Endianness, "Little")==0)
+        Endianness="ELITTLE";
+    else
+        Endianness="EBIG";
+
+    Proj_Path=Malloc(sizeof(s8)*4096);
+    if(Proj_Path==0)
+        EXIT_FAIL("Project path allocation failed");
+    sprintf(Proj_Path, "%s/M7M1_MuEukaron/Project/%s_RME", Output_Path, Proj->Name);
+    /* Generate the RME keil project first */
+    Keil=fopen(Proj_Path, "wb");
+    Target="RME";
+    Opt=Proj->RME.Comp.Opt+1;
+    Timeopt=Proj->RME.Comp.Prio;
+    Free(Proj_Path);
+
+    /* Allocate the include list and file list - all of these are fixed */
+    A7M_Gen_Keil_Proj(Keil, Target, Device, Vendor, CPU_Type, FPU_Type, Endianness, Timeopt, Opt,
+                      0, 0,
+                      0, 0, 0);
+    fclose(Keil);
+
+    /* Generate the RVM keil project then */
+
+    /* Generate all other projects one by one */
 }
 /* End Function:A7M_Gen_Keil *************************************************/
 
@@ -3384,7 +3393,7 @@ Description : Generate the makefile project for ARMv7-M.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
               struct A7M_Info* A7M - The port specific structure.
-              cnt_t Output_Type - The output type.
+              ptr_t Output_Type - The output type.
               s8* Output_Path - The output folder path.
               s8* RME_Path - The RME root folder path.
               s8* RVM_Path - The RVM root folder path.
@@ -3392,7 +3401,7 @@ Output      : None.
 Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
 void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+                      ptr_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
 {
     /* Generate the makefile project */
 }
@@ -3404,32 +3413,32 @@ Description : Recursively construct the page table for the Cortex-M port.
               in progress.
 Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
                                      into this level (and below).
-              cnt_t Num - The number of memory segments to fit in.
+              ptr_t Num - The number of memory segments to fit in.
               ptr_t Total_Max - The maximum total order of the page table, cannot
                                 be exceeded when deciding the total order of
                                 the page table.
 Output      : None.
 Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max)
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
 {
     ptr_t Start;
     ptr_t End;
-    cnt_t Count;
-    cnt_t Mem_Cnt;
-    cnt_t Total_Order;
-    cnt_t Size_Order;
-    cnt_t Num_Order;
+    ptr_t Count;
+    ptr_t Mem_Cnt;
+    ptr_t Total_Order;
+    ptr_t Size_Order;
+    ptr_t Num_Order;
     ptr_t Pivot_Addr;
-    cnt_t Cut_Apart;
+    ptr_t Cut_Apart;
     ptr_t Page_Start;
     ptr_t Page_End;
     ptr_t Mem_Start;
     ptr_t Mem_End;
     struct A7M_Pgtbl* Pgtbl;
-    cnt_t Mem_Num;
+    ptr_t Mem_Num;
     struct Mem_Info* Mem_List;
-    cnt_t Mem_List_Ptr;
+    ptr_t Mem_List_Ptr;
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
@@ -3492,7 +3501,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
         {
             for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
             {
-                for(Count=1;Count<(1<<Num_Order);Count++)
+                for(Count=1;Count<((ptr_t)1<<Num_Order);Count++)
                 {
                     Pivot_Addr=(End-Start)/(1<<Num_Order)*Count+Start;
                     Mem_Start=Mem[Mem_Cnt].Start;
@@ -3521,7 +3530,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
 
     /* We already know the size and number order of this layer. Map whatever we can map, and 
      * postpone whatever we will have to postpone */
-    for(Count=0;Count<(1<<Num_Order);Count++)
+    for(Count=0;Count<((ptr_t)1<<Num_Order);Count++)
     {
         Page_Start=Start+Count*(1<<Size_Order);
         Page_End=Start+(Count+1)*(1<<Size_Order);
@@ -3542,7 +3551,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
                 if(Pgtbl->Attr==0)
                     Pgtbl->Attr=Mem[Mem_Cnt].Attr;
                 if(Pgtbl->Attr==Mem[Mem_Cnt].Attr)
-                    Pgtbl->Mapping[Count]=1;
+                    Pgtbl->Mapping[Count]=(struct A7M_Pgtbl*)1;
             }
         }
         /* For some reason, we cannot map anything here */
@@ -3598,18 +3607,20 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, cnt_t Num, ptr_t Total_Max
 /* End Function:A7M_Gen_Pgtbl ************************************************/
 
 /* Begin Function:A7M_Copy_Files **********************************************
-Description : Copy all necessary files to the destination folder.
+Description : Copy all necessary files to the destination folder. This is generic;
+              Format-specific files will be copied and generated in the format-specific
+              generator.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              cnt_t Output_Type - The output type.
-              s8* Output_Path - The output folder path.
+              struct A7M_Info* A7M - The platform-specific project structure.
               s8* RME_Path - The RME root folder path.
               s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                    cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                    s8* RME_Path, s8* RVM_Path, s8* Output_Path)
 {
     s8* Buf1;
     s8* Buf2;
@@ -3696,18 +3707,19 @@ void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
 /* End Function:A7M_Copy_Files ***********************************************/
 
 /* Begin Function:A7M_Gen_Scripts *********************************************
-Description : Generate boot-time scripts for ARMv7-M.
+Description : Generate boot-time scripts for ARMv7-M. This is also generic; 
+              Format-specific scripts will be generated in the dedicated generator.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              cnt_t Output_Type - The output type.
-              s8* Output_Path - The output folder path.
+              struct A7M_Info* A7M - The platform-specific project structure.
               s8* RME_Path - The RME root folder path.
               s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                     cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                     s8* RME_Path, s8* RVM_Path, s8* Output_Path)
 {
     /* Write boot-time creation script that creates the interrupt endpoints */
     /* whatever it is - deal with this when we go back.  */
@@ -3720,62 +3732,61 @@ void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip,
 }
 /* End Function:A7M_Gen_Scripts **********************************************/
 
+void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M)
+{
+
+}
+
 /* Begin Function:A7M_Gen_Proj ************************************************
 Description : Generate the project for Cortex-M based processors.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              cnt_t Output_Type - The output type.
-              s8* Output_Path - The output folder path.
               s8* RME_Path - The RME root folder path.
               s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+              s8* Format - The output format.
 Output      : None.
 Return      : None.
 ******************************************************************************/
 void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  cnt_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path, s8* Format)
 {
-    cnt_t Proc_Cnt;
-    struct A7M_Proj_Info* A7M_Proj;
+    ptr_t Proc_Cnt;
+    struct A7M_Info* A7M;
 
     /* Allocate architecture-specific project structure */
-    A7M_Proj=Malloc(sizeof(struct A7M_Proj_Info));
-    if(A7M_Proj==0)
-        EXIT_FAIL("Project struct allocation failed.");
-    /* Parse the rest of the options, if there is any */
-    A7M_Parse_Options(Proj, Chip);
+    A7M=Malloc(sizeof(struct A7M_Info));
+    if(A7M==0)
+        EXIT_FAIL("Platform specific project struct allocation failed.");
+    /* Parse A7M-specific options */
+    A7M_Parse_Options(Proj, Chip, A7M);
     /* Allocate page tables for all processes */
-    A7M_Proj->Pgtbl=Malloc(sizeof(struct A7M_Pgtbl*)*Proj->Proc_Num);
-    if(A7M_Proj->Pgtbl==0)
+    A7M->Pgtbl=Malloc(sizeof(struct A7M_Pgtbl*)*Proj->Proc_Num);
+    if(A7M->Pgtbl==0)
         EXIT_FAIL("Project page table allocation failed.");
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
-        A7M_Proj->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
-        if(A7M_Proj->Pgtbl[Proc_Cnt]==0)
+        A7M->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
+        if(A7M->Pgtbl[Proc_Cnt]==0)
             EXIT_FAIL("Page table generation failed.");
     }
 
     /* Set up the folder structures, and copy all files to where they should be */
-    A7M_Copy_Files(Proj, Chip, A7M_Proj);
+    A7M_Copy_Files(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
     /* Write the boot-time creation script */
-    A7M_Gen_Scripts(Proj, Chip, A7M_Proj);
+    A7M_Gen_Scripts(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
 
 	/* Create the folder first and copy all necessary files into whatever possible */
-    switch(Output_Type)
-    {
-        case OUTPUT_KEIL:
-        {
-            A7M_Gen_Keil(Proj, Chip, A7M_Chip, Output_Type, Output_Path, RME_Path, RVM_Path);
-            break;
-        }
-        case OUTPUT_MAKEFILE:
-        {
-            A7M_Gen_Makefile(Proj, Chip, A7M_Chip, Output_Type, Output_Path, RME_Path, RVM_Path);
-            break;
-        }
-        default:break;
-    }
+    if(strcmp(Format, "keil")==0)
+        A7M_Gen_Keil(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
+    else
+        EXIT_FAIL("Other projects not supported at the moment.");
 
     /*
+    it looked like that this tool is no small task... Many stuff there. so many idiosyncrasies.
+    However we hoped that it can run quickly. We need to find a way to organize the data inside this thing.
+    Could be nasty, but we will rather let all stuff stay inside for ease of compilation. This is always, vital.
+    We also need to update the Cortex-M7.
 #error: add m7m2-root folder. RVM is always necessary. Hand-crafted stuff should always be there for convenience. 
 when making init, always run one virtual machine??? Current organization is just terrible.
 Additionally, how much memory does it take? totally unknown to us.
@@ -3826,6 +3837,10 @@ Let's just provide all MCU examples with that. This is probably the best we can 
               design: usability matters most.
 
               We will also need a GUI tool for doing system probing. This c
+
+
+              why have the IRQ section in the user.xml at all? This is useless. very useless.
+              we also needed a new version detailing the stuff. this is really bad. 
      */
 }
 /* End Function:A7M_Gen_Proj *************************************************/
