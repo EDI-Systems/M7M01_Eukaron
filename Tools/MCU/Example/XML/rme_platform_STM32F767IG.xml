@@ -1,31 +1,33 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
-    <Name>STM32F767IG</Name>                                                    <!-- The name of the chip -->
-    <Platform>A7M</Platform>                                                    <!-- The architecture family -->
-    <Cores>1</Cores>                                                            <!-- The number of cores -->
-    <Regions>8</Regions>                                                        <!-- The number of MPU regions -->
+    <Name>STM32F767IG</Name>
+    <Vendor>STMicroelectronics</Vendor>
+    <Platform>A7M</Platform>
+    <Cores>1</Cores>
+    <Regions>8</Regions>
     <Attributes>
         <Variant>Cortex-M7</Variant>
-        <FPU>Double</FPU>
+        <FPU>FPV5_DP</FPU>
+        <Endianness>Small</Endianness>
         <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
-    </Attrubutes>
-    <Memory>                                                                    <!-- Read-only memory description -->
-        <M1>                                                                    <!-- The first segment -->
-            <Start>0x08000000</Start>                                           <!-- Start address -->
-            <Size>0x00100000</Size>                                             <!-- Size of that segment -->
+    </Attributes>
+    <Memory>
+        <M1>
+            <Start>0x08000000</Start>
+            <Size>0x00100000</Size>
             <Type>Code</Type>
             <Description>The main code memory.</Description>
         </M1>
-        <M2>                                                                    <!-- The first segment -->
-            <Start>0x20000000</Start>                                           <!-- Start address -->
-            <Size>0x00080000</Size>                                             <!-- Size of that segment -->
+        <M2>
+            <Start>0x20000000</Start>
+            <Size>0x00080000</Size>
             <Type>Data</Type>
             <Description>The main data memory.</Description>
         </M2>
         <M3>
-            <Start>0x40000000</Start>                                           <!-- Start address -->
-            <Size>0xC0000000</Size>                                             <!-- Size of that segment -->
-            <Type>Device</Type>                                                 <!-- Device meory that cannot be populted with code or data -->
+            <Start>0x40000000</Start>
+            <Size>0xC0000000</Size>
+            <Type>Device</Type>
             <Description>The main device memory.</Description>
         </M3>
     </Memory>

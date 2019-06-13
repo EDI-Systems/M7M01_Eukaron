@@ -1,48 +1,48 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project> 
-    <Name>M7M1</Name>                                                           <!-- The name of the whole project, no special characters -->
-    <Platform>A7M</Platform>                                                    <!-- The architecture of the chip -->
-    <Chip>STM32F767IG</Chip>                                                    <!-- The class name of the chip -->
-    <Fullname>STM32F767IGT6</Fullname>                                          <!-- The full name of the chip -->
-    <RME>                                                                       <!-- OS configuration description -->
+    <Name>M7M1</Name>
+    <Platform>A7M</Platform>
+    <Chip>STM32F767IG</Chip>
+    <Fullname>STM32F767IGT6</Fullname>
+    <RME>
         <Compiler>
             <Optimization>O2</Optimization>
-            <Library>Small</Library>
+            <Prioritization>Time</Prioritization>
         </Compiler>
-        <General>                                                               <!-- The settings that will apply to all ports -->
-            <Code_Start>0x08000000</Code_Start>                                 <!-- The start code address -->
-            <Code_Size>0x20000</Code_Size>                                      <!-- The code size - adjust if compilation of kernel fails -->
-            <Data_Start>0x20000000</Data_Start>                                 <!-- The start data address - adjust if compilation of kernel fails -->
-            <Data_Size>0x10000</Data_Size>                                      <!-- The data size -->
-            <Extra_Kmem>0x8000</Extra_Kmem>                                     <!-- How much extra kernel memory does the user want? -->
-            <Kmem_Order>4</Kmem_Order>                                          <!-- The order of allocation for the kernel memory -->
-            <Priorities>32</Priorities>                                         <!-- The maximum number of priorities in the system -->
+        <General>
+            <Code_Start>0x08000000</Code_Start>
+            <Code_Size>0x20000</Code_Size>
+            <Data_Start>0x20000000</Data_Start>
+            <Data_Size>0x10000</Data_Size>
+            <Extra_Kmem>0x8000</Extra_Kmem>
+            <Kmem_Order>4</Kmem_Order>
+            <Kern_Prios>32</Kern_Prios>
         </General>
-        <A7M>                                                                   <!-- The settings that applies specifically to this port -->
-            <NVIC_Grouping>2-6</NVIC_Grouping>                                  <!-- The grouping for NVIC -->
-            <Timer_Interval>2160000</Timer_Interval>                            <!-- The timer interrupt interval -->
+        <A7M>
+            <NVIC_Grouping>2-6</NVIC_Grouping>
+            <Timer_Interval>2160000</Timer_Interval>
         </A7M>
-        <STM32F767IG>                                                           <!-- The settings for this chip - we know we gonna use this template anyway, so useless -->
-            <XTAL>25</XTAL>                                                     <!-- The external crystal frequency -->
+        <STM32F767IG>
+            <XTAL>25</XTAL>
             <PLLM>25</PLLM>
             <PLLN>432 </PLLN>
             <PLLP>2</PLLP>
             <PLLQ>9</PLLQ>
-            <IRQ>WWDG,EXTI0</IRQ>                                               <!-- IRQs potentially in use -->
+            <IRQ>WWDG,EXTI0</IRQ>
         </STM32F767IG>
     </RME>
     <RVM>
-        <Compiler>                                                              <!-- Currently this design does not have VMM, we will add later on. RVM always map in all memory -->
+        <Compiler>
             <Optimization>O2</Optimization>
-            <Library>Small</Library>
+            <Prioritization>Time</Prioritization>
         </Compiler>
         <General>
-            <Code_Size>0x1000</Code_Size>                                       <!-- RVM always immediately follow RME -->
+            <Code_Size>0x1000</Code_Size>
             <Data_Size>0x1000</Data_Size>
-            <Extra_Captbl>128</Extra_Captbl>                                   <!-- Capability table initial size -->
-            <Recovery>Process</Recovery>                                            <!-- Rerun policy for the processes: thread, process, or terminate -->
+            <Extra_Captbl>128</Extra_Captbl>
+            <Recovery>Process</Recovery>
         </General>
-        <VMM>                                                                   <!-- Currently empty, if VMM functionality is used, we will add this -->
+        <VMM>
 
 
     
@@ -56,7 +56,7 @@
             </General>
             <Compiler>
                 <Optimization>O2</Optimization>
-                <Library>Small</Library>
+                <Prioritization>Time</Prioritization>
             </Compiler>
             <Memory>                                                            <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
                 <M1>

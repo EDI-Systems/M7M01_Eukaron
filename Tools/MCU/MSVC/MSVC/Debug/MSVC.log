@@ -1,19 +1,2 @@
-﻿Build started 2019/5/24 23:13:21.
-     1>Project "F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\MSVC\MSVC.vcxproj" on node 2 (Build target(s)).
-     1>ClCompile:
-         D:\Program_Files_x64\Microsoft_Visual_Studio_120\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:prompt ..\..\rme_mcu.c
-         rme_mcu.c
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(716): warning C4101: 'Start' : unreferenced local variable
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(717): warning C4101: 'End' : unreferenced local variable
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(806): warning C4101: 'File_Size' : unreferenced local variable
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(805): warning C4101: 'File_Handle' : unreferenced local variable
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(718): warning C4716: 'Parse_Proj' : must return a value
-     1>f:\code_library\mcu\mutatus\m7m1_mueukaron\tools\mcu\rme_mcu.c(730): warning C4716: 'Parse_Chip' : must return a value
-       Link:
-         D:\Program_Files_x64\Microsoft_Visual_Studio_120\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.exe" /INCREMENTAL /NOLOGO Shlwapi.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.lib" /MACHINE:X86 Debug\rme_mcu.obj
-         MSVC.vcxproj -> F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.exe
-     1>Done Building Project "F:\Code_Library\MCU\Mutatus\M7M1_MuEukaron\Tools\MCU\MSVC\MSVC\MSVC.vcxproj" (Build target(s)).
-
-Build succeeded.
-
-Time Elapsed 00:00:01.02
+﻿  rme_mcu.c
+  MSVC.vcxproj -> D:\desktop\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.exe
