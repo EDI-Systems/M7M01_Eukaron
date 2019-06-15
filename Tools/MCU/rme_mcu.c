@@ -130,6 +130,9 @@ do \
     Start=Val_End; \
 } \
 while(0)
+
+#define ALIGN_POW(X,POW)     (((X)>>(POW))<<(POW))
+#define POW2(POW)            (((ptr_t)1)<<(POW))
 /* End Defines ***************************************************************/
 
 /* Typedefs ******************************************************************/
@@ -196,10 +199,26 @@ struct RVM_Info
 	struct Comp_Info Comp;
     ptr_t Code_Size;
     ptr_t Data_Size;
-    ptr_t Captbl_Frontier;
 	ptr_t Extra_Captbl;
 	ptr_t Recovery;
-    struct RVM_Cap_Info* Captbl;
+    /* Global captbl containing captbls */
+    ptr_t Captbl_Captbl_Frontier;
+    struct RVM_Cap_Info* Captbl_Captbl;
+    /* Global captbl containing processes */
+    ptr_t Proc_Captbl_Frontier;
+    struct RVM_Cap_Info* Proc_Captbl;
+    /* Global captbl containing threads */
+    ptr_t Thd_Captbl_Frontier;
+    struct RVM_Cap_Info* Thd_Captbl;
+    /* Global captbl containing invocations */
+    ptr_t Inv_Captbl_Frontier;
+    struct RVM_Cap_Info* Inv_Captbl;
+    /* Global captbl containing non-kernel endpoints */
+    ptr_t Endp_Captbl_Frontier;
+    struct RVM_Cap_Info* Endp_Captbl;
+    /* Global captbl containing kernel endpoints - actually created by kernel itself */
+    ptr_t Handler_Captbl_Frontier;
+    struct RVM_Cap_Info* Handler_Captbl;
 };
 /* Memory segment information */
 struct Mem_Info
@@ -412,7 +431,7 @@ void Free(void* Addr)
 	struct List* List;
 	
 	/* Get the memory block and deregister it in the queue */
-	List=(struct List*)(((ptr_t)Addr)-sizeof(struct List));
+	List=(struct List*)Addr;
 	List=List-1;
 	List_Del(List->Prev,List->Next);
 	free(List);
@@ -808,8 +827,8 @@ ret_t XML_Get_Next(s8* Start, s8* End,
 	}
 	if(Slide_Ptr>=End)
 		return -1;
-	*Val_End=Slide_Ptr-1;
-	Close_Label_Start=Slide_Ptr+2;
+	*Val_End=Slide_Ptr-2;
+	Close_Label_Start=Slide_Ptr+1;
 
 	/* See if the tag is the same as what we captured above */
 	for(Slide_Ptr+=2;Slide_Ptr<=End;Slide_Ptr++)
@@ -919,7 +938,7 @@ ptr_t Get_Hex(s8* Start, s8* End)
             return INVALID;
     }
 
-    return INVALID;
+    return Val;
 }
 /* End Function:Get_Hex ******************************************************/
 
@@ -944,14 +963,14 @@ ptr_t Get_Uint(s8* Start, s8* End)
 
     for(Start_Ptr=Start;Start_Ptr<=End;Start_Ptr++)
     {
-        Val*=16;
+        Val*=10;
         if((Start_Ptr[0]>='0')&&(Start_Ptr[0]<='9'))
             Val+=Start_Ptr[0]-'0';
         else
             return INVALID;
     }
 
-    return INVALID;
+    return Val;
 }
 /* End Function:Get_Uint *****************************************************/
 
@@ -1105,7 +1124,8 @@ ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing platform section.");
-            Proj->RME.Plat_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            Start=Val_End;
+            Proj->RME.Plat_Raw.Tag[Count]=Get_String(Label_Start, Label_End);
             if(Proj->RME.Plat_Raw.Tag[Count]==0)
                 EXIT_FAIL("Platform section tag read failed.");
             Proj->RME.Plat_Raw.Value[Count]=Get_String(Val_Start, Val_End);
@@ -1130,7 +1150,8 @@ ret_t Parse_RME(struct Proj_Info* Proj, s8* Str_Start, s8* Str_End)
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing chip section.");
-            Proj->RME.Chip_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            Start=Val_End;
+            Proj->RME.Chip_Raw.Tag[Count]=Get_String(Label_Start, Label_End);
             if(Proj->RME.Chip_Raw.Tag[Count]==0)
                 EXIT_FAIL("Chip section tag read failed.");
             Proj->RME.Chip_Raw.Value[Count]=Get_String(Val_Start, Val_End);
@@ -1293,20 +1314,22 @@ ret_t Parse_Process_Memory(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Mem_Num
     Attr_Temp=Get_String(Val_Start, Val_End);
     if(strchr(Attr_Temp,'R')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_READ;
-    else if(strchr(Attr_Temp,'W')==0)
+    if(strchr(Attr_Temp,'W')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_WRITE;
-    else if(strchr(Attr_Temp,'X')==0)
+    if(strchr(Attr_Temp,'X')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_EXECUTE;
-    else
+
+    if(Proj->Proc[Proc_Num].Mem[Mem_Num].Attr==0)
         EXIT_FAIL("No access to the memory is allowed.");
+
     if(strchr(Attr_Temp,'B')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_BUFFERABLE;
-    else if(strchr(Attr_Temp,'W')==0)
+    if(strchr(Attr_Temp,'C')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_CACHEABLE;
-    else if(strchr(Attr_Temp,'X')==0)
+    if(strchr(Attr_Temp,'S')!=0)
         Proj->Proc[Proc_Num].Mem[Mem_Num].Attr|=MEM_STATIC;
-    Free(Attr_Temp);
 
+    Free(Attr_Temp);
     return 0;
 }
 /* End Function:Parse_Process_Memory *****************************************/
@@ -1498,7 +1521,7 @@ ret_t Parse_Endpoint(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Endp_Num, s8*
             EXIT_FAIL("Endpoint process value read failed.");
     }
     else
-        Proj->Proc[Proc_Num].Port[Endp_Num].Process=0;
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Process=0;
 
     return 0;
 }
@@ -1622,6 +1645,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing memories section.");
+        Start=Val_End;
         Parse_Process_Memory(Proj, Num, Count, Val_Start, Val_End);
     }
 
@@ -1631,13 +1655,14 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     Proj->Proc[Num].Thd_Num=XML_Num(Start, End);
     if(Proj->Proc[Num].Thd_Num!=0)
     {
-        Proj->Proc[Num].Thd=Malloc(sizeof(struct Thd_Info)*Proj->Proc[Num].Mem_Num);
+        Proj->Proc[Num].Thd=Malloc(sizeof(struct Thd_Info)*Proj->Proc[Num].Thd_Num);
         if(Proj->Proc[Num].Thd==0)
             EXIT_FAIL("The thread structure allocation failed.");
         for(Count=0;Count<Proj->Proc[Num].Thd_Num;Count++)
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing thread section.");
+            Start=Val_End;
             Parse_Thread(Proj, Num, Count, Val_Start, Val_End);
         }
     }
@@ -1646,11 +1671,8 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     Start=Invocation_Start;
     End=Invocation_End;
     Proj->Proc[Num].Inv_Num=XML_Num(Start, End);
-    if(Proj->Proc[Num].Inv_Num==0)
-    {
-        if(Proj->Proc[Num].Thd_Num==0)
+    if((Proj->Proc[Num].Inv_Num==0)&&(Proj->Proc[Num].Thd_Num==0))
             EXIT_FAIL("The process is malformed, doesn't contain any threads or invocations.");
-    }
     else
     {
         Proj->Proc[Num].Inv=Malloc(sizeof(struct Inv_Info)*Proj->Proc[Num].Inv_Num);
@@ -1660,6 +1682,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing invocation section.");
+            Start=Val_End;
             Parse_Invocation(Proj, Num, Count, Val_Start, Val_End);
         }
     }
@@ -1677,6 +1700,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing port section.");
+            Start=Val_End;
             Parse_Port(Proj, Num, Count, Val_Start, Val_End);
         }
     }
@@ -1694,6 +1718,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing endpoint section.");
+            Start=Val_End;
             Parse_Endpoint(Proj, Num, Count, Val_Start, Val_End);
         }
     }
@@ -1787,6 +1812,7 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing process section.");
+        Start=Val_End;
         Parse_Process(Proj, Count, Val_Start, Val_End);
     }
 
@@ -1882,7 +1908,7 @@ ret_t Parse_Option(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End
     if(Chip->Option[Num].Macro==0)
         EXIT_FAIL("Option macro read failed.");
     /* Value */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Macro");
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Value");
     Value_Temp=Get_String(Val_Start,Val_End);
     if(Value_Temp==0)
         EXIT_FAIL("Option macro read failed.");
@@ -1960,7 +1986,7 @@ ret_t Parse_Vector(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End
     End=Str_End;
 
     /* Name */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vector");
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
     Chip->Vect[Num].Name=Get_String(Val_Start,Val_End);
     if(Chip->Vect[Num].Name==0)
         EXIT_FAIL("Vector name read failed.");
@@ -2084,7 +2110,8 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing chip attribute section.");
-            Chip->Attr_Raw.Tag[Count]=Get_String(Val_Start, Val_End);
+            Start=Val_End;
+            Chip->Attr_Raw.Tag[Count]=Get_String(Label_Start, Label_End);
             if(Chip->Attr_Raw.Tag[Count]==0)
                 EXIT_FAIL("Chip attribute section tag read failed.");
             Chip->Attr_Raw.Value[Count]=Get_String(Val_Start, Val_End);
@@ -2106,6 +2133,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing memory section.");
+        Start=Val_End;
         Parse_Chip_Memory(Chip, Count, Val_Start, Val_End);
     }
 
@@ -2122,6 +2150,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing option section.");
+        Start=Val_End;
         Parse_Option(Chip, Count, Val_Start, Val_End);
     }
 
@@ -2138,6 +2167,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
     {
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing option section.");
+        Start=Val_End;
         Parse_Vector(Chip, Count, Val_Start, Val_End);
     }
     
@@ -2206,9 +2236,12 @@ ret_t Insert_Mem(struct Mem_Info** Array, ptr_t Len, struct Mem_Info* Mem, ptr_t
         if(Array[End]==0)
             break;
     }
-    for(End--;End>=Pos;End--)
-        Array[End+1]=Array[End];
-    
+    if(End>0)
+    {
+        for(End--;End>=Pos;End--)
+            Array[End+1]=Array[End];
+    }
+
     Array[Pos]=Mem;
     return 0;
 }
@@ -2248,7 +2281,7 @@ void Mark_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
     ptr_t Count;
 
     for(Count=0;Count<Size;Count++)
-        Bitmap[(Start+Count)/8]|=1<<((Start+Count)%8);
+        Bitmap[(Start+Count)/8]|=((ptr_t)1)<<((Start+Count)%8);
 }
 /* End Function:Mark_Bitmap **************************************************/
 
@@ -2367,11 +2400,11 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     }
 
     Map->Mem_Num=Count;
-    Map->Mem_Array=Malloc(sizeof(struct Mem_Info*)*Count);
+    Map->Mem_Array=Malloc(sizeof(struct Mem_Info*)*Map->Mem_Num);
     if(Map->Mem_Array==0)
         EXIT_FAIL("Memory map allocation failed.");
-    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Count);
-    Map->Mem_Bitmap=Malloc(sizeof(s8*)*Mem_Cnt);
+    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Map->Mem_Num);
+    Map->Mem_Bitmap=Malloc(sizeof(s8*)*Map->Mem_Num);
     if(Map->Mem_Bitmap==0)
         EXIT_FAIL("Memory map allocation failed.");
     
@@ -2380,7 +2413,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     {
         if(Chip->Mem[Mem_Cnt].Type==Type)
         {
-            if(Insert_Mem(Map->Mem_Array,Chip->Mem_Num,&Chip->Mem[Mem_Cnt],0)!=0)
+            if(Insert_Mem(Map->Mem_Array,Map->Mem_Num,&Chip->Mem[Mem_Cnt],0)!=0)
                 EXIT_FAIL("Code memory insertion sort failed.");
         }
     }
@@ -2405,9 +2438,9 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     }
     else
     {
-        if(Populate_Mem(Map, Proj->RME.Code_Start,Proj->RME.Data_Size)!=0)
+        if(Populate_Mem(Map, Proj->RME.Data_Start,Proj->RME.Data_Size)!=0)
             EXIT_FAIL("Invalid address designated.");
-        if(Populate_Mem(Map, Proj->RME.Code_Start+Proj->RME.Data_Size,Proj->RVM.Data_Size)!=0)
+        if(Populate_Mem(Map, Proj->RME.Data_Start+Proj->RME.Data_Size,Proj->RVM.Data_Size)!=0)
             EXIT_FAIL("Invalid address designated.");
     }
 
@@ -2430,32 +2463,38 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
         }
     }
 
-    Map->Proc_Mem_Num=Count;
-    Map->Proc_Mem_Array=Malloc(sizeof(struct Mem_Info*)*Count);
-    if(Map->Proc_Mem_Array==0)
-        EXIT_FAIL("Memory map allocation failed.");
-
-    /* Insert sort according to size */
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    if(Count!=0)
     {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        Map->Proc_Mem_Num=Count;
+        Map->Proc_Mem_Array=Malloc(sizeof(struct Mem_Info*)*Map->Proc_Mem_Num);
+        if(Map->Proc_Mem_Array==0)
+            EXIT_FAIL("Memory map allocation failed.");
+        memset(Map->Proc_Mem_Array,0,sizeof(struct Mem_Info*)*Map->Proc_Mem_Num);
+
+        /* Insert sort according to size */
+        for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
         {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
+            for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
             {
-                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
+                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
                 {
-                    if(Insert_Mem(Map->Proc_Mem_Array,Map->Proc_Mem_Num,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
-                        EXIT_FAIL("Code memory insertion sort failed.");
+                    if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
+                    {
+                        if(Insert_Mem(Map->Proc_Mem_Array,Map->Proc_Mem_Num,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
+                            EXIT_FAIL("Code memory insertion sort failed.");
+                    }
                 }
             }
         }
-    }
 
-    /* Fit whatever that does not have a fixed address */
-    for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
-    {
-        if(Fit_Mem(Map,Mem_Cnt)!=0)
-            EXIT_FAIL("Memory fitter failed.");
+        /* Fit whatever that does not have a fixed address */
+        for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
+        {
+            if(Fit_Mem(Map,Mem_Cnt)!=0)
+                EXIT_FAIL("Memory fitter failed.");
+        }
+
+        Free(Map->Proc_Mem_Array);
     }
 
     /* Clean up before returning */
@@ -2464,7 +2503,6 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     
     Free(Map->Mem_Array);
     Free(Map->Mem_Bitmap);
-    Free(Map->Proc_Mem_Array);
     Free(Map);
 }
 /* End Function:Alloc_Mem ****************************************************/
@@ -2491,6 +2529,8 @@ ret_t Strcicmp(s8* Str1, s8* Str2)
         
         if(Str1[Count]=='\0')
             break;
+
+        Count++;
     }
 
     return Result;
@@ -2557,6 +2597,9 @@ void Detect_Handler(struct Proj_Info* Proj)
             {
                 for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
                 {
+                    if((Proc_Cnt==Proc_Tmp_Cnt)&&(Obj_Cnt==Obj_Tmp_Cnt))
+                        continue;
+
                     if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)
                         EXIT_FAIL("Duplicate handlers found.");
                 }
@@ -2621,7 +2664,7 @@ void Detect_Conflict(struct Proj_Info* Proj)
                 EXIT_FAIL("Invalid port name.");
             if(Validate_Name(Proc->Port[Obj_Cnt].Process)!=0)
                 EXIT_FAIL("Invalid port process name.");
-            if(Strcicmp(Proc->Port[Obj_Cnt].Name,Proc->Name)==0)
+            if(Strcicmp(Proc->Port[Obj_Cnt].Process,Proc->Name)==0)
                 EXIT_FAIL("Port cannot target within the same process.");
             for(Count=0;Count<Proc->Port_Num;Count++)
             {
@@ -2711,40 +2754,11 @@ void Alloc_Local_ID(struct Proj_Info* Proj)
 }
 /* End Function:Alloc_Local_ID ***********************************************/
 
-/* Begin Function:Get_Global_Number *******************************************
-Description : Get the number of global objects. 
-Input       : struct Proj_Info* Proj - The project structure.
-Output      : None.
-Return      : ptr_t - The number of objects.
-******************************************************************************/
-ptr_t Get_Global_Number(struct Proj_Info* Proj)
-{
-    ptr_t Capid;
-    ptr_t Proc_Cnt;
-    ptr_t Obj_Cnt;
-
-    Capid=0;
-    /* Capability tables */
-    Capid+=Proj->Proc_Num;
-    /* Processes */
-    Capid+=Proj->Proc_Num;
-    /* Kernel objects of processes */
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        Capid+=Proj->Proc[Proc_Cnt].Thd_Num;
-        Capid+=Proj->Proc[Proc_Cnt].Inv_Num;
-        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
-        {
-            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_RECEIVE)
-               Capid++;
-        }
-    }
-    return Capid;
-}
-/* End Function:Get_Global_Number ********************************************/
-
 /* Begin Function:Alloc_Global_ID *********************************************
 Description : Allocate (relative) global capability IDs for all kernel objects. 
+              Each global object will reside in its onw capability table. 
+              This facilitates management, and circumvents the capability size
+              limit that may present on 32-bit systems.
 Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
@@ -2761,59 +2775,93 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
     ptr_t Capid;
     struct Proc_Info* Proc;
 
-    Proj->RVM.Captbl_Frontier=Get_Global_Number(Proj);
-    Proj->RVM.Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Captbl_Frontier);
-    if(Proj->RVM.Captbl==0)
-        EXIT_FAIL("Global capability table allocation failed.");
-
     /* Fill in all captbls */
+    Proj->RVM.Captbl_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->Proc_Num);
+    if(Proj->RVM.Captbl_Captbl==0)
+        EXIT_FAIL("Global capability table for capability tables allocation failed.");
+    Proj->RVM.Captbl_Captbl_Frontier=Proj->Proc_Num;
     Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
-        Proj->RVM.Captbl[Capid].Proc=Proc;
-        Proj->RVM.Captbl[Capid].Type=CAP_CAPTBL;
-        Proj->RVM.Captbl[Capid].Cap=Proc;
+        Proj->RVM.Captbl_Captbl[Capid].Proc=Proc;
+        Proj->RVM.Captbl_Captbl[Capid].Type=CAP_CAPTBL;
+        Proj->RVM.Captbl_Captbl[Capid].Cap=Proc;
         Proc->RVM_Captbl_Capid=Capid;
         Capid++;
     }
     /* Fill in all processes */
+    Proj->RVM.Proc_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->Proc_Num);
+    if(Proj->RVM.Proc_Captbl==0)
+        EXIT_FAIL("Global capability table for processes allocation failed.");
+    Proj->RVM.Proc_Captbl_Frontier=Proj->Proc_Num;
+    Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
-        Proj->RVM.Captbl[Capid].Proc=Proc;
-        Proj->RVM.Captbl[Capid].Type=CAP_PROC;
-        Proj->RVM.Captbl[Capid].Cap=Proc;
+        Proj->RVM.Proc_Captbl[Capid].Proc=Proc;
+        Proj->RVM.Proc_Captbl[Capid].Type=CAP_PROC;
+        Proj->RVM.Proc_Captbl[Capid].Cap=Proc;
         Proc->RVM_Proc_Capid=Capid;
         Capid++;
     }
     /* Fill in all threads */
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+        Capid+=Proj->Proc[Proc_Cnt].Thd_Num;
+    Proj->RVM.Thd_Captbl_Frontier=Capid;
+    Proj->RVM.Thd_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Thd_Captbl_Frontier);
+    if(Proj->RVM.Thd_Captbl==0)
+        EXIT_FAIL("Global capability table for threads failed.");
+    Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
         for(Obj_Cnt=0;Obj_Cnt<Proc->Thd_Num;Obj_Cnt++)
         {
-            Proj->RVM.Captbl[Capid].Proc=Proc;
-            Proj->RVM.Captbl[Capid].Type=CAP_THD;
-            Proj->RVM.Captbl[Capid].Cap=&(Proc->Thd[Obj_Cnt]);
+            Proj->RVM.Thd_Captbl[Capid].Proc=Proc;
+            Proj->RVM.Thd_Captbl[Capid].Type=CAP_THD;
+            Proj->RVM.Thd_Captbl[Capid].Cap=&(Proc->Thd[Obj_Cnt]);
             Proc->Thd[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
         }
     }
     /* Fill in all invocations */
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+        Capid+=Proj->Proc[Proc_Cnt].Inv_Num;
+    Proj->RVM.Inv_Captbl_Frontier=Capid;
+    Proj->RVM.Inv_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Inv_Captbl_Frontier);
+    if(Proj->RVM.Inv_Captbl==0)
+        EXIT_FAIL("Global capability table for invocations failed.");
+    Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
         for(Obj_Cnt=0;Obj_Cnt<Proc->Inv_Num;Obj_Cnt++)
         {
-            Proj->RVM.Captbl[Capid].Proc=Proc;
-            Proj->RVM.Captbl[Capid].Type=CAP_INV;
-            Proj->RVM.Captbl[Capid].Cap=&(Proc->Inv[Obj_Cnt]);
+            Proj->RVM.Inv_Captbl[Capid].Proc=Proc;
+            Proj->RVM.Inv_Captbl[Capid].Type=CAP_INV;
+            Proj->RVM.Inv_Captbl[Capid].Cap=&(Proc->Inv[Obj_Cnt]);
             Proc->Inv[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
         }
     }
     /* Fill in all receive endpoints */
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_RECEIVE)
+               Capid++;
+        }
+    }
+    Proj->RVM.Endp_Captbl_Frontier=Capid;
+    Proj->RVM.Endp_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Endp_Captbl_Frontier);
+    if(Proj->RVM.Endp_Captbl==0)
+        EXIT_FAIL("Global capability table for endpoints failed.");
+    Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
@@ -2821,17 +2869,44 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
         {
             if(Proc->Endp[Obj_Cnt].Type==ENDP_RECEIVE)
             {
-                Proj->RVM.Captbl[Capid].Proc=Proc;
-                Proj->RVM.Captbl[Capid].Type=CAP_ENDP;
-                Proj->RVM.Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
+                Proj->RVM.Endp_Captbl[Capid].Proc=Proc;
+                Proj->RVM.Endp_Captbl[Capid].Type=CAP_ENDP;
+                Proj->RVM.Endp_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
                 Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
                 Capid++;
             }
         }
     }
-    /* Check if the capid is the current frontier */
-    if(Proj->RVM.Captbl_Frontier!=Capid)
-        EXIT_FAIL("Internal global capability ID allocator failure.");
+    /* Fill in all handler endpoints */
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_HANDLER)
+               Capid++;
+        }
+    }
+    Proj->RVM.Handler_Captbl_Frontier=Capid;
+    Proj->RVM.Handler_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Handler_Captbl_Frontier);
+    if(Proj->RVM.Handler_Captbl==0)
+        EXIT_FAIL("Global capability table for endpoints failed.");
+    Capid=0;
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            if(Proc->Endp[Obj_Cnt].Type==ENDP_HANDLER)
+            {
+                Proj->RVM.Handler_Captbl[Capid].Proc=Proc;
+                Proj->RVM.Handler_Captbl[Capid].Type=CAP_ENDP;
+                Proj->RVM.Handler_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
+                Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
+                Capid++;
+            }
+        }
+    }
 }
 /* End Function:Alloc_Global_ID **********************************************/
 
@@ -2841,10 +2916,11 @@ Description : Back propagate the global ID to all the ports and send endpoints,
               and send endpoint names in the system are valid. If any of them includes
               dangling references to invocations and receive endpoints, abort.
 Input       : struct Proj_Info* Proj - The project information structure.
+              struct Chip_Info* Chip - The chip information structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Backprop_Global_ID(struct Proj_Info* Proj)
+void Backprop_Global_ID(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     ptr_t Proc_Cnt;
     ptr_t Proc_Tmp_Cnt;
@@ -2863,14 +2939,14 @@ void Backprop_Global_ID(struct Proj_Info* Proj)
             Port=&(Proc->Port[Obj_Cnt]);
             for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
             {
-                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Name, Port->Name)==0)
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Port->Process)==0)
                     break;
             }
             if(Proc_Tmp_Cnt==Proj->Proc_Num)
                 EXIT_FAIL("Invalid process for port.");
             for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Inv_Num;Obj_Tmp_Cnt++)
             {
-                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].Name, Port->Name)==0)
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].Name, Port->Name)==0)
                 {
                     Port->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].RVM_Capid;
                     break;
@@ -2887,14 +2963,14 @@ void Backprop_Global_ID(struct Proj_Info* Proj)
                 continue;
             for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
             {
-                if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Name, Endp->Name)==0)
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Endp->Process)==0)
                     break;
             }
             if(Proc_Tmp_Cnt==Proj->Proc_Num)
                 EXIT_FAIL("Invalid process for endpoint.");
             for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
             {
-                if((Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)&&
+                if((strcmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)&&
                    (Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Type==ENDP_RECEIVE))
                 {
                     Endp->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].RVM_Capid;
@@ -2904,6 +2980,23 @@ void Backprop_Global_ID(struct Proj_Info* Proj)
             if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Endp_Num)
                 EXIT_FAIL("One of the send endpoints does not have a corresponding receive endpoint.");
         }
+        /* For every handler, there must be a interrupt vector somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        {
+            Endp=&(Proc->Endp[Obj_Cnt]);
+            if(Endp->Type!=ENDP_HANDLER)
+                continue;
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Chip->Vect_Num;Obj_Tmp_Cnt++)
+            {
+                if(strcmp(Chip->Vect[Obj_Tmp_Cnt].Name, Endp->Name)==0)
+                {
+                    Endp->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].RVM_Capid;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Chip->Vect_Num)
+                EXIT_FAIL("One of the handler endpoints does not have a corresponding vector.");
+        }
     }
 }
 /* End Function:Backprop_Global_ID *******************************************/
@@ -2912,10 +3005,11 @@ void Backprop_Global_ID(struct Proj_Info* Proj)
 Description : Allocate the capability table entries for the processes, then for
               the RVM.
 Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Alloc_Captbl(struct Proj_Info* Proj)
+void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip)
 {
     /* First, check whether there are conflicts - this is not case insensitive */
     Detect_Conflict(Proj);
@@ -2924,7 +3018,7 @@ void Alloc_Captbl(struct Proj_Info* Proj)
     /* Allocate global project IDs for kernel object entries */
     Alloc_Global_ID(Proj);
     /* Back propagate global entrie number to the ports and send endpoints */
-    Backprop_Global_ID(Proj);
+    Backprop_Global_ID(Proj, Chip);
 }
 /* End Function:Alloc_Captbl *************************************************/
 
@@ -2950,6 +3044,27 @@ s8* Make_Str(s8* Str1, s8* Str2)
 }
 /* End Function:Make_Str *****************************************************/
 
+/* Begin Function:Raw_Match ***************************************************
+Description : Match the raw value tag and provide the pointer to the raw value string.
+Input       : struct Raw_Info* Info - The raw data information structure.
+              s8* Tag - The tag for the information.
+Output      : None.
+Return      : s8* - The value.
+******************************************************************************/
+s8* Raw_Match(struct Raw_Info* Info, s8* Tag)
+{
+    ptr_t Count;
+
+    for(Count=0;Count<Info->Num;Count++)
+    {
+        if(strcmp(Info->Tag[Count],Tag)==0)
+            return Info->Value[Count];
+    }
+
+    return 0;
+}
+/* End Function:Raw_Match ****************************************************/
+
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
 void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
@@ -2970,7 +3085,9 @@ int main(int argc, char* argv[])
 	s8* RVM_Path;
 	s8* Format;
 	/* The input buffer */
-	s8* Input_Buf=0;
+	s8* Input_Buf;
+    /* The path synthesis buffer */
+    s8* Path_Buf;
 	/* The file handle */
 	/* The project and chip pointers */
 	struct Proj_Info* Proj;
@@ -2987,10 +3104,15 @@ int main(int argc, char* argv[])
 	Proj=Parse_Project(Input_Buf);
 	Free(Input_Buf);
 
-	/* Parse the chip in a platform-agnostic way */
-	Input_Buf=Read_File(0);
+	/* Parse the chip in a platform-agnostic way - we need to know where the chip file is. Now, we just give a fixed path */
+    Path_Buf=Malloc(4096);
+    if(Path_Buf==0)
+        EXIT_FAIL("Platform path synthesis buffer allocation failed.");
+    sprintf(Path_Buf, "%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.xml", RME_Path, Proj->Platform, Proj->Chip, Proj->Chip);
+	Input_Buf=Read_File(Path_Buf);
 	Chip=Parse_Chip(Input_Buf);
 	Free(Input_Buf);
+    Free(Path_Buf);
 
     /* Check if the platform is the same */
     if(strcmp(Proj->Platform, Chip->Platform)!=0)
@@ -3003,12 +3125,12 @@ int main(int argc, char* argv[])
 		EXIT_FAIL("Other platforms not currently supported.");
 
 	/* Actually allocate the auto memory segments by fixing their start addresses.
-     * We don't deal with device memory at all; this is mapped in anyway at usee request. */
+     * We don't deal with device memory at all; this is mapped in anyway at user request. */
 	Alloc_Mem(Proj, Chip, MEM_CODE);
 	Alloc_Mem(Proj, Chip, MEM_DATA);
 
     /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
-    Alloc_Captbl(Proj);
+    Alloc_Captbl(Proj, Chip);
 
 	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
 	if(strcmp(Proj->Platform,"A7M")==0)
@@ -3027,7 +3149,32 @@ moment.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
+/* NVIC grouping */
+#define A7M_NVIC_P0S8    7    
+#define A7M_NVIC_P1S7    6
+#define A7M_NVIC_P2S6    5
+#define A7M_NVIC_P3S5    4
+#define A7M_NVIC_P4S4    3
+#define A7M_NVIC_P5S3    2
+#define A7M_NVIC_P6S2    1
+#define A7M_NVIC_P7S1    0
+/* CPU type */
+#define A7M_CPU_CM0P     0
+#define A7M_CPU_CM3      1
+#define A7M_CPU_CM4      2
+#define A7M_CPU_CM7      3
+/* FPU type */
+#define A7M_FPU_NONE     0
+#define A7M_FPU_FPV4     1
+#define A7M_FPU_FPV5_SP  2
+#define A7M_FPU_FPV5_DP  3
+/* Endianness */
+#define A7M_END_LITTLE   0
+#define A7M_END_BIG      1
 
+/* Page table */
+#define A7M_PGT_NOTHING  0
+#define A7M_PGT_MAPPED   ((struct A7M_Pgtbl*)(-1))
 /* End Defines ***************************************************************/
 
 /* Structs *******************************************************************/
@@ -3045,13 +3192,17 @@ struct A7M_Info
 {
 	ptr_t NVIC_Grouping;
 	ptr_t Systick_Val;
-    s8* CPU_Type;
-    s8* FPU_Type;
-    s8* Endianness;
+    ptr_t CPU_Type;
+    ptr_t FPU_Type;
+    ptr_t Endianness;
     /* The page tables for all processes */
     struct A7M_Pgtbl** Pgtbl;
 };
 /* End Structs ***************************************************************/
+
+/* C Function Prototypes *****************************************************/
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max);
+/* End C Function Prototypes *************************************************/
 
 /* Begin Function:A7M_Align ***************************************************
 Description : Align the memory according to Cortex-M platform's requirements.
@@ -3082,7 +3233,7 @@ ret_t A7M_Align(struct Mem_Info* Mem)
         while(Temp<Mem->Size)
             Temp<<=1;
         Mem->Align=Temp/8;
-        Mem->Size=((Mem->Size-1)/Mem->Align)*Mem->Align;
+        Mem->Size=((Mem->Size-1)/Mem->Align+1)*Mem->Align;
     }
     
 	return 0;
@@ -3348,6 +3499,10 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
     }
     Device=Proj->Chip;
     Vendor=Chip->Vendor;
+    switch(A7M->CPU_Type)
+    {
+    case 1:;
+    }
     CPU_Type=A7M->CPU_Type;
     if(strcmp(A7M->FPU_Type, "NONE")==0)
         FPU_Type="";
@@ -3407,43 +3562,20 @@ void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M
 }
 /* End Function:A7M_Gen_Makefile *********************************************/
 
-/* Begin Function:A7M_Gen_Pgtbl ***********************************************
-Description : Recursively construct the page table for the Cortex-M port. 
-              This only works for ARMv7-M (A7M). The port for ARMv8-M is still
-              in progress.
-Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
-                                     into this level (and below).
-              ptr_t Num - The number of memory segments to fit in.
-              ptr_t Total_Max - The maximum total order of the page table, cannot
-                                be exceeded when deciding the total order of
-                                the page table.
-Output      : None.
-Return      : struct A7M_Pgtbl* - The page table structure returned.
+/* Begin Function:A7M_Total_Order *********************************************
+Description : Get the total order and the start address of the page table. 
+Input       : struct Mem_Info* Mem - The memory block list.
+              ptr_t Num - The number of memory blocks in the list.
+Output      : ptr_t* Start_Addr - The start address of this page table.
+Return      : ptr_t - The total order of the page table.
 ******************************************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
+ptr_t A7M_Total_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t* Start_Addr)
 {
+    /* Start is inclusive, end is exclusive */
     ptr_t Start;
     ptr_t End;
-    ptr_t Count;
-    ptr_t Mem_Cnt;
     ptr_t Total_Order;
-    ptr_t Size_Order;
-    ptr_t Num_Order;
-    ptr_t Pivot_Addr;
-    ptr_t Cut_Apart;
-    ptr_t Page_Start;
-    ptr_t Page_End;
-    ptr_t Mem_Start;
-    ptr_t Mem_End;
-    struct A7M_Pgtbl* Pgtbl;
-    ptr_t Mem_Num;
-    struct Mem_Info* Mem_List;
-    ptr_t Mem_List_Ptr;
-
-    /* Allocate the page table data structure */
-    Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
-    if(Pgtbl==0)
-        EXIT_FAIL("Page table data structure allocation failed.");
+    ptr_t Mem_Cnt;
 
     /* What ranges does these stuff cover? */
     Start=(ptr_t)(-1);
@@ -3452,61 +3584,101 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max
     {
         if(Start>Mem[Mem_Cnt].Start)
             Start=Mem[Mem_Cnt].Start;
-        if(End<(Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size))
-            End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
+        if(End<(Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1)))
+            End=Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1);
     }
     
-    /* Which power-of-2 box is this in? */
+    /* Which power-of-2 box is this in? - do not shift more thyan 32 or you get undefined behavior */
     Total_Order=0;
     while(1)
-    {
-        if(End<=((Start>>Total_Order)<<Total_Order)+(1<<Total_Order))
+    {  
+        /* No bigger than 32 is ever possible */
+        if(Total_Order>=32)
+            break;
+        if(End<=(ALIGN_POW(Start, Total_Order)+(POW2(Total_Order)-1)))
             break;
         Total_Order++;
     }
-    /* If the total order less than 8, we wish to extend that to 8 */
+    /* If the total order less than 8, we wish to extend that to 8, because if we are smaller than this it makes no sense */
     if(Total_Order<8)
         Total_Order=8;
 
-    /* See if this will violate the extension limit */
-    if(Total_Order>Total_Max)
-        EXIT_FAIL("Memory segment too small, cannot find a reasonable placement.");
-    
-    Pgtbl->Start_Addr=(Start>>Total_Order)<<Total_Order;
+    /* Do not shift more than 32 or we get undefined behavior */
+    if(Total_Order==32)
+        *Start_Addr=0;
+    else
+        *Start_Addr=ALIGN_POW(Start, Total_Order);
+
+    return Total_Order;
+}
+/* End Function:A7M_Total_Order **********************************************/
+
+/* Begin Function:A7M_Num_Order ***********************************************
+Description : Get the number order of the page table. 
+Input       : struct Mem_Info* Mem - The memory block list.
+              ptr_t Num - The number of memory blocks in the list.
+              ptr_t Total_Order - The total order of the page table.
+              ptr_t Start_Addr - The start address of the page table.
+Output      : None.
+Return      : ptr_t - The number order of the page table.
+******************************************************************************/
+ptr_t A7M_Num_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Order, ptr_t Start_Addr)
+{
+    ptr_t Mem_Cnt;
+    ptr_t Num_Order;
+    ptr_t Pivot_Cnt;
+    ptr_t Pivot_Addr;
+    ptr_t Cut_Apart;
 
     /* Can the memory segments get fully mapped in? If yes, there are two conditions
      * that must be met:
      * 1. There cannot be different access permissions in these memory segments.
-     * 2. The memory start address and the size must be fully divisible by 1<<(Total_Order-3). */
+     * 2. The memory start address and the size must be fully divisible by POW2(Total_Order-3). */
     for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
     {
         if(Mem[Mem_Cnt].Attr!=Mem[0].Attr)
             break;
-        if(((Mem[Mem_Cnt].Start%(1<<(Total_Order-3)))!=0)||((Mem[Mem_Cnt].Size%(1<<(Total_Order-3)))!=0))
+        if((Mem[Mem_Cnt].Start%POW2(Total_Order-3))!=0)
+            break;
+        if((Mem[Mem_Cnt].Size%POW2(Total_Order-3))!=0)
             break;
     }
 
-    /* Is this directly mappable? */
+    /* Is this directly mappable? If yes, we always create page tables with 8 pages. */
     if(Mem_Cnt==Num)
     {
-        /* Yes, we know that number order=3 */
-        Num_Order=3;
+        /* Yes, it is directly mappable. We choose the smallest number order, in this way
+         * we have the largest size order. This will leave us plenty of chances to use huge
+         * pages, as this facilitates delegation as well. Number order = 0 is also possible,
+         * as this maps in a single huge page. */
+        for(Num_Order=0;Num_Order<=3;Num_Order++)
+        {
+            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            {
+                if((Mem[Mem_Cnt].Start%POW2(Total_Order-Num_Order))!=0)
+                    break;
+                if((Mem[Mem_Cnt].Size%POW2(Total_Order-Num_Order))!=0)
+                    break;
+            }
+            if(Mem_Cnt==Num)
+                break;
+        }
+
+        if(Num_Order>3)
+            EXIT_FAIL("Internal number order miscalculation.");
     }
     else
     {
-        /* Not directly mappable. What's the maximum number order that do not cut things apart? If we
-        * are forced to cut things apart, we prefer the smallest number order, which is 2 */
+        /* Not directly mappable. What's the maximum number order that do not cut things apart? */
         Cut_Apart=0;
         for(Num_Order=1;Num_Order<=3;Num_Order++)
         {
             for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
             {
-                for(Count=1;Count<((ptr_t)1<<Num_Order);Count++)
+                for(Pivot_Cnt=1;Pivot_Cnt<POW2(Num_Order);Pivot_Cnt++)
                 {
-                    Pivot_Addr=(End-Start)/(1<<Num_Order)*Count+Start;
-                    Mem_Start=Mem[Mem_Cnt].Start;
-                    Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
-                    if((Mem_Start<Pivot_Addr)&&(Mem_End>Pivot_Addr))
+                    Pivot_Addr=Start_Addr+Pivot_Cnt*POW2(Total_Order-Num_Order);
+                    if((Mem[Mem_Cnt].Start<Pivot_Addr)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Pivot_Addr))
                     {
                         Cut_Apart=1;
                         break;
@@ -3519,89 +3691,196 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max
                 break;
         }
 
+        /* For whatever reason, if it breaks, then the last number order must be good */
         if(Num_Order>1)
+            Num_Order--;
+    }
+
+    return Num_Order;
+}
+/* End Function:A7M_Num_Order ************************************************/
+
+/* Begin Function:A7M_Map_Page ************************************************
+Description : Map pages into the page table as we can. 
+Input       : struct Mem_Info* Mem - The memory block list.
+              ptr_t Num - The number of memory blocks in the list.
+              struct A7M_Pgtbl* Pgtbl - The current page table.
+Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
+Return      : None.
+******************************************************************************/
+void A7M_Map_Page(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
+{
+    ptr_t Page_Cnt;
+    ptr_t Mem_Cnt;
+    ptr_t Page_Start;
+    ptr_t Page_End;
+    s8* Page_Num;
+    ptr_t Max_Pages;
+    ptr_t Max_Mem;
+
+    Page_Num=Malloc(Num);
+    if(Page_Num==0)
+        EXIT_FAIL("Page count buffer allocation failed.");
+    memset(Page_Num, 0, Num);
+
+    /* Use the attribute of the block that covers most pages */
+    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+    {
+        for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
         {
-            if(Cut_Apart!=0)
-                Num_Order--;
+            Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
+            Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+
+            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Page_End))
+                Page_Num[Mem_Cnt]++;
         }
     }
     
-    Size_Order=Total_Order-Num_Order;
-
-    /* We already know the size and number order of this layer. Map whatever we can map, and 
-     * postpone whatever we will have to postpone */
-    for(Count=0;Count<((ptr_t)1<<Num_Order);Count++)
+    Max_Pages=0;
+    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
     {
-        Page_Start=Start+Count*(1<<Size_Order);
-        Page_End=Start+(Count+1)*(1<<Size_Order);
+        if(Page_Num[Mem_Cnt]>Max_Pages)
+        {
+            Max_Pages=Page_Num[Mem_Cnt];
+            Max_Mem=Mem_Cnt;
+        }
+    }
 
-        Pgtbl->Mapping[Count]=0;
-        Pgtbl->Attr=0;
+    /* Is there anything that we should map? If no, we return early */
+    if(Max_Pages==0)
+        return;
+    /* The attribute is the most pronounced memory block's */
+    Pgtbl->Attr=Mem[Max_Mem].Attr;
+
+    /* Map whatever we can map, and postpone whatever we will have to postpone */
+    for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
+    {
+        Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
+        Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+
         /* Can this compartment be mapped? It can if there is one segment covering the range */
         for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
         {
-            Mem_Start=Mem[Mem_Cnt].Start;
-            Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
-            if((Mem_Start<=Page_Start)&&(Mem_End>=Page_End))
+            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Page_End))
             {
-                /* The first one that gets mapped in always takes the attribute, and the next
-                 * ones will have to use their separate regions. Thus, it is best to avoid many
-                 * trunks of small memory segments with distinct attributes, or this allocator
-                 * may not be able to allocate. This is a restriction only for Cortex-M. */
-                if(Pgtbl->Attr==0)
-                    Pgtbl->Attr=Mem[Mem_Cnt].Attr;
+                /* The attribute must be the same as what we map */
                 if(Pgtbl->Attr==Mem[Mem_Cnt].Attr)
-                    Pgtbl->Mapping[Count]=(struct A7M_Pgtbl*)1;
+                    Pgtbl->Mapping[Page_Cnt]=A7M_PGT_MAPPED;
             }
         }
-        /* For some reason, we cannot map anything here */
-        if(Pgtbl->Mapping[Count]==0)
+    }
+}
+/* End Function:A7M_Map_Page *************************************************/
+
+/* Begin Function:A7M_Map_Pgdir ***********************************************
+Description : Map page directories into the page table. 
+Input       : struct Mem_Info* Mem - The memory block list.
+              ptr_t Num - The number of memory blocks in the list.
+              struct A7M_Pgtbl* Pgtbl - The current page table.
+Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
+Return      : None.
+******************************************************************************/
+void A7M_Map_Pgdir(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
+{
+    ptr_t Page_Cnt;
+    ptr_t Mem_Cnt;
+    ptr_t Page_Start;
+    ptr_t Page_End;
+    ptr_t Mem_Num;
+    struct Mem_Info* Mem_List;
+    ptr_t Mem_List_Ptr;
+
+    for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
+    {
+        Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
+        Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+
+        if(Pgtbl->Mapping[Page_Cnt]==A7M_PGT_NOTHING)
         {
             /* See if any residue memory list are here */
             Mem_Num=0;
             for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
             {
-                Mem_Start=Mem[Mem_Cnt].Start;
-                Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
-                if((Mem_Start>=Page_End)||(Mem_End<=Page_Start))
+                if((Mem[Mem_Cnt].Start>Page_End)||((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))<Page_Start))
                     continue;
                 Mem_Num++;
             }
-            if(Mem_Num!=0)
-            {
-                Mem_List=Malloc(sizeof(struct Mem_Info)*Mem_Num);
-                if(Mem_List==0)
-                    EXIT_FAIL("Memory list allocation failed.");
+
+            if(Mem_Num==0)
+                continue;
+
+            Mem_List=Malloc(sizeof(struct Mem_Info)*Mem_Num);
+            if(Mem_List==0)
+                EXIT_FAIL("Memory list allocation failed.");
                 
-                /* Collect the memory list */
-                Mem_List_Ptr=0;
-                for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
-                {
-                    Mem_Start=Mem[Mem_Cnt].Start;
-                    Mem_End=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size;
-                    if((Mem_Start>=Page_End)||(Mem_End<=Page_Start))
-                        continue;
-                    /* Round anything inside to this range */
-                    if(Mem_Start<Page_Start)
-                        Mem_Start=Page_Start;
-                    if(Mem_End>Page_End)
-                        Mem_End=Page_End;
-                    Mem_List[Mem_List_Ptr].Start=Mem_Start;
-                    Mem_List[Mem_List_Ptr].Size=Mem_End-Mem_Start;
-                    Mem_List[Mem_List_Ptr].Attr=Mem[Mem_Cnt].Attr;
-                    Mem_List[Mem_List_Ptr].Type=Mem[Mem_Cnt].Type;
-                    /* The alignment is no longer important */
-                    Mem_List_Ptr++;
-                }
-                if(Mem_List_Ptr!=Mem_Num)
-                    EXIT_FAIL("Internal bug occurred at page table allocator.");
-                Pgtbl->Mapping[Count]=A7M_Gen_Pgtbl(Mem_List, Mem_Num, Size_Order);
+            /* Collect the memory list */
+            Mem_List_Ptr=0;
+            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            {
+                if((Mem[Mem_Cnt].Start>Page_End)||((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))<Page_Start))
+                    continue;
+
+                /* Round anything inside to this range */
+                if(Mem[Mem_Cnt].Start<Page_Start)
+                    Mem_List[Mem_List_Ptr].Start=Page_Start;
+                else
+                    Mem_List[Mem_List_Ptr].Start=Mem[Mem_Cnt].Start;
+
+                if((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>Page_End)
+                    Mem_List[Mem_List_Ptr].Size=Page_End-Mem_List[Mem_List_Ptr].Start+1;
+                else
+                    Mem_List[Mem_List_Ptr].Size=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size-Mem_List[Mem_List_Ptr].Start;
+
+                Mem_List[Mem_List_Ptr].Attr=Mem[Mem_Cnt].Attr;
+                Mem_List[Mem_List_Ptr].Type=Mem[Mem_Cnt].Type;
+                /* The alignment is no longer important */
+                Mem_List_Ptr++;
             }
+            if(Mem_List_Ptr!=Mem_Num)
+                EXIT_FAIL("Internal bug occurred at page table allocator.");
+
+            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Mem_List, Mem_Num, Pgtbl->Size_Order);
         }
     }
+}
+/* End Function:A7M_Map_Pgdir ************************************************/
 
-    Pgtbl->Size_Order=Size_Order;
-    Pgtbl->Num_Order=Num_Order;
+/* Begin Function:A7M_Gen_Pgtbl ***********************************************
+Description : Recursively construct the page table for the ARMv7-M port.
+Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
+                                     into this level (and below).
+              ptr_t Num - The number of memory segments to fit in.
+              ptr_t Total_Max - The maximum total order of the page table, cannot
+                                be exceeded when deciding the total order of
+                                the page table.
+Output      : None.
+Return      : struct A7M_Pgtbl* - The page table structure returned.
+******************************************************************************/
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
+{
+    ptr_t Total_Order;
+    struct A7M_Pgtbl* Pgtbl;
+
+    /* Allocate the page table data structure */
+    Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
+    if(Pgtbl==0)
+        EXIT_FAIL("Page table data structure allocation failed.");
+    memset(Pgtbl, 0, sizeof(struct A7M_Pgtbl));
+    
+    /* Total order and start address of the page table */
+    Total_Order=A7M_Total_Order(Mem, Num, &(Pgtbl->Start_Addr));
+    /* See if this will violate the extension limit */
+    if(Total_Order>Total_Max)
+        EXIT_FAIL("Memory segment too small, cannot find a reasonable placement.");
+    /* Number order */
+    Pgtbl->Num_Order=A7M_Num_Order(Mem, Num, Total_Order, Pgtbl->Start_Addr);
+    /* Size order */
+    Pgtbl->Size_Order=Total_Order-Pgtbl->Num_Order;
+    /* Map in all pages */
+    A7M_Map_Page(Mem, Num, Pgtbl);
+    /* Map in all page directories - recursive */
+    A7M_Map_Pgdir(Mem, Num, Pgtbl);
+
     return Pgtbl;
 }
 /* End Function:A7M_Gen_Pgtbl ************************************************/
@@ -3732,10 +4011,101 @@ void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_
 }
 /* End Function:A7M_Gen_Scripts **********************************************/
 
+/* Begin Function:A7M_Parse_Options *******************************************
+Description : Parse the options that are specific to ARMv7-M.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform sprcific project structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
 void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M)
 {
+    s8* Temp;
 
+    /* What is the NVIC grouping that we use? */
+    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "NVIC_Grouping");
+    if(Temp==0)
+        EXIT_FAIL("Missing NVIC grouping settings.");
+    if(strcmp(Temp,"0-8")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P0S8;
+    else if(strcmp(Temp,"1-7")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P1S7;
+    else if(strcmp(Temp,"2-6")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P2S6;
+    else if(strcmp(Temp,"3-5")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P3S5;
+    else if(strcmp(Temp,"4-4")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P4S4;
+    else if(strcmp(Temp,"5-3")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P5S3;
+    else if(strcmp(Temp,"6-2")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P6S2;
+    else if(strcmp(Temp,"7-1")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P7S1;
+    else
+        EXIT_FAIL("NVIC grouping value is invalid.");
+
+    /* What is the systick value? */
+    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "Systick_Value");
+    if(Temp==0)
+        EXIT_FAIL("Missing systick value settings.");
+    A7M->Systick_Val=Get_Uint(Temp, &Temp[strlen(Temp)-1]);
+    if(A7M->Systick_Val>=INVALID)
+        EXIT_FAIL("Wrong systick value entered.");
+
+    /* What is the CPU type and the FPU type? */
+    Temp=Raw_Match(&(Chip->Attr_Raw), "CPU_Type");
+    if(Temp==0)
+        EXIT_FAIL("Missing CPU type settings.");
+    if(strcmp(Temp,"Cortex-M0+")==0)
+        A7M->CPU_Type=A7M_CPU_CM0P;
+    else if(strcmp(Temp,"Cortex-M3")==0)
+        A7M->CPU_Type=A7M_CPU_CM3;
+    else if(strcmp(Temp,"Cortex-M4")==0)
+        A7M->CPU_Type=A7M_CPU_CM4;
+    else if(strcmp(Temp,"Cortex-M7")==0)
+        A7M->CPU_Type=A7M_CPU_CM7;
+    else
+        EXIT_FAIL("CPU type value is invalid.");
+    
+    Temp=Raw_Match(&(Chip->Attr_Raw), "FPU_Type");
+    if(Temp==0)
+        EXIT_FAIL("Missing FPU type settings.");
+    if(strcmp(Temp,"None")==0)
+        A7M->FPU_Type=A7M_FPU_NONE;
+    else if(strcmp(Temp,"Single")==0)
+    {
+        if(A7M->CPU_Type==A7M_CPU_CM4)
+            A7M->FPU_Type=A7M_FPU_FPV4;
+        else if(A7M->CPU_Type==A7M_CPU_CM7)
+            A7M->FPU_Type=A7M_FPU_FPV5_SP;
+        else
+            EXIT_FAIL("FPU type and CPU type mismatch.");
+    }
+    else if(strcmp(Temp,"Double")==0)
+    {
+        if(A7M->CPU_Type==A7M_CPU_CM7)
+            A7M->FPU_Type=A7M_FPU_FPV5_DP;
+        else
+            EXIT_FAIL("FPU type and CPU type mismatch.");
+
+    }
+    else
+        EXIT_FAIL("FPU type value is invalid.");
+
+    /* What is the endianness? */
+    Temp=Raw_Match(&(Chip->Attr_Raw), "Endianness");
+    if(Temp==0)
+        EXIT_FAIL("Missing endianness settings.");
+    if(strcmp(Temp,"Little")==0)
+        A7M->NVIC_Grouping=A7M_END_LITTLE;
+    else if(strcmp(Temp,"Big")==0)
+        A7M->NVIC_Grouping=A7M_END_BIG;
+    else
+        EXIT_FAIL("Endianness value is invalid.");
 }
+/* End Function:A7M_Parse_Options ********************************************/
 
 /* Begin Function:A7M_Gen_Proj ************************************************
 Description : Generate the project for Cortex-M based processors.
@@ -3841,6 +4211,27 @@ Let's just provide all MCU examples with that. This is probably the best we can 
 
               why have the IRQ section in the user.xml at all? This is useless. very useless.
               we also needed a new version detailing the stuff. this is really bad. 
+
+              Apply generic check: the memory range is correct.
+
+              For Cortex-M, there are other checks that might need to be performed.
+              for example, a page table must have the R flag, and the program pages must be static, 
+              the number of static pages cannot exceed a certain number, etc. If static pages are no longer
+              static, that's kind of a joke. But in multi-core systems where we can't control this,
+              it is necessary that we fill stuff in. 
+              We will likely want to drop the support for directly remembering the top-level as
+              this restricts page table sharing.
+              The STATIC's property still needs to be researched - at least if cortex-m cannot
+              .... This still need much more consideration. at least now page allocation works.
+              Don't forget these - can be problematic in some cases.
+
+              need to figure out whether MMFAR makes sense in that case. If not, we are in
+              real trouble for multi-core code sections, which the V8-M may come in with.
+
+              ARMv8-M may go multicore. This is also very bad, As we may have to open a hole on
+              the memory map for it, or have something statically mapped.
+              Multi-core MPU cannot really take this without instruction access address. This is too bad. 
+              This is going to be tough - not that easy.
      */
 }
 /* End Function:A7M_Gen_Proj *************************************************/
