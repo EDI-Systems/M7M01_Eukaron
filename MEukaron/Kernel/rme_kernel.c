@@ -1241,8 +1241,10 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_KMEM)
     {
         RME_CAP_COPY(Cap_Dst_Struct,Cap_Src_Struct,Kmem_Flags);
-        /* If this is a kernel memory cap, we need to write the range information as well */
+        /* If this is a kernel memory cap, we need to write the range information as well.
+         * This range information is absolute address */
         ((struct RME_Cap_Kmem*)Cap_Dst_Struct)->Start=Kmem_Start;
+        /* Internally, the end is stored in a full inclusive encoding for Kmem_End */
         ((struct RME_Cap_Kmem*)Cap_Dst_Struct)->End=Kmem_End-1;
     }
     else
