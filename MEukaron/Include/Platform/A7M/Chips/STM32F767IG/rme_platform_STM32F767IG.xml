@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Chip>
+    <Name>STM32F767IG</Name>
+    <Vendor>STMicroelectronics</Vendor>
+    <Platform>A7M</Platform>
+    <Cores>1</Cores>
+    <Regions>8</Regions>
+    <Attribute>
+        <CPU_Type>Cortex-M7</CPU_Type>
+        <FPU_Type>Double</FPU_Type>
+        <Endianness>Little</Endianness>
+        <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
+    </Attribute>
+    <Memory>
+        <M1>
+            <Start>0x08000000</Start>
+            <Size>0x00100000</Size>
+            <Type>Code</Type>
+            <Description>The main code memory.</Description>
+        </M1>
+        <M2>
+            <Start>0x20000000</Start>
+            <Size>0x00080000</Size>
+            <Type>Data</Type>
+            <Description>The main data memory.</Description>
+        </M2>
+        <M3>
+            <Start>0x40000000</Start>
+            <Size>0xC0000000</Size>
+            <Type>Device</Type>
+            <Description>The main device memory.</Description>
+        </M3>
+    </Memory>
+    <Option>
+        <O1>
+            <Name>XTAL</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_XTAL</Macro>
+            <Value>8,25</Value>
+            <Description>The external crystal frequency.</Description>
+        </O1>
+        <O2>
+            <Name>PLLM</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLM</Macro>
+            <Value>2,63</Value>
+            <Description>The PLL M factor.</Description>
+        </O2>
+        <O3>
+            <Name>PLLN</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLN</Macro>
+            <Value>50,432</Value>
+            <Description>The PLL N factor.</Description>
+        </O3>
+        <O4>
+            <Name>PLLP</Name>
+            <Type>Select</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLP</Macro>
+            <Value>2,4,6,8</Value>
+            <Description>The PLL P factor.</Description>
+        </O4>
+        <O5>
+            <Name>PLLQ</Name>
+            <Type>Range</Type>
+            <Macro>RME_CMX_STM32F767IG_PLLQ</Macro>
+            <Value>2,15</Value>
+            <Description>The PLL Q factor.</Description>
+        </O5>
+    </Option>
+    <Vector>
+        <V1>
+            <Name>TIM1</Name>
+            <Number>8</Number>
+            <Description>Timer1 interrupt vector.</Description>
+        </V1>
+        <V2>
+            <Name>TIM2</Name>
+            <Number>8</Number>
+            <Description>Timer2 interrupt vector.</Description>
+        </V2>
+    </Vector>
+</Chip>
