@@ -11,7 +11,7 @@
         </Compiler>
         <General>
             <Code_Start>0x08000000</Code_Start>
-            <Code_Size>0x20000</Code_Size>
+            <Code_Size>0x10000</Code_Size>
             <Data_Start>0x20000000</Data_Start>
             <Data_Size>0x10000</Data_Size>
             <Extra_Kmem>0x8000</Extra_Kmem>
@@ -20,12 +20,12 @@
         </General>
         <A7M>
             <NVIC_Grouping>2-6</NVIC_Grouping>
-            <Timer_Interval>2160000</Timer_Interval>
+            <Systick_Value>2160000</Systick_Value>
         </A7M>
         <STM32F767IG>
             <XTAL>25</XTAL>
             <PLLM>25</PLLM>
-            <PLLN>432 </PLLN>
+            <PLLN>432</PLLN>
             <PLLP>2</PLLP>
             <PLLQ>9</PLLQ>
             <IRQ>WWDG,EXTI0</IRQ>
@@ -37,40 +37,102 @@
             <Prioritization>Time</Prioritization>
         </Compiler>
         <General>
-            <Code_Size>0x1000</Code_Size>
-            <Data_Size>0x1000</Data_Size>
+            <Code_Size>0x10000</Code_Size>
+            <Data_Size>0x10000</Data_Size>
             <Extra_Captbl>128</Extra_Captbl>
             <Recovery>Process</Recovery>
         </General>
-        <VMM>
-
-
-    
-        </VMM>
+        <VMM></VMM>
     </RVM>
-    <Process>                                                                   <!-- The user compartments -->
+    <Process>                                                                   
         <P1>
             <General>
-                <Name>Domain1</Name>
-                <Extra_Captbl>9</Extra_Captbl>                                  <!-- Size of the capability table, can be a number or something else -->
+                <Name>Test_Proc1</Name>
+                <Extra_Captbl>9</Extra_Captbl>
             </General>
             <Compiler>
                 <Optimization>O2</Optimization>
                 <Prioritization>Time</Prioritization>
             </Compiler>
-            <Memory>                                                            <!-- These memory are mapped in by the booter and is definitely not managed by this component -->
+            <Memory>
                 <M1>
-                    <Start>0x20000000</Start>
+                    <Start>0x08020000</Start>
                     <Size>0x10000</Size>
-                    <Type>CODE/DATA/DEV</Type>                                  <!-- Where your code goes to -->
-                    <Attribute>RWXBCS</Attribute>                               <!-- Read, Write, Execute, Bufferable, Cacheable, Static -->
+                    <Type>Code</Type>
+                    <Attribute>RWXBCS</Attribute>
                 </M1>
+                <M2>
+                    <Start>0x20020000</Start>
+                    <Size>0x10000</Size>
+                    <Type>Data</Type>
+                    <Attribute>RWXBCS</Attribute>
+                </M2>
+                <M3>
+                    <Start>Auto</Start>
+                    <Size>0x10000</Size>
+                    <Type>Data</Type>
+                    <Attribute>RWXBCS</Attribute>
+                </M3>
+                <M4>
+                    <Start>0xF0000000</Start>
+                    <Size>0x10000</Size>
+                    <Type>Device</Type>
+                    <Attribute>RWS</Attribute>
+                </M4>
             </Memory>
             <Thread>
                 <T1>
-                    <Name>Motor_Control</Name>
-                    <Entry>Func_Calc</Entry>
-                    <Stack_Addr>0x20003000/AUTO</Stack_Addr>
+                    <Name>Test_Proc1_Thd1</Name>
+                    <Entry>Test_Proc1_Thd1_Entry</Entry>
+                    <Stack_Addr>Auto</Stack_Addr>
+                    <Stack_Size>0x1000</Stack_Size>
+                    <Parameter>0x1234</Parameter>
+                    <Priority>3</Priority>
+                </T1>
+            </Thread>
+            <Invocation>
+            </Invocation>
+            <Port>
+                <P1>
+                    <Name>Test_Proc2_Inv1</Name>
+                    <Process>Test_Proc2</Process>
+                </P1>
+            </Port>
+            <Endpoint>
+                <E1>
+                     <Name>Test_Proc1_Rcv1</Name>
+                     <Type>Receive</Type>
+                </E1>
+            </Endpoint>
+        </P1>
+        <P2>
+            <General>
+                <Name>Test_Proc2</Name>
+                <Extra_Captbl>0</Extra_Captbl>
+            </General>
+            <Compiler>
+                <Optimization>O3</Optimization>
+                <Prioritization>Size</Prioritization>
+            </Compiler>
+            <Memory>
+                <M1>
+                    <Start>Auto</Start>
+                    <Size>0x10000</Size>
+                    <Type>Code</Type>
+                    <Attribute>RWXBCS</Attribute>
+                </M1>
+                <M2>
+                    <Start>Auto</Start>
+                    <Size>0x10000</Size>
+                    <Type>Data</Type>
+                    <Attribute>RWXBCS</Attribute>
+                </M2>
+            </Memory>
+            <Thread>
+                <T1>
+                    <Name>Test_Proc2_Thd1</Name>
+                    <Entry>Test_Proc2_Thd1_Entry</Entry>
+                    <Stack_Addr>Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
@@ -78,25 +140,25 @@
             </Thread>
             <Invocation>
                 <I1>
-                    <Name>Motor_Adjust</Name>
-                    <Entry>Func_Adjust</Entry>
-                    <Stack_Addr>0x20004000/Auto</Stack_Addr>
+                    <Name>Test_Proc2_Inv1</Name>
+                    <Entry>Test_Proc2_Inv1_Entry</Entry>
+                    <Stack_Addr>Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                 </I1>
             </Invocation>
-            <Ports>
-                <P1>
-                    <Name>Get_UI_Data</Name>
-                    <Process>Domain1</Process>
-                </P1>
-            </Ports>
+            <Port>
+            </Port>
             <Endpoint>
                 <E1>
-                     <Name>EP_Motor</Name>
-                     <Type>Send/Receive/Handler</Type>
-                     <Process>Domain1</Process>
+                     <Name>Test_Proc1_Rcv1</Name>
+                     <Type>Send</Type>
+                     <Process>Test_Proc1</Process>
                 </E1>
+                <E2>
+                     <Name>TIM1</Name>
+                     <Type>Handler</Type>
+                </E2>
             </Endpoint>
-        </P1>
+        </P2>
     </Process>
 </Project>

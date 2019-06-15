@@ -1,2 +1,14 @@
 ﻿  rme_mcu.c
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3506,27): warning C4047:  “=”:“s8 *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3507,28): warning C4047:  “函数”:“const char *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3507,28): warning C4024:  “strcmp”: 形参和实参 1 的类型不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3509,33): warning C4047:  “函数”:“const char *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3509,33): warning C4024:  “strcmp”: 形参和实参 1 的类型不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3511,33): warning C4047:  “函数”:“const char *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3511,33): warning C4024:  “strcmp”: 形参和实参 1 的类型不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3513,33): warning C4047:  “函数”:“const char *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3513,33): warning C4024:  “strcmp”: 形参和实参 1 的类型不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3518,30): warning C4047:  “函数”:“const char *”与“ptr_t”的间接级别不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3518,30): warning C4024:  “strcmp”: 形参和实参 1 的类型不同
+D:\desktop\M7M1_MuEukaron\Tools\MCU\rme_mcu.c(3742,29): warning C4018:  “>”: 有符号/无符号不匹配
   MSVC.vcxproj -> D:\desktop\M7M1_MuEukaron\Tools\MCU\MSVC\Debug\MSVC.exe
