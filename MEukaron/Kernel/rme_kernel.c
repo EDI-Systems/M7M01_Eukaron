@@ -2324,7 +2324,7 @@ rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd)
     /* Insert this thread into the runqueue */
     __RME_List_Ins(&(Thd->Sched.Run),(CPU_Local->Run).List[Prio].Prev,&((CPU_Local->Run).List[Prio]));
     /* Set the bit in the bitmap */
-    (CPU_Local->Run).Bitmap[Prio>>RME_WORD_ORDER]|=((rme_ptr_t)1)<<(Prio&RME_MASK_END(RME_WORD_ORDER-1));
+    (CPU_Local->Run).Bitmap[Prio>>RME_WORD_ORDER]|=RME_POW2(Prio&RME_MASK_END(RME_WORD_ORDER-1));
     
     return 0;
 }
@@ -2352,7 +2352,7 @@ rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd)
     
     /* See if there are any thread on this peiority level. If no, clear the bit */
     if((CPU_Local->Run).List[Prio].Next==&((CPU_Local->Run).List[Prio]))
-        (CPU_Local->Run).Bitmap[Prio>>RME_WORD_ORDER]&=~(1<<(Prio&RME_MASK_END(RME_WORD_ORDER-1)));
+        (CPU_Local->Run).Bitmap[Prio>>RME_WORD_ORDER]&=~(RME_POW2(Prio&RME_MASK_END(RME_WORD_ORDER-1)));
     
     return 0;
 }
