@@ -63,6 +63,8 @@ Description : The header of kernel system call path.
 #define RME_PARAM_KM(SVC,CAPID)         (((SVC)<<(sizeof(rme_ptr_t)*4))|(CAPID))
 /* This is the special one used for page table top-level flags */
 #define RME_PARAM_PT(X)                 ((X)&0x01)
+/* The page table creation extra parameter packed in the svc number */
+#define RME_PARAM_PC(SVC)               ((SVC)>>((sizeof(rme_ptr_t)<<1)))
 
 /* The return procedure of a possible context switch - If successful, the function itself
  * is responsible for setting the parameters; If failed, we set the parameters for it.
@@ -485,9 +487,6 @@ while(0)
 #define RME_PGTBL_FLAG_FLAGS(X)         ((X)&RME_MASK_END(7))
 /* The initial flag of boot-time page table - allows all range delegation access only */
 #define RME_PGTBL_FLAG_FULL_RANGE       (((rme_ptr_t)(-1))&RME_MASK_START(sizeof(rme_ptr_t)*4+4))
-    
-/* The page table creation extra parameter packed in the svc number */
-#define RME_PARAM_PC(SVC)               ((SVC)>>((sizeof(rme_ptr_t)<<1)))
 
 /* Page table start address/top-level attributes */
 #define RME_PGTBL_START(X)              ((X)&(~((rme_ptr_t)1)))
