@@ -63,46 +63,50 @@ Description : The configuration generator for the MCU ports. This does not
 /* End Includes **************************************************************/
 
 /* Defines *******************************************************************/
+/* Power of 2 macros */
+#define ALIGN_POW(X,POW)    (((X)>>(POW))<<(POW))
+#define POW2(POW)           (((ptr_t)1)<<(POW))
 /* Optimization levels */
-#define OPT_O0          (0)
-#define OPT_O1          (1)
-#define OPT_O2          (2)
-#define OPT_O3          (3)
-#define OPT_OS          (4)
+#define OPT_O0              (0)
+#define OPT_O1              (1)
+#define OPT_O2              (2)
+#define OPT_O3              (3)
+#define OPT_OS              (4)
 /* Time or size optimization choice */
-#define PRIO_SIZE        (0)
-#define PRIO_TIME        (1)
+#define PRIO_SIZE           (0)
+#define PRIO_TIME           (1)
 /* Capability ID placement */
-#define AUTO            ((ptr_t)(-1))
-#define INVALID         ((ptr_t)(-2))
+#define AUTO                ((ptr_t)(-1LL))
+#define INVALID             ((ptr_t)(-2LL))
 /* Recovery options */
-#define RECOVERY_THD    (0)
-#define RECOVERY_PROC   (1)
-#define RECOVERY_SYS    (2)
+#define RECOVERY_THD        (0)
+#define RECOVERY_PROC       (1)
+#define RECOVERY_SYS        (2)
 /* Memory types */
-#define MEM_CODE        (0)
-#define MEM_DATA        (1)
-#define MEM_DEVICE      (2)
+#define MEM_CODE            (0)
+#define MEM_DATA            (1)
+#define MEM_DEVICE          (2)
 /* Memory access permissions */
-#define MEM_READ        (0)
-#define MEM_WRITE       (1)
-#define MEM_EXECUTE     (2)
-#define MEM_BUFFERABLE  (3)
-#define MEM_CACHEABLE   (4)
-#define MEM_STATIC      (5)
+#define MEM_READ            POW2(0)
+#define MEM_WRITE           POW2(1)
+#define MEM_EXECUTE         POW2(2)
+#define MEM_BUFFERABLE      POW2(3)
+#define MEM_CACHEABLE       POW2(4)
+#define MEM_STATIC          POW2(5)
 /* Endpoint types */
-#define ENDP_SEND       (0)
-#define ENDP_RECEIVE    (1)
-#define ENDP_HANDLER    (2)
+#define ENDP_SEND           (0)
+#define ENDP_RECEIVE        (1)
+#define ENDP_HANDLER        (2)
 /* Option types */
-#define OPTION_RANGE    (0)
-#define OPTION_SELECT   (1)
+#define OPTION_RANGE        (0)
+#define OPTION_SELECT       (1)
 /* Kernel object types */
-#define CAP_CAPTBL      (0)
-#define CAP_PROC        (1)
-#define CAP_THD         (2)
-#define CAP_INV         (3)
-#define CAP_ENDP        (4)
+#define CAP_CAPTBL          (0)
+#define CAP_PGTBL           (1)
+#define CAP_PROC            (2)
+#define CAP_THD             (3)
+#define CAP_INV             (4)
+#define CAP_ENDP            (5)
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -130,9 +134,6 @@ do \
     Start=Val_End; \
 } \
 while(0)
-
-#define ALIGN_POW(X,POW)     (((X)>>(POW))<<(POW))
-#define POW2(POW)            (((ptr_t)1)<<(POW))
 /* End Defines ***************************************************************/
 
 /* Typedefs ******************************************************************/
@@ -144,8 +145,9 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
-typedef s32 ret_t;
-typedef u32 ptr_t;
+/* Make things compatible in 32-bit or 64-bit environments */
+typedef s64 ret_t;
+typedef u64 ptr_t;
 /* End Typedefs **************************************************************/
 
 /* Structs *******************************************************************/
@@ -409,7 +411,7 @@ void* Malloc(ptr_t Size)
 	struct List* Addr;
 
 	/* See if the allocation is successful */
-	Addr=malloc(Size+sizeof(struct List));
+	Addr=malloc((size_t)(Size+sizeof(struct List)));
 	if(Addr==0)
 		return 0;
 
@@ -577,7 +579,7 @@ ret_t Copy_File(s8* Dst, s8* Src)
 
     Size=fread(Buf, 1, 128, Src_File);
     while (Size!=0) {
-        fwrite(Buf, 1, Size, Dst_File);
+        fwrite(Buf, 1, (size_t)Size, Dst_File);
         Size=fread(Buf, 1, 128, Src_File);
     }
 
@@ -729,7 +731,7 @@ s8* Read_File(s8* Path)
 	Buf=Malloc(Size+1);
 	if(Buf==0)
 		EXIT_FAIL("File buffer allocation failed.");
-	fread(Buf, 1, Size, Handle);
+	fread(Buf, 1, (size_t)Size, Handle);
 
 	fclose(Handle);
 	Buf[Size]='\0';
@@ -990,7 +992,7 @@ ret_t Compare_Label(s8* Start, s8* End, s8* Label)
     if(Len!=strlen(Label))
         return -1;
 
-    if(strncmp(Start,Label,Len)!=0)
+    if(strncmp(Start,Label,(size_t)Len)!=0)
         return -1;
     
     return 0;
@@ -1298,6 +1300,14 @@ ret_t Parse_Process_Memory(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Mem_Num
     Proj->Proc[Proc_Num].Mem[Mem_Num].Size=Get_Hex(Val_Start,Val_End);
     if(Proj->Proc[Proc_Num].Mem[Mem_Num].Size>=INVALID)
         EXIT_FAIL("Memory size read failed.");
+    if(Proj->Proc[Proc_Num].Mem[Mem_Num].Size==0)
+        EXIT_FAIL("Memory size cannot be zero.");
+    if(Proj->Proc[Proc_Num].Mem[Mem_Num].Start!=AUTO)
+    {
+        if((Proj->Proc[Proc_Num].Mem[Mem_Num].Start+
+            (Proj->Proc[Proc_Num].Mem[Mem_Num].Size-1))<Proj->Proc[Proc_Num].Mem[Mem_Num].Start)
+            EXIT_FAIL("Memory trunk out of bound, illegal.");
+    }
     /* Type */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
     if(strncmp(Val_Start,"Code",4)==0)
@@ -1851,6 +1861,10 @@ ret_t Parse_Chip_Memory(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* St
     Chip->Mem[Num].Size=Get_Hex(Val_Start,Val_End);
     if(Chip->Mem[Num].Size>=INVALID)
         EXIT_FAIL("Memory size read failed.");
+    if(Chip->Mem[Num].Size==0)
+        EXIT_FAIL("Memory size cannot be zero.");
+    if((Chip->Mem[Num].Start+(Chip->Mem[Num].Size-1))<Chip->Mem[Num].Start)
+        EXIT_FAIL("Memory trunk out of bound, illegal.");
     /* Type */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
     if(strncmp(Val_Start,"Code",4)==0)
@@ -2261,7 +2275,7 @@ ret_t Try_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
 
     for(Count=0;Count<Size;Count++)
     {
-        if((Bitmap[(Start+Count)/8]&(1<<((Start+Count)%8)))!=0)
+        if((Bitmap[(Start+Count)/8]&POW2((Start+Count)%8))!=0)
             return -1;
     }
     return 0;
@@ -2281,12 +2295,14 @@ void Mark_Bitmap(s8* Bitmap, ptr_t Start, ptr_t Size)
     ptr_t Count;
 
     for(Count=0;Count<Size;Count++)
-        Bitmap[(Start+Count)/8]|=((ptr_t)1)<<((Start+Count)%8);
+        Bitmap[(Start+Count)/8]|=POW2((Start+Count)%8);
 }
 /* End Function:Mark_Bitmap **************************************************/
 
 /* Begin Function:Populate_Mem ************************************************
 Description : Populate the memory data structure with this memory segment.
+              This operation will be conducted with no respect to whether this
+              portion have been populated with someone else.
 Input       : struct Mem_Map* Map - The memory map.
               ptr_t Start - The start address of the memory.
               ptr_t Size - The size of the memory.
@@ -2301,14 +2317,14 @@ ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
     for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
     {
         if((Start>=Map->Mem_Array[Mem_Cnt]->Start)&&
-           (Start<Map->Mem_Array[Mem_Cnt]->Start+Map->Mem_Array[Mem_Cnt]->Size))
+           (Start<=Map->Mem_Array[Mem_Cnt]->Start+(Map->Mem_Array[Mem_Cnt]->Size-1)))
             break;
     }
 
     /* Must be in this segment. See if we can fit there */
     if(Mem_Cnt==Map->Mem_Num)
         return -1;
-    if((Map->Mem_Array[Mem_Cnt]->Start+Map->Mem_Array[Mem_Cnt]->Size)<(Start+Size))
+    if((Map->Mem_Array[Mem_Cnt]->Start+(Map->Mem_Array[Mem_Cnt]->Size-1))<(Start+(Size-1)))
         return -1;
     
     /* It is clear that we can fit now. Mark all the bits */
@@ -2367,7 +2383,7 @@ ret_t Fit_Mem(struct Mem_Map* Map, ptr_t Mem_Num)
 }
 /* End Function:Fit_Mem ******************************************************/
 
-/* Begin Function:Alloc_Code **************************************************
+/* Begin Function:Alloc_Mem ***************************************************
 Description : Actually allocate all the code memories that are automatically
               placed. After this, all memories will have fixed address ranges.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
@@ -2403,7 +2419,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     Map->Mem_Array=Malloc(sizeof(struct Mem_Info*)*Map->Mem_Num);
     if(Map->Mem_Array==0)
         EXIT_FAIL("Memory map allocation failed.");
-    memset(Map->Mem_Array,0,sizeof(struct Mem_Info*)*Map->Mem_Num);
+    memset(Map->Mem_Array,0,(size_t)(sizeof(struct Mem_Info*)*Map->Mem_Num));
     Map->Mem_Bitmap=Malloc(sizeof(s8*)*Map->Mem_Num);
     if(Map->Mem_Bitmap==0)
         EXIT_FAIL("Memory map allocation failed.");
@@ -2425,7 +2441,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
         Map->Mem_Bitmap[Mem_Cnt]=Malloc((Map->Mem_Array[Mem_Cnt]->Size/4)+1);
         if(Map->Mem_Bitmap[Mem_Cnt]==0)
             EXIT_FAIL("Code bitmap allocation failed");
-        memset(Map->Mem_Bitmap[Mem_Cnt],0,(Map->Mem_Array[Mem_Cnt]->Size/4)+1);
+        memset(Map->Mem_Bitmap[Mem_Cnt],0,(size_t)((Map->Mem_Array[Mem_Cnt]->Size/4)+1));
     }
 
     /* Now populate the RME & RVM sections */
@@ -2469,7 +2485,7 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
         Map->Proc_Mem_Array=Malloc(sizeof(struct Mem_Info*)*Map->Proc_Mem_Num);
         if(Map->Proc_Mem_Array==0)
             EXIT_FAIL("Memory map allocation failed.");
-        memset(Map->Proc_Mem_Array,0,sizeof(struct Mem_Info*)*Map->Proc_Mem_Num);
+        memset(Map->Proc_Mem_Array,0,(size_t)(sizeof(struct Mem_Info*)*Map->Proc_Mem_Num));
 
         /* Insert sort according to size */
         for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
@@ -2506,6 +2522,106 @@ void Alloc_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
     Free(Map);
 }
 /* End Function:Alloc_Mem ****************************************************/
+
+/* Begin Function:Check_Mem ***************************************************
+Description : Check the memory layout to make sure that they don't overlap.
+              Also check if the device memory of all processes are in the device
+              memory range, and if all processes have at least a data segment and
+              a code segment. If not, we need to abort immediately.
+              These algorithms are far from efficient; there are O(nlogn) variants,
+              which we leave as a possible future optimization.
+Input       : struct Proj_Info* Proj - The struct containing the project information.
+              struct Chip_Info* Chip - The struct containing the chip information.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Check_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    ptr_t Proc_Cnt;
+    ptr_t Mem_Cnt;
+    ptr_t Proc_Temp_Cnt;
+    ptr_t Mem_Temp_Cnt;
+    ptr_t Chip_Mem_Cnt;
+    struct Mem_Info* Mem1;
+    struct Mem_Info* Mem2;
+
+
+    /* Is it true that each process have a code segment and a data segment? */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_CODE)
+                break;
+        }
+        if(Mem_Cnt==Proj->Proc[Proc_Cnt].Mem_Num)
+            EXIT_FAIL("At least one process does not have a single code segment.");
+
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_DATA)
+                break;
+        }
+        if(Mem_Cnt==Proj->Proc[Proc_Cnt].Mem_Num)
+            EXIT_FAIL("At least one process does not have a single data segment.");
+    }
+    
+    /* Is it true that the device memory is in device memory range？
+     * Also, device memory cannot have AUTO placement, position must be designated. */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_DEVICE)
+            {
+                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start>=INVALID)
+                    EXIT_FAIL("Device memory cannot have auto placement.");
+
+                for(Chip_Mem_Cnt=0;Chip_Mem_Cnt<Chip->Mem_Num;Chip_Mem_Cnt++)
+                {
+                    if(Chip->Mem[Chip_Mem_Cnt].Type==MEM_DEVICE)
+                    {
+                        Mem1=&(Chip->Mem[Chip_Mem_Cnt]);
+                        Mem2=&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]);
+                        if((Mem1->Start<=Mem2->Start)&&((Mem1->Start+(Mem1->Size-1))>=(Mem2->Start+(Mem2->Size-1))))
+                            break;
+                    }
+                }
+                if(Chip_Mem_Cnt==Chip->Mem_Num)
+                    EXIT_FAIL("At least one device memory segment is out of bound.");
+            }
+        }
+    }
+
+    /* Is it true that the primary code memory does not overlap with each other? */
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_CODE)
+                break;
+        }
+        for(Proc_Temp_Cnt=0;Proc_Temp_Cnt<Proj->Proc_Num;Proc_Temp_Cnt++)
+        {
+            if(Proc_Temp_Cnt==Proc_Cnt)
+                continue;
+            for(Mem_Temp_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Temp_Cnt].Mem_Num;Mem_Cnt++)
+            {
+                if(Proj->Proc[Proc_Temp_Cnt].Mem[Mem_Temp_Cnt].Type==MEM_CODE)
+                    break;
+            }
+            
+            Mem1=&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]);
+            Mem2=&(Proj->Proc[Proc_Temp_Cnt].Mem[Mem_Temp_Cnt]);
+
+            if(((Mem1->Start+(Mem1->Size-1))<Mem2->Start)||((Mem2->Start+(Mem2->Size-1))<Mem1->Start))
+                continue;
+            else
+                EXIT_FAIL("Two process's main code sections overlapped.");
+        }
+    }
+}
+/* End Function:Check_Mem ****************************************************/
 
 /* Begin Function:Strcicmp ****************************************************
 Description : Compare two strings in a case insensitive way.
@@ -3065,6 +3181,44 @@ s8* Raw_Match(struct Raw_Info* Info, s8* Tag)
 }
 /* End Function:Raw_Match ****************************************************/
 
+/* Begin Function:Write_Src_Desc **********************************************
+Description : Output the header that is sticked to every C file.
+Input       : FILE* File - The pointer to the file.
+              s8* Filenama - The name of the file.
+              s8* Author - The author of the file.
+              s8* Date - The date of the file.
+              s8* License - The license of the file.
+              s8* Description - The description of the file.
+Output      : FILE* File - The pointer to the updated file.
+Return      : None.
+******************************************************************************/
+void Write_Src_Desc(FILE* File, s8* Filename, s8* Author, s8* Date, s8* License, s8* Description)
+{
+    fprintf(File, "/******************************************************************************\n");
+    fprintf(File, "Filename    : %s\n", Filename);
+    fprintf(File, "Author      : %s\n", Author);
+    fprintf(File, "Date        : %s\n", Date);
+    fprintf(File, "License     : %s\n", License);
+    fprintf(File, "Description : %s\n", Description);
+    fprintf(File, "******************************************************************************/\n");
+}
+/* End Function:Write_Src_Desc ***********************************************/
+
+/* Begin Function:Write_Src_Footer ********************************************
+Description : Output the footer that is appended to every C file.
+Input       : FILE* File - The pointer to the file.
+Output      : FILE* File - The pointer to the updated file.
+Return      : None.
+******************************************************************************/
+void Write_Src_Footer(FILE* File)
+{
+    fprintf(File, "/* End Of File ***************************************************************/\n");
+    fprintf(File, "\n");
+    fprintf(File, "/* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/\n");
+    fprintf(File, "\n");
+}
+/* End Function:Write_Src_Footer *********************************************/
+
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
 void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
@@ -3128,6 +3282,8 @@ int main(int argc, char* argv[])
      * We don't deal with device memory at all; this is mapped in anyway at user request. */
 	Alloc_Mem(Proj, Chip, MEM_CODE);
 	Alloc_Mem(Proj, Chip, MEM_DATA);
+    /* Check to see if the resulting memory map is actually valid */
+    Check_Mem(Proj, Chip);
 
     /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
     Alloc_Captbl(Proj, Chip);
@@ -3150,31 +3306,36 @@ moment.
 
 /* Defines *******************************************************************/
 /* NVIC grouping */
-#define A7M_NVIC_P0S8    7    
-#define A7M_NVIC_P1S7    6
-#define A7M_NVIC_P2S6    5
-#define A7M_NVIC_P3S5    4
-#define A7M_NVIC_P4S4    3
-#define A7M_NVIC_P5S3    2
-#define A7M_NVIC_P6S2    1
-#define A7M_NVIC_P7S1    0
+#define A7M_NVIC_P0S8           (7)    
+#define A7M_NVIC_P1S7           (6)
+#define A7M_NVIC_P2S6           (5)
+#define A7M_NVIC_P3S5           (4)
+#define A7M_NVIC_P4S4           (3)
+#define A7M_NVIC_P5S3           (2)
+#define A7M_NVIC_P6S2           (1)
+#define A7M_NVIC_P7S1           (0)
 /* CPU type */
-#define A7M_CPU_CM0P     0
-#define A7M_CPU_CM3      1
-#define A7M_CPU_CM4      2
-#define A7M_CPU_CM7      3
+#define A7M_CPU_CM0P            (0)
+#define A7M_CPU_CM3             (1)
+#define A7M_CPU_CM4             (2)
+#define A7M_CPU_CM7             (3)
 /* FPU type */
-#define A7M_FPU_NONE     0
-#define A7M_FPU_FPV4     1
-#define A7M_FPU_FPV5_SP  2
-#define A7M_FPU_FPV5_DP  3
+#define A7M_FPU_NONE            (0)
+#define A7M_FPU_FPV4            (1)
+#define A7M_FPU_FPV5_SP         (2)
+#define A7M_FPU_FPV5_DP         (3)
 /* Endianness */
-#define A7M_END_LITTLE   0
-#define A7M_END_BIG      1
+#define A7M_END_LITTLE          (0)
+#define A7M_END_BIG             (1)
 
 /* Page table */
-#define A7M_PGT_NOTHING  0
-#define A7M_PGT_MAPPED   ((struct A7M_Pgtbl*)(-1))
+#define A7M_PGT_NOTHING         (0)
+#define A7M_PGT_MAPPED          ((struct A7M_Pgtbl*)(-1))
+
+/* RVM page table capability table size */
+#define A7M_PGTBL_CAPTBL_SIZE   (4096)
+/* The process capability table size limit */
+#define A7M_PROC_CAPTBL_LIMIT   (128)
 /* End Defines ***************************************************************/
 
 /* Structs *******************************************************************/
@@ -3184,6 +3345,7 @@ struct A7M_Pgtbl
     ptr_t Size_Order;
     ptr_t Num_Order;
     ptr_t Attr;
+    ptr_t RVM_Capid;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
     struct A7M_Pgtbl* Mapping[8];
 };
@@ -3197,11 +3359,15 @@ struct A7M_Info
     ptr_t Endianness;
     /* The page tables for all processes */
     struct A7M_Pgtbl** Pgtbl;
+    /* Global captbl containing pgtbls */
+    ptr_t Pgtbl_Captbl_Frontier;
+    struct RVM_Cap_Info* Pgtbl_Captbl;
 };
 /* End Structs ***************************************************************/
 
 /* C Function Prototypes *****************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max);
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
+                                struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max);
 /* End C Function Prototypes *************************************************/
 
 /* Begin Function:A7M_Align ***************************************************
@@ -3240,327 +3406,101 @@ ret_t A7M_Align(struct Mem_Info* Mem)
 }
 /* End Function:A7M_Align ****************************************************/
 
-/* Begin Function:A7M_Gen_Keil_Proj *******************************************
-Description : Generate the keil project for ARMv7-M architectures.
-Input       : FILE* Keil - The file pointer to the project file.
-              s8* Target - The target executable name for the project.
-              s8* Device - The device name, must match the keil list.
-              s8* Vendor - The vendor name, must match the keil list.
-              s8* CPU_Type - The CPU type, must match the keil definitions.
-                             "Cortex-M0+", "Cortex-M3"， "Cortex-M4", "Cortex-M7".
-              s8* FPU_Type - The FPU type, must match the keil definition.
-                             "", "FPU2", "FPU3(SP)", "FPU3(DP)" 
-              s8* Endianness - The endianness. "ELITTLE" "EBIG"
-              ptr_t Timeopt - Set to 1 when optimizing for time.
-              ptr_t Opt - Optimization levels, 1 to 4 corresponds to O0-O3.
-              s8** Includes - The include paths.
-              ptr_t Include_Num - The number of include paths.
-              s8** Paths - The path of the files.
-              s8** Files - The file names.
-              ptr_t File_Num - The number of files.
-Output      : FILE* Keil - The file pointer to the project file.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Keil_Proj(FILE* Keil,
-                       s8* Target, s8* Device, s8* Vendor, 
-                       s8* CPU_Type, s8* FPU_Type, s8* Endianness,
-                       ptr_t Timeopt, ptr_t Opt,
-                       s8** Includes, ptr_t Include_Num,
-                       s8** Paths, s8** Files, ptr_t File_Num)
-{
-    ptr_t Include_Cnt;
-    ptr_t File_Cnt;
-    s8* Dlloption;
-
-    if(strcmp(CPU_Type, "Cortex-M0+")==0)
-        Dlloption="-pCM0+";
-    else if(strcmp(CPU_Type, "Cortex-M3")==0)
-        Dlloption="-pCM3";
-    else if(strcmp(CPU_Type, "Cortex-M4")==0)
-        Dlloption="-pCM4";
-    else if(strcmp(CPU_Type, "Cortex-M7")==0)
-        Dlloption="-pCM7";
-    else
-        EXIT_FAIL("CPU variant invalid.");
-
-    fprintf(Keil, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n");
-    fprintf(Keil, "<Project xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"project_projx.xsd\">\n");
-    fprintf(Keil, "  <SchemaVersion>2.1</SchemaVersion>\n");
-    fprintf(Keil, "  <Header>### uVision Project, (C) Keil Software</Header>\n");
-    fprintf(Keil, "  <Targets>\n");
-    fprintf(Keil, "    <Target>\n");
-    fprintf(Keil, "      <TargetName>%s</TargetName>\n", Target);
-    fprintf(Keil, "      <ToolsetNumber>0x4</ToolsetNumber>\n");
-    fprintf(Keil, "      <ToolsetName>ARM-ADS</ToolsetName>\n");
-    fprintf(Keil, "      <pCCUsed>ARMCC</pCCUsed>\n");
-    fprintf(Keil, "      <uAC6>0</uAC6>\n");
-    fprintf(Keil, "      <TargetOption>\n");
-    fprintf(Keil, "        <TargetCommonOption>\n");
-    fprintf(Keil, "          <Device>%s</Device>\n", Device);
-    fprintf(Keil, "          <Vendor>%s</Vendor>\n", Vendor);
-    fprintf(Keil, "          <Cpu>IRAM(0x0,0x1000) IROM(0x0,0x1000) CPUTYPE(\"%s\") %s CLOCK(12000000) %s</Cpu>\n", CPU_Type, FPU_Type, Endianness);
-    fprintf(Keil, "          <OutputDirectory>.\\Objects\\</OutputDirectory>\n");
-    fprintf(Keil, "          <OutputName>%s</OutputName>\n", Target);
-    fprintf(Keil, "          <CreateExecutable>1</CreateExecutable>\n");
-    fprintf(Keil, "          <CreateHexFile>1</CreateHexFile>\n");
-    fprintf(Keil, "          <DebugInformation>1</DebugInformation>\n");
-    fprintf(Keil, "          <BrowseInformation>1</BrowseInformation>\n");
-    fprintf(Keil, "          <ListingPath>.\\Listings\\</ListingPath>\n");
-    fprintf(Keil, "          <HexFormatSelection>1</HexFormatSelection>\n");
-    fprintf(Keil, "          <AfterMake>\n");
-    fprintf(Keil, "            <RunUserProg1>0</RunUserProg1>\n");
-    fprintf(Keil, "            <RunUserProg2>0</RunUserProg2>\n");
-    fprintf(Keil, "            <UserProg1Name></UserProg1Name>\n");
-    fprintf(Keil, "            <UserProg2Name></UserProg2Name>\n");
-    fprintf(Keil, "            <UserProg1Dos16Mode>0</UserProg1Dos16Mode>\n");
-    fprintf(Keil, "            <UserProg2Dos16Mode>0</UserProg2Dos16Mode>\n");
-    fprintf(Keil, "            <nStopA1X>0</nStopA1X>\n");
-    fprintf(Keil, "            <nStopA2X>0</nStopA2X>\n");
-    fprintf(Keil, "          </AfterMake>\n");
-    fprintf(Keil, "        </TargetCommonOption>\n");
-    fprintf(Keil, "        <CommonProperty>\n");
-    fprintf(Keil, "          <UseCPPCompiler>0</UseCPPCompiler>\n");
-    fprintf(Keil, "          <RVCTCodeConst>0</RVCTCodeConst>\n");
-    fprintf(Keil, "          <RVCTZI>0</RVCTZI>\n");
-    fprintf(Keil, "          <RVCTOtherData>0</RVCTOtherData>\n");
-    fprintf(Keil, "          <ModuleSelection>0</ModuleSelection>\n");
-    fprintf(Keil, "          <IncludeInBuild>1</IncludeInBuild>\n");
-    fprintf(Keil, "          <AlwaysBuild>0</AlwaysBuild>\n");
-    fprintf(Keil, "          <GenerateAssemblyFile>0</GenerateAssemblyFile>\n");
-    fprintf(Keil, "          <AssembleAssemblyFile>0</AssembleAssemblyFile>\n");
-    fprintf(Keil, "          <PublicsOnly>0</PublicsOnly>\n");
-    fprintf(Keil, "          <StopOnExitCode>3</StopOnExitCode>\n");
-    fprintf(Keil, "          <CustomArgument></CustomArgument>\n");
-    fprintf(Keil, "          <IncludeLibraryModules></IncludeLibraryModules>\n");
-    fprintf(Keil, "          <ComprImg>1</ComprImg>\n");
-    fprintf(Keil, "        </CommonProperty>\n");
-    fprintf(Keil, "        <DllOption>\n");
-    fprintf(Keil, "          <SimDllName>SARMCM3.DLL</SimDllName>\n");
-    fprintf(Keil, "          <SimDllArguments> -REMAP -MPU</SimDllArguments>\n");
-    fprintf(Keil, "          <SimDlgDll>DCM.DLL</SimDlgDll>\n");
-    fprintf(Keil, "          <SimDlgDllArguments>%s</SimDlgDllArguments>\n", Dlloption);
-    fprintf(Keil, "          <TargetDllName>SARMCM3.DLL</TargetDllName>\n");
-    fprintf(Keil, "          <TargetDllArguments> -MPU</TargetDllArguments>\n");
-    fprintf(Keil, "          <TargetDlgDll>TCM.DLL</TargetDlgDll>\n");
-    fprintf(Keil, "          <TargetDlgDllArguments>%s</TargetDlgDllArguments>\n", Dlloption);
-    fprintf(Keil, "        </DllOption>\n");
-    fprintf(Keil, "        <TargetArmAds>\n");
-    fprintf(Keil, "          <ArmAdsMisc>\n");
-    fprintf(Keil, "            <useUlib>1</useUlib>\n");
-    fprintf(Keil, "            <OptFeed>0</OptFeed>\n");
-    fprintf(Keil, "          </ArmAdsMisc>\n");
-    fprintf(Keil, "          <Cads>\n");
-    fprintf(Keil, "            <interw>1</interw>\n");
-    fprintf(Keil, "            <Optim>%d</Optim>\n", Opt);
-    fprintf(Keil, "            <oTime>%d</oTime>\n", (Timeopt!=0));
-    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
-    fprintf(Keil, "            <OneElfS>1</OneElfS>\n");
-    fprintf(Keil, "            <Strict>0</Strict>\n");
-    fprintf(Keil, "            <EnumInt>1</EnumInt>\n");
-    fprintf(Keil, "            <PlainCh>1</PlainCh>\n");
-    fprintf(Keil, "            <Ropi>0</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
-    fprintf(Keil, "            <wLevel>2</wLevel>\n");
-    fprintf(Keil, "            <uThumb>0</uThumb>\n");
-    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
-    fprintf(Keil, "            <uC99>1</uC99>\n");
-    fprintf(Keil, "            <uGnu>1</uGnu>\n");
-    fprintf(Keil, "            <useXO>0</useXO>\n");
-    fprintf(Keil, "            <v6Lang>1</v6Lang>\n");
-    fprintf(Keil, "            <v6LangP>1</v6LangP>\n");
-    fprintf(Keil, "            <vShortEn>1</vShortEn>\n");
-    fprintf(Keil, "            <vShortWch>1</vShortWch>\n");
-    fprintf(Keil, "            <v6Lto>0</v6Lto>\n");
-    fprintf(Keil, "            <v6WtE>0</v6WtE>\n");
-    fprintf(Keil, "            <v6Rtti>0</v6Rtti>\n");
-    fprintf(Keil, "            <VariousControls>\n");
-    fprintf(Keil, "              <MiscControls></MiscControls>\n");
-    fprintf(Keil, "              <Define></Define>\n");
-    fprintf(Keil, "              <Undefine></Undefine>\n");
-    fprintf(Keil, "              <IncludePath></IncludePath>\n");
-    fprintf(Keil, "            </VariousControls>\n");
-    fprintf(Keil, "          </Cads>\n");
-    fprintf(Keil, "          <Aads>\n");
-    fprintf(Keil, "            <interw>1</interw>\n");
-    fprintf(Keil, "            <Ropi>0</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
-    fprintf(Keil, "            <thumb>0</thumb>\n");
-    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
-    fprintf(Keil, "            <SwStkChk>0</SwStkChk>\n");
-    fprintf(Keil, "            <NoWarn>0</NoWarn>\n");
-    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
-    fprintf(Keil, "            <useXO>0</useXO>\n");
-    fprintf(Keil, "            <uClangAs>0</uClangAs>\n");
-    fprintf(Keil, "            <VariousControls>\n");
-    fprintf(Keil, "              <MiscControls></MiscControls>\n");
-    fprintf(Keil, "              <Define></Define>\n");
-    fprintf(Keil, "              <Undefine></Undefine>\n");
-    fprintf(Keil, "              <IncludePath>");
-    /* Print all include paths */
-    for(Include_Cnt=0;Include_Cnt<Include_Num;Include_Cnt++)
-    {
-        fprintf(Keil, "%s", Includes[Include_Cnt]);
-        if(Include_Cnt<(Include_Num-1))
-            fprintf(Keil, ";");
-    }
-    fprintf(Keil, "</IncludePath>\n");
-    fprintf(Keil, "            </VariousControls>\n");
-    fprintf(Keil, "          </Aads>\n");
-    fprintf(Keil, "          <LDads>\n");
-    fprintf(Keil, "            <umfTarg>0</umfTarg>\n");
-    fprintf(Keil, "            <Ropi>0</Ropi>\n");
-    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
-    fprintf(Keil, "            <noStLib>0</noStLib>\n");
-    fprintf(Keil, "            <RepFail>1</RepFail>\n");
-    fprintf(Keil, "            <useFile>0</useFile>\n");
-    fprintf(Keil, "            <TextAddressRange>0x08000000</TextAddressRange>\n");
-    fprintf(Keil, "            <DataAddressRange>0x20000000</DataAddressRange>\n");
-    fprintf(Keil, "            <pXoBase></pXoBase>\n");
-    fprintf(Keil, "            <ScatterFile>.\\Objects\\%s.sct</ScatterFile>\n", Target);
-    fprintf(Keil, "            <IncludeLibs></IncludeLibs>\n");
-    fprintf(Keil, "            <IncludeLibsPath></IncludeLibsPath>\n");
-    fprintf(Keil, "            <Misc></Misc>\n");
-    fprintf(Keil, "            <LinkerInputFile></LinkerInputFile>\n");
-    fprintf(Keil, "            <DisabledWarnings></DisabledWarnings>\n");
-    fprintf(Keil, "          </LDads>\n");
-    fprintf(Keil, "        </TargetArmAds>\n");
-    fprintf(Keil, "      </TargetOption>\n");
-    fprintf(Keil, "      <Groups>\n");
-    /* Print all files. We only have two groups in all cases. */
-    fprintf(Keil, "        <Group>\n");
-    fprintf(Keil, "          <GroupName>%s</GroupName>\n", Target);
-    fprintf(Keil, "          <Files>\n");
-    for(File_Cnt=0;File_Cnt<File_Num;File_Cnt++)
-    {
-        fprintf(Keil, "            <File>\n");
-        fprintf(Keil, "              <FileName>%s</FileName>\n", Files[File_Cnt]);
-        if(Files[File_Cnt][strlen(Files[File_Cnt])-1]=='c')
-            fprintf(Keil, "              <FileType>1</FileType>\n");
-        else
-            fprintf(Keil, "              <FileType>2</FileType>\n");
-        fprintf(Keil, "              <FilePath>%s/%s</FilePath>\n", Paths[File_Cnt], Files[File_Cnt]);
-        fprintf(Keil, "            </File>\n");
-    }
-    fprintf(Keil, "          </Files>\n");
-    fprintf(Keil, "        </Group>\n");
-    fprintf(Keil, "        <Group>\n");
-    fprintf(Keil, "          <GroupName>User</GroupName>\n");
-    fprintf(Keil, "        </Group>\n");
-    fprintf(Keil, "      </Groups>\n");
-    fprintf(Keil, "    </Target>\n");
-    fprintf(Keil, "  </Targets>\n");
-    fprintf(Keil, "</Project>\n");
-}
-/* End Function:A7M_Gen_Keil_Proj ********************************************/
-
-/* Begin Function:A7M_Gen_Keil ************************************************
-Description : Generate the keil project for ARMv7-M. 
-              Keil projects include three parts: 
-              .uvmpw (the outside workspace)
-              .uvprojx (the specific project files)
-              .uvoptx (the options for some unimportant stuff)
+/* Begin Function:A7M_Parse_Options *******************************************
+Description : Parse the options that are specific to ARMv7-M.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
-              s8* RME_Path - The RME root folder path.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
+              struct A7M_Info* A7M - The platform sprcific project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M)
 {
-    /* Common for all projects */
-    s8* Device;
-    s8* Vendor;
-    s8* CPU_Type;
-    s8* FPU_Type;
-    s8* Endianness;
-    /* Project specific */
-    FILE* Keil;
-    s8* Proj_Path;
-    s8* Target;
-    ptr_t Opt;
-    ptr_t Timeopt;
+    s8* Temp;
 
-    /* Decide process specific macros - only STM32 is like this */
-    if((strncmp(Proj->Chip,"STM32", 5)==0))
+    /* What is the NVIC grouping that we use? */
+    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "NVIC_Grouping");
+    if(Temp==0)
+        EXIT_FAIL("Missing NVIC grouping settings.");
+    if(strcmp(Temp,"0-8")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P0S8;
+    else if(strcmp(Temp,"1-7")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P1S7;
+    else if(strcmp(Temp,"2-6")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P2S6;
+    else if(strcmp(Temp,"3-5")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P3S5;
+    else if(strcmp(Temp,"4-4")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P4S4;
+    else if(strcmp(Temp,"5-3")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P5S3;
+    else if(strcmp(Temp,"6-2")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P6S2;
+    else if(strcmp(Temp,"7-1")==0)
+        A7M->NVIC_Grouping=A7M_NVIC_P7S1;
+    else
+        EXIT_FAIL("NVIC grouping value is invalid.");
+
+    /* What is the systick value? */
+    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "Systick_Value");
+    if(Temp==0)
+        EXIT_FAIL("Missing systick value settings.");
+    A7M->Systick_Val=Get_Uint(Temp, &Temp[strlen(Temp)-1]);
+    if(A7M->Systick_Val>=INVALID)
+        EXIT_FAIL("Wrong systick value entered.");
+
+    /* What is the CPU type and the FPU type? */
+    Temp=Raw_Match(&(Chip->Attr_Raw), "CPU_Type");
+    if(Temp==0)
+        EXIT_FAIL("Missing CPU type settings.");
+    if(strcmp(Temp,"Cortex-M0+")==0)
+        A7M->CPU_Type=A7M_CPU_CM0P;
+    else if(strcmp(Temp,"Cortex-M3")==0)
+        A7M->CPU_Type=A7M_CPU_CM3;
+    else if(strcmp(Temp,"Cortex-M4")==0)
+        A7M->CPU_Type=A7M_CPU_CM4;
+    else if(strcmp(Temp,"Cortex-M7")==0)
+        A7M->CPU_Type=A7M_CPU_CM7;
+    else
+        EXIT_FAIL("CPU type value is invalid.");
+    
+    Temp=Raw_Match(&(Chip->Attr_Raw), "FPU_Type");
+    if(Temp==0)
+        EXIT_FAIL("Missing FPU type settings.");
+    if(strcmp(Temp,"None")==0)
+        A7M->FPU_Type=A7M_FPU_NONE;
+    else if(strcmp(Temp,"Single")==0)
     {
-        if(strncmp(Proj->Chip,"STM32F1", 7)==0)
-            Device=Proj->Chip;
+        if(A7M->CPU_Type==A7M_CPU_CM4)
+            A7M->FPU_Type=A7M_FPU_FPV4;
+        else if(A7M->CPU_Type==A7M_CPU_CM7)
+            A7M->FPU_Type=A7M_FPU_FPV5_SP;
         else
-        {
-            Device=Malloc(strlen(Proj->Fullname)+1);
-            strcpy(Device, Proj->Fullname);
-            /* Except for STM32F1, all chips end with suffix, and the last number is substituted with 'x' */
-            Device[strlen(Proj->Fullname)-1]='x';
-        }
+            EXIT_FAIL("FPU type and CPU type mismatch.");
     }
-    Device=Proj->Chip;
-    Vendor=Chip->Vendor;
-    switch(A7M->CPU_Type)
+    else if(strcmp(Temp,"Double")==0)
     {
-    case 1:;
+        if(A7M->CPU_Type==A7M_CPU_CM7)
+            A7M->FPU_Type=A7M_FPU_FPV5_DP;
+        else
+            EXIT_FAIL("FPU type and CPU type mismatch.");
+
     }
-    CPU_Type=A7M->CPU_Type;
-    if(strcmp(A7M->FPU_Type, "NONE")==0)
-        FPU_Type="";
-    else if(strcmp(A7M->FPU_Type, "FPV4")==0)
-        FPU_Type="FPU2";
-    else if(strcmp(A7M->FPU_Type, "FPV5_SP")==0)
-        FPU_Type="FPU3(SP)";
-    else if(strcmp(A7M->FPU_Type, "FPV5_DP")==0)
-        FPU_Type="FPU3(DP)";
     else
-        EXIT_FAIL("FPU type is invalid.");
+        EXIT_FAIL("FPU type value is invalid.");
 
-    if(strcmp(A7M->Endianness, "Little")==0)
-        Endianness="ELITTLE";
+    /* What is the endianness? */
+    Temp=Raw_Match(&(Chip->Attr_Raw), "Endianness");
+    if(Temp==0)
+        EXIT_FAIL("Missing endianness settings.");
+    if(strcmp(Temp,"Little")==0)
+        A7M->Endianness=A7M_END_LITTLE;
+    else if(strcmp(Temp,"Big")==0)
+        A7M->Endianness=A7M_END_BIG;
     else
-        Endianness="EBIG";
-
-    Proj_Path=Malloc(sizeof(s8)*4096);
-    if(Proj_Path==0)
-        EXIT_FAIL("Project path allocation failed");
-    sprintf(Proj_Path, "%s/M7M1_MuEukaron/Project/%s_RME", Output_Path, Proj->Name);
-    /* Generate the RME keil project first */
-    Keil=fopen(Proj_Path, "wb");
-    Target="RME";
-    Opt=Proj->RME.Comp.Opt+1;
-    Timeopt=Proj->RME.Comp.Prio;
-    Free(Proj_Path);
-
-    /* Allocate the include list and file list - all of these are fixed */
-    A7M_Gen_Keil_Proj(Keil, Target, Device, Vendor, CPU_Type, FPU_Type, Endianness, Timeopt, Opt,
-                      0, 0,
-                      0, 0, 0);
-    fclose(Keil);
-
-    /* Generate the RVM keil project then */
-
-    /* Generate all other projects one by one */
+        EXIT_FAIL("Endianness value is invalid.");
 }
-/* End Function:A7M_Gen_Keil *************************************************/
-
-/* Begin Function:A7M_Gen_Makefile ********************************************
-Description : Generate the makefile project for ARMv7-M. 
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
-              ptr_t Output_Type - The output type.
-              s8* Output_Path - The output folder path.
-              s8* RME_Path - The RME root folder path.
-              s8* RVM_Path - The RVM root folder path.
-Output      : None.
-Return      : struct A7M_Pgtbl* - The page table structure returned.
-******************************************************************************/
-void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      ptr_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
-{
-    /* Generate the makefile project */
-}
-/* End Function:A7M_Gen_Makefile *********************************************/
+/* End Function:A7M_Parse_Options ********************************************/
 
 /* Begin Function:A7M_Total_Order *********************************************
 Description : Get the total order and the start address of the page table. 
@@ -3714,14 +3654,14 @@ void A7M_Map_Page(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
     ptr_t Mem_Cnt;
     ptr_t Page_Start;
     ptr_t Page_End;
-    s8* Page_Num;
+    ptr_t* Page_Num;
     ptr_t Max_Pages;
     ptr_t Max_Mem;
 
-    Page_Num=Malloc(Num);
+    Page_Num=Malloc(sizeof(ptr_t)*Num);
     if(Page_Num==0)
         EXIT_FAIL("Page count buffer allocation failed.");
-    memset(Page_Num, 0, Num);
+    memset(Page_Num, 0, (size_t)(sizeof(ptr_t)*Num));
 
     /* Use the attribute of the block that covers most pages */
     for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
@@ -3774,13 +3714,16 @@ void A7M_Map_Page(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
 
 /* Begin Function:A7M_Map_Pgdir ***********************************************
 Description : Map page directories into the page table. 
-Input       : struct Mem_Info* Mem - The memory block list.
+Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
+              struct A7M_Info* A7M - The chip structure.
+              struct Mem_Info* Mem - The memory block list.
               ptr_t Num - The number of memory blocks in the list.
               struct A7M_Pgtbl* Pgtbl - The current page table.
 Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
 Return      : None.
 ******************************************************************************/
-void A7M_Map_Pgdir(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
+void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M, 
+                   struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
 {
     ptr_t Page_Cnt;
     ptr_t Mem_Cnt;
@@ -3839,7 +3782,7 @@ void A7M_Map_Pgdir(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
             if(Mem_List_Ptr!=Mem_Num)
                 EXIT_FAIL("Internal bug occurred at page table allocator.");
 
-            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Mem_List, Mem_Num, Pgtbl->Size_Order);
+            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, Mem_List, Mem_Num, Pgtbl->Size_Order);
         }
     }
 }
@@ -3847,7 +3790,13 @@ void A7M_Map_Pgdir(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
 
 /* Begin Function:A7M_Gen_Pgtbl ***********************************************
 Description : Recursively construct the page table for the ARMv7-M port.
-Input       : struct Mem_Info* Mem - The struct containing memory segments to fit
+              This also allocates capid for page tables.
+              We have no idea at all how many page tables we are gonna have,
+              thus the A7M Pgtbl_Captbl needs to be preallocated with a very large
+              number, say, 4096.
+Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
+              struct A7M_Info* A7M - The chip structure.
+              struct Mem_Info* Mem - The struct containing memory segments to fit
                                      into this level (and below).
               ptr_t Num - The number of memory segments to fit in.
               ptr_t Total_Max - The maximum total order of the page table, cannot
@@ -3856,17 +3805,29 @@ Input       : struct Mem_Info* Mem - The struct containing memory segments to fi
 Output      : None.
 Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
+                                struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
 {
     ptr_t Total_Order;
     struct A7M_Pgtbl* Pgtbl;
+    static ptr_t Capid=0;
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
     if(Pgtbl==0)
         EXIT_FAIL("Page table data structure allocation failed.");
     memset(Pgtbl, 0, sizeof(struct A7M_Pgtbl));
-    
+
+    /* Allocate the capid for this page table */
+    Pgtbl->RVM_Capid=Capid;
+    A7M->Pgtbl_Captbl[Capid].Type=CAP_PGTBL;
+    A7M->Pgtbl_Captbl[Capid].Proc=Proc;
+    A7M->Pgtbl_Captbl[Capid].Cap=(void*)Pgtbl;
+    Capid++;
+    A7M->Pgtbl_Captbl_Frontier=Capid;
+    if(Capid>A7M_PGTBL_CAPTBL_SIZE)
+        EXIT_FAIL("Too many page tables allocated, exceeded the given pgtbl captbl size.");
+
     /* Total order and start address of the page table */
     Total_Order=A7M_Total_Order(Mem, Num, &(Pgtbl->Start_Addr));
     /* See if this will violate the extension limit */
@@ -3879,7 +3840,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max
     /* Map in all pages */
     A7M_Map_Page(Mem, Num, Pgtbl);
     /* Map in all page directories - recursive */
-    A7M_Map_Pgdir(Mem, Num, Pgtbl);
+    A7M_Map_Pgdir(Proc, A7M, Mem, Num, Pgtbl);
 
     return Pgtbl;
 }
@@ -3952,10 +3913,17 @@ void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_I
     sprintf(Buf1,"%s/M7M1_MuEukaron/Project",Output_Path);
     if(Make_Dir(Buf1)!=0)
         EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Project/Source",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
 
     /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
-    sprintf(Buf2,"%s/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
     if(Copy_File(Buf1, Buf2)!=0)
         EXIT_FAIL("File copying failed.");
     sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c",Output_Path);
@@ -3972,22 +3940,140 @@ void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_I
     if(Copy_File(Buf1, Buf2)!=0)
         EXIT_FAIL("File copying failed.");
     sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/rme_platform_a7m.h",Output_Path);
-    sprintf(Buf2,"%s/MEukaron/Include/Platform/A7M/rme_platform_a7m.c",RME_Path);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/A7M/rme_platform_a7m.h",RME_Path);
     if(Copy_File(Buf1, Buf2)!=0)
         EXIT_FAIL("File copying failed.");
     
     /* RVM directory */
 
-    /* Create all other process directories - not dealt with yet */
+    /* All other process directories */
 
     Free(Buf1);
     Free(Buf2);
 }
 /* End Function:A7M_Copy_Files ***********************************************/
 
+/* Begin Function:A7M_Gen_RME_Boot ********************************************
+Description : Generate the rme_boot.c. This file is mainly responsible for setting
+              up interrupt endpoints.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RME_Path, s8* Output_Path)
+{
+    /* Create the file and the file header */
+
+    /* Create all the interrupt endpoints selected for use */
+
+
+}
+/* End Function:A7M_Gen_RME_Boot *********************************************/
+
+/* Begin Function:A7M_Gen_RME_User ********************************************
+Description : Generate the rme_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RME_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_RME_User *********************************************/
+
+/* Begin Function:A7M_Gen_RME_Conf ********************************************
+Description : Generate the platform configuration selector file and the chip
+              configuration selector file. The chip configuration file will be
+              rewritten.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RME_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_RME_Conf *********************************************/
+
+/* Begin Function:A7M_Gen_RVM_Boot ********************************************
+Description : Generate the rvm_boot.c. This file is mainly responsible for setting
+              up all the kernel objects. If RVM or Posix functionality is enabled,
+              these will also be handled by such file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RVM_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_RVM_Boot *********************************************/
+
+/* Begin Function:A7M_Gen_RVM_User ********************************************
+Description : Generate the rvm_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RVM_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_RVM_User *********************************************/
+
+/* Begin Function:A7M_Gen_RVM_Conf ********************************************
+Description : Generate the platform configuration selector file and the chip
+              configuration selector file. The chip configuration file will be
+              rewritten.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      s8* RVM_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_RVM_Conf *********************************************/
+
 /* Begin Function:A7M_Gen_Scripts *********************************************
 Description : Generate boot-time scripts for ARMv7-M. This is also generic; 
               Format-specific scripts will be generated in the dedicated generator.
+              This creates boot-time scripts and user stubs for RME.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
               struct A7M_Info* A7M - The platform-specific project structure.
@@ -4000,6 +4086,22 @@ Return      : None.
 void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
                      s8* RME_Path, s8* RVM_Path, s8* Output_Path)
 {
+    /* Create rme_boot.c */
+    A7M_Gen_RME_Boot(Proj, Chip, A7M, RME_Path, Output_Path);
+    /* Create rme_user.c */
+    A7M_Gen_RME_User(Proj, Chip, A7M, RME_Path, Output_Path);
+    /* Create the configuration headers for RME */
+    A7M_Gen_RME_Conf(Proj, Chip, A7M, RME_Path, Output_Path);
+
+    /* Generate rvm_boot.c */
+    A7M_Gen_RVM_Boot(Proj, Chip, A7M, RVM_Path, Output_Path);
+    /* Create rvm_user.c */
+    A7M_Gen_RVM_User(Proj, Chip, A7M, RVM_Path, Output_Path);
+    /* Create the configuration headers for RVM */
+    A7M_Gen_RVM_Conf(Proj, Chip, A7M, RVM_Path, Output_Path);
+
+    /* Create projects */
+
     /* Write boot-time creation script that creates the interrupt endpoints */
     /* whatever it is - deal with this when we go back.  */
     /* Write the kernel script for sending interrupts to endpoints */
@@ -4011,101 +4113,464 @@ void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_
 }
 /* End Function:A7M_Gen_Scripts **********************************************/
 
-/* Begin Function:A7M_Parse_Options *******************************************
-Description : Parse the options that are specific to ARMv7-M.
+/* Begin Function:A7M_Gen_Keil_Proj *******************************************
+Description : Generate the keil project for ARMv7-M architectures.
+Input       : FILE* Keil - The file pointer to the project file.
+              s8* Target - The target executable name for the project.
+              s8* Device - The device name, must match the keil list.
+              s8* Vendor - The vendor name, must match the keil list.
+              s8* CPU_Type - The CPU type, must match the keil definitions.
+                             "Cortex-M0+", "Cortex-M3"， "Cortex-M4", "Cortex-M7".
+              s8* FPU_Type - The FPU type, must match the keil definition.
+                             "", "FPU2", "FPU3(SP)", "FPU3(DP)" 
+              s8* Endianness - The endianness. "ELITTLE" "EBIG"
+              ptr_t Timeopt - Set to 1 when optimizing for time.
+              ptr_t Opt - Optimization levels, 1 to 4 corresponds to O0-O3.
+              s8** Includes - The include paths.
+              ptr_t Include_Num - The number of include paths.
+              s8** Paths - The path of the files.
+              s8** Files - The file names.
+              ptr_t File_Num - The number of files.
+Output      : FILE* Keil - The file pointer to the project file.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_Proj(FILE* Keil,
+                       s8* Target, s8* Device, s8* Vendor, 
+                       s8* CPU_Type, s8* FPU_Type, s8* Endianness,
+                       ptr_t Timeopt, ptr_t Opt,
+                       s8** Includes, ptr_t Include_Num,
+                       s8** Paths, s8** Files, ptr_t File_Num)
+{
+    ptr_t Include_Cnt;
+    ptr_t File_Cnt;
+    s8* Dlloption;
+
+    if(strcmp(CPU_Type, "Cortex-M0+")==0)
+        Dlloption="-pCM0+";
+    else if(strcmp(CPU_Type, "Cortex-M3")==0)
+        Dlloption="-pCM3";
+    else if(strcmp(CPU_Type, "Cortex-M4")==0)
+        Dlloption="-pCM4";
+    else if(strcmp(CPU_Type, "Cortex-M7")==0)
+        Dlloption="-pCM7";
+    else
+        EXIT_FAIL("Internal CPU variant invalid.");
+
+    fprintf(Keil, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n");
+    fprintf(Keil, "<Project xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"project_projx.xsd\">\n");
+    fprintf(Keil, "  <SchemaVersion>2.1</SchemaVersion>\n");
+    fprintf(Keil, "  <Header>### uVision Project, (C) Keil Software</Header>\n");
+    fprintf(Keil, "  <Targets>\n");
+    fprintf(Keil, "    <Target>\n");
+    fprintf(Keil, "      <TargetName>%s</TargetName>\n", Target);
+    fprintf(Keil, "      <ToolsetNumber>0x4</ToolsetNumber>\n");
+    fprintf(Keil, "      <ToolsetName>ARM-ADS</ToolsetName>\n");
+    fprintf(Keil, "      <pCCUsed>ARMCC</pCCUsed>\n");
+    fprintf(Keil, "      <uAC6>0</uAC6>\n");
+    fprintf(Keil, "      <TargetOption>\n");
+    fprintf(Keil, "        <TargetCommonOption>\n");
+    fprintf(Keil, "          <Device>%s</Device>\n", Device);
+    fprintf(Keil, "          <Vendor>%s</Vendor>\n", Vendor);
+    fprintf(Keil, "          <Cpu>IRAM(0x08000000,0x10000) IROM(0x20000000,0x10000) CPUTYPE(\"%s\") %s CLOCK(12000000) %s</Cpu>\n", CPU_Type, FPU_Type, Endianness);
+    fprintf(Keil, "          <OutputDirectory>.\\Objects\\</OutputDirectory>\n");
+    fprintf(Keil, "          <OutputName>%s</OutputName>\n", Target);
+    fprintf(Keil, "          <CreateExecutable>1</CreateExecutable>\n");
+    fprintf(Keil, "          <CreateHexFile>1</CreateHexFile>\n");
+    fprintf(Keil, "          <DebugInformation>1</DebugInformation>\n");
+    fprintf(Keil, "          <BrowseInformation>1</BrowseInformation>\n");
+    fprintf(Keil, "          <ListingPath>.\\Listings\\</ListingPath>\n");
+    fprintf(Keil, "          <HexFormatSelection>1</HexFormatSelection>\n");
+    fprintf(Keil, "          <AfterMake>\n");
+    fprintf(Keil, "            <RunUserProg1>0</RunUserProg1>\n");
+    fprintf(Keil, "            <RunUserProg2>0</RunUserProg2>\n");
+    fprintf(Keil, "            <UserProg1Name></UserProg1Name>\n");
+    fprintf(Keil, "            <UserProg2Name></UserProg2Name>\n");
+    fprintf(Keil, "            <UserProg1Dos16Mode>0</UserProg1Dos16Mode>\n");
+    fprintf(Keil, "            <UserProg2Dos16Mode>0</UserProg2Dos16Mode>\n");
+    fprintf(Keil, "            <nStopA1X>0</nStopA1X>\n");
+    fprintf(Keil, "            <nStopA2X>0</nStopA2X>\n");
+    fprintf(Keil, "          </AfterMake>\n");
+    fprintf(Keil, "        </TargetCommonOption>\n");
+    fprintf(Keil, "        <CommonProperty>\n");
+    fprintf(Keil, "          <UseCPPCompiler>0</UseCPPCompiler>\n");
+    fprintf(Keil, "          <RVCTCodeConst>0</RVCTCodeConst>\n");
+    fprintf(Keil, "          <RVCTZI>0</RVCTZI>\n");
+    fprintf(Keil, "          <RVCTOtherData>0</RVCTOtherData>\n");
+    fprintf(Keil, "          <ModuleSelection>0</ModuleSelection>\n");
+    fprintf(Keil, "          <IncludeInBuild>1</IncludeInBuild>\n");
+    fprintf(Keil, "          <AlwaysBuild>0</AlwaysBuild>\n");
+    fprintf(Keil, "          <GenerateAssemblyFile>0</GenerateAssemblyFile>\n");
+    fprintf(Keil, "          <AssembleAssemblyFile>0</AssembleAssemblyFile>\n");
+    fprintf(Keil, "          <PublicsOnly>0</PublicsOnly>\n");
+    fprintf(Keil, "          <StopOnExitCode>3</StopOnExitCode>\n");
+    fprintf(Keil, "          <CustomArgument></CustomArgument>\n");
+    fprintf(Keil, "          <IncludeLibraryModules></IncludeLibraryModules>\n");
+    fprintf(Keil, "          <ComprImg>1</ComprImg>\n");
+    fprintf(Keil, "        </CommonProperty>\n");
+    fprintf(Keil, "        <DllOption>\n");
+    fprintf(Keil, "          <SimDllName>SARMCM3.DLL</SimDllName>\n");
+    fprintf(Keil, "          <SimDllArguments> -REMAP -MPU</SimDllArguments>\n");
+    fprintf(Keil, "          <SimDlgDll>DCM.DLL</SimDlgDll>\n");
+    fprintf(Keil, "          <SimDlgDllArguments>%s</SimDlgDllArguments>\n", Dlloption);
+    fprintf(Keil, "          <TargetDllName>SARMCM3.DLL</TargetDllName>\n");
+    fprintf(Keil, "          <TargetDllArguments> -MPU</TargetDllArguments>\n");
+    fprintf(Keil, "          <TargetDlgDll>TCM.DLL</TargetDlgDll>\n");
+    fprintf(Keil, "          <TargetDlgDllArguments>%s</TargetDlgDllArguments>\n", Dlloption);
+    fprintf(Keil, "        </DllOption>\n");
+    fprintf(Keil, "        <TargetArmAds>\n");
+    fprintf(Keil, "          <ArmAdsMisc>\n");
+    fprintf(Keil, "            <useUlib>1</useUlib>\n");
+    fprintf(Keil, "            <OptFeed>0</OptFeed>\n");
+    fprintf(Keil, "          </ArmAdsMisc>\n");
+    fprintf(Keil, "          <Cads>\n");
+    fprintf(Keil, "            <interw>1</interw>\n");
+    fprintf(Keil, "            <Optim>%d</Optim>\n", (size_t)Opt);
+    fprintf(Keil, "            <oTime>%d</oTime>\n", (Timeopt!=0));
+    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
+    fprintf(Keil, "            <OneElfS>1</OneElfS>\n");
+    fprintf(Keil, "            <Strict>0</Strict>\n");
+    fprintf(Keil, "            <EnumInt>1</EnumInt>\n");
+    fprintf(Keil, "            <PlainCh>1</PlainCh>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <wLevel>2</wLevel>\n");
+    fprintf(Keil, "            <uThumb>0</uThumb>\n");
+    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
+    fprintf(Keil, "            <uC99>1</uC99>\n");
+    fprintf(Keil, "            <uGnu>1</uGnu>\n");
+    fprintf(Keil, "            <useXO>0</useXO>\n");
+    fprintf(Keil, "            <v6Lang>1</v6Lang>\n");
+    fprintf(Keil, "            <v6LangP>1</v6LangP>\n");
+    fprintf(Keil, "            <vShortEn>1</vShortEn>\n");
+    fprintf(Keil, "            <vShortWch>1</vShortWch>\n");
+    fprintf(Keil, "            <v6Lto>0</v6Lto>\n");
+    fprintf(Keil, "            <v6WtE>0</v6WtE>\n");
+    fprintf(Keil, "            <v6Rtti>0</v6Rtti>\n");
+    fprintf(Keil, "            <VariousControls>\n");
+    fprintf(Keil, "              <MiscControls></MiscControls>\n");
+    fprintf(Keil, "              <Define></Define>\n");
+    fprintf(Keil, "              <Undefine></Undefine>\n");
+    fprintf(Keil, "              <IncludePath>");
+    /* Print all include paths for C */
+    for(Include_Cnt=0;Include_Cnt<Include_Num;Include_Cnt++)
+    {
+        fprintf(Keil, "%s", Includes[Include_Cnt]);
+        if(Include_Cnt<(Include_Num-1))
+            fprintf(Keil, ";");
+    }
+    fprintf(Keil, "</IncludePath>\n");
+    fprintf(Keil, "            </VariousControls>\n");
+    fprintf(Keil, "          </Cads>\n");
+    fprintf(Keil, "          <Aads>\n");
+    fprintf(Keil, "            <interw>1</interw>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <thumb>0</thumb>\n");
+    fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
+    fprintf(Keil, "            <SwStkChk>0</SwStkChk>\n");
+    fprintf(Keil, "            <NoWarn>0</NoWarn>\n");
+    fprintf(Keil, "            <uSurpInc>0</uSurpInc>\n");
+    fprintf(Keil, "            <useXO>0</useXO>\n");
+    fprintf(Keil, "            <uClangAs>0</uClangAs>\n");
+    fprintf(Keil, "            <VariousControls>\n");
+    fprintf(Keil, "              <MiscControls></MiscControls>\n");
+    fprintf(Keil, "              <Define></Define>\n");
+    fprintf(Keil, "              <Undefine></Undefine>\n");
+    fprintf(Keil, "              <IncludePath>");
+    /* Print all include paths for assembly */
+    for(Include_Cnt=0;Include_Cnt<Include_Num;Include_Cnt++)
+    {
+        fprintf(Keil, "%s", Includes[Include_Cnt]);
+        if(Include_Cnt<(Include_Num-1))
+            fprintf(Keil, ";");
+    }
+    fprintf(Keil, "</IncludePath>\n");
+    fprintf(Keil, "            </VariousControls>\n");
+    fprintf(Keil, "          </Aads>\n");
+    fprintf(Keil, "          <LDads>\n");
+    fprintf(Keil, "            <umfTarg>0</umfTarg>\n");
+    fprintf(Keil, "            <Ropi>0</Ropi>\n");
+    fprintf(Keil, "            <Rwpi>0</Rwpi>\n");
+    fprintf(Keil, "            <noStLib>0</noStLib>\n");
+    fprintf(Keil, "            <RepFail>1</RepFail>\n");
+    fprintf(Keil, "            <useFile>0</useFile>\n");
+    fprintf(Keil, "            <TextAddressRange>0x08000000</TextAddressRange>\n");
+    fprintf(Keil, "            <DataAddressRange>0x20000000</DataAddressRange>\n");
+    fprintf(Keil, "            <pXoBase></pXoBase>\n");
+    fprintf(Keil, "            <ScatterFile>.\\Objects\\%s.sct</ScatterFile>\n", Target);
+    fprintf(Keil, "            <IncludeLibs></IncludeLibs>\n");
+    fprintf(Keil, "            <IncludeLibsPath></IncludeLibsPath>\n");
+    fprintf(Keil, "            <Misc></Misc>\n");
+    fprintf(Keil, "            <LinkerInputFile></LinkerInputFile>\n");
+    fprintf(Keil, "            <DisabledWarnings></DisabledWarnings>\n");
+    fprintf(Keil, "          </LDads>\n");
+    fprintf(Keil, "        </TargetArmAds>\n");
+    fprintf(Keil, "      </TargetOption>\n");
+    fprintf(Keil, "      <Groups>\n");
+    /* Print all files. We only have two groups in all cases. */
+    fprintf(Keil, "        <Group>\n");
+    fprintf(Keil, "          <GroupName>%s</GroupName>\n", Target);
+    fprintf(Keil, "          <Files>\n");
+    for(File_Cnt=0;File_Cnt<File_Num;File_Cnt++)
+    {
+        fprintf(Keil, "            <File>\n");
+        fprintf(Keil, "              <FileName>%s</FileName>\n", Files[File_Cnt]);
+        if(Files[File_Cnt][strlen(Files[File_Cnt])-1]=='c')
+            fprintf(Keil, "              <FileType>1</FileType>\n");
+        else
+            fprintf(Keil, "              <FileType>2</FileType>\n");
+        fprintf(Keil, "              <FilePath>%s/%s</FilePath>\n", Paths[File_Cnt], Files[File_Cnt]);
+        fprintf(Keil, "            </File>\n");
+    }
+    fprintf(Keil, "          </Files>\n");
+    fprintf(Keil, "        </Group>\n");
+    fprintf(Keil, "        <Group>\n");
+    fprintf(Keil, "          <GroupName>User</GroupName>\n");
+    fprintf(Keil, "        </Group>\n");
+    fprintf(Keil, "      </Groups>\n");
+    fprintf(Keil, "    </Target>\n");
+    fprintf(Keil, "  </Targets>\n");
+    fprintf(Keil, "</Project>\n");
+}
+/* End Function:A7M_Gen_Keil_Proj ********************************************/
+
+/* Begin Function:A7M_Gen_Keil_RME ********************************************
+Description : Generate the RME files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform sprcific project structure.
+              struct A7M_Info* A7M - The port specific structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M)
+void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
+                      s8* RME_Path, s8* Output_Path)
 {
-    s8* Temp;
 
-    /* What is the NVIC grouping that we use? */
-    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "NVIC_Grouping");
-    if(Temp==0)
-        EXIT_FAIL("Missing NVIC grouping settings.");
-    if(strcmp(Temp,"0-8")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P0S8;
-    else if(strcmp(Temp,"1-7")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P1S7;
-    else if(strcmp(Temp,"2-6")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P2S6;
-    else if(strcmp(Temp,"3-5")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P3S5;
-    else if(strcmp(Temp,"4-4")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P4S4;
-    else if(strcmp(Temp,"5-3")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P5S3;
-    else if(strcmp(Temp,"6-2")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P6S2;
-    else if(strcmp(Temp,"7-1")==0)
-        A7M->NVIC_Grouping=A7M_NVIC_P7S1;
-    else
-        EXIT_FAIL("NVIC grouping value is invalid.");
-
-    /* What is the systick value? */
-    Temp=Raw_Match(&(Proj->RME.Plat_Raw), "Systick_Value");
-    if(Temp==0)
-        EXIT_FAIL("Missing systick value settings.");
-    A7M->Systick_Val=Get_Uint(Temp, &Temp[strlen(Temp)-1]);
-    if(A7M->Systick_Val>=INVALID)
-        EXIT_FAIL("Wrong systick value entered.");
-
-    /* What is the CPU type and the FPU type? */
-    Temp=Raw_Match(&(Chip->Attr_Raw), "CPU_Type");
-    if(Temp==0)
-        EXIT_FAIL("Missing CPU type settings.");
-    if(strcmp(Temp,"Cortex-M0+")==0)
-        A7M->CPU_Type=A7M_CPU_CM0P;
-    else if(strcmp(Temp,"Cortex-M3")==0)
-        A7M->CPU_Type=A7M_CPU_CM3;
-    else if(strcmp(Temp,"Cortex-M4")==0)
-        A7M->CPU_Type=A7M_CPU_CM4;
-    else if(strcmp(Temp,"Cortex-M7")==0)
-        A7M->CPU_Type=A7M_CPU_CM7;
-    else
-        EXIT_FAIL("CPU type value is invalid.");
-    
-    Temp=Raw_Match(&(Chip->Attr_Raw), "FPU_Type");
-    if(Temp==0)
-        EXIT_FAIL("Missing FPU type settings.");
-    if(strcmp(Temp,"None")==0)
-        A7M->FPU_Type=A7M_FPU_NONE;
-    else if(strcmp(Temp,"Single")==0)
-    {
-        if(A7M->CPU_Type==A7M_CPU_CM4)
-            A7M->FPU_Type=A7M_FPU_FPV4;
-        else if(A7M->CPU_Type==A7M_CPU_CM7)
-            A7M->FPU_Type=A7M_FPU_FPV5_SP;
-        else
-            EXIT_FAIL("FPU type and CPU type mismatch.");
-    }
-    else if(strcmp(Temp,"Double")==0)
-    {
-        if(A7M->CPU_Type==A7M_CPU_CM7)
-            A7M->FPU_Type=A7M_FPU_FPV5_DP;
-        else
-            EXIT_FAIL("FPU type and CPU type mismatch.");
-
-    }
-    else
-        EXIT_FAIL("FPU type value is invalid.");
-
-    /* What is the endianness? */
-    Temp=Raw_Match(&(Chip->Attr_Raw), "Endianness");
-    if(Temp==0)
-        EXIT_FAIL("Missing endianness settings.");
-    if(strcmp(Temp,"Little")==0)
-        A7M->NVIC_Grouping=A7M_END_LITTLE;
-    else if(strcmp(Temp,"Big")==0)
-        A7M->NVIC_Grouping=A7M_END_BIG;
-    else
-        EXIT_FAIL("Endianness value is invalid.");
 }
-/* End Function:A7M_Parse_Options ********************************************/
+/* End Function:A7M_Gen_Keil_RME *********************************************/
+
+/* Begin Function:A7M_Gen_Keil_RVM ********************************************
+Description : Generate the RVM files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
+                      s8* RVM_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_Keil_RVM *********************************************/
+
+/* Begin Function:A7M_Gen_Keil_Proc *******************************************
+Description : Generate the process files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
+                       s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_Keil_Proc ********************************************/
+
+/* Begin Function:A7M_Gen_Keil ************************************************
+Description : Generate the keil project for ARMv7-M. 
+              Keil projects include three parts: 
+              .uvmpw (the outside workspace)
+              .uvprojx (the specific project files)
+              .uvoptx (the options for some unimportant stuff)
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    /* Common for all projects */
+    s8* Device;
+    s8* Vendor;
+    s8* CPU_Type;
+    s8* FPU_Type;
+    s8* Endianness;
+    /* Project specific */
+    FILE* Keil;
+    s8* Proj_Path;
+    s8* Target;
+    ptr_t Opt;
+    ptr_t Timeopt;
+    /* Include path and project file buffer - we never exceed 8 */
+    s8* Includes[8];
+    ptr_t Include_Num;
+    s8* Paths[8];
+    s8* Files[8];
+    ptr_t File_Num;
+
+    /* Allocate project path buffer */
+    Proj_Path=Malloc(4096);
+    if(Proj_Path==0)
+        EXIT_FAIL("Project path allocation failed");
+
+    /* Decide process specific macros - only STM32 is like this */
+    if((strncmp(Proj->Chip,"STM32", 5)==0))
+    {
+        if(strncmp(Proj->Chip,"STM32F1", 7)==0)
+            Device=Proj->Chip;
+        else
+        {
+            Device=Malloc(((ptr_t)strlen(Proj->Fullname))+1);
+            strcpy(Device, Proj->Fullname);
+            /* Except for STM32F1, all chips end with suffix, and the last number is substituted with 'x' */
+            Device[strlen(Proj->Fullname)-1]='x';
+        }
+    }
+    else
+        Device=Proj->Chip;
+
+    Vendor=Chip->Vendor;
+
+    switch(A7M->CPU_Type)
+    {
+        case A7M_CPU_CM0P:CPU_Type="Cortex-M0+";break;
+        case A7M_CPU_CM3:CPU_Type="Cortex-M3";break;
+        case A7M_CPU_CM4:CPU_Type="Cortex-M4";break;
+        case A7M_CPU_CM7:CPU_Type="Cortex-M7";break;
+        default:EXIT_FAIL("Wrong CPU type selected.");break;
+    }
+
+    switch(A7M->FPU_Type)
+    {
+        case A7M_FPU_NONE:FPU_Type="";break;
+        case A7M_FPU_FPV4:FPU_Type="FPU2";break;
+        case A7M_FPU_FPV5_SP:FPU_Type="FPU3(SFPU)";break;
+        case A7M_FPU_FPV5_DP:FPU_Type="FPU3(DFPU)";break;
+        default:EXIT_FAIL("Wrong FPU type selected.");break;
+    }
+
+    if(A7M->Endianness==A7M_END_LITTLE)
+        Endianness="ELITTLE";
+    else if(A7M->Endianness==A7M_END_BIG)
+        Endianness="EBIG";
+    else
+        EXIT_FAIL("Wrong endianness specified.");
+
+    /* Generate the RME keil project first */
+    sprintf(Proj_Path, "%s/M7M1_MuEukaron/Project/%s_RME.uvprojx", Output_Path, Proj->Name);
+    Keil=fopen(Proj_Path, "wb");
+    Target="RME";
+    Opt=Proj->RME.Comp.Opt+1;
+    Timeopt=Proj->RME.Comp.Prio;
+    /* Allocate the include list */
+    Includes[0]=".";
+    Includes[1]="./Source";
+    Includes[2]="../MEukaron/Include";
+    Include_Num=3;
+    /* Allocate the file list */
+    Paths[0]="./Source";
+    Files[0]="rme_boot.c";
+    Paths[1]="./Source";
+    Files[1]="rme_user.c";
+    Paths[2]="../MEukaron/Kernel";
+    Files[2]="rme_kernel.c";
+    Paths[3]="../MEukaron/Platform/A7M";
+    Files[3]="rme_platform_a7m.c";
+    if(A7M->CPU_Type==A7M_CPU_CM0P)
+    {
+        Paths[4]="../MEukaron/Platform/A7M";
+        Files[4]="rme_platform_a7m0.s";
+    }
+    else
+    {
+        Paths[4]="../MEukaron/Platform/A7M";
+        Files[4]="rme_platform_a7m.s";
+    }
+    File_Num=5;
+    /* Generate whatever files that are keil specific */
+    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
+    /* Actually generate the project */
+    A7M_Gen_Keil_Proj(Keil, Target, Device, Vendor, CPU_Type, FPU_Type, Endianness,
+                      Timeopt, Opt,
+                      Includes, Include_Num,
+                      Paths, Files, File_Num);
+    fclose(Keil);
+
+    /* Generate the RVM keil project then */
+
+    /* Generate all other projects one by one */
+
+    /* Finally, generate the uvmpw at the root folder */
+    
+    /* Free project buffer */
+    Free(Proj_Path);
+}
+/* End Function:A7M_Gen_Keil *************************************************/
+
+/* Begin Function:A7M_Gen_Makefile ********************************************
+Description : Generate the makefile project for ARMv7-M. 
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The port specific structure.
+              ptr_t Output_Type - The output type.
+              s8* Output_Path - The output folder path.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+Output      : None.
+Return      : struct A7M_Pgtbl* - The page table structure returned.
+******************************************************************************/
+void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                      ptr_t Output_Type, s8* Output_Path, s8* RME_Path, s8* RVM_Path)
+{
+    /* Generate the makefile project */
+}
+/* End Function:A7M_Gen_Makefile *********************************************/
+
+/* Begin Function:A7M_Gen_Check ***********************************************
+Description : Check if the input is really valid for the ARMv7-M port.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Check(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    ptr_t Proc_Cnt;
+    ptr_t Mem_Cnt;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        /* Check memory blocks - they must be at least readable */
+        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        {
+            if((Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
+        /* Check if the capability table of processes, plus the extra captbl space
+         * required, exceeds 128 - this is simply not allowed for processes. */
+        if((Proj->Proc[Proc_Cnt].Captbl_Frontier+Proj->Proc[Proc_Cnt].Extra_Captbl)>A7M_PROC_CAPTBL_LIMIT)
+            EXIT_FAIL("One of the processes have more capabilities in its capability table than allowed.");
+    }
+}
+/* End Function:A7M_Gen_Check ************************************************/
 
 /* Begin Function:A7M_Gen_Proj ************************************************
 Description : Generate the project for Cortex-M based processors.
@@ -4130,20 +4595,25 @@ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
         EXIT_FAIL("Platform specific project struct allocation failed.");
     /* Parse A7M-specific options */
     A7M_Parse_Options(Proj, Chip, A7M);
+    /* Check if we can really create such a system */
+    A7M_Gen_Check(Proj, Chip);
+    /* Allocate page table global captbl - it is unlikely that this number gets exceeded */
+    A7M->Pgtbl_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*A7M_PGTBL_CAPTBL_SIZE);
     /* Allocate page tables for all processes */
     A7M->Pgtbl=Malloc(sizeof(struct A7M_Pgtbl*)*Proj->Proc_Num);
     if(A7M->Pgtbl==0)
         EXIT_FAIL("Project page table allocation failed.");
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
-        A7M->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
+        A7M->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(&(Proj->Proc[Proc_Cnt]),A7M,
+                                           Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
         if(A7M->Pgtbl[Proc_Cnt]==0)
             EXIT_FAIL("Page table generation failed.");
     }
 
     /* Set up the folder structures, and copy all files to where they should be */
     A7M_Copy_Files(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
-    /* Write the boot-time creation script */
+    /* Write the files that are tool-independent */
     A7M_Gen_Scripts(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
 
 	/* Create the folder first and copy all necessary files into whatever possible */
@@ -4232,6 +4702,37 @@ Let's just provide all MCU examples with that. This is probably the best we can 
               the memory map for it, or have something statically mapped.
               Multi-core MPU cannot really take this without instruction access address. This is too bad. 
               This is going to be tough - not that easy.
+
+              It is possible to deal with IACCVIOL, code pages not necessarily need to be STATIC.
+              we know where PSP is, from PSP we can directly find the faulting instruction address.
+              This is supposed to be easy.
+              How to know whether we can even kernel? access that address? walk the page tables, you got it.
+
+              Cap_Kern is not supported by now, consider supporting it later. This is vital.
+
+              Add another functionality so that the generated projects can be targeted again. 
+              In this case, we don't touch the user file, because it may contain some user logic.
+
+              The project is not touched as well, because the user may have already added his or her
+              own libraries.
+
+              Code/data section placement also a problem. we should not allow overlapping code sections...
+              or it is required that the code section be placed into somewhere. 
+              Where do we actually place our code and data when generating something???? This is important.
+              If not, we will be in trouble.
+              We need to let the user designate which does he hope to place the stuff in....
+              Or, we can default to the first one encountered. 
+              This is always the easiest way.
+              Data covering each other in the final image is fine; but code is not.
+              We cannot overlap code. this is illegal.
+              We need to add such checks to it.
+
+              parts of the A7M file generation really needs to be moved out, especially the 
+              endpoint generations. This is important, so the code to generate processes can
+              actually get reused.
+              Again, we need a better abstraction.
+              The synergy between multi-core, RVM and posix is still to be discussed.
+              shared memory is another nice feature to have.
      */
 }
 /* End Function:A7M_Gen_Proj *************************************************/
