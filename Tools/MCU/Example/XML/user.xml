@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project> 
-    <Name>M7M1</Name>
+    <Name>Test_Proj</Name>
     <Platform>A7M</Platform>
     <Chip>STM32F767IG</Chip>
     <Fullname>STM32F767IGT6</Fullname>
