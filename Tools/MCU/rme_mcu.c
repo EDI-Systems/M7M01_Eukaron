@@ -50,6 +50,7 @@ Description : The configuration generator for the MCU ports. This does not
 #include "memory.h"
 #include "stdlib.h"
 #include "string.h"
+#include "time.h"
 
 #if(defined _WIN32)
 #include "Windows.h"
@@ -93,20 +94,9 @@ Description : The configuration generator for the MCU ports. This does not
 #define MEM_BUFFERABLE      POW2(3)
 #define MEM_CACHEABLE       POW2(4)
 #define MEM_STATIC          POW2(5)
-/* Endpoint types */
-#define ENDP_SEND           (0)
-#define ENDP_RECEIVE        (1)
-#define ENDP_HANDLER        (2)
 /* Option types */
 #define OPTION_RANGE        (0)
 #define OPTION_SELECT       (1)
-/* Kernel object types */
-#define CAP_CAPTBL          (0)
-#define CAP_PGTBL           (1)
-#define CAP_PROC            (2)
-#define CAP_THD             (3)
-#define CAP_INV             (4)
-#define CAP_ENDP            (5)
 /* Failure reporting macros */
 #define EXIT_FAIL(Reason) \
 do \
@@ -161,28 +151,43 @@ struct List
 /* Compiler information */
 struct Comp_Info
 {
+    /* Optimization level */
 	ptr_t Opt;
+    /* Priority */
 	ptr_t Prio;
 };
 /* Raw information to be fed to the platform-specific parser */
 struct Raw_Info
 {
+    /* Number of tags */
 	ptr_t Num;
+    /* Tags */
 	s8** Tag;
+    /* Value of tags */
 	s8** Value;
 };
 /* RME kernel information */
 struct RME_Info
 {
+    /* Compiler information */
 	struct Comp_Info Comp;
+    /* RME code section start address */
 	ptr_t Code_Start;
+    /* RME code section size */
 	ptr_t Code_Size;
+    /* RME data section start address */
 	ptr_t Data_Start;
+    /* RME data section size */
 	ptr_t Data_Size;
+    /* Extra amount of kernel memory */
 	ptr_t Extra_Kmem;
+    /* Slot order of kernel memory */
 	ptr_t Kmem_Order;
+    /* Priorities supported */
 	ptr_t Kern_Prios;
+    /* Raw information about platform, to be deal with by the platform-specific generator */
 	struct Raw_Info Plat_Raw;
+    /* Raw information about chip, to be deal with by the platform-specific generator */
 	struct Raw_Info Chip_Raw;
 };
 /* RVM's capability information, from the user processes */
@@ -190,18 +195,21 @@ struct RVM_Cap_Info
 {
     /* What process is this capability in? */
     struct Proc_Info* Proc;
-    /* What capability is it? */
-    ptr_t Type;
     /* What's the content of the capability, exactly? */
     void* Cap;
 };
 /* RVM user-level library information. */
 struct RVM_Info
 {
+    /* Compiler information */
 	struct Comp_Info Comp;
+    /* Size of the code section. This always immediately follow the code section of RME. */
     ptr_t Code_Size;
+    /* Size of the data section. This always immediately follow the data section of RME. */
     ptr_t Data_Size;
+    /* The extra amount in the main capability table */
 	ptr_t Extra_Captbl;
+    /* The recovery mode - by thread, process or the whole system? */
 	ptr_t Recovery;
     /* Global captbl containing captbls */
     ptr_t Captbl_Captbl_Frontier;
@@ -215,136 +223,251 @@ struct RVM_Info
     /* Global captbl containing invocations */
     ptr_t Inv_Captbl_Frontier;
     struct RVM_Cap_Info* Inv_Captbl;
-    /* Global captbl containing non-kernel endpoints */
-    ptr_t Endp_Captbl_Frontier;
-    struct RVM_Cap_Info* Endp_Captbl;
+    /* Global captbl containing receive endpoints */
+    ptr_t Recv_Captbl_Frontier;
+    struct RVM_Cap_Info* Recv_Captbl;
     /* Global captbl containing kernel endpoints - actually created by kernel itself */
-    ptr_t Handler_Captbl_Frontier;
-    struct RVM_Cap_Info* Handler_Captbl;
+    ptr_t Vector_Captbl_Frontier;
+    struct RVM_Cap_Info* Vector_Captbl;
 };
 /* Memory segment information */
 struct Mem_Info
 {
+    /* The start address */
 	ptr_t Start;
+    /* The size */
 	ptr_t Size;
+    /* The type - code, data or device */
 	ptr_t Type;
+    /* The attributes - read, write, execute, cacheable, bufferable, static */
 	ptr_t Attr;
+    /* The alignment granularity */
     ptr_t Align;
 };
 /* Thread information */
 struct Thd_Info
 {
+    /* Name of the thread, unique in a process */
 	s8* Name;
+    /* The local capability ID */
     ptr_t Capid;
+    /* The macro denoting the local capability ID */
+    s8* Capid_Macro;
+    /* The global linear capability ID */
     ptr_t RVM_Capid;
+    /* The macro denoting the global capability ID */
+    s8* RVM_Capid_Macro;
+    /* The entry of the thread */
 	s8* Entry;
+    /* The stack address of the thread */
 	ptr_t Stack_Addr;
+    /* The stack size of the thread */
 	ptr_t Stack_Size;
+    /* The parameter passed to the thread */
 	s8* Parameter;
+    /* The priority of the thread */
 	ptr_t Priority;
 };
 /* Invocation information */
 struct Inv_Info
 {
+    /* The name of the invocation, unique in a process */
 	s8* Name;
+    /* The local capid */
     ptr_t Capid;
+    /* The macro denoting the local capid */
+    s8* Capid_Macro;
+    /* The global linear capid of the invocation */
     ptr_t RVM_Capid;
+    /* The macro denoting the global capid */
+    s8* RVM_Capid_Macro;
+    /* The entry address of the invocation */
 	s8* Entry;
+    /* The stack address of the invocation */
 	ptr_t Stack_Addr;
+    /* The stack size of the invocation */
 	ptr_t Stack_Size;
 };
 /* Port information */
 struct Port_Info
 {
+    /* The name of the port, unique in a process, and must have
+     * a corresponding invocation in the process designated. */
 	s8* Name;
+    /* The local capid of the port */
     ptr_t Capid;
+    /* The macro denoting the global capid */
+    s8* Capid_Macro;
+    /* The global linear capid of the port */
     ptr_t RVM_Capid;
+    /* The macro denoting the global capid */
+    s8* RVM_Capid_Macro;
+    /* The process's name */
     s8* Process;
 };
-/* Endpoint information */
-struct Endp_Info
+/* Receive endpoint information */
+struct Recv_Info
 {
+    /* The name of the receive endpoint, unique in a process */
 	s8* Name;
+    /* The local capid of the port */
     ptr_t Capid;
+    /* The macro denoting the global capid */
+    s8* Capid_Macro;
+    /* The global linear capid of the endpoint */
     ptr_t RVM_Capid;
-	ptr_t Type;
+    /* The macro denoting the global capid */
+    s8* RVM_Capid_Macro;
+};
+/* Send endpoint information */
+struct Send_Info
+{
+    /* The name of the send endpoint, unique in a process, and must 
+     * have a corresponding receive endpoint in the process designated. */
+	s8* Name;
+    /* The local capid of the port */
+    ptr_t Capid;
+    /* The macro denoting the global capid */
+    s8* Capid_Macro;
+    /* The global linear capid of the endpoint */
+    ptr_t RVM_Capid;
+    /* The macro denoting the global capid */
+    s8* RVM_Capid_Macro;
+    /* The process's name, only useful for send endpoints */
     s8* Process;
+};
+/* Vector endpoint information */
+struct Vect_Info
+{
+    /* The name of the vector endpoint, globally unique, and must have
+     * a corresponding interrupt vector designated. */
+	s8* Name;
+    /* The local capid of the port */
+    ptr_t Capid;
+    /* The macro denoting the global capid */
+    s8* Capid_Macro;
+    /* The global linear capid of the endpoint */
+    ptr_t RVM_Capid;
+    /* The macro denoting the global capid */
+    s8* RVM_Capid_Macro;
 };
 /* Process information */
 struct Proc_Info
 {
+    /* The name of the process */
     s8* Name;
+    /* The global linear capid of the process */
     ptr_t RVM_Proc_Capid;
+    /* The macro denoting the linear capid */
+    s8* RVM_Proc_Capid_Macro;
+    /* The global linear capid of the process's captbl */
     ptr_t RVM_Captbl_Capid;
+    /* The macro denoting the linear capid */
+    s8* RVM_Captbl_Capid_Macro;
+    /* The extra first level captbl capacity required */
 	ptr_t Extra_Captbl;
+    /* The current local capability table frontier */ 
     ptr_t Captbl_Frontier;
+    /* The compiler information */
 	struct Comp_Info Comp;
+    /* The memory trunk information */
 	ptr_t Mem_Num;
 	struct Mem_Info* Mem;
+    /* The thread information */
 	ptr_t Thd_Num;
 	struct Thd_Info* Thd;
+    /* The invocation information */
 	ptr_t Inv_Num;
 	struct Inv_Info* Inv;
+    /* The port information */
 	ptr_t Port_Num;
 	struct Port_Info* Port;
+    /* The endpoint information */
 	ptr_t Endp_Num;
 	struct Endp_Info* Endp;
 };
 /* Whole project information */
 struct Proj_Info
 {
+    /* The name of the project */
 	s8* Name;
+    /* The platform used */
     s8* Platform;
+    /* The chip class used */
 	s8* Chip;
+    /* The full name of the exact chip used */
     s8* Fullname;
+    /* The RME kernel information */
 	struct RME_Info RME;
+    /* The RVM user-library information */
 	struct RVM_Info RVM;
+    /* The process information */
 	ptr_t Proc_Num;
 	struct Proc_Info* Proc;
 };
 /* Chip option macro informations */
 struct Option_Info
 {
+    /* The name of this option */
 	s8* Name;
+    /* The type of the option - selection or range */
 	ptr_t Type;
+    /* The corresponding macro */
 	s8* Macro;
     /* Only one of these will take effect */
+    /* Minimum and maximum range */
     ptr_t Range_Min;
     ptr_t Range_Max;
+    /* Select options */
     ptr_t Select_Num;
 	s8** Select_Opt;
 };
 /* Vector informations */
-struct Vect_Info
+struct Chip_Vect_Info
 {
+    /* The name of the vector */
 	s8* Name;
+    /* The vector number */
 	ptr_t Number;
 };
 /* Chip information - this is platform independent as well */
 struct Chip_Info
 {
+    /* The name of the chip class */
 	s8* Name;
+    /* The vendor */
     s8* Vendor;
+    /* The platform */
 	s8* Platform;
+    /* The number of CPU cores */
 	ptr_t Cores;
+    /* The number of MPU regions */
     ptr_t Regions;
+    /* The platform-specific attributes to be passed to the platform-specific generator */
     struct Raw_Info Attr_Raw;
+    /* Memory information */
 	ptr_t Mem_Num;
 	struct Mem_Info* Mem;
+    /* Option information */
 	ptr_t Option_Num;
 	struct Option_Info* Option;
+    /* Interrupt vector information */
 	ptr_t Vect_Num;
-	struct Vect_Info* Vect;
+	struct Chip_Vect_Info* Vect;
 };
 
 /* Memory map information - min granularity 4B */
 struct Mem_Map
 {
+    /* Number of memory trunks */
     ptr_t Mem_Num;
+    /* Bitmaps of these memory trunks */
     s8** Mem_Bitmap;
+    /* The memory trunk list */
     struct Mem_Info** Mem_Array;
-
+    /* The unallocated memory requirements in all processes */
     ptr_t Proc_Mem_Num;
+    /* The exact list of these unallocated requirements */
     struct Mem_Info** Proc_Mem_Array;
 };
 /* End Structs ***************************************************************/
@@ -1518,8 +1641,8 @@ ret_t Parse_Endpoint(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Endp_Num, s8*
         Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_SEND;
     else if(strncmp(Val_Start,"Receive",7)==0)
         Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_RECEIVE;
-    else if(strncmp(Val_Start,"Handler",7)==0)
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_HANDLER;
+    else if(strncmp(Val_Start,"Vector",7)==0)
+        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_VECTOR;
     else
         EXIT_FAIL("The endpoint type is malformed.");
     /* Process */
@@ -2685,13 +2808,13 @@ ret_t Validate_Name(s8* Name)
 }
 /* End Function:Validate_Name ************************************************/
 
-/* Begin Function:Detect_Handler **********************************************
-Description : Detect handler conflicts in the system.
+/* Begin Function:Detect_Vector ***********************************************
+Description : Detect vector conflicts in the system.
 Input       : struct Proj_Info* Proj - The project information struct.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Detect_Handler(struct Proj_Info* Proj)
+void Detect_Vector(struct Proj_Info* Proj)
 {
     ptr_t Proc_Cnt;
     ptr_t Proc_Tmp_Cnt;
@@ -2703,11 +2826,11 @@ void Detect_Handler(struct Proj_Info* Proj)
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
-        /* Check that every handler name is globally unique */
+        /* Check that every vector name is globally unique */
         for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
         {
             Endp=&(Proc->Endp[Obj_Cnt]);
-            if(Endp->Type!=ENDP_HANDLER)
+            if(Endp->Type!=ENDP_VECTOR)
                 continue;
             for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
             {
@@ -2717,13 +2840,13 @@ void Detect_Handler(struct Proj_Info* Proj)
                         continue;
 
                     if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)
-                        EXIT_FAIL("Duplicate handlers found.");
+                        EXIT_FAIL("Duplicate vectors found.");
                 }
             }
         }
     }       
 }
-/* End Function:Detect_Handler ***********************************************/
+/* End Function:Detect_Vector ************************************************/
 
 /* Begin Function:Detect_Conflict *********************************************
 Description : Detect namespace conflicts in the system. It also checks if the
@@ -2820,13 +2943,13 @@ void Detect_Conflict(struct Proj_Info* Proj)
         }
     }
     
-    /* Handler endpoints needs to be unique across the system, and should not share the same name
+    /* Vector endpoints needs to be unique across the system, and should not share the same name
      * with any other endpoint. Let's check this with a dedicated function */
-    Detect_Handler(Proj);
+    Detect_Vector(Proj);
 }
 /* End Function:Detect_Conflict **********************************************/
 
-/* Begin Function:Alloc_Local_ID **********************************************
+/* Begin Function:Alloc_Local_Capid *******************************************
 Description : Allocate local capability IDs for all kernel objects. 
               We always allocate threads first, then invocations, then ports,
               then endpoints.
@@ -2834,7 +2957,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Alloc_Local_ID(struct Proj_Info* Proj)
+void Alloc_Local_Capid(struct Proj_Info* Proj)
 {
     ptr_t Proc_Cnt;
     ptr_t Obj_Cnt;
@@ -2868,9 +2991,9 @@ void Alloc_Local_ID(struct Proj_Info* Proj)
         Proc->Captbl_Frontier=Capid;
     }
 }
-/* End Function:Alloc_Local_ID ***********************************************/
+/* End Function:Alloc_Local_Capid ********************************************/
 
-/* Begin Function:Alloc_Global_ID *********************************************
+/* Begin Function:Alloc_Global_Capid ******************************************
 Description : Allocate (relative) global capability IDs for all kernel objects. 
               Each global object will reside in its onw capability table. 
               This facilitates management, and circumvents the capability size
@@ -2879,12 +3002,12 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Alloc_Global_ID(struct Proj_Info* Proj)
+void Alloc_Global_Capid(struct Proj_Info* Proj)
 {
     /* How many distinct kernel objects are there? We just need to add up the
      * following: All captbls (each process have one), all processes, all threads,
      * all invocations, all receive endpoints. The ports and send endpoints do not
-     * have a distinct kernel object; the handler endpoints are created by the kernel
+     * have a distinct kernel object; the vector endpoints are created by the kernel
      * at boot-time, while the pgtbls are decided by architecture-specific code. */
     ptr_t Proc_Cnt;
     ptr_t Obj_Cnt;
@@ -2993,19 +3116,19 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
             }
         }
     }
-    /* Fill in all handler endpoints */
+    /* Fill in all vector endpoints */
     Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
         {
-            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_HANDLER)
+            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_VECTOR)
                Capid++;
         }
     }
-    Proj->RVM.Handler_Captbl_Frontier=Capid;
-    Proj->RVM.Handler_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Handler_Captbl_Frontier);
-    if(Proj->RVM.Handler_Captbl==0)
+    Proj->RVM.Vector_Captbl_Frontier=Capid;
+    Proj->RVM.Vector_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Vector_Captbl_Frontier);
+    if(Proj->RVM.Vector_Captbl==0)
         EXIT_FAIL("Global capability table for endpoints failed.");
     Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
@@ -3013,20 +3136,20 @@ void Alloc_Global_ID(struct Proj_Info* Proj)
         Proc=&(Proj->Proc[Proc_Cnt]);
         for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
         {
-            if(Proc->Endp[Obj_Cnt].Type==ENDP_HANDLER)
+            if(Proc->Endp[Obj_Cnt].Type==ENDP_VECTOR)
             {
-                Proj->RVM.Handler_Captbl[Capid].Proc=Proc;
-                Proj->RVM.Handler_Captbl[Capid].Type=CAP_ENDP;
-                Proj->RVM.Handler_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
+                Proj->RVM.Vector_Captbl[Capid].Proc=Proc;
+                Proj->RVM.Vector_Captbl[Capid].Type=CAP_ENDP;
+                Proj->RVM.Vector_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
                 Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
                 Capid++;
             }
         }
     }
 }
-/* End Function:Alloc_Global_ID **********************************************/
+/* End Function:Alloc_Global_Capid *******************************************/
 
-/* Begin Function:Backprop_Global_ID ******************************************
+/* Begin Function:Backprop_Global_Capid ***************************************
 Description : Back propagate the global ID to all the ports and send endpoints,
               which are derived from kernel objects. Also detects if all the port
               and send endpoint names in the system are valid. If any of them includes
@@ -3036,7 +3159,7 @@ Input       : struct Proj_Info* Proj - The project information structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Backprop_Global_ID(struct Proj_Info* Proj, struct Chip_Info* Chip)
+void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     ptr_t Proc_Cnt;
     ptr_t Proc_Tmp_Cnt;
@@ -3096,11 +3219,11 @@ void Backprop_Global_ID(struct Proj_Info* Proj, struct Chip_Info* Chip)
             if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Endp_Num)
                 EXIT_FAIL("One of the send endpoints does not have a corresponding receive endpoint.");
         }
-        /* For every handler, there must be a interrupt vector somewhere */
+        /* For every vector, there must be a interrupt vector somewhere */
         for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
         {
             Endp=&(Proc->Endp[Obj_Cnt]);
-            if(Endp->Type!=ENDP_HANDLER)
+            if(Endp->Type!=ENDP_VECTOR)
                 continue;
             for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Chip->Vect_Num;Obj_Tmp_Cnt++)
             {
@@ -3111,11 +3234,47 @@ void Backprop_Global_ID(struct Proj_Info* Proj, struct Chip_Info* Chip)
                 }
             }
             if(Obj_Tmp_Cnt==Chip->Vect_Num)
-                EXIT_FAIL("One of the handler endpoints does not have a corresponding vector.");
+                EXIT_FAIL("One of the vector endpoints does not have a corresponding vector.");
         }
     }
 }
-/* End Function:Backprop_Global_ID *******************************************/
+/* End Function:Backprop_Global_Capid ****************************************/
+
+/* Begin Function:Alloc_Capid_Macros ******************************************
+Description : Allocate the capability ID macros. Both the local one and the global
+              one will be allocated. It might be better if we separate send, receive and handler...
+              just separate them into different sections. This will make things much easier to write,
+              and doesn't complicate the stuff really as much.
+              The allocation table is shown below:
+-------------------------------------------------------------------------------
+Type            Local                           Global
+-------------------------------------------------------------------------------
+Process         -                               RVM_PROC_<PROCNAME>
+-------------------------------------------------------------------------------
+Captbl          -                               RVM_CAPTBL_<PROCNAME>
+-------------------------------------------------------------------------------
+Thread          THD_<THDNAME>                   RVM_PROC_<PROCNAME>_THD_<THDNAME>
+-------------------------------------------------------------------------------
+Invocation      INV_<INVNAME>                   RVM_PROC_<PROCNAME>_INV_<INVNAME>
+-------------------------------------------------------------------------------
+Port            PROC_<PROCNAME>_PORT_<PORTNAME> (Inherit invocation name)
+-------------------------------------------------------------------------------
+Send            PROC_<PROCNAME>_SEND_<ENDPNAME> (Inherit receive endpoint name)
+-------------------------------------------------------------------------------
+Receive         RECV_<ENDPNAME>                 RVM_PROC_<PROCNAME>_RECV_<RECVNAME>
+-------------------------------------------------------------------------------
+Vector          VECT_<VECTNAME>                 RVM_VECT_<VECTNAME>
+-------------------------------------------------------------------------------
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Capid_Macros(struct Proj_Info* Proj,  struct Chip_Info* Chip)
+{
+    
+}
+/* End Function:Alloc_Capid_Macros *******************************************/
 
 /* Begin Function:Alloc_Captbl ************************************************
 Description : Allocate the capability table entries for the processes, then for
@@ -3130,11 +3289,13 @@ void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip)
     /* First, check whether there are conflicts - this is not case insensitive */
     Detect_Conflict(Proj);
     /* Allocate local project IDs for all entries */
-    Alloc_Local_ID(Proj);
+    Alloc_Local_Capid(Proj);
     /* Allocate global project IDs for kernel object entries */
-    Alloc_Global_ID(Proj);
+    Alloc_Global_Capid(Proj);
     /* Back propagate global entrie number to the ports and send endpoints */
-    Backprop_Global_ID(Proj, Chip);
+    Backprop_Global_Capid(Proj, Chip);
+    /* Allocate the global and local macros to them */
+    Alloc_Capid_Macros(Proj, Chip);
 }
 /* End Function:Alloc_Captbl *************************************************/
 
@@ -3184,7 +3345,7 @@ s8* Raw_Match(struct Raw_Info* Info, s8* Tag)
 /* Begin Function:Write_Src_Desc **********************************************
 Description : Output the header that is sticked to every C file.
 Input       : FILE* File - The pointer to the file.
-              s8* Filenama - The name of the file.
+              s8* Filename - The name of the file.
               s8* Author - The author of the file.
               s8* Date - The date of the file.
               s8* License - The license of the file.
@@ -3218,6 +3379,45 @@ void Write_Src_Footer(FILE* File)
     fprintf(File, "\n");
 }
 /* End Function:Write_Src_Footer *********************************************/
+
+/* Begin Function:Make_Define *************************************************
+Description : Make a define statement in the file. The define statement can have
+              three parts, which will be converted to uppercase and concatenated
+              together.
+Input       : FILE* File - The file structure.
+              s8* Start - The first part of the macro.
+              s8* Middle - The second part of the macro.
+              s8* End - The third part of the macro.
+              s8* Value - The value of the macro.
+              s8* Align - The alignment, must be bigger than 4.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Make_Define(FILE* File, s8* Start, s8* Middle, s8* End, s8* Value, ptr_t Align)
+{
+    s8* Buf;
+    s8* Upper;
+    ptr_t Count;
+
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+    Upper=Malloc(4096);
+    if(Upper==0)
+        EXIT_FAIL("Buffer allocation failed.");
+    /* Convert the string to upper case */
+    sprintf(Upper, "%s%s%s", Start, Middle, End);
+    Count=0;
+    while(Upper[Count]!='\0')
+        Upper[Count]=toupper(Upper[Count]);
+    /* Print to file */
+    sprintf(Buf, "%%-%llds    (%%s)\n", Align-4);
+    fprintf(File, Buf, Upper, Value);
+    /* Free buffers */
+    Free(Buf);
+    Free(Upper);
+}
+/* End Function:Make_Define **************************************************/
 
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
@@ -3336,6 +3536,10 @@ moment.
 #define A7M_PGTBL_CAPTBL_SIZE   (4096)
 /* The process capability table size limit */
 #define A7M_PROC_CAPTBL_LIMIT   (128)
+/* The A7M port author name */
+#define A7M_AUTHOR              "The A7M project generator"
+/* The A7M boot-time capability table starting slot */
+#define A7M_CAPTBL_START        (8)
 /* End Defines ***************************************************************/
 
 /* Structs *******************************************************************/
@@ -3956,6 +4160,9 @@ void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_I
 /* Begin Function:A7M_Gen_RME_Boot ********************************************
 Description : Generate the rme_boot.c. This file is mainly responsible for setting
               up interrupt endpoints.
+              A corresponding file, rme_boot.h is also created. Different from
+              other headers, this header only includes the capability IDs of all
+              created kernel endpoints.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
               struct A7M_Info* A7M - The platform-specific project structure.
@@ -3968,9 +4175,54 @@ void A7M_Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M
                       s8* RME_Path, s8* Output_Path)
 {
     /* Create the file and the file header */
+    s8* Buf;
+    FILE* Boot;
+    time_t Time;
+    struct tm* Time_Struct;
+    ptr_t Vector_Cnt;
+    struct Endp_Info* Endp;
 
-    /* Create all the interrupt endpoints selected for use */
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
 
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.h", Output_Path);
+    Boot=fopen(Buf, "wb");
+    if(Boot==0)
+        EXIT_FAIL("rme_boot.h open failed.");
+    time(&Time);
+    Time_Struct=localtime(&Time);
+    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
+    Write_Src_Desc(Boot, "rme_boot.c", A7M_AUTHOR, Buf, "LGPL v3+; see COPYING for details.", "The boot-time initialization file header.");
+    fprintf(Boot, "/* Defines *******************************************************************/\n");
+    fprintf(Boot, "/* End Defines ***************************************************************/\n");
+
+    for(Vector_Cnt=0;Vector_Cnt<Proj->RVM.Vector_Captbl_Frontier;Vector_Cnt++)
+    {
+        Endp=(struct Endp_Info*)Proj->RVM.Vector_Captbl[Vector_Cnt].Cap;
+        Make_Define(Boot, "RME_A7M_", "capid name", s8* End, s8* Value, ptr_t Align)
+        sprintf(Buf, "#define %s_CAPID", Endp->Name);
+        fprintf(Boot, "%-80s    (%d)\n", , Endp->RVM_Capid&0x7F);
+        fprintf(Boot,  "/* End Defines ***************************************************************/\n");
+        Endp->Name
+        
+    }
+    fprintf()
+
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.c", Output_Path);
+    Boot=fopen(Buf, "wb");
+    if(Boot==0)
+        EXIT_FAIL("rme_boot.c open failed.");
+
+    /* All include headers */
+    fprintf(Boot, "/* Includes ******************************************************************/\n\n");
+    fprintf(Boot, "/* End Includes **************************************************************/\n");
+
+    /* All temporary variables for storing the endpoints */
+    capabilities of all the interrupt endpoints needs to logged into an array.
+    
+    /* Create all the interrupt endpoints selected for use - how many interrupts are there? */
+    
 
 }
 /* End Function:A7M_Gen_RME_Boot *********************************************/
@@ -4224,7 +4476,7 @@ void A7M_Gen_Keil_Proj(FILE* Keil,
     fprintf(Keil, "          </ArmAdsMisc>\n");
     fprintf(Keil, "          <Cads>\n");
     fprintf(Keil, "            <interw>1</interw>\n");
-    fprintf(Keil, "            <Optim>%d</Optim>\n", (size_t)Opt);
+    fprintf(Keil, "            <Optim>%lld</Optim>\n", Opt);
     fprintf(Keil, "            <oTime>%d</oTime>\n", (Timeopt!=0));
     fprintf(Keil, "            <SplitLS>0</SplitLS>\n");
     fprintf(Keil, "            <OneElfS>1</OneElfS>\n");
