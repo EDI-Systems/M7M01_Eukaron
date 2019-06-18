@@ -98,12 +98,16 @@
                     <Process>Test_Proc2</Process>
                 </P1>
             </Port>
-            <Endpoint>
-                <E1>
+            <Receive>
+                <R1>
                      <Name>Test_Proc1_Rcv1</Name>
                      <Type>Receive</Type>
-                </E1>
-            </Endpoint>
+                </R1>
+            </Receive>
+            <Send>
+            </Send>
+            <Vector>
+            </Vector>
         </P1>
         <P2>
             <General>
@@ -148,17 +152,19 @@
             </Invocation>
             <Port>
             </Port>
-            <Endpoint>
-                <E1>
+            <Receive>
+            </Receive>
+            <Send>
+                <S1>
                      <Name>Test_Proc1_Rcv1</Name>
-                     <Type>Send</Type>
                      <Process>Test_Proc1</Process>
-                </E1>
-                <E2>
+                </S1>
+            </Send>
+            <Vector>
+                <V1>
                      <Name>TIM1</Name>
-                     <Type>Handler</Type>
-                </E2>
-            </Endpoint>
+                </V1>
+            </Vector>
         </P2>
     </Process>
 </Project>
