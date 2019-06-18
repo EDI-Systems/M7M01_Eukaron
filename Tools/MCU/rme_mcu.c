@@ -124,6 +124,11 @@ do \
     Start=Val_End; \
 } \
 while(0)
+
+/* The alignment value used when printing macros */
+#define MACRO_ALIGNMENT     (66)
+/* The code generator author name */
+#define CODE_AUTHOR         ("The A7M project generator")
 /* End Defines ***************************************************************/
 
 /* Typedefs ******************************************************************/
@@ -350,6 +355,10 @@ struct Vect_Info
     ptr_t RVM_Capid;
     /* The macro denoting the global capid */
     s8* RVM_Capid_Macro;
+    /* The macro denoting the global capid - for RME */
+    s8* RME_Capid_Macro;
+    /* The vector number */
+    ptr_t Number;
 };
 /* Process information */
 struct Proc_Info
@@ -382,9 +391,15 @@ struct Proc_Info
     /* The port information */
 	ptr_t Port_Num;
 	struct Port_Info* Port;
-    /* The endpoint information */
-	ptr_t Endp_Num;
-	struct Endp_Info* Endp;
+    /* The receive endpoint information */
+	ptr_t Recv_Num;
+	struct Recv_Info* Recv;
+    /* The receive endpoint information */
+	ptr_t Send_Num;
+	struct Send_Info* Send;
+    /* The vector endpoint information */
+	ptr_t Vect_Num;
+	struct Vect_Info* Vect;
 };
 /* Whole project information */
 struct Proj_Info
@@ -1467,7 +1482,7 @@ ret_t Parse_Process_Memory(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Mem_Num
 }
 /* End Function:Parse_Process_Memory *****************************************/
 
-/* Begin Function:Parse_Thread ************************************************
+/* Begin Function:Parse_Process_Thread ****************************************
 Description : Parse the thread section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               ptr_t Proc_Num - The process number.
@@ -1477,7 +1492,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Thread(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Thd_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Thread(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Thd_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1522,9 +1537,9 @@ ret_t Parse_Thread(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Thd_Num, s8* St
 
     return 0;
 }
-/* End Function:Parse_Thread *************************************************/
+/* End Function:Parse_Process_Thread *****************************************/
 
-/* Begin Function:Parse_Invocation ********************************************
+/* Begin Function:Parse_Process_Invocation ************************************
 Description : Parse the invocation section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               ptr_t Proc_Num - The process number.
@@ -1534,7 +1549,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Invocation(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Inv_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Invocation(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Inv_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1569,9 +1584,9 @@ ret_t Parse_Invocation(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Inv_Num, s8
     
     return 0;
 }
-/* End Function:Parse_Invocation *********************************************/
+/* End Function:Parse_Process_Invocation *************************************/
 
-/* Begin Function:Parse_Port **************************************************
+/* Begin Function:Parse_Process_Port ******************************************
 Description : Parse the port section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               ptr_t Proc_Num - The process number.
@@ -1581,7 +1596,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Port(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Port_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Port(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Port_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1606,19 +1621,19 @@ ret_t Parse_Port(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Port_Num, s8* Str
     
     return 0;
 }
-/* End Function:Parse_Port ***************************************************/
+/* End Function:Parse_Process_Port *******************************************/
 
-/* Begin Function:Parse_Endpoint **********************************************
-Description : Parse the endpoint section of a particular process.
+/* Begin Function:Parse_Process_Receive ***************************************
+Description : Parse the receive endpoint section of a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               ptr_t Proc_Num - The process number.
-              ptr_t Endp_Num - The endpoint number.
+              ptr_t Recv_Num - The receive endpoint number.
               s8* Str_Start - The start position of the string.
               s8* Str_End - The end position of the string.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Endpoint(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Endp_Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Process_Receive(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Recv_Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1632,35 +1647,84 @@ ret_t Parse_Endpoint(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Endp_Num, s8*
 
     /* Name */
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
-    Proj->Proc[Proc_Num].Endp[Endp_Num].Name=Get_String(Val_Start,Val_End);
-    if(Proj->Proc[Proc_Num].Endp[Endp_Num].Name==0)
-        EXIT_FAIL("Thread name value read failed.");
-    /* Type */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Type");
-    if(strncmp(Val_Start,"Send",4)==0)
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_SEND;
-    else if(strncmp(Val_Start,"Receive",7)==0)
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_RECEIVE;
-    else if(strncmp(Val_Start,"Vector",7)==0)
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Type=ENDP_VECTOR;
-    else
-        EXIT_FAIL("The endpoint type is malformed.");
-    /* Process */
-    if(Proj->Proc[Proc_Num].Endp[Endp_Num].Type==ENDP_SEND)
-    {
-        GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Process=Get_String(Val_Start,Val_End);
-        if(Proj->Proc[Proc_Num].Endp[Endp_Num].Process==0)
-            EXIT_FAIL("Endpoint process value read failed.");
-    }
-    else
-        Proj->Proc[Proc_Num].Endp[Endp_Num].Process=0;
+    Proj->Proc[Proc_Num].Recv[Recv_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Recv[Recv_Num].Name==0)
+        EXIT_FAIL("Receive endpoint name value read failed.");
 
     return 0;
 }
-/* End Function:Parse_Endpoint ***********************************************/
+/* End Function:Parse_Process_Receive ***************************************/
 
-/* Begin Function:Parse_Process ***********************************************
+/* Begin Function:Parse_Process_Send *****************************************
+Description : Parse the send endpoint section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              ptr_t Proc_Num - The process number.
+              ptr_t Send_Num - The send endpoint number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Process_Send(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Send_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Send[Send_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Send[Send_Num].Name==0)
+        EXIT_FAIL("Send endpoint name value read failed.");
+    /* Process */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Process");
+    Proj->Proc[Proc_Num].Send[Send_Num].Process=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Send[Send_Num].Process==0)
+        EXIT_FAIL("Send endpoint process value read failed.");
+
+    return 0;
+}
+/* End Function:Parse_Process_Send *******************************************/
+
+/* Begin Function:Parse_Process_Vector ****************************************
+Description : Parse the vector endpoint section of a particular process.
+Input       : struct Proj_Info* Proj - The project structure.
+              ptr_t Proc_Num - The process number.
+              ptr_t Vect_Num - The vector endpoint number.
+              s8* Str_Start - The start position of the string.
+              s8* Str_End - The end position of the string.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : ret_t - Always 0.
+******************************************************************************/
+ret_t Parse_Process_Vector(struct Proj_Info* Proj, ptr_t Proc_Num, ptr_t Vect_Num, s8* Str_Start, s8* Str_End)
+{
+    s8* Start;
+    s8* End;
+    s8* Label_Start;
+    s8* Label_End;
+    s8* Val_Start;
+    s8* Val_End;
+
+    Start=Str_Start;
+    End=Str_End;
+
+    /* Name */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Name");
+    Proj->Proc[Proc_Num].Vect[Vect_Num].Name=Get_String(Val_Start,Val_End);
+    if(Proj->Proc[Proc_Num].Vect[Vect_Num].Name==0)
+        EXIT_FAIL("Vector endpoint name value read failed.");
+
+    return 0;
+}
+/* End Function:Parse_Process_Vector *****************************************/
+
+/* Begin Function:Parse_Project_Process ***************************************
 Description : Parse a particular process.
 Input       : struct Proj_Info* Proj - The project structure.
               ptr_t Num - The process number.
@@ -1669,7 +1733,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Project_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -1690,8 +1754,12 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     s8* Invocation_End;
     s8* Port_Start;
     s8* Port_End;
-    s8* Endpoint_Start;
-    s8* Endpoint_End;
+    s8* Receive_Start;
+    s8* Receive_End;
+    s8* Send_Start;
+    s8* Send_End;
+    s8* Vector_Start;
+    s8* Vector_End;
 
     Start=Str_Start;
     End=Str_End;
@@ -1720,10 +1788,18 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Port");
     Port_Start=Val_Start;
     Port_End=Val_End;
-    /* Endpoints section */
-    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Endpoint");
-    Endpoint_Start=Val_Start;
-    Endpoint_End=Val_End;
+    /* Receive endpoints section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Receive");
+    Receive_Start=Val_Start;
+    Receive_End=Val_End;
+    /* Send endpoints section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Send");
+    Send_Start=Val_Start;
+    Send_End=Val_End;
+    /* Vector endpoints section */
+    GET_NEXT_LABEL(Start, End, Label_Start, Label_End, Val_Start, Val_End, "Vector");
+    Vector_Start=Val_Start;
+    Vector_End=Val_End;
 
     /* Parse general section */
     Start=General_Start;
@@ -1786,27 +1862,24 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
     Start=Thread_Start;
     End=Thread_End;
     Proj->Proc[Num].Thd_Num=XML_Num(Start, End);
-    if(Proj->Proc[Num].Thd_Num!=0)
+    if(Proj->Proc[Num].Thd_Num==0)
+        EXIT_FAIL("The process is malformed, doesn't contain any threads or invocations.");
+    Proj->Proc[Num].Thd=Malloc(sizeof(struct Thd_Info)*Proj->Proc[Num].Thd_Num);
+    if(Proj->Proc[Num].Thd==0)
+        EXIT_FAIL("The thread structure allocation failed.");
+    for(Count=0;Count<Proj->Proc[Num].Thd_Num;Count++)
     {
-        Proj->Proc[Num].Thd=Malloc(sizeof(struct Thd_Info)*Proj->Proc[Num].Thd_Num);
-        if(Proj->Proc[Num].Thd==0)
-            EXIT_FAIL("The thread structure allocation failed.");
-        for(Count=0;Count<Proj->Proc[Num].Thd_Num;Count++)
-        {
-            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
-                EXIT_FAIL("Unexpected error when parsing thread section.");
-            Start=Val_End;
-            Parse_Thread(Proj, Num, Count, Val_Start, Val_End);
-        }
+        if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+            EXIT_FAIL("Unexpected error when parsing thread section.");
+        Start=Val_End;
+        Parse_Process_Thread(Proj, Num, Count, Val_Start, Val_End);
     }
 
     /* Parse invocations section */
     Start=Invocation_Start;
     End=Invocation_End;
     Proj->Proc[Num].Inv_Num=XML_Num(Start, End);
-    if((Proj->Proc[Num].Inv_Num==0)&&(Proj->Proc[Num].Thd_Num==0))
-            EXIT_FAIL("The process is malformed, doesn't contain any threads or invocations.");
-    else
+    if(Proj->Proc[Num].Inv_Num!=0)
     {
         Proj->Proc[Num].Inv=Malloc(sizeof(struct Inv_Info)*Proj->Proc[Num].Inv_Num);
         if(Proj->Proc[Num].Inv==0)
@@ -1816,7 +1889,7 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing invocation section.");
             Start=Val_End;
-            Parse_Invocation(Proj, Num, Count, Val_Start, Val_End);
+            Parse_Process_Invocation(Proj, Num, Count, Val_Start, Val_End);
         }
     }
     
@@ -1834,31 +1907,67 @@ ret_t Parse_Process(struct Proj_Info* Proj, ptr_t Num, s8* Str_Start, s8* Str_En
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
                 EXIT_FAIL("Unexpected error when parsing port section.");
             Start=Val_End;
-            Parse_Port(Proj, Num, Count, Val_Start, Val_End);
+            Parse_Process_Port(Proj, Num, Count, Val_Start, Val_End);
         }
     }
 
-    /* Parse endpoints section */
-    Start=Endpoint_Start;
-    End=Endpoint_End;
-    Proj->Proc[Num].Endp_Num=XML_Num(Start, End);
-    if(Proj->Proc[Num].Endp_Num!=0)
+    /* Parse receive endpoints section */
+    Start=Receive_Start;
+    End=Receive_End;
+    Proj->Proc[Num].Recv_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Recv_Num!=0)
     {
-        Proj->Proc[Num].Endp=Malloc(sizeof(struct Endp_Info)*Proj->Proc[Num].Endp_Num);
-        if(Proj->Proc[Num].Endp==0)
-            EXIT_FAIL("The endpoint structure allocation failed.");
-        for(Count=0;Count<Proj->Proc[Num].Endp_Num;Count++)
+        Proj->Proc[Num].Recv=Malloc(sizeof(struct Recv_Info)*Proj->Proc[Num].Recv_Num);
+        if(Proj->Proc[Num].Recv==0)
+            EXIT_FAIL("The receive endpoint structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Recv_Num;Count++)
         {
             if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
-                EXIT_FAIL("Unexpected error when parsing endpoint section.");
+                EXIT_FAIL("Unexpected error when parsing receive endpoint section.");
             Start=Val_End;
-            Parse_Endpoint(Proj, Num, Count, Val_Start, Val_End);
+            Parse_Process_Receive(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+
+    /* Parse send endpoints section */
+    Start=Send_Start;
+    End=Send_End;
+    Proj->Proc[Num].Send_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Send_Num!=0)
+    {
+        Proj->Proc[Num].Send=Malloc(sizeof(struct Send_Info)*Proj->Proc[Num].Send_Num);
+        if(Proj->Proc[Num].Send==0)
+            EXIT_FAIL("The send endpoint structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Send_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing send endpoint section.");
+            Start=Val_End;
+            Parse_Process_Send(Proj, Num, Count, Val_Start, Val_End);
+        }
+    }
+
+    /* Parse vector endpoints section */
+    Start=Vector_Start;
+    End=Vector_End;
+    Proj->Proc[Num].Vect_Num=XML_Num(Start, End);
+    if(Proj->Proc[Num].Vect_Num!=0)
+    {
+        Proj->Proc[Num].Vect=Malloc(sizeof(struct Vect_Info)*Proj->Proc[Num].Vect_Num);
+        if(Proj->Proc[Num].Vect==0)
+            EXIT_FAIL("The vector endpoint structure allocation failed.");
+        for(Count=0;Count<Proj->Proc[Num].Vect_Num;Count++)
+        {
+            if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
+                EXIT_FAIL("Unexpected error when parsing vector endpoint section.");
+            Start=Val_End;
+            Parse_Process_Vector(Proj, Num, Count, Val_Start, Val_End);
         }
     }
 
     return 0;
 }
-/* End Function:Parse_Process ************************************************/
+/* End Function:Parse_Project_Process ****************************************/
 
 /* Begin Function:Parse_Project ***********************************************
 Description : Parse the project description file, and fill in the struct.
@@ -1946,7 +2055,7 @@ struct Proj_Info* Parse_Project(s8* Proj_File)
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing process section.");
         Start=Val_End;
-        Parse_Process(Proj, Count, Val_Start, Val_End);
+        Parse_Project_Process(Proj, Count, Val_Start, Val_End);
     }
 
     return Proj;
@@ -2003,7 +2112,7 @@ ret_t Parse_Chip_Memory(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* St
 }
 /* End Function:Parse_Chip_Memory ********************************************/
 
-/* Begin Function:Parse_Option ************************************************
+/* Begin Function:Parse_Chip_Option *******************************************
 Description : Parse the option section of a particular chip.
 Input       : struct Chip_Info* Chip - The project structure.
               ptr_t Num - The option number.
@@ -2012,7 +2121,7 @@ Input       : struct Chip_Info* Chip - The project structure.
 Output      : struct Chip_Info* Chip - The updated chip structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Option(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Chip_Option(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -2099,9 +2208,9 @@ ret_t Parse_Option(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End
     Free(Value_Temp);
     return 0;
 }
-/* End Function:Parse_Option *************************************************/
+/* End Function:Parse_Chip_Option ********************************************/
 
-/* Begin Function:Parse_Vector ************************************************
+/* Begin Function:Parse_Chip_Vector *******************************************
 Description : Parse the vector section of a particular chip.
 Input       : struct Chip_Info* Chip - The project structure.
               ptr_t Num - The option number.
@@ -2110,7 +2219,7 @@ Input       : struct Chip_Info* Chip - The project structure.
 Output      : struct Chip_Info* Chip - The updated chip structure.
 Return      : ret_t - Always 0.
 ******************************************************************************/
-ret_t Parse_Vector(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
+ret_t Parse_Chip_Vector(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End)
 {
     s8* Start;
     s8* End;
@@ -2136,7 +2245,7 @@ ret_t Parse_Vector(struct Chip_Info* Chip, ptr_t Num, s8* Str_Start, s8* Str_End
 
     return 0;
 }
-/* Begin Function:Parse_Vector ************************************************
+/* Begin Function:Parse_Chip_Vector *******************************************
 
 /* Begin Function:Parse_Chip **************************************************
 Description : Parse the chip description file, and fill in the struct.
@@ -2288,7 +2397,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing option section.");
         Start=Val_End;
-        Parse_Option(Chip, Count, Val_Start, Val_End);
+        Parse_Chip_Option(Chip, Count, Val_Start, Val_End);
     }
 
     /* Vector */
@@ -2305,7 +2414,7 @@ struct Chip_Info* Parse_Chip(s8* Chip_File)
         if(XML_Get_Next(Start, End, &Label_Start, &Label_End, &Val_Start, &Val_End)!=0)
             EXIT_FAIL("Unexpected error when parsing option section.");
         Start=Val_End;
-        Parse_Vector(Chip, Count, Val_Start, Val_End);
+        Parse_Chip_Vector(Chip, Count, Val_Start, Val_End);
     }
     
     return Chip;
@@ -2821,26 +2930,25 @@ void Detect_Vector(struct Proj_Info* Proj)
     ptr_t Obj_Cnt;
     ptr_t Obj_Tmp_Cnt;
     struct Proc_Info* Proc;
-    struct Endp_Info* Endp;
+    struct Vect_Info* Vect;
 
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
-        /* Check that every vector name is globally unique */
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        /* Check that every vector name is globally unique - it cannot overlap with any other
+         * vector in any other process. If one of the processes have a vector endpoint, then
+         * no other process can have the same one. */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Vect_Num;Obj_Cnt++)
         {
-            Endp=&(Proc->Endp[Obj_Cnt]);
-            if(Endp->Type!=ENDP_VECTOR)
-                continue;
+            Vect=&(Proc->Vect[Obj_Cnt]);
             for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
             {
-                for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
+                for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Vect_Num;Obj_Tmp_Cnt++)
                 {
                     if((Proc_Cnt==Proc_Tmp_Cnt)&&(Obj_Cnt==Obj_Tmp_Cnt))
                         continue;
-
-                    if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)
-                        EXIT_FAIL("Duplicate vectors found.");
+                    if(Strcicmp(Proj->Proc[Proc_Tmp_Cnt].Vect[Obj_Tmp_Cnt].Name, Vect->Name)==0)
+                        EXIT_FAIL("Duplicate vectors endpoints is now allowed.");
                 }
             }
         }
@@ -2913,38 +3021,40 @@ void Detect_Conflict(struct Proj_Info* Proj)
                     EXIT_FAIL("Duplicate port name");
             }
         }
-        /* Check for duplicate endpoints */
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        /* Check for duplicate receive endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Recv_Num;Obj_Cnt++)
         {
-            if(Validate_Name(Proc->Endp[Obj_Cnt].Name)!=0)
-                EXIT_FAIL("Invalid endpoint name.");
-            if(Proc->Endp[Obj_Cnt].Type==ENDP_SEND)
-            {
-                if(Validate_Name(Proc->Endp[Obj_Cnt].Process)!=0)
-                    EXIT_FAIL("Invalid endpoint process name.");
-            }
-            for(Count=0;Count<Proc->Endp_Num;Count++)
+            if(Validate_Name(Proc->Recv[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid receive endpoint name.");
+            for(Count=0;Count<Proc->Recv_Num;Count++)
             {
                 if(Count!=Obj_Cnt)
                 {
-                    if((Proc->Endp[Count].Type==ENDP_RECEIVE)&&(Proc->Endp[Obj_Cnt].Type==ENDP_RECEIVE))
-                    {
-                        if(Strcicmp(Proc->Endp[Count].Name,Proc->Endp[Obj_Cnt].Name)==0)
-                            EXIT_FAIL("Duplicate receive or endpoint name");
-                    }
-                    else if((Proc->Endp[Count].Type==ENDP_SEND)&&(Proc->Endp[Obj_Cnt].Type==ENDP_SEND))
-                    {
-                        if((Strcicmp(Proc->Endp[Count].Name,Proc->Endp[Obj_Cnt].Name)==0)&&
-                           (Strcicmp(Proc->Endp[Count].Process,Proc->Endp[Obj_Cnt].Process)==0))
-                            EXIT_FAIL("Duplicate send endpoint name");
-                    }
+                    if(Strcicmp(Proc->Recv[Count].Name,Proc->Recv[Obj_Cnt].Name)==0)
+                        EXIT_FAIL("Duplicate receive endpoint name");
+                }
+            }
+        }
+        /* Check for duplicate send endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Send_Num;Obj_Cnt++)
+        {
+            if(Validate_Name(Proc->Send[Obj_Cnt].Name)!=0)
+                EXIT_FAIL("Invalid send endpoint name.");
+            if(Validate_Name(Proc->Send[Obj_Cnt].Process)!=0)
+                EXIT_FAIL("Invalid endpoint process name.");
+            for(Count=0;Count<Proc->Send_Num;Count++)
+            {
+                if(Count!=Obj_Cnt)
+                {
+                    if((Strcicmp(Proc->Send[Count].Name,Proc->Send[Obj_Cnt].Name)==0)&&
+                       (Strcicmp(Proc->Send[Count].Process,Proc->Send[Obj_Cnt].Process)==0))
+                        EXIT_FAIL("Duplicate send endpoint name");
                 }
             }
         }
     }
-    
-    /* Vector endpoints needs to be unique across the system, and should not share the same name
-     * with any other endpoint. Let's check this with a dedicated function */
+
+    /* Check for duplicate vector endpoints- they are globally unique */
     Detect_Vector(Proj);
 }
 /* End Function:Detect_Conflict **********************************************/
@@ -2983,9 +3093,19 @@ void Alloc_Local_Capid(struct Proj_Info* Proj)
             Proc->Port[Obj_Cnt].Capid=Capid;
             Capid++;
         }
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Recv_Num;Obj_Cnt++)
         {
-            Proc->Endp[Obj_Cnt].Capid=Capid;
+            Proc->Recv[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Send_Num;Obj_Cnt++)
+        {
+            Proc->Send[Obj_Cnt].Capid=Capid;
+            Capid++;
+        }
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Vect_Num;Obj_Cnt++)
+        {
+            Proc->Vect[Obj_Cnt].Capid=Capid;
             Capid++;
         }
         Proc->Captbl_Frontier=Capid;
@@ -3024,7 +3144,6 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
         Proj->RVM.Captbl_Captbl[Capid].Proc=Proc;
-        Proj->RVM.Captbl_Captbl[Capid].Type=CAP_CAPTBL;
         Proj->RVM.Captbl_Captbl[Capid].Cap=Proc;
         Proc->RVM_Captbl_Capid=Capid;
         Capid++;
@@ -3039,7 +3158,6 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
     {
         Proc=&(Proj->Proc[Proc_Cnt]);
         Proj->RVM.Proc_Captbl[Capid].Proc=Proc;
-        Proj->RVM.Proc_Captbl[Capid].Type=CAP_PROC;
         Proj->RVM.Proc_Captbl[Capid].Cap=Proc;
         Proc->RVM_Proc_Capid=Capid;
         Capid++;
@@ -3059,7 +3177,6 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
         for(Obj_Cnt=0;Obj_Cnt<Proc->Thd_Num;Obj_Cnt++)
         {
             Proj->RVM.Thd_Captbl[Capid].Proc=Proc;
-            Proj->RVM.Thd_Captbl[Capid].Type=CAP_THD;
             Proj->RVM.Thd_Captbl[Capid].Cap=&(Proc->Thd[Obj_Cnt]);
             Proc->Thd[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
@@ -3080,7 +3197,6 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
         for(Obj_Cnt=0;Obj_Cnt<Proc->Inv_Num;Obj_Cnt++)
         {
             Proj->RVM.Inv_Captbl[Capid].Proc=Proc;
-            Proj->RVM.Inv_Captbl[Capid].Type=CAP_INV;
             Proj->RVM.Inv_Captbl[Capid].Cap=&(Proc->Inv[Obj_Cnt]);
             Proc->Inv[Obj_Cnt].RVM_Capid=Capid;
             Capid++;
@@ -3089,29 +3205,22 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
     /* Fill in all receive endpoints */
     Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+        Capid+=Proj->Proc[Proc_Cnt].Recv_Num;
+    Proj->RVM.Recv_Captbl_Frontier=Capid;
+    if(Capid!=0)
     {
-        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
+        Proj->RVM.Recv_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Recv_Captbl_Frontier);
+        if(Proj->RVM.Recv_Captbl==0)
+            EXIT_FAIL("Global capability table for receive endpoints failed.");
+        Capid=0;
+        for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
         {
-            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_RECEIVE)
-               Capid++;
-        }
-    }
-    Proj->RVM.Endp_Captbl_Frontier=Capid;
-    Proj->RVM.Endp_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Endp_Captbl_Frontier);
-    if(Proj->RVM.Endp_Captbl==0)
-        EXIT_FAIL("Global capability table for endpoints failed.");
-    Capid=0;
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        Proc=&(Proj->Proc[Proc_Cnt]);
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
-        {
-            if(Proc->Endp[Obj_Cnt].Type==ENDP_RECEIVE)
+            Proc=&(Proj->Proc[Proc_Cnt]);
+            for(Obj_Cnt=0;Obj_Cnt<Proc->Recv_Num;Obj_Cnt++)
             {
-                Proj->RVM.Endp_Captbl[Capid].Proc=Proc;
-                Proj->RVM.Endp_Captbl[Capid].Type=CAP_ENDP;
-                Proj->RVM.Endp_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
-                Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
+                Proj->RVM.Recv_Captbl[Capid].Proc=Proc;
+                Proj->RVM.Recv_Captbl[Capid].Cap=&(Proc->Recv[Obj_Cnt]);
+                Proc->Recv[Obj_Cnt].RVM_Capid=Capid;
                 Capid++;
             }
         }
@@ -3119,29 +3228,22 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
     /* Fill in all vector endpoints */
     Capid=0;
     for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Endp_Num;Obj_Cnt++)
-        {
-            if(Proj->Proc[Proc_Cnt].Endp[Obj_Cnt].Type==ENDP_VECTOR)
-               Capid++;
-        }
-    }
+        Capid+=Proj->Proc[Proc_Cnt].Vect_Num;
     Proj->RVM.Vector_Captbl_Frontier=Capid;
-    Proj->RVM.Vector_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Vector_Captbl_Frontier);
-    if(Proj->RVM.Vector_Captbl==0)
-        EXIT_FAIL("Global capability table for endpoints failed.");
-    Capid=0;
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    if(Capid!=0)
     {
-        Proc=&(Proj->Proc[Proc_Cnt]);
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
+        Proj->RVM.Vector_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*Proj->RVM.Vector_Captbl_Frontier);
+        if(Proj->RVM.Vector_Captbl==0)
+            EXIT_FAIL("Global capability table for vector endpoints failed.");
+        Capid=0;
+        for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
         {
-            if(Proc->Endp[Obj_Cnt].Type==ENDP_VECTOR)
+            Proc=&(Proj->Proc[Proc_Cnt]);
+            for(Obj_Cnt=0;Obj_Cnt<Proc->Vect_Num;Obj_Cnt++)
             {
                 Proj->RVM.Vector_Captbl[Capid].Proc=Proc;
-                Proj->RVM.Vector_Captbl[Capid].Type=CAP_ENDP;
-                Proj->RVM.Vector_Captbl[Capid].Cap=&(Proc->Endp[Obj_Cnt]);
-                Proc->Endp[Obj_Cnt].RVM_Capid=Capid;
+                Proj->RVM.Vector_Captbl[Capid].Cap=&(Proc->Vect[Obj_Cnt]);
+                Proc->Vect[Obj_Cnt].RVM_Capid=Capid;
                 Capid++;
             }
         }
@@ -3149,96 +3251,34 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
 }
 /* End Function:Alloc_Global_Capid *******************************************/
 
-/* Begin Function:Backprop_Global_Capid ***************************************
-Description : Back propagate the global ID to all the ports and send endpoints,
-              which are derived from kernel objects. Also detects if all the port
-              and send endpoint names in the system are valid. If any of them includes
-              dangling references to invocations and receive endpoints, abort.
-Input       : struct Proj_Info* Proj - The project information structure.
-              struct Chip_Info* Chip - The chip information structure.
-Output      : struct Proj_Info* Proj - The updated project structure.
-Return      : None.
+/* Begin Function:Make_Macro **************************************************
+Description : Concatenate at most 4 parts into a macro, and turn everything uppercase.
+Input       : s8* Str1 - The first part.
+              s8* Str2 - The second part.
+              s8* Str3 - The third part.
+              s8* Str4 - The fourth part.
+Output      : None.
+Return      : s8* - The macro returned. This is allocated memory.
 ******************************************************************************/
-void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
+s8* Make_Macro(s8* Str1, s8* Str2, s8* Str3, s8* Str4)
 {
-    ptr_t Proc_Cnt;
-    ptr_t Proc_Tmp_Cnt;
-    ptr_t Obj_Cnt;
-    ptr_t Obj_Tmp_Cnt;
-    struct Proc_Info* Proc;
-    struct Port_Info* Port;
-    struct Endp_Info* Endp;
+    ptr_t Count;
+    ptr_t Len;
+    s8* Ret;
 
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        Proc=&(Proj->Proc[Proc_Cnt]);
-        /* For every port, there must be a invocation somewhere */
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Port_Num;Obj_Cnt++)
-        {
-            Port=&(Proc->Port[Obj_Cnt]);
-            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
-            {
-                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Port->Process)==0)
-                    break;
-            }
-            if(Proc_Tmp_Cnt==Proj->Proc_Num)
-                EXIT_FAIL("Invalid process for port.");
-            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Inv_Num;Obj_Tmp_Cnt++)
-            {
-                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].Name, Port->Name)==0)
-                {
-                    Port->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].RVM_Capid;
-                    break;
-                }
-            }
-            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Inv_Num)
-                EXIT_FAIL("One of the ports does not have a corresponding invocation.");
-        }
-        /* For every send endpoint, there must be a receive endpoint somewhere */
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
-        {
-            Endp=&(Proc->Endp[Obj_Cnt]);
-            if(Endp->Type!=ENDP_SEND)
-                continue;
-            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
-            {
-                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Endp->Process)==0)
-                    break;
-            }
-            if(Proc_Tmp_Cnt==Proj->Proc_Num)
-                EXIT_FAIL("Invalid process for endpoint.");
-            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Endp_Num;Obj_Tmp_Cnt++)
-            {
-                if((strcmp(Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Name, Endp->Name)==0)&&
-                   (Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].Type==ENDP_RECEIVE))
-                {
-                    Endp->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].RVM_Capid;
-                    break;
-                }
-            }
-            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Endp_Num)
-                EXIT_FAIL("One of the send endpoints does not have a corresponding receive endpoint.");
-        }
-        /* For every vector, there must be a interrupt vector somewhere */
-        for(Obj_Cnt=0;Obj_Cnt<Proc->Endp_Num;Obj_Cnt++)
-        {
-            Endp=&(Proc->Endp[Obj_Cnt]);
-            if(Endp->Type!=ENDP_VECTOR)
-                continue;
-            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Chip->Vect_Num;Obj_Tmp_Cnt++)
-            {
-                if(strcmp(Chip->Vect[Obj_Tmp_Cnt].Name, Endp->Name)==0)
-                {
-                    Endp->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Endp[Obj_Tmp_Cnt].RVM_Capid;
-                    break;
-                }
-            }
-            if(Obj_Tmp_Cnt==Chip->Vect_Num)
-                EXIT_FAIL("One of the vector endpoints does not have a corresponding vector.");
-        }
-    }
+    /* Print to buffer */
+    Len=snprintf(NULL,0,"%s%s%s%s",Str1,Str2,Str3,Str4);
+    Ret=Malloc(Len+1);
+    if(Ret==0)
+        EXIT_FAIL("Macro buffer memory allocation failed.");
+    snprintf(Ret,(size_t)(Len+1),"%s%s%s%s",Str1,Str2,Str3,Str4);
+    /* Turn everything to uppercase */
+    for(Count=0;Count<Len;Count++)
+        Ret[Count]=toupper(Ret[Count]);
+
+    return Ret;
 }
-/* End Function:Backprop_Global_Capid ****************************************/
+/* End Function:Make_Macro ***************************************************/
 
 /* Begin Function:Alloc_Capid_Macros ******************************************
 Description : Allocate the capability ID macros. Both the local one and the global
@@ -3259,22 +3299,155 @@ Invocation      INV_<INVNAME>                   RVM_PROC_<PROCNAME>_INV_<INVNAME
 -------------------------------------------------------------------------------
 Port            PROC_<PROCNAME>_PORT_<PORTNAME> (Inherit invocation name)
 -------------------------------------------------------------------------------
-Send            PROC_<PROCNAME>_SEND_<ENDPNAME> (Inherit receive endpoint name)
--------------------------------------------------------------------------------
 Receive         RECV_<ENDPNAME>                 RVM_PROC_<PROCNAME>_RECV_<RECVNAME>
 -------------------------------------------------------------------------------
-Vector          VECT_<VECTNAME>                 RVM_VECT_<VECTNAME>
+Send            PROC_<PROCNAME>_SEND_<ENDPNAME> (Inherit receive endpoint name)
+-------------------------------------------------------------------------------
+Vector          VECT_<VECTNAME>                 RVM_VECT_<VECTNAME> (RVM)
+                                                RME_VECT_<VECTNAME> (RME)
 -------------------------------------------------------------------------------
 Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void Alloc_Capid_Macros(struct Proj_Info* Proj,  struct Chip_Info* Chip)
+void Alloc_Capid_Macros(struct Proj_Info* Proj)
 {
-    
+    ptr_t Proc_Cnt;
+    ptr_t Obj_Cnt;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        /* Processes and their capability tables */
+        Proj->Proc[Proc_Cnt].RVM_Proc_Capid_Macro=Make_Macro("RVM_PROC_",Proj->Proc[Proc_Cnt].Name,"","");
+        Proj->Proc[Proc_Cnt].RVM_Captbl_Capid_Macro=Make_Macro("RVM_CAPTBL_",Proj->Proc[Proc_Cnt].Name,"","");
+        /* Threads */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Thd_Num;Obj_Cnt++)
+        {
+            Proj->Proc[Proc_Cnt].Thd[Obj_Cnt].Capid_Macro=Make_Macro("THD_",Proj->Proc[Proc_Cnt].Thd[Obj_Cnt].Name,"","");
+            Proj->Proc[Proc_Cnt].Thd[Obj_Cnt].RVM_Capid_Macro=Make_Macro("RVM_PROC_",Proj->Proc[Proc_Cnt].Name,
+                                                                         "_THD_",Proj->Proc[Proc_Cnt].Thd[Obj_Cnt].Name);
+        }
+        /* Invocations */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Inv_Num;Obj_Cnt++)
+        {
+            Proj->Proc[Proc_Cnt].Inv[Obj_Cnt].Capid_Macro=Make_Macro("INV_",Proj->Proc[Proc_Cnt].Inv[Obj_Cnt].Name,"","");
+            Proj->Proc[Proc_Cnt].Inv[Obj_Cnt].RVM_Capid_Macro=Make_Macro("RVM_PROC_",Proj->Proc[Proc_Cnt].Name,
+                                                                         "_INV_",Proj->Proc[Proc_Cnt].Inv[Obj_Cnt].Name);
+        }
+        /* Ports */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Port_Num;Obj_Cnt++)
+            Proj->Proc[Proc_Cnt].Port[Obj_Cnt].Capid_Macro=Make_Macro("PORT_",Proj->Proc[Proc_Cnt].Port[Obj_Cnt].Name,"","");
+        /* Receive endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Recv_Num;Obj_Cnt++)
+        {
+            Proj->Proc[Proc_Cnt].Recv[Obj_Cnt].Capid_Macro=Make_Macro("RECV_",Proj->Proc[Proc_Cnt].Recv[Obj_Cnt].Name,"","");
+            Proj->Proc[Proc_Cnt].Recv[Obj_Cnt].RVM_Capid_Macro=Make_Macro("RVM_PROC_",Proj->Proc[Proc_Cnt].Name,
+                                                                          "_RECV_",Proj->Proc[Proc_Cnt].Recv[Obj_Cnt].Name);
+        }
+        /* Send endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Send_Num;Obj_Cnt++)
+            Proj->Proc[Proc_Cnt].Send[Obj_Cnt].Capid_Macro=Make_Macro("SEND_",Proj->Proc[Proc_Cnt].Send[Obj_Cnt].Name,"","");
+        /* Vector endpoints */
+        for(Obj_Cnt=0;Obj_Cnt<Proj->Proc[Proc_Cnt].Vect_Num;Obj_Cnt++)
+        {
+            Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].Capid_Macro=Make_Macro("VECT_",Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].Name,"","");
+            Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].RVM_Capid_Macro=Make_Macro("RVM_VECT_",Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].Name,"","");
+            Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].RME_Capid_Macro=Make_Macro("RME_VECT_",Proj->Proc[Proc_Cnt].Vect[Obj_Cnt].Name,"","");
+        }
+    }
 }
 /* End Function:Alloc_Capid_Macros *******************************************/
+
+/* Begin Function:Backprop_Global_Capid ***************************************
+Description : Back propagate the global ID to all the ports and send endpoints,
+              which are derived from kernel objects. Also detects if all the port
+              and send endpoint names in the system are valid. If any of them includes
+              dangling references to invocations and receive endpoints, abort.
+              These comparisons use strcmp because we require that the process name
+              cases match.
+Input       : struct Proj_Info* Proj - The project information structure.
+              struct Chip_Info* Chip - The chip information structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    ptr_t Proc_Cnt;
+    ptr_t Proc_Tmp_Cnt;
+    ptr_t Obj_Cnt;
+    ptr_t Obj_Tmp_Cnt;
+    struct Proc_Info* Proc;
+    struct Port_Info* Port;
+    struct Send_Info* Send;
+    struct Vect_Info* Vect;
+
+    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    {
+        Proc=&(Proj->Proc[Proc_Cnt]);
+        /* For every port, there must be a invocation somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Port_Num;Obj_Cnt++)
+        {
+            Port=&(Proc->Port[Obj_Cnt]);
+            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
+            {
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Port->Process)==0)
+                    break;
+            }
+            if(Proc_Tmp_Cnt==Proj->Proc_Num)
+                EXIT_FAIL("Invalid process for port.");
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Inv_Num;Obj_Tmp_Cnt++)
+            {
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].Name, Port->Name)==0)
+                {
+                    Port->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].RVM_Capid;
+                    Port->RVM_Capid_Macro=Proj->Proc[Proc_Tmp_Cnt].Inv[Obj_Tmp_Cnt].RVM_Capid_Macro;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Inv_Num)
+                EXIT_FAIL("One of the ports does not have a corresponding invocation.");
+        }
+        /* For every send endpoint, there must be a receive endpoint somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Send_Num;Obj_Cnt++)
+        {
+            Send=&(Proc->Send[Obj_Cnt]);
+            for(Proc_Tmp_Cnt=0;Proc_Tmp_Cnt<Proj->Proc_Num;Proc_Tmp_Cnt++)
+            {
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Name, Send->Process)==0)
+                    break;
+            }
+            if(Proc_Tmp_Cnt==Proj->Proc_Num)
+                EXIT_FAIL("Invalid process for endpoint.");
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Proj->Proc[Proc_Tmp_Cnt].Recv_Num;Obj_Tmp_Cnt++)
+            {
+                if(strcmp(Proj->Proc[Proc_Tmp_Cnt].Recv[Obj_Tmp_Cnt].Name, Send->Name)==0)
+                {
+                    Send->RVM_Capid=Proj->Proc[Proc_Tmp_Cnt].Recv[Obj_Tmp_Cnt].RVM_Capid;
+                    Send->RVM_Capid_Macro=Proj->Proc[Proc_Tmp_Cnt].Recv[Obj_Tmp_Cnt].RVM_Capid_Macro;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Proj->Proc[Proc_Tmp_Cnt].Recv_Num)
+                EXIT_FAIL("One of the send endpoints does not have a corresponding receive endpoint.");
+        }
+        /* For every vector, there must be a corresponding chip interrupt vector somewhere */
+        for(Obj_Cnt=0;Obj_Cnt<Proc->Vect_Num;Obj_Cnt++)
+        {
+            Vect=&(Proc->Vect[Obj_Cnt]);
+            for(Obj_Tmp_Cnt=0;Obj_Tmp_Cnt<Chip->Vect_Num;Obj_Tmp_Cnt++)
+            {
+                if(strcmp(Chip->Vect[Obj_Tmp_Cnt].Name, Vect->Name)==0)
+                {
+                    Vect->Number=Chip->Vect[Obj_Tmp_Cnt].Number;
+                    break;
+                }
+            }
+            if(Obj_Tmp_Cnt==Chip->Vect_Num)
+                EXIT_FAIL("One of the vector endpoints does not have a corresponding chip vector.");
+        }
+    }
+}
+/* End Function:Backprop_Global_Capid ****************************************/
 
 /* Begin Function:Alloc_Captbl ************************************************
 Description : Allocate the capability table entries for the processes, then for
@@ -3292,10 +3465,10 @@ void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip)
     Alloc_Local_Capid(Proj);
     /* Allocate global project IDs for kernel object entries */
     Alloc_Global_Capid(Proj);
+    /* Allocate the global and local macros to them */
+    Alloc_Capid_Macros(Proj);
     /* Back propagate global entrie number to the ports and send endpoints */
     Backprop_Global_Capid(Proj, Chip);
-    /* Allocate the global and local macros to them */
-    Alloc_Capid_Macros(Proj, Chip);
 }
 /* End Function:Alloc_Captbl *************************************************/
 
@@ -3385,39 +3558,273 @@ Description : Make a define statement in the file. The define statement can have
               three parts, which will be converted to uppercase and concatenated
               together.
 Input       : FILE* File - The file structure.
-              s8* Start - The first part of the macro.
-              s8* Middle - The second part of the macro.
-              s8* End - The third part of the macro.
+              s8* Macro - The macro.
               s8* Value - The value of the macro.
               s8* Align - The alignment, must be bigger than 4.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Make_Define(FILE* File, s8* Start, s8* Middle, s8* End, s8* Value, ptr_t Align)
+void Make_Define(FILE* File, s8* Macro, s8* Value, ptr_t Align)
 {
+    s8 Buf[32];
+
+    /* Print to file */
+    sprintf(Buf, "%%-%llds    (%%s)\n", Align-4);
+    fprintf(File, Buf, Macro, Value);
+}
+/* End Function:Make_Define **************************************************/
+
+/* Begin Function:Gen_RME_Boot ************************************************
+Description : Generate the rme_boot.c. This file is mainly responsible for setting
+              up interrupt endpoints.
+              A corresponding file, rme_boot.h is also created. Different from
+              other headers, this header only includes the capability IDs of all
+              created kernel endpoints.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+              ptr_t Bits - The processor word length.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path, ptr_t Bits)
+{
+    /* Create the file and the file header */
     s8* Buf;
-    s8* Upper;
-    ptr_t Count;
+    FILE* Boot;
+    time_t Time;
+    struct tm* Time_Struct;
+    ptr_t Vect_Cnt;
+    struct Vect_Info* Vect;
 
     Buf=Malloc(4096);
     if(Buf==0)
         EXIT_FAIL("Buffer allocation failed.");
-    Upper=Malloc(4096);
-    if(Upper==0)
-        EXIT_FAIL("Buffer allocation failed.");
-    /* Convert the string to upper case */
-    sprintf(Upper, "%s%s%s", Start, Middle, End);
-    Count=0;
-    while(Upper[Count]!='\0')
-        Upper[Count]=toupper(Upper[Count]);
-    /* Print to file */
-    sprintf(Buf, "%%-%llds    (%%s)\n", Align-4);
-    fprintf(File, Buf, Upper, Value);
-    /* Free buffers */
-    Free(Buf);
-    Free(Upper);
+
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.h", Output_Path);
+    Boot=fopen(Buf, "wb");
+    if(Boot==0)
+        EXIT_FAIL("rme_boot.h open failed.");
+    time(&Time);
+    Time_Struct=localtime(&Time);
+    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
+    Write_Src_Desc(Boot, "rme_boot.h", CODE_AUTHOR, Buf, 
+                   "LGPL v3+; see COPYING for details.", "The boot-time initialization file header.");
+    fprintf(Boot, "/* Defines *******************************************************************/\n");
+
+    /* The first to come is all vectors, followed by all the capability tables used to store these vectors */
+    for(Vect_Cnt=0;Vect_Cnt<Proj->RVM.Vector_Captbl_Frontier;Vect_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Vect_Cnt].Cap;
+        Make_Define(Boot, Vect->RME_Capid_Macro, "", MACRO_ALIGNMENT);
+    }
+
+    fprintf(Boot, "/* End Defines ***************************************************************/\n");
+
+    /* All include headers */
+
+    /* All temporary variables for storing the endpoints */
+    
+    /* Create all the interrupt endpoints selected for use */
+
 }
-/* End Function:Make_Define **************************************************/
+/* End Function:Gen_RME_Boot *************************************************/
+
+/* Begin Function:Gen_RME_User ************************************************
+Description : Generate the rme_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct A7M_Info* A7M - The platform-specific project structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path)
+{
+    /* Create user stubs */
+    probably need to know where the frontier is.
+}
+/* End Function:Gen_RME_User *************************************************/
+
+struct Cap_Alloc_Info
+{
+    /* Main capability table frontier */ 
+    ptr_t Cap_Frontier;
+    /* Main kernel memory relative frontier */
+    ptr_t Kmem_Frontier;
+    /* Main kernel memory absolute base addres */
+    ptr_t Kmem_Abs_Base;
+};
+
+/* Begin Function:Gen_RVM_Boot ************************************************
+Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsible
+              for setting up all the kernel objects. If RVM or Posix functionality
+              is enabled, these will also be handled by such file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
+{
+    /* Create all the capability table address */
+
+    /* Create all the page tables first */
+    Gen_Pgtbl_Setup(&Captbl_Frontier, &Kmem_Frontier);
+
+    /* Then capability tables for all processes */
+
+    /* Then all processes */
+
+    /* All threads */
+
+    /* All invocations */
+
+    /* All ports */
+
+    /* All receive endpoints */
+
+    /* All send endpoints */
+
+    /* All vector endpoints */
+}
+/* End Function:Gen_RVM_Boot *************************************************/
+
+/* Begin Function:Gen_RVM_User ************************************************
+Description : Generate the rvm_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
+{
+    /* User stubs */
+}
+/* End Function:Gen_RVM_User *************************************************/
+
+/* Begin Function:Setup_Folder ************************************************
+Description : Setup the generic folder contents.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Setup_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, 
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    s8* Buf1;
+    s8* Buf2;
+    s8 Lower_Platform[16];
+    ptr_t Count;
+
+    /* Allocate the buffer */
+    Buf1=Malloc(sizeof(s8)*4096);
+    if(Buf1==0)
+        EXIT_FAIL("Buffer allocation failed");
+    Buf2=Malloc(sizeof(s8)*4096);
+    if(Buf2==0)
+        EXIT_FAIL("Buffer allocation failed");
+
+    strcpy(Lower_Platform, Proj->Platform);
+    Count=0;
+    while(Lower_Platform[Count]!='\0')
+        Lower_Platform[Count]=tolower(Lower_Platform[Count]);
+
+    /* RME directory */
+    sprintf(Buf1,"%s/M7M1_MuEukaron",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s",Output_Path,Proj->Platform,Chip->Name);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Project",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Project/Source",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RME folder creation failed.");
+
+    /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Kernel/rme_kernel.c",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s/rme_platform_%s.c",Output_Path,Proj->Platform,Lower_Platform);
+    sprintf(Buf2,"%s/MEukaron/Platform/%s/rme_platform_%s.c",RME_Path,Proj->Platform,Lower_Platform);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    /* The toolchain specific one will be created when we are playing with toolchains */
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h",Output_Path);
+    sprintf(Buf2,"%s/MEukaron/Include/Kernel/rme_kernel.h",RME_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s.h",Output_Path,Proj->Platform,Lower_Platform);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/rme_platform_%s.h",RME_Path,Proj->Platform,Lower_Platform);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+
+    /* Crank the selector headers */
+
+    /* RVM directory */
+
+    /* All other process directories */
+
+    Free(Buf1);
+    Free(Buf2);
+}
+/* End Function:Setup_Folder *************************************************/
 
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
@@ -3488,9 +3895,20 @@ int main(int argc, char* argv[])
     /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
     Alloc_Captbl(Proj, Chip);
 
-	/* Everything prepared, call the platform specific generator to generate the project fit for compilation */
+    /* Set the folder up */
+    Setup_Folder_32(Proj, Chip, RME_Path, RVM_Path, Output_Path);
+	/* Generate the project-specific files */
 	if(strcmp(Proj->Platform,"A7M")==0)
 		A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
+
+    /* Create rme_boot.c */
+    Gen_RME_Boot(Proj, Chip, RME_Path, Output_Path);
+    /* Create rme_user.c */
+    Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
+    /* Generate rvm_boot.c */
+    Gen_RVM_Boot(Proj, Chip, RVM_Path, Output_Path);
+    /* Create rvm_user.c */
+    Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
 
 	/* All done, free all memory and we quit */
 	Free_All();
@@ -3499,9 +3917,8 @@ int main(int argc, char* argv[])
 /* End Function:main *********************************************************/
 
 /* Cortex-M (A7M) Toolset *****************************************************
-This toolset is for Cortex-M. Specifically, this suits Cortex-M0+, Cortex-M1,
-Cortex-M3, Cortex-M7. Cortex-M23 and Cortex-M33 support is still pending at the
-moment.
+This toolset is for ARMv7-M. Specifically, this suits Cortex-M0+, Cortex-M1,
+Cortex-M3, Cortex-M7.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
@@ -3536,8 +3953,6 @@ moment.
 #define A7M_PGTBL_CAPTBL_SIZE   (4096)
 /* The process capability table size limit */
 #define A7M_PROC_CAPTBL_LIMIT   (128)
-/* The A7M port author name */
-#define A7M_AUTHOR              "The A7M project generator"
 /* The A7M boot-time capability table starting slot */
 #define A7M_CAPTBL_START        (8)
 /* End Defines ***************************************************************/
@@ -3545,21 +3960,33 @@ moment.
 /* Structs *******************************************************************/
 struct A7M_Pgtbl
 {
+    /* The start address of the page table */
     ptr_t Start_Addr;
+    /* The size order */
     ptr_t Size_Order;
+    /* The number order */
     ptr_t Num_Order;
+    /* The attribute */
     ptr_t Attr;
+    /* The global linear capability ID */
     ptr_t RVM_Capid;
+    /* The macro corresponding to the global capid */
+    s8* RVM_Capid_Macro;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
     struct A7M_Pgtbl* Mapping[8];
 };
 
 struct A7M_Info
 {
+    /* The NVIC grouping */
 	ptr_t NVIC_Grouping;
+    /* The systick value */
 	ptr_t Systick_Val;
+    /* The CPU type */
     ptr_t CPU_Type;
+    /* The FPU type */
     ptr_t FPU_Type;
+    /* Endianness - big or little */
     ptr_t Endianness;
     /* The page tables for all processes */
     struct A7M_Pgtbl** Pgtbl;
@@ -4015,6 +4442,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
     ptr_t Total_Order;
     struct A7M_Pgtbl* Pgtbl;
     static ptr_t Capid=0;
+    s8 Buf[16];
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
@@ -4024,7 +4452,8 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
 
     /* Allocate the capid for this page table */
     Pgtbl->RVM_Capid=Capid;
-    A7M->Pgtbl_Captbl[Capid].Type=CAP_PGTBL;
+    sprintf(Buf,"%lld",Pgtbl->RVM_Capid);
+    Pgtbl->RVM_Capid_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_PGTBL",Buf);
     A7M->Pgtbl_Captbl[Capid].Proc=Proc;
     A7M->Pgtbl_Captbl[Capid].Cap=(void*)Pgtbl;
     Capid++;
@@ -4077,293 +4506,12 @@ void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_I
     if(Buf2==0)
         EXIT_FAIL("Buffer allocation failed");
 
-    /* RME directory */
-    sprintf(Buf1,"%s/M7M1_MuEukaron",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/Chips",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/Chips/%s",Output_Path,Chip->Name);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Project",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Project/Source",Output_Path);
-    if(Make_Dir(Buf1)!=0)
-        EXIT_FAIL("RME folder creation failed.");
-
-    /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
-    sprintf(Buf2,"%s/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",Output_Path);
-    sprintf(Buf2,"%s/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c",Output_Path);
-    sprintf(Buf2,"%s/MEukaron/Kernel/rme_kernel.c",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m.c",Output_Path);
-    sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m.c",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    /* The toolchain specific one will be created when we are playing with toolchains */
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h",Output_Path);
-    sprintf(Buf2,"%s/MEukaron/Include/Kernel/rme_kernel.h",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/A7M/rme_platform_a7m.h",Output_Path);
-    sprintf(Buf2,"%s/MEukaron/Include/Platform/A7M/rme_platform_a7m.h",RME_Path);
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
-    
-    /* RVM directory */
-
-    /* All other process directories */
+    /* Perhaps copy some other manuals, etc */
 
     Free(Buf1);
     Free(Buf2);
 }
 /* End Function:A7M_Copy_Files ***********************************************/
-
-/* Begin Function:A7M_Gen_RME_Boot ********************************************
-Description : Generate the rme_boot.c. This file is mainly responsible for setting
-              up interrupt endpoints.
-              A corresponding file, rme_boot.h is also created. Different from
-              other headers, this header only includes the capability IDs of all
-              created kernel endpoints.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RME_Path - The RME root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RME_Path, s8* Output_Path)
-{
-    /* Create the file and the file header */
-    s8* Buf;
-    FILE* Boot;
-    time_t Time;
-    struct tm* Time_Struct;
-    ptr_t Vector_Cnt;
-    struct Endp_Info* Endp;
-
-    Buf=Malloc(4096);
-    if(Buf==0)
-        EXIT_FAIL("Buffer allocation failed.");
-
-    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.h", Output_Path);
-    Boot=fopen(Buf, "wb");
-    if(Boot==0)
-        EXIT_FAIL("rme_boot.h open failed.");
-    time(&Time);
-    Time_Struct=localtime(&Time);
-    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
-    Write_Src_Desc(Boot, "rme_boot.c", A7M_AUTHOR, Buf, "LGPL v3+; see COPYING for details.", "The boot-time initialization file header.");
-    fprintf(Boot, "/* Defines *******************************************************************/\n");
-    fprintf(Boot, "/* End Defines ***************************************************************/\n");
-
-    for(Vector_Cnt=0;Vector_Cnt<Proj->RVM.Vector_Captbl_Frontier;Vector_Cnt++)
-    {
-        Endp=(struct Endp_Info*)Proj->RVM.Vector_Captbl[Vector_Cnt].Cap;
-        Make_Define(Boot, "RME_A7M_", "capid name", s8* End, s8* Value, ptr_t Align)
-        sprintf(Buf, "#define %s_CAPID", Endp->Name);
-        fprintf(Boot, "%-80s    (%d)\n", , Endp->RVM_Capid&0x7F);
-        fprintf(Boot,  "/* End Defines ***************************************************************/\n");
-        Endp->Name
-        
-    }
-    fprintf()
-
-    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.c", Output_Path);
-    Boot=fopen(Buf, "wb");
-    if(Boot==0)
-        EXIT_FAIL("rme_boot.c open failed.");
-
-    /* All include headers */
-    fprintf(Boot, "/* Includes ******************************************************************/\n\n");
-    fprintf(Boot, "/* End Includes **************************************************************/\n");
-
-    /* All temporary variables for storing the endpoints */
-    capabilities of all the interrupt endpoints needs to logged into an array.
-    
-    /* Create all the interrupt endpoints selected for use - how many interrupts are there? */
-    
-
-}
-/* End Function:A7M_Gen_RME_Boot *********************************************/
-
-/* Begin Function:A7M_Gen_RME_User ********************************************
-Description : Generate the rme_user.c. This file is mainly responsible for user-
-              supplied hooks. If the user needs to add functionality, consider
-              modifying this file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RME_Path - The RME root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RME_Path, s8* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_RME_User *********************************************/
-
-/* Begin Function:A7M_Gen_RME_Conf ********************************************
-Description : Generate the platform configuration selector file and the chip
-              configuration selector file. The chip configuration file will be
-              rewritten.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RME_Path - The RME root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RME_Path, s8* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_RME_Conf *********************************************/
-
-/* Begin Function:A7M_Gen_RVM_Boot ********************************************
-Description : Generate the rvm_boot.c. This file is mainly responsible for setting
-              up all the kernel objects. If RVM or Posix functionality is enabled,
-              these will also be handled by such file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RVM_Path, s8* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_RVM_Boot *********************************************/
-
-/* Begin Function:A7M_Gen_RVM_User ********************************************
-Description : Generate the rvm_user.c. This file is mainly responsible for user-
-              supplied hooks. If the user needs to add functionality, consider
-              modifying this file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RVM_Path, s8* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_RVM_User *********************************************/
-
-/* Begin Function:A7M_Gen_RVM_Conf ********************************************
-Description : Generate the platform configuration selector file and the chip
-              configuration selector file. The chip configuration file will be
-              rewritten.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                      s8* RVM_Path, s8* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_RVM_Conf *********************************************/
-
-/* Begin Function:A7M_Gen_Scripts *********************************************
-Description : Generate boot-time scripts for ARMv7-M. This is also generic; 
-              Format-specific scripts will be generated in the dedicated generator.
-              This creates boot-time scripts and user stubs for RME.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RME_Path - The RME root folder path.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Scripts(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                     s8* RME_Path, s8* RVM_Path, s8* Output_Path)
-{
-    /* Create rme_boot.c */
-    A7M_Gen_RME_Boot(Proj, Chip, A7M, RME_Path, Output_Path);
-    /* Create rme_user.c */
-    A7M_Gen_RME_User(Proj, Chip, A7M, RME_Path, Output_Path);
-    /* Create the configuration headers for RME */
-    A7M_Gen_RME_Conf(Proj, Chip, A7M, RME_Path, Output_Path);
-
-    /* Generate rvm_boot.c */
-    A7M_Gen_RVM_Boot(Proj, Chip, A7M, RVM_Path, Output_Path);
-    /* Create rvm_user.c */
-    A7M_Gen_RVM_User(Proj, Chip, A7M, RVM_Path, Output_Path);
-    /* Create the configuration headers for RVM */
-    A7M_Gen_RVM_Conf(Proj, Chip, A7M, RVM_Path, Output_Path);
-
-    /* Create projects */
-
-    /* Write boot-time creation script that creates the interrupt endpoints */
-    /* whatever it is - deal with this when we go back.  */
-    /* Write the kernel script for sending interrupts to endpoints */
-
-    /* Write boot-time scripts that creates everything else */
-
-    /* Write scripts for all processes */
-
-}
-/* End Function:A7M_Gen_Scripts **********************************************/
 
 /* Begin Function:A7M_Gen_Keil_Proj *******************************************
 Description : Generate the keil project for ARMv7-M architectures.
@@ -4873,119 +5021,6 @@ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
         A7M_Gen_Keil(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
     else
         EXIT_FAIL("Other projects not supported at the moment.");
-
-    /*
-    it looked like that this tool is no small task... Many stuff there. so many idiosyncrasies.
-    However we hoped that it can run quickly. We need to find a way to organize the data inside this thing.
-    Could be nasty, but we will rather let all stuff stay inside for ease of compilation. This is always, vital.
-    We also need to update the Cortex-M7.
-#error: add m7m2-root folder. RVM is always necessary. Hand-crafted stuff should always be there for convenience. 
-when making init, always run one virtual machine??? Current organization is just terrible.
-Additionally, how much memory does it take? totally unknown to us.
-Another issue: how to make the example programs? Is the current one too hard? 
-We should remove the VMM functionality now, maybe we can add it back later on.
-We also have a bunch of other stuff that is waiting for us. How to deal with this?
-The MCU user-level lib includes the following:
-
-Basics -> Some to be created, some is there.
-VMM -> This is the VMM.
-Posix -> This is the posix.
-This is going to look very bad. Very bad.
-How to make the example project - That becomes really tough. Can't make use of the VMM anymore.Try_Bitmap
-We cannot delete the project folder either. This is nuts. 
-Or, maybe, we can consider merging the RVM with the RME, combined in a single file implementation of the user-level.
-Additionally, The performance of the system is still unmeasured. This is not good at all.
-The HAL organization is also nuts.
-
-Are we really gonna do that? Or, what will M7M2 do? We cannot always rely on the M5P1.
-Or, consider removing M7M2, and make the whole thing, including all drivers, M7M1. This is 
-sensible, but there's the risk of producing something very large and very complex.
-
-Additionally - how is this going to integrate with the rest of the stuff? How? this is going to
-be very hard again. 
-Anything that is standalone compilable should be a standalone project. Or, it should not be
-standalone at all.
-M7M2 should be merged with M7M1, due to the fact that it is not standalone testable.
-Because all user-level test cases should involve M7M2. 
-
-Very hard still. we have RVM now, and we know how to do it, and it can compile to a standalone
-binary.
-simple. Just use two stuff, one is the RVM, another is the binary, in the same folder. 
-we still need M7M2 path. This is still necessary.
-For this project to compile, you need all three in the same folder to work together, as
-they are made to work together.
-Let's just provide all MCU examples with that. This is probably the best we can do.
-
- It is obvious that more work is needed on this: the
-              current design is not powerful enough to explore all the possibilities.
-              Also, consider some memory attributes might be helpful, such as
-              locating data to SDRAM and so on. This might be necessary for the
-              system design in the future. The solution on shared memory is imperfect
-              as well, and can require more work in the future.
-              Additionally, it will be icing on the cake to allow for guessing of
-              memory. In that case we don't need to statically allocate them.
-
-              Remeber that simplicity is always the most important facet of the 
-              design: usability matters most.
-
-              We will also need a GUI tool for doing system probing. This c
-
-
-              why have the IRQ section in the user.xml at all? This is useless. very useless.
-              we also needed a new version detailing the stuff. this is really bad. 
-
-              Apply generic check: the memory range is correct.
-
-              For Cortex-M, there are other checks that might need to be performed.
-              for example, a page table must have the R flag, and the program pages must be static, 
-              the number of static pages cannot exceed a certain number, etc. If static pages are no longer
-              static, that's kind of a joke. But in multi-core systems where we can't control this,
-              it is necessary that we fill stuff in. 
-              We will likely want to drop the support for directly remembering the top-level as
-              this restricts page table sharing.
-              The STATIC's property still needs to be researched - at least if cortex-m cannot
-              .... This still need much more consideration. at least now page allocation works.
-              Don't forget these - can be problematic in some cases.
-
-              need to figure out whether MMFAR makes sense in that case. If not, we are in
-              real trouble for multi-core code sections, which the V8-M may come in with.
-
-              ARMv8-M may go multicore. This is also very bad, As we may have to open a hole on
-              the memory map for it, or have something statically mapped.
-              Multi-core MPU cannot really take this without instruction access address. This is too bad. 
-              This is going to be tough - not that easy.
-
-              It is possible to deal with IACCVIOL, code pages not necessarily need to be STATIC.
-              we know where PSP is, from PSP we can directly find the faulting instruction address.
-              This is supposed to be easy.
-              How to know whether we can even kernel? access that address? walk the page tables, you got it.
-
-              Cap_Kern is not supported by now, consider supporting it later. This is vital.
-
-              Add another functionality so that the generated projects can be targeted again. 
-              In this case, we don't touch the user file, because it may contain some user logic.
-
-              The project is not touched as well, because the user may have already added his or her
-              own libraries.
-
-              Code/data section placement also a problem. we should not allow overlapping code sections...
-              or it is required that the code section be placed into somewhere. 
-              Where do we actually place our code and data when generating something???? This is important.
-              If not, we will be in trouble.
-              We need to let the user designate which does he hope to place the stuff in....
-              Or, we can default to the first one encountered. 
-              This is always the easiest way.
-              Data covering each other in the final image is fine; but code is not.
-              We cannot overlap code. this is illegal.
-              We need to add such checks to it.
-
-              parts of the A7M file generation really needs to be moved out, especially the 
-              endpoint generations. This is important, so the code to generate processes can
-              actually get reused.
-              Again, we need a better abstraction.
-              The synergy between multi-core, RVM and posix is still to be discussed.
-              shared memory is another nice feature to have.
-     */
 }
 /* End Function:A7M_Gen_Proj *************************************************/
 
