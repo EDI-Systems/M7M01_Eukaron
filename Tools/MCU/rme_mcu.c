@@ -381,8 +381,10 @@ struct Proc_Info
     s8* RVM_Proc_Capid_Macro;
     /* The global linear capid of the process's captbl */
     ptr_t RVM_Captbl_Capid;
-    /* The macro denoting the linear capid */
+    /* The macro denoting the capability table's linear capid */
     s8* RVM_Captbl_Capid_Macro;
+    /* The macro denoting the page table's linear capid */
+    s8* RVM_Pgtbl_Capid_Macro;
     /* The extra first level captbl capacity required */
 	ptr_t Extra_Captbl;
     /* The current local capability table frontier */ 
@@ -527,9 +529,12 @@ struct Cap_Alloc_Info
     /* After the booting all finishes */ 
     ptr_t Cap_Boot_Front;
     ptr_t Kmem_Boot_Front;
-    /* The header file name, for RME and RVM */
-    s8* RME_Plat_Header;
-    s8* RVM_Plat_Header;
+    /* Callbacks for generating the RVM page table part */
+    void* Plat_Info;
+    ptr_t (*Gen_RVM_Pgtbl_Macro)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
+                                 struct Cap_Alloc_Info* Alloc);
+    void (*Gen_RVM_Pgtbl_Create)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
+                                 struct Cap_Alloc_Info* Alloc);
 };
 /* End Structs ***************************************************************/
 
@@ -3565,20 +3570,25 @@ s8* Raw_Match(struct Raw_Info* Info, s8* Tag)
 Description : Output the header that is sticked to every C file.
 Input       : FILE* File - The pointer to the file.
               s8* Filename - The name of the file.
-              s8* Author - The author of the file.
-              s8* Date - The date of the file.
-              s8* License - The license of the file.
               s8* Description - The description of the file.
 Output      : FILE* File - The pointer to the updated file.
 Return      : None.
 ******************************************************************************/
-void Write_Src_Desc(FILE* File, s8* Filename, s8* Author, s8* Date, s8* License, s8* Description)
+void Write_Src_Desc(FILE* File, s8* Filename, s8* Description)
 {
+    s8 Date[64];
+    time_t Time;
+    struct tm* Time_Struct;
+
+    time(&Time);
+    Time_Struct=localtime(&Time);
+    sprintf(Date,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
+
     fprintf(File, "/******************************************************************************\n");
     fprintf(File, "Filename    : %s\n", Filename);
-    fprintf(File, "Author      : %s\n", Author);
+    fprintf(File, "Author      : %s\n", CODE_AUTHOR);
     fprintf(File, "Date        : %s\n", Date);
-    fprintf(File, "License     : %s\n", License);
+    fprintf(File, "License     : %s\n", "LGPL v3+; see COPYING for details.");
     fprintf(File, "Description : %s\n", Description);
     fprintf(File, "******************************************************************************/\n\n");
 }
@@ -3723,9 +3733,8 @@ void Lower_Case(s8* Dst, s8* Src)
 }
 /* End Function:Lower_Case ***************************************************/
 
-/* Begin Function:Gen_RME_Boot ************************************************
-Description : Generate the rme_boot.h and rme_boot.c. These file are mainly
-              responsible for setting up interrupt endpoints.
+/* Begin Function:Setup_RME_Folder ********************************************
+Description : Setup the folder contents for RME.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
               s8* RME_Path - The RME root folder path.
@@ -3733,347 +3742,7 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  struct Cap_Alloc_Info* Alloc, s8* RME_Path, s8* Output_Path)
-{
-    /* Create the file and the file header */
-    s8* Buf;
-    FILE* Boot;
-    time_t Time;
-    struct tm* Time_Struct;
-    ptr_t Vect_Cnt;
-    struct Vect_Info* Vect;
-    ptr_t Count;
-    ptr_t Cap_Front;
-    ptr_t Capacity;
-    s8 Lower_Plat[16];
-
-    /* Convert platform name to lower case */
-    Lower_Case(Lower_Plat, Proj->Platform);
-
-    Buf=Malloc(4096);
-    if(Buf==0)
-        EXIT_FAIL("Buffer allocation failed.");
-
-    Cap_Front=Alloc->Cap_Vect_Front;
-    Capacity=POW2((Alloc->Processor_Bits/4)-1);
-
-    /* Generate rme_boot.h */
-    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Include/rme_boot.h", Output_Path);
-    Boot=fopen(Buf, "wb");
-    if(Boot==0)
-        EXIT_FAIL("rme_boot.h open failed.");
-    time(&Time);
-    Time_Struct=localtime(&Time);
-    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
-    Write_Src_Desc(Boot, "rme_boot.h", CODE_AUTHOR, Buf, 
-                   "LGPL v3+; see COPYING for details.", "The boot-time initialization file header.");
-    fprintf(Boot, "/* Defines *******************************************************************/\n");
-    fprintf(Boot, "/* Vector endpoint capability tables */\n");
-    /* Vector capability table */
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count+=Capacity)
-    {
-        sprintf(Buf, "RME_BOOT_CTVECT%lld",Count/Capacity);
-        Make_Define_Int(Boot, Buf, Cap_Front++, MACRO_ALIGNMENT);
-    }
-    /* Vector endpoints */
-    fprintf(Boot, "/* Vector endpoints */\n");
-    for(Vect_Cnt=0;Vect_Cnt<Proj->RVM.Vector_Captbl_Front;Vect_Cnt++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Vect_Cnt].Cap;
-        sprintf(Buf, "RME_CAPID_2L(RME_BOOT_CTVECT%lld,%lld)", Vect_Cnt/Capacity, Vect_Cnt%Capacity);
-        Make_Define_Str(Boot, Vect->RME_Capid_Macro, Buf, MACRO_ALIGNMENT);
-    }
-    fprintf(Boot, "/* End Defines ***************************************************************/\n\n");
-    Write_Src_Footer(Boot);
-    fclose(Boot);
-
-    /* Generate rme_boot.c */
-    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.c", Output_Path);
-    Boot=fopen(Buf, "wb");
-    if(Boot==0)
-        EXIT_FAIL("rme_boot.c open failed.");
-    time(&Time);
-    Time_Struct=localtime(&Time);
-    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
-    Write_Src_Desc(Boot, "rme_boot.c", CODE_AUTHOR, Buf, 
-                   "LGPL v3+; see COPYING for details.", "The boot-time initialization file.");
-    /* Print all header includes */
-    fprintf(Boot, "/* Includes ******************************************************************/\n");
-    fprintf(Boot, "#define __HDR_DEFS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_DEFS__\n\n");
-    fprintf(Boot, "#define __HDR_STRUCTS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_STRUCTS__\n\n");
-    fprintf(Boot, "#define __HDR_PUBLIC_MEMBERS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
-    fprintf(Boot, "#include \"rme_boot.h\"\n");
-    fprintf(Boot, "/* End Includes **************************************************************/\n\n");
-    /* Print all global variables and prototypes */
-    fprintf(Boot, "/* Private Global Variables **************************************************/\n");
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Count].Cap;
-        fprintf(Boot, "static struct RME_Sig_Struct* %s_Vect_Sig;\n", Vect->Name);
-    }
-    fprintf(Boot, "/* End Private Global Variables **********************************************/\n\n");
-    fprintf(Boot, "/* Private C Function Prototypes *********************************************/\n");
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Count].Cap;
-        fprintf(Boot, "static rme_ptr_t RME_Vect_%s_User(rme_ptr_t Int_Num);\n", Vect->Name);
-    }
-    fprintf(Boot, "/* End Private C Function Prototypes *****************************************/\n\n");
-    fprintf(Boot, "/* Public C Function Prototypes **********************************************/\n");
-    fprintf(Boot, "void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);\n");
-    fprintf(Boot, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);\n");
-    fprintf(Boot, "/* End Public C Function Prototypes ******************************************/\n\n");
-    /* Boot-time setup routine for the interrupt endpoints */
-    Write_Func_Desc(Boot, "RME_Boot_Vect_Init");
-    fprintf(Boot, "Description : Initialize all the vector endpoints at boot-time.\n");
-    fprintf(Boot, "Input       : rme_ptr_t Cap_Front - The current capability table frontier.\n");
-    fprintf(Boot, "Input       : rme_ptr_t Kmem_Front - The current kernel absolute memory frontier.\n");
-    fprintf(Boot, "Output      : None.\n");
-    fprintf(Boot, "Return      : None.\n");
-    fprintf(Boot, "******************************************************************************/\n");
-    fprintf(Boot, "void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front)\n");
-    fprintf(Boot, "{\n");
-    fprintf(Boot, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(Boot, "    /* The address here shall match what is in the generator */\n");
-    fprintf(Boot, "    RME_ASSERT(Cap_Front==%lld);\n", Alloc->Cap_Vect_Front);
-    fprintf(Boot, "    RME_ASSERT(Kmem_Front==0x%llx);\n\n", Alloc->Kmem_Vect_Front+Alloc->Kmem_Abs_Base);
-    fprintf(Boot, "    Cur_Addr=Kmem_Front;\n");
-    fprintf(Boot, "    /* Create all the vector capability tables first */\n");
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count+=Capacity)
-    {
-        fprintf(Boot, "    RME_ASSERT(_RME_Captbl_Boot_Crt(Captbl, RME_BOOT_CAPTBL, RME_BOOT_CTVECT%lld, Cur_Addr, %lld))==0);\n", 
-                Count/Capacity,(Proj->RVM.Vector_Captbl_Front>(Count+1)*Capacity)?(Capacity):(Proj->RVM.Vector_Captbl_Front%Capacity));
-        fprintf(Boot, "    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Vector_Captbl_Front>(Count+1)*Capacity)?(Capacity):(Proj->RVM.Vector_Captbl_Front%Capacity));
-    }
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Count].Cap;
-        fprintf(Boot, "    %s_Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;\n", Vect->Name);
-        fprintf(Boot, "    RME_ASSERT(_RME_Sig_Boot_Crt(Captbl, RME_BOOT_CTVECT%lld, %s, Cur_Addr)==0);\n", Count/Capacity, Vect->RME_Capid_Macro);
-        fprintf(Boot, "    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);\n");
-    }
-    fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Vect_Init");
-    /* Print the interrupt relaying function */
-    Write_Func_Desc(Boot, "RME_Boot_Vect_Handler");
-    fprintf(Boot, "Description : The interrupt handler entry for all the vectors.\n");
-    fprintf(Boot, "Input       : rme_ptr_t Vect_Num - The vector number.\n");
-    fprintf(Boot, "Output      : None.\n");
-    fprintf(Boot, "Return      : rme_ptr_t - The number of signals to send to the generic vector endpoint.\n");
-    fprintf(Boot, "******************************************************************************/\n");
-    fprintf(Boot, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num)\n");
-    fprintf(Boot, "{\n");
-    fprintf(Boot, "    rme_ptr_t Send_Num;\n\n");
-    fprintf(Boot, "    switch(Int_Num)\n");
-    fprintf(Boot, "    {\n");
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Count].Cap;
-        fprintf(Boot, "        /* %s */\n", Vect->Name);
-        fprintf(Boot, "        case %lld:\n", Vect->Number);
-        fprintf(Boot, "        {\n");
-        fprintf(Boot, "            Send_Num=RME_Vect_%s_User(Int_Num);\n", Vect->Name);
-        fprintf(Boot, "            RME_Kern_Send(%s_Vect_Sig);\n", Vect->Name);
-        fprintf(Boot, "            return Send_Num;\n");
-        fprintf(Boot, "        }\n");
-    }
-    fprintf(Boot, "        default: break;\n");
-    fprintf(Boot, "    }\n");
-    fprintf(Boot, "    return 1;\n");
-    fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Vect_Handler");
-    /* The rest are interrupt endpoint user preprocessing functions */
-    for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
-    {
-        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Count].Cap;
-        sprintf(Buf, "RME_Vect_%s_User", Vect->Name);
-        Write_Func_Desc(Boot, Buf);
-        fprintf(Boot, "Description : The user top-half interrupt handler for %s.\n", Vect->Name);
-        fprintf(Boot, "Input       : rme_ptr_t Int_Num - The interrupt number.\n");
-        fprintf(Boot, "Output      : None.\n");
-        fprintf(Boot, "Return      : rme_ptr_t - The number of signals to send to the generic vector endpoint.\n");
-        fprintf(Boot, "******************************************************************************/\n");
-        fprintf(Boot, "rme_ptr_t RME_Vect_%s_User(rme_ptr_t Int_Num)\n", Vect->Name);
-        fprintf(Boot, "{\n");
-        fprintf(Boot, "    /* Add code here */\n\n");
-        fprintf(Boot, "    return 0;\n");
-        fprintf(Boot, "}\n");
-        Write_Func_Footer(Boot, Buf);
-    }
-    /* Close the file */
-    Write_Src_Footer(Boot);
-    fclose(Boot);
-}
-/* End Function:Gen_RME_Boot *************************************************/
-
-/* Begin Function:Gen_RME_User ************************************************
-Description : Generate the rme_user.c. This file is mainly responsible for user-
-              supplied hooks. If the user needs to add functionality, consider
-              modifying this file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8* RME_Path - The RME root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path)
-{
-    s8* Buf;
-    FILE* Boot;
-    time_t Time;
-    struct tm* Time_Struct;
-    s8 Lower_Plat[16];
-
-    /* Convert platform name to lower case */
-    Lower_Case(Lower_Plat, Proj->Platform);
-    
-    Buf=Malloc(4096);
-    if(Buf==0)
-        EXIT_FAIL("Buffer allocation failed.");
-
-    /* Create user stubs - pre initialization and post initialization */
-    /* Generate rme_boot.c */
-    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_user.c", Output_Path);
-    Boot=fopen(Buf, "wb");
-    if(Boot==0)
-        EXIT_FAIL("rme_user.c open failed.");
-    time(&Time);
-    Time_Struct=localtime(&Time);
-    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
-    Write_Src_Desc(Boot, "rme_user.c", CODE_AUTHOR, Buf, 
-                   "LGPL v3+; see COPYING for details.", "The user hooks.");
-    /* Print all header includes */
-    fprintf(Boot, "/* Includes ******************************************************************/\n");
-    fprintf(Boot, "#define __HDR_DEFS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_DEFS__\n\n");
-    fprintf(Boot, "#define __HDR_STRUCTS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_STRUCTS__\n\n");
-    fprintf(Boot, "#define __HDR_PUBLIC_MEMBERS__\n");
-    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
-    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
-    fprintf(Boot, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
-    fprintf(Boot, "#include \"rme_boot.h\"\n");
-    fprintf(Boot, "/* End Includes **************************************************************/\n\n");
-    /* Print all global prototypes */
-    fprintf(Boot, "/* Public C Function Prototypes **********************************************/\n");
-    fprintf(Boot, "void RME_Boot_Pre_Init(void);\n");
-    fprintf(Boot, "void RME_Boot_Post_Init(void);\n");
-    fprintf(Boot, "/* End Public C Function Prototypes ******************************************/\n\n");
-    /* Preinitialization of hardware */
-    Write_Func_Desc(Boot, "RME_Boot_Pre_Init");
-    fprintf(Boot, "Description : Initialize critical hardware before any kernel initialization takes place.\n");
-    fprintf(Boot, "Input       : None.\n");
-    fprintf(Boot, "Input       : None.\n");
-    fprintf(Boot, "Output      : None.\n");
-    fprintf(Boot, "Return      : None.\n");
-    fprintf(Boot, "******************************************************************************/\n");
-    fprintf(Boot, "void RME_Boot_Pre_Init(void)\n");
-    fprintf(Boot, "{\n");
-    fprintf(Boot, "    /* Add code here */\n");
-    fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Pre_Init");
-    /* Postinitialization of hardware */
-    Write_Func_Desc(Boot, "RME_Boot_Post_Init");
-    fprintf(Boot, "Description : Initialize hardware after all kernel initialization takes place.\n");
-    fprintf(Boot, "Input       : None.\n");
-    fprintf(Boot, "Input       : None.\n");
-    fprintf(Boot, "Output      : None.\n");
-    fprintf(Boot, "Return      : None.\n");
-    fprintf(Boot, "******************************************************************************/\n");
-    fprintf(Boot, "void RME_Boot_Post_Init(void)\n");
-    fprintf(Boot, "{\n");
-    fprintf(Boot, "    /* Add code here */\n");
-    fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Post_Init");
-    /* Close the file */
-    Write_Src_Footer(Boot);
-    fclose(Boot);
-}
-/* End Function:Gen_RME_User *************************************************/
-
-/* Begin Function:Gen_RVM_Boot ************************************************
-Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsible
-              for setting up all the kernel objects. If RVM or Posix functionality
-              is enabled, these will also be handled by such file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
-{
-    /* Create all the capability table address */
-
-    /* Create all the page tables first *//*
-    Gen_Pgtbl_Header(&Captbl_Front);
-    Gen_Pgtbl_Setup(&Captbl_Front, &Kmem_Front);*/
-
-    /* Then capability tables for all processes */
-
-    /* Then all processes */
-
-    /* All threads */
-
-    /* All invocations */
-
-    /* All ports */
-
-    /* All receive endpoints */
-
-    /* All send endpoints */
-
-    /* All vector endpoints */
-}
-/* End Function:Gen_RVM_Boot *************************************************/
-
-/* Begin Function:Gen_RVM_User ************************************************
-Description : Generate the rvm_user.c. This file is mainly responsible for user-
-              supplied hooks. If the user needs to add functionality, consider
-              modifying this file.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
-{
-    /* User stubs */
-}
-/* End Function:Gen_RVM_User *************************************************/
-
-/* Begin Function:Setup_Folder ************************************************
-Description : Setup the generic folder contents.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8* RME_Path - The RME root folder path.
-              s8* RVM_Path - The RVM root folder path.
-              s8* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Setup_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, 
-                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path)
 {
     s8* Buf1;
     s8* Buf2;
@@ -4166,17 +3835,808 @@ void Setup_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip,
     sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/rme_platform_%s.h",RME_Path,Proj->Platform,Lower_Plat);
     if(Copy_File(Buf1, Buf2)!=0)
         EXIT_FAIL("File copying failed.");
-
-    /* Crank the selector headers */
-
-    /* RVM directory */
-
-    /* All other process directories */
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",Output_Path,Proj->Platform,Proj->Chip,Proj->Chip);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",RME_Path,Proj->Platform,Proj->Chip,Proj->Chip);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
 
     Free(Buf1);
     Free(Buf2);
 }
+/* End Function:Setup_RME_Folder *********************************************/
+
+/* Begin Function:Setup_RVM_Folder ********************************************
+Description : Setup the folder contents for RVM.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
+{
+    s8* Buf1;
+    s8* Buf2;
+    s8 Lower_Plat[16];
+
+    /* Allocate the buffer */
+    Buf1=Malloc(sizeof(s8)*4096);
+    if(Buf1==0)
+        EXIT_FAIL("Buffer allocation failed");
+    Buf2=Malloc(sizeof(s8)*4096);
+    if(Buf2==0)
+        EXIT_FAIL("Buffer allocation failed");
+
+    Lower_Case(Lower_Plat, Proj->Platform);
+
+    /* RME directory */
+    sprintf(Buf1,"%s/M7M2_MuAmmonite",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Documents",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Init",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",Output_Path,Proj->Platform,Chip->Name);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Init",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s",Output_Path,Proj->Platform);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Project",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Project/Source",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Project/Include",Output_Path);
+    if(Make_Dir(Buf1)!=0)
+        EXIT_FAIL("RVM folder creation failed.");
+
+    /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf",RVM_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf",Output_Path);
+    sprintf(Buf2,"%s/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf",RVM_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    /* Currently the VMM and Posix is disabled, thus only the init is copied. */
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Init/rvm_init.c",Output_Path);
+    sprintf(Buf2,"%s/MAmmonite/Init/rvm_init.c",RVM_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    /* The toolchain specific one will be created when we are playing with toolchains */
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",Output_Path,Proj->Platform,Lower_Plat);
+    sprintf(Buf2,"%s/MAmmonite/Platform/%s/rvm_platform_%s.c",RVM_Path,Proj->Platform,Lower_Plat);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/rvm.h",Output_Path);
+    sprintf(Buf2,"%s/MAmmonite/Include/rvm.h",RVM_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h",Output_Path);
+    sprintf(Buf2,"%s/MAmmonite/Include/Init/rvm_init.h",RVM_Path);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",Output_Path,Proj->Platform,Lower_Plat);
+    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",RVM_Path,Proj->Platform,Lower_Plat);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",Output_Path,Proj->Platform,Proj->Chip,Proj->Chip);
+    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",RVM_Path,Proj->Platform,Proj->Chip,Proj->Chip);
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+
+    Free(Buf1);
+    Free(Buf2);
+}
+/* End Function:Setup_RVM_Folder *********************************************/
+
+/* Begin Function:Setup_Folder ************************************************
+Description : Setup the generic folder contents.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Setup_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, 
+                  s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    Setup_RME_Folder(Proj, Chip, RME_Path, Output_Path);
+    Setup_RVM_Folder(Proj, Chip, RVM_Path, Output_Path);
+}
 /* End Function:Setup_Folder *************************************************/
+
+/* Begin Function:Setup_Include ***********************************************
+Description : Crank the platform selection headers for RME and RVM.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Setup_Include(struct Proj_Info* Proj, struct Chip_Info* Chip, 
+                   s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    /* Create the file and the file header */
+    s8* Buf;
+    FILE* File;
+    s8 Lower_Plat[16];
+
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+
+    /* Generate rme_platform.h */
+    sprintf(Buf, "%s/M7M1_MuEukaron/MEukaron/Include/Platform/rme_platform.h", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rme_platform.h open failed.");
+    Lower_Case(Lower_Plat,Proj->Platform);
+    Write_Src_Desc(File, "rme_platform.h", "The platform selection header.");
+    fprintf(File, "/* Platform Includes *********************************************************/\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
+    Write_Src_Footer(File);
+    fclose(File);
+
+    /* Generate rme_platform.h */
+    sprintf(Buf, "%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h", Output_Path, Proj->Platform, Lower_Plat);
+    File=fopen(Buf, "wb");
+    sprintf(Buf, "rme_platform_%s_conf.h", Lower_Plat);
+    if(File==0)
+        EXIT_FAIL("rme_platform_xxx_conf.h open failed.");
+    Lower_Case(Lower_Plat,Proj->Platform);
+    Write_Src_Desc(File, Buf, "The platform chip selection header.");
+    fprintf(File, "/* Platform Includes *********************************************************/\n");
+    fprintf(File, "#include \"Platform/%s/Chips/%s/rme_platform_%s.h\"\n", Proj->Platform, Proj->Chip, Proj->Chip);
+    fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
+    Write_Src_Footer(File);
+    fclose(File);
+}
+/* End Function:Setup_Include ************************************************/
+
+/* Begin Function:Print_RME_Include *******************************************
+Description : Generate the RME-related include section.
+Input       : FILE* File - The file to print to.
+              struct Proj_Info* Proj - The project structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Print_RME_Include(FILE* File, struct Proj_Info* Proj)
+{
+    s8 Lower_Plat[16];
+    
+    /* Convert platform name to lower case */
+    Lower_Case(Lower_Plat, Proj->Platform);
+    /* Print includes */
+    fprintf(File, "#define __HDR_DEFS__\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(File, "#undef __HDR_DEFS__\n\n");
+    fprintf(File, "#define __HDR_STRUCTS__\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(File, "#undef __HDR_STRUCTS__\n\n");
+    fprintf(File, "#define __HDR_PUBLIC_MEMBERS__\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(File, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
+}
+/* End Function:Print_RME_Include ********************************************/
+
+/* Begin Function:Gen_RME_Boot ************************************************
+Description : Generate the rme_boot.h and rme_boot.c. These file are mainly
+              responsible for setting up interrupt endpoints.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct Cap_Alloc_Info* Alloc - The allocation information structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                  struct Cap_Alloc_Info* Alloc, s8* RME_Path, s8* Output_Path)
+{
+    s8* Buf;
+    FILE* File;
+    ptr_t Obj_Cnt;
+    struct Vect_Info* Vect;
+    ptr_t Cap_Front;
+    ptr_t Capacity;
+
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+
+    Cap_Front=Alloc->Cap_Vect_Front;
+    Capacity=POW2((Alloc->Processor_Bits/4)-1);
+
+    /* Generate rme_boot.h */
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Include/rme_boot.h", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rme_boot.h open failed.");
+    Write_Src_Desc(File, "rme_boot.h", "The boot-time initialization file header.");
+    fprintf(File, "/* Defines *******************************************************************/\n");
+    fprintf(File, "/* Vector endpoint capability tables */\n");
+    /* Vector capability table */
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RME_BOOT_CTVECT%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    /* Vector endpoints */
+    fprintf(File, "\n/* Vector endpoints */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RME_CAPID(RME_BOOT_CTVECT%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Vect->RME_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "/* End Defines ***************************************************************/\n\n");
+    Write_Src_Footer(File);
+    fclose(File);
+
+    /* Generate rme_boot.c */
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_boot.c", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rme_boot.c open failed.");
+    Write_Src_Desc(File, "rme_boot.c", "The boot-time initialization file.");
+    /* Print all header includes */
+    fprintf(File, "/* Includes ******************************************************************/\n");
+    Print_RME_Include(File, Proj);
+    fprintf(File, "#include \"rme_boot.h\"\n");
+    fprintf(File, "/* End Includes **************************************************************/\n\n");
+    /* Print all global variables and prototypes */
+    fprintf(File, "/* Private Global Variables **************************************************/\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        fprintf(File, "static struct RME_Sig_Struct* %s_Vect_Sig;\n", Vect->Name);
+    }
+    fprintf(File, "/* End Private Global Variables **********************************************/\n\n");
+    fprintf(File, "/* Private C Function Prototypes *********************************************/\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        fprintf(File, "static rme_ptr_t RME_Vect_%s_User(rme_ptr_t Int_Num);\n", Vect->Name);
+    }
+    fprintf(File, "/* End Private C Function Prototypes *****************************************/\n\n");
+    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
+    fprintf(File, "void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);\n");
+    fprintf(File, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);\n");
+    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+    /* Boot-time setup routine for the interrupt endpoints */
+    Write_Func_Desc(File, "RME_Boot_Vect_Init");
+    fprintf(File, "Description : Initialize all the vector endpoints at boot-time.\n");
+    fprintf(File, "Input       : rme_ptr_t Cap_Front - The current capability table frontier.\n");
+    fprintf(File, "              rme_ptr_t Kmem_Front - The current kernel absolute memory frontier.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
+    fprintf(File, "    /* The address here shall match what is in the generator */\n");
+    fprintf(File, "    RME_ASSERT(Cap_Front==%lld);\n", Alloc->Cap_Vect_Front);
+    fprintf(File, "    RME_ASSERT(Kmem_Front==0x%llx);\n\n", Alloc->Kmem_Vect_Front+Alloc->Kmem_Abs_Base);
+    fprintf(File, "    Cur_Addr=Kmem_Front;\n");
+    fprintf(File, "    /* Create all the vector capability tables first */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        fprintf(File, "    RME_ASSERT(_RME_Captbl_Boot_Crt(Captbl, RME_BOOT_CAPTBL, RME_BOOT_CTVECT%lld, Cur_Addr, %lld)==0);\n", 
+                Obj_Cnt/Capacity,(Proj->RVM.Vector_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Vector_Captbl_Front%Capacity));
+        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(%lld));\n",
+                (Proj->RVM.Vector_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Vector_Captbl_Front%Capacity));
+    }
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        fprintf(File, "    %s_Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;\n", Vect->Name);
+        fprintf(File, "    RME_ASSERT(_RME_Sig_Boot_Crt(Captbl, RME_BOOT_CTVECT%lld, %s, Cur_Addr)==0);\n", Obj_Cnt/Capacity, Vect->RME_Capid_Macro);
+        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);\n");
+    }
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RME_Boot_Vect_Init");
+    /* Print the interrupt relaying function */
+    Write_Func_Desc(File, "RME_Boot_Vect_Handler");
+    fprintf(File, "Description : The interrupt handler entry for all the vectors.\n");
+    fprintf(File, "Input       : rme_ptr_t Vect_Num - The vector number.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : rme_ptr_t - The number of signals to send to the generic vector endpoint.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    rme_ptr_t Send_Num;\n\n");
+    fprintf(File, "    switch(Vect_Num)\n");
+    fprintf(File, "    {\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        fprintf(File, "        /* %s */\n", Vect->Name);
+        fprintf(File, "        case %lld:\n", Vect->Number);
+        fprintf(File, "        {\n");
+        fprintf(File, "            Send_Num=RME_Vect_%s_User(Vect_Num);\n", Vect->Name);
+        fprintf(File, "            _RME_Kern_Snd(%s_Vect_Sig);\n", Vect->Name);
+        fprintf(File, "            return Send_Num;\n");
+        fprintf(File, "        }\n");
+    }
+    fprintf(File, "        default: break;\n");
+    fprintf(File, "    }\n");
+    fprintf(File, "    return 1;\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RME_Boot_Vect_Handler");
+    /* The rest are interrupt endpoint user preprocessing functions */
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Vector_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RME_Vect_%s_User", Vect->Name);
+        Write_Func_Desc(File, Buf);
+        fprintf(File, "Description : The user top-half interrupt handler for %s.\n", Vect->Name);
+        fprintf(File, "Input       : rme_ptr_t Int_Num - The interrupt number.\n");
+        fprintf(File, "Output      : None.\n");
+        fprintf(File, "Return      : rme_ptr_t - The number of signals to send to the generic vector endpoint.\n");
+        fprintf(File, "******************************************************************************/\n");
+        fprintf(File, "rme_ptr_t RME_Vect_%s_User(rme_ptr_t Int_Num)\n", Vect->Name);
+        fprintf(File, "{\n");
+        fprintf(File, "    /* Add code here */\n\n");
+        fprintf(File, "    return 0;\n");
+        fprintf(File, "}\n");
+        Write_Func_Footer(File, Buf);
+    }
+    /* Close the file */
+    Write_Src_Footer(File);
+    fclose(File);
+}
+/* End Function:Gen_RME_Boot *************************************************/
+
+/* Begin Function:Gen_RME_User ************************************************
+Description : Generate the rme_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RME_Path - The RME root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path)
+{
+    s8* Buf;
+    FILE* File;
+    s8 Lower_Plat[16];
+
+    /* Convert platform name to lower case */
+    Lower_Case(Lower_Plat, Proj->Platform);
+    
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+
+    /* Create user stubs - pre initialization and post initialization */
+    /* Generate rme_boot.c */
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_user.c", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rme_user.c open failed.");
+    Write_Src_Desc(File, "rme_user.c", "The user hook file.");
+    /* Print all header includes */
+    fprintf(File, "/* Includes ******************************************************************/\n");
+    Print_RME_Include(File, Proj);
+    fprintf(File, "#include \"rme_boot.h\"\n");
+    fprintf(File, "/* End Includes **************************************************************/\n\n");
+    /* Print all global prototypes */
+    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
+    fprintf(File, "void RME_Boot_Pre_Init(void);\n");
+    fprintf(File, "void RME_Boot_Post_Init(void);\n");
+    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+    /* Preinitialization of hardware */
+    Write_Func_Desc(File, "RME_Boot_Pre_Init");
+    fprintf(File, "Description : Initialize critical hardware before any kernel initialization takes place.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RME_Boot_Pre_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    /* Add code here */\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RME_Boot_Pre_Init");
+    /* Postinitialization of hardware */
+    Write_Func_Desc(File, "RME_Boot_Post_Init");
+    fprintf(File, "Description : Initialize hardware after all kernel initialization takes place.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RME_Boot_Post_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    /* Add code here */\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RME_Boot_Post_Init");
+    /* Close the file */
+    Write_Src_Footer(File);
+    fclose(File);
+}
+/* End Function:Gen_RME_User *************************************************/
+
+/* Begin Function:Print_RVM_Include *******************************************
+Description : Generate the RVM-related include section.
+Input       : FILE* File - The file to print to.
+              struct Proj_Info* Proj - The project structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Print_RVM_Include(FILE* File, struct Proj_Info* Proj)
+{
+    s8 Lower_Plat[16];
+    
+    /* Convert platform name to lower case */
+    Lower_Case(Lower_Plat, Proj->Platform);
+    /* Print includes */
+    fprintf(File, "#define __HDR_DEFS__\n");
+    fprintf(File, "#include \"Platform/%s/rvm_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
+    fprintf(File, "#include \"Init/rvm_init.h\"\n");
+    fprintf(File, "#undef __HDR_DEFS__\n\n");
+    fprintf(File, "#define __HDR_STRUCTS__\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
+    fprintf(File, "#include \"Init/rvm_init.h\"\n");
+    fprintf(File, "#undef __HDR_STRUCTS__\n\n");
+    fprintf(File, "#define __HDR_PUBLIC_MEMBERS__\n");
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
+    fprintf(File, "#include \"Init/rvm_init.h\"\n");
+    fprintf(File, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
+}
+/* End Function:Print_RVM_Include ********************************************/
+
+/* Begin Function:Gen_RVM_Boot ************************************************
+Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsible
+              for setting up all the kernel objects. If RVM or Posix functionality
+              is enabled, these kernel objects will also be handled by such file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct Cap_Alloc_Info* Alloc - The allocation information structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
+                  struct Cap_Alloc_Info* Alloc, s8* RVM_Path, s8* Output_Path)
+{
+    s8* Buf;
+    FILE* File;
+    ptr_t Obj_Cnt;
+    struct Vect_Info* Vect;
+    struct Proc_Info* Proc;
+    struct Thd_Info* Thd;
+    struct Inv_Info* Inv;
+    struct Recv_Info* Recv;
+    ptr_t Cap_Front;
+    ptr_t Capacity;
+
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+
+    Cap_Front=Alloc->Cap_Vect_Front;
+    Capacity=POW2((Alloc->Processor_Bits/4)-1);
+
+    /* Generate rme_boot.h */
+    sprintf(Buf, "%s/M7M2_MuAmmonite/Project/Include/rvm_boot.h", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rvm_boot.h open failed.");
+    Write_Src_Desc(File, "rvm_boot.h", "The boot-time initialization file header.");
+    fprintf(File, "/* Defines *******************************************************************/\n");
+    /* Vector capability tables & Vectors */
+    fprintf(File, "/* Vector capability table capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTVECT%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Vectors */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vector_Captbl_Front;Obj_Cnt++)
+    {
+        Vect=(struct Vect_Info*)Proj->RVM.Thd_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTVECT%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Vect->RVM_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    if(Cap_Front!=Alloc->Cap_Captbl_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    /* Captbl capability tables & Captbls */
+    fprintf(File, "\n/* Process capability table capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTCAPTBL%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Process capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Captbl_Front;Obj_Cnt++)
+    {
+        Proc=Proj->RVM.Captbl_Captbl[Obj_Cnt].Proc;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTCAPTBL%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Proc->RVM_Captbl_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    if(Cap_Front!=Alloc->Cap_Pgtbl_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    /* Pgtbl capability tables & Pgtbls */
+    fprintf(File, "\n/* Process page table capability tables */\n");
+    Cap_Front=Alloc->Gen_RVM_Pgtbl_Macro(File, Proj, Chip, Alloc);
+    if(Cap_Front!=Alloc->Cap_Proc_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    /* Process capability tables & Processes */
+    fprintf(File, "\n/* Process capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTPROC%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Processes */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Captbl_Front;Obj_Cnt++)
+    {
+        Proc=Proj->RVM.Proc_Captbl[Obj_Cnt].Proc;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTPROC%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Proc->RVM_Proc_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    if(Cap_Front!=Alloc->Cap_Thd_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    /* Thread capability tables & Threads */
+    fprintf(File, "\n/* Thread capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTTHD%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Threads */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Captbl_Front;Obj_Cnt++)
+    {
+        Thd=(struct Thd_Info*)Proj->RVM.Thd_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTTHD%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Thd->RVM_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    if(Cap_Front!=Alloc->Cap_Inv_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    /* Invocation capability tables & Invocations */
+    fprintf(File, "\n/* Invocation capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Inv_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTINV%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Invocations */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Captbl_Front;Obj_Cnt++)
+    {
+        Inv=(struct Inv_Info*)Proj->RVM.Inv_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTINV%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Inv->RVM_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    /* Receive endpoint capability tables & Receive endpoints */
+    fprintf(File, "\n/* Receive endpoint capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Recv_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTRECV%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Receive endpoints */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Captbl_Front;Obj_Cnt++)
+    {
+        Recv=(struct Recv_Info*)Proj->RVM.Recv_Captbl[Obj_Cnt].Cap;
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTRECV%lld,%lld)", Obj_Cnt/Capacity, Obj_Cnt%Capacity);
+        Make_Define_Str(File, Recv->RVM_Capid_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "/* End Defines ***************************************************************/\n\n");
+    Write_Src_Footer(File);
+    fclose(File);
+
+    /* Generate rvm_boot.c */
+    sprintf(Buf, "%s/M7M2_MuEukaron/Project/Source/rvm_boot.c", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rvm_boot.c open failed.");
+    Write_Src_Desc(File, "rvm_boot.c", "The boot-time initialization file.");
+    /* Print all header includes */
+    fprintf(File, "/* Includes ******************************************************************/\n");
+    Print_RVM_Include(File, Proj);
+    fprintf(File, "#include \"rvm_boot.h\"\n");
+    fprintf(File, "/* End Includes **************************************************************/\n\n");
+    /* Print all global variables and prototypes */
+    fprintf(File, "/* Private C Function Prototypes *********************************************/\n");
+    fprintf(File, "static void RVM_Boot_Captbl_Init(void);\n");
+    fprintf(File, "static void RVM_Boot_Pgtbl_Init(void);\n");
+    fprintf(File, "static void RVM_Boot_Proc_Init(void);\n");
+    fprintf(File, "static void RVM_Boot_Inv_Init(void);\n");
+    fprintf(File, "static void RVM_Boot_Recv_Init(void);\n");
+    fprintf(File, "/* End Private C Function Prototypes *****************************************/\n\n");
+    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
+    fprintf(File, "void RVM_Boot_Kobj_Init(void);\n");
+    fprintf(File, "void RVM_Boot_Kobj_Delegate(void);\n");
+    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+    /* Capability table creation */
+    Write_Func_Desc(File, "RVM_Boot_Captbl_Init");
+    fprintf(File, "Description : Create all capability tables at boot-time.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RVM_Boot_Captbl_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
+    fprintf(File, "    Cur_Addr=RVM_KMEM_BOOT_FRONTIER;\n");
+    fprintf(File, "    /* The address here shall match what is in the generator */\n");
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Kmem_Captbl_Front);
+    fprintf(File, "    /* Create all the captbl capability tables first */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTCAPTBL%lld, Cur_Addr, %lld)==0);\n", 
+                Obj_Cnt/Capacity,(Proj->RVM.Captbl_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Captbl_Captbl_Front%Capacity));
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
+                (Proj->RVM.Captbl_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Captbl_Captbl_Front%Capacity));
+    }
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Captbl_Front;Obj_Cnt++)
+    {
+        Proc=Proj->RVM.Vector_Captbl[Obj_Cnt].Proc;
+        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CTCAPTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, %lld)==0);\n",
+                Obj_Cnt/Capacity, Obj_Cnt%Capacity, Proc->Captbl_Front+Proc->Extra_Captbl);
+        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n", Proc->Captbl_Front+Proc->Extra_Captbl);
+    }
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Kmem_Pgtbl_Front);
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Captbl_Init");
+    /* Page table creation */
+    Write_Func_Desc(File, "RVM_Boot_Pgtbl_Init");
+    fprintf(File, "Description : Create all page tables at boot-time.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RVM_Boot_Pgtbl_Init(void)\n");
+    fprintf(File, "{\n");
+    Alloc->Gen_RVM_Pgtbl_Create(File, Proj, Chip, Alloc);
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Pgtbl_Init");
+    /* Process creation */
+    Write_Func_Desc(File, "RVM_Boot_Proc_Init");
+    fprintf(File, "Description : Create all processes at boot-time.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RVM_Boot_Proc_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
+    fprintf(File, "    Cur_Addr=0x%llx;\n", Alloc->Kmem_Proc_Front);
+    fprintf(File, "    /* The address here shall match what is in the generator */\n");
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Kmem_Proc_Front);
+    fprintf(File, "    /* Create all the process capability tables first */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Captbl_Front;Obj_Cnt+=Capacity)
+    {
+        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPROC%lld, Cur_Addr, %lld)==0);\n", 
+                Obj_Cnt/Capacity,(Proj->RVM.Proc_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Proc_Captbl_Front%Capacity));
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
+                (Proj->RVM.Proc_Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Proc_Captbl_Front%Capacity));
+    }
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Captbl_Front;Obj_Cnt++)
+    {
+        Proc=Proj->RVM.Proc_Captbl[Obj_Cnt].Proc;
+        fprintf(File, "    RVM_ASSERT(RVM_Proc_Crt(RVM_BOOT_CTPROC%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %s, Cur_Addr)==0);\n",
+                Obj_Cnt/Capacity, Obj_Cnt%Capacity, Proc->RVM_Captbl_Capid_Macro, Proc->RVM_Pgtbl_Capid_Macro);
+        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);\n");
+    }
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Kmem_Thd_Front);
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Proc_Init");
+    /* Thread creation */
+
+    /* Invocation creation */
+
+    /* Receive endpoint creation */
+
+    /* Main initialization function */
+    Write_Func_Desc(File, "RVM_Boot_Kobj_Init");
+    fprintf(File, "Description : Initialize all kernel objects at boot-time.\n");
+    fprintf(File, "Input       : None.\n");
+    fprintf(File, "Output      : None.\n");
+    fprintf(File, "Return      : None.\n");
+    fprintf(File, "******************************************************************************/\n");
+    fprintf(File, "void RVM_Boot_Kobj_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    RVM_Boot_Captbl_Init();\n");
+    fprintf(File, "    RVM_Boot_Pgtbl_Init();\n");
+    fprintf(File, "    RVM_Boot_Proc_Init();\n");
+    fprintf(File, "    RVM_Boot_Inv_Init();\n");
+    fprintf(File, "    RVM_Boot_Recv_Init();\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Kobj_Init");
+ 
+    /* Delegation function */
+
+    /* Close the file */
+    Write_Src_Footer(File);
+    fclose(File);
+}
+/* End Function:Gen_RVM_Boot *************************************************/
+
+/* Begin Function:Gen_RVM_User ************************************************
+Description : Generate the rvm_user.c. This file is mainly responsible for user-
+              supplied hooks. If the user needs to add functionality, consider
+              modifying this file.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RVM_Path, s8* Output_Path)
+{
+    /* User stubs */
+}
+/* End Function:Gen_RVM_User *************************************************/
+
+/* Begin Function:Gen_Files ***************************************************
+Description : Generate all generic files.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              struct Cap_Alloc_Info* Alloc - The allocation information structure.
+              s8* RME_Path - The RME root folder path.
+              s8* RVM_Path - The RVM root folder path.
+              s8* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Gen_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct Cap_Alloc_Info* Alloc,
+               s8* RME_Path, s8* RVM_Path, s8* Output_Path)
+{
+    Gen_RME_Boot(Proj, Chip, Alloc, RME_Path, Output_Path);
+    Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
+    /* Generate RVM related files */
+    Gen_RVM_Boot(Proj, Chip, Alloc, RVM_Path, Output_Path);
+    /* Create rvm_user.c */
+    //Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
+}
+/* End Function:Gen_Files ****************************************************/
 
 /* A7M Toolset ***************************************************************/
 ret_t A7M_Align(struct Mem_Info* Mem);
@@ -4247,24 +4707,19 @@ int main(int argc, char* argv[])
     /* Actually allocate the capability IDs of these kernel objects. Both local and global ID must be allocated. */
     Alloc_Captbl(Proj, Chip);
 
-    /* Set the folder up */
+    /* Set the folder and selection include headers up */
     Setup_Folder(Proj, Chip, RME_Path, RVM_Path, Output_Path);
+    Setup_Include(Proj, Chip, RME_Path, RVM_Path, Output_Path);
 	/* Generate the project-specific files */
 	if(strcmp(Proj->Platform,"A7M")==0)
 		A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
 
-    /* Create rme_boot.c */
+    /* Create all files */
     struct Cap_Alloc_Info Alloc;
     memset(&Alloc,0,sizeof(struct Cap_Alloc_Info));
     Alloc.Processor_Bits=32;
-    Gen_RME_Boot(Proj, Chip, &Alloc, RME_Path, Output_Path);
-    /* Create rme_user.c */
-    //Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
-    /* Generate rvm_boot.c */
-    //Gen_RVM_Boot(Proj, Chip, RVM_Path, Output_Path);
-    /* Create rvm_user.c */
-    //Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
-
+    Gen_Files(Proj, Chip, &Alloc, RME_Path, RVM_Path, Output_Path);
+    
 	/* All done, free all memory and we quit */
 	Free_All();
     return 0;
@@ -5103,7 +5558,35 @@ Return      : None.
 void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
                       s8* RME_Path, s8* Output_Path)
 {
+    s8* Buf1;
+    s8* Buf2;
 
+    /* Allocate the buffer */
+    Buf1=Malloc(sizeof(s8)*4096);
+    if(Buf1==0)
+        EXIT_FAIL("Buffer allocation failed");
+    Buf2=Malloc(sizeof(s8)*4096);
+    if(Buf2==0)
+        EXIT_FAIL("Buffer allocation failed");
+
+    /* The toolchain specific assembler file */
+    if(A7M->CPU_Type==A7M_CPU_CM0P)
+    {
+        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", Output_Path);
+        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", RME_Path);
+    }
+    else
+    {
+        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", Output_Path);
+        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", RME_Path);
+    }
+    if(Copy_File(Buf1, Buf2)!=0)
+        EXIT_FAIL("File copying failed.");
+ 
+    /* The linker script */
+
+    Free(Buf1);
+    Free(Buf2);
 }
 /* End Function:A7M_Gen_Keil_RME *********************************************/
 
@@ -5253,12 +5736,12 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
     if(A7M->CPU_Type==A7M_CPU_CM0P)
     {
         Paths[4]="../MEukaron/Platform/A7M";
-        Files[4]="rme_platform_a7m0.s";
+        Files[4]="rme_platform_a7m0p_asm.s";
     }
     else
     {
         Paths[4]="../MEukaron/Platform/A7M";
-        Files[4]="rme_platform_a7m.s";
+        Files[4]="rme_platform_a7m_asm.s";
     }
     File_Num=5;
     /* Generate whatever files that are keil specific */
@@ -5269,6 +5752,8 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
                       Includes, Include_Num,
                       Paths, Files, File_Num);
     fclose(Keil);
+    /* Project files needs to be generated as well */
+    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
 
     /* Generate the RVM keil project then */
 
