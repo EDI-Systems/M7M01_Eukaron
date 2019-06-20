@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename   : rme_platform_cmx_conf.h
+Filename   : rme_platform_a7m_conf.h
 Author     : pry
 Date       : 24/06/2017
 Licence    : LGPL v3+; see COPYING for details.

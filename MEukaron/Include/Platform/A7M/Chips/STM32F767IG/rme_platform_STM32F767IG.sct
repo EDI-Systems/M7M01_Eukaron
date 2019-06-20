@@ -4,7 +4,7 @@
 ;Date        : 24/06/2017
 ;Licence     : LGPL v3+; see COPYING for details.
 ;Description : The scatter file for Cortex-M7 layout. This file is intended 
-;              to be used with STM32F767IGT6.
+;              to be used with STM32F767IGxx.
 ;              ROM: 0x08000000 0x00100000
 ;              RAM: 0x20000000 0x00080000
 ;              System ROM layout:
