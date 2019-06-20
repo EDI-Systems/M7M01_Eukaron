@@ -28,32 +28,32 @@ Description: The configuration file for STM32F405RG.
 #define RME_MAX_PREEMPT_PRIO         32
 
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_CMX_INT_FLAG_ADDR        0x10008000
+#define RME_A7M_INT_FLAG_ADDR        0x10008000
 /* Initial kenel object frontier limit */
-#define RME_CMX_KMEM_BOOT_FRONTIER   0x10003000
+#define RME_A7M_KMEM_BOOT_FRONTIER   0x10003000
 /* Number of MPU regions available */
-#define RME_CMX_MPU_REGIONS          8
+#define RME_A7M_MPU_REGIONS          8
 /* Init process's first thread's entry point address */
-#define RME_CMX_INIT_ENTRY           0x08004001
+#define RME_A7M_INIT_ENTRY           0x08004001
 /* Init process's first thread's stack address */
-#define RME_CMX_INIT_STACK           0x1000FFF0
+#define RME_A7M_INIT_STACK           0x1000FFF0
 /* What is the FPU type? */
-#define RME_CMX_FPU_TYPE             RME_CMX_FPU_VFPV4
+#define RME_A7M_FPU_TYPE             RME_A7M_FPU_VFPV4
 /* What is the NVIC priority grouping? */
-#define RME_CMX_NVIC_GROUPING        RME_CMX_NVIC_GROUPING_P2S6
+#define RME_A7M_NVIC_GROUPING        RME_A7M_NVIC_GROUPING_P2S6
 /* What is the Systick value? - 10ms per tick*/
-#define RME_CMX_SYSTICK_VAL          1680000
+#define RME_A7M_SYSTICK_VAL          1680000
 
 /* Kernel functions standard to Cortex-M, interrupt management and power */
-#define RME_CMX_KERN_INT(X)          (X)
-#define RME_CMX_INT_OP               0
-#define RME_CMX_INT_ENABLE           1
-#define RME_CMX_INT_DISABLE          0
-#define RME_CMX_INT_PRIO             1
-#define RME_CMX_KERN_PWR             240
+#define RME_A7M_KERN_INT(X)          (X)
+#define RME_A7M_INT_OP               0
+#define RME_A7M_INT_ENABLE           1
+#define RME_A7M_INT_DISABLE          0
+#define RME_A7M_INT_PRIO             1
+#define RME_A7M_KERN_PWR             240
 
 /* Other low-level initialization stuff - The serial port */
-#define RME_CMX_LOW_LEVEL_INIT() \
+#define RME_A7M_LOW_LEVEL_INIT() \
 do \
 { \
     RCC_ClkInitTypeDef RCC_ClkInitStruct; \
@@ -117,7 +117,7 @@ do \
 while(0)
 
 /* This is for debugging output */
-#define RME_CMX_PUTCHAR(CHAR) \
+#define RME_A7M_PUTCHAR(CHAR) \
 do \
 { \
     ITM_SendChar((rme_s8_t)(CHAR)); \
