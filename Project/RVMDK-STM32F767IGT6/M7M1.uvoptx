@@ -8,7 +8,7 @@
   <Extensions>
     <cExt>*.c</cExt>
     <aExt>*.s*; *.src; *.a*</aExt>
-    <oExt>*.obj</oExt>
+    <oExt>*.obj; *.o</oExt>
     <lExt>*.lib</lExt>
     <tExt>*.txt; *.h; *.inc</tExt>
     <pExt>*.plm</pExt>
@@ -279,8 +279,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx.c</PathWithFileName>
-      <FilenameWithoutPath>rme_platform_cmx.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\A7M\rme_platform_a7m.c</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_a7m.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -291,8 +291,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Platform\CortexM\rme_platform_cmx_asm.s</PathWithFileName>
-      <FilenameWithoutPath>rme_platform_cmx_asm.s</FilenameWithoutPath>
+      <PathWithFileName>..\..\MEukaron\Platform\A7M\rme_platform_a7m_asm.s</PathWithFileName>
+      <FilenameWithoutPath>rme_platform_a7m_asm.s</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -515,11 +515,11 @@
     <File>
       <GroupNumber>5</GroupNumber>
       <FileNumber>20</FileNumber>
-      <FileType>5</FileType>
+      <FileType>2</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\MEukaron\Include\Platform\CortexM\Chips\STM32F767IG\rme_platform_STM32F767IG.sct</PathWithFileName>
+      <PathWithFileName>..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.sct</PathWithFileName>
       <FilenameWithoutPath>rme_platform_STM32F767IG.sct</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>

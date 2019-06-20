@@ -1,5 +1,5 @@
 ;/*****************************************************************************
-;Filename    : rme_platform_cmx_asm.s
+;Filename    : rme_platform_a7m_asm.s
 ;Author      : pry
 ;Date        : 19/01/2017
 ;Description : The Cortex-M assembly support of the RME RTOS.
@@ -48,19 +48,19 @@ __heap_limit
     ;Enable all interrupts
     EXPORT              __RME_Enable_Int
     ;Wait until interrupts happen
-    EXPORT              __RME_CMX_Wait_Int
+    EXPORT              __RME_A7M_Wait_Int
     ;Get the MSB in a word
-    EXPORT              __RME_CMX_MSB_Get
+    EXPORT              __RME_A7M_MSB_Get
     ;Kernel main function wrapper
     EXPORT              _RME_Kmain
     ;Entering of the user mode
     EXPORT              __RME_Enter_User_Mode
     ;The FPU register save routine
-    EXPORT              ___RME_CMX_Thd_Cop_Save
+    EXPORT              ___RME_A7M_Thd_Cop_Save
     ;The FPU register restore routine
-    EXPORT              ___RME_CMX_Thd_Cop_Restore
+    EXPORT              ___RME_A7M_Thd_Cop_Restore
     ;The MPU setup routine
-    EXPORT              ___RME_CMX_MPU_Set
+    EXPORT              ___RME_A7M_MPU_Set
 ;/* End Exports **************************************************************/
 
 ;/* Begin Imports ************************************************************/
@@ -74,9 +74,9 @@ __heap_limit
     ;The system tick handler of RME. This will be defined in C language.
     IMPORT              _RME_Tick_Handler
     ;The memory management fault handler of RME. This will be defined in C language.
-    IMPORT              __RME_CMX_Fault_Handler
+    IMPORT              __RME_A7M_Fault_Handler
     ;The generic interrupt handler for all other vectors.
-    IMPORT              __RME_CMX_Generic_Handler
+    IMPORT              __RME_A7M_Generic_Handler
 ;/* End Imports **************************************************************/
 
 ;/* Begin Vector Table *******************************************************/
@@ -932,7 +932,7 @@ IRQ239_Handler
     MRS                 R1,xPSR             ; Pass in the interrupt number
     UBFX                R1,R1,#0,#9         ; Extract the interrupt number bitfield
     SUB                 R1,#16              ; The IRQ0's starting number is 16. we subtract it here
-    BL                  __RME_CMX_Generic_Handler
+    BL                  __RME_A7M_Generic_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
@@ -967,17 +967,17 @@ __RME_Enable_Int
     BX                  LR
 ;/* End Function:__RME_Enable_Int ********************************************/
 
-;/* Begin Function:__RME_CMX_Wait_Int *****************************************
+;/* Begin Function:__RME_A7M_Wait_Int *****************************************
 ;Description : Wait until a new interrupt comes, to save power.
 ;Input       : None.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-__RME_CMX_Wait_Int
+__RME_A7M_Wait_Int
     ;Wait for interrupt.
     WFI 
     BX                  LR
-;/* End Function:__RME_CMX_Wait_Int ******************************************/
+;/* End Function:__RME_A7M_Wait_Int ******************************************/
 
 ;/* Begin Function:_RME_Kmain *************************************************
 ;Description : The entry address of the kernel. Never returns.
@@ -991,18 +991,18 @@ _RME_Kmain
     B                   .
 ;/* End Function:_RME_Kmain **************************************************/
 
-;/* Begin Function:__RME_CMX_MSB_Get ******************************************
+;/* Begin Function:__RME_A7M_MSB_Get ******************************************
 ;Description : Get the MSB of the word.
 ;Input       : ptr_t Val - The value.
 ;Output      : None.
 ;Return      : ptr_t - The MSB position.
 ;*****************************************************************************/
-__RME_CMX_MSB_Get
+__RME_A7M_MSB_Get
     CLZ                 R1,R0
     MOV                 R0,#31
     SUB                 R0,R1
     BX                  LR
-;/* End Function:__RME_CMX_MSB_Get *******************************************/
+;/* End Function:__RME_A7M_MSB_Get *******************************************/
 
 ;/* Begin Function:__RME_Enter_User_Mode **************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
@@ -1097,7 +1097,7 @@ UsageFault_Handler
     PUSH                {R0}
     
     MOV                 R0,SP               ; Pass in the pt_regs parameter, and call the handler.
-    BL                  __RME_CMX_Fault_Handler
+    BL                  __RME_A7M_Fault_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
@@ -1106,43 +1106,43 @@ UsageFault_Handler
     B                   .                   ; Capture faults
 ;/* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********/
 
-;/* Begin Function:___RME_CMX_Thd_Cop_Save ************************************
+;/* Begin Function:___RME_A7M_Thd_Cop_Save ************************************
 ;Description : Save the coprocessor context on switch.         
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-___RME_CMX_Thd_Cop_Save
+___RME_A7M_Thd_Cop_Save
     ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
     ;this will not be called when FPU not enabled.
     DCI                 0xED20              ; VSTMDB    R0!,{S16-S31}
     DCI                 0x8A10              ; Save all the FPU registers
     BX                  LR
     B                   .
-;/* End Function:___RME_CMX_Thd_Cop_Save *************************************/
+;/* End Function:___RME_A7M_Thd_Cop_Save *************************************/
 
-;/* Begin Function:___RME_CMX_Thd_Cop_Restore *********************************
+;/* Begin Function:___RME_A7M_Thd_Cop_Restore *********************************
 ;Description : Restore the coprocessor context on switch.             
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-___RME_CMX_Thd_Cop_Restore                
+___RME_A7M_Thd_Cop_Restore                
     ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
     ;this will not be called when FPU not enabled.
     DCI                 0xECB0              ; VLDMIA    R0!,{S16-S31}
     DCI                 0x8A10              ; Restore all the FPU registers
     BX                  LR
     B                   .
-;/* End Function:___RME_CMX_Thd_Cop_Restore **********************************/
+;/* End Function:___RME_A7M_Thd_Cop_Restore **********************************/
 
-;/* Begin Function:___RME_CMX_MPU_Set *****************************************
+;/* Begin Function:___RME_A7M_MPU_Set *****************************************
 ;Description : Set the MPU context. We write 8 registers at a time to increase efficiency.            
 ;Input       : R0 - The pointer to the MPU content.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-___RME_CMX_MPU_Set
+___RME_A7M_MPU_Set
     PUSH                {R4-R9}             ; Clobber registers manually
     LDR                 R1,=0xE000ED9C      ; The base address of MPU RBAR and all 4 registers
     LDMIA               R0!,{R2-R9}         ; Read MPU settings from the array, and increase pointer
@@ -1154,7 +1154,7 @@ ___RME_CMX_MPU_Set
     ISB                                     ; Fetch new instructions
     BX                  LR
     ALIGN
-;/* End Function:___RME_CMX_MPU_Set ******************************************/
+;/* End Function:___RME_A7M_MPU_Set ******************************************/
 
     END
 ;/* End Of File **************************************************************/

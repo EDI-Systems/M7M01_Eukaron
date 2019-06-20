@@ -43,8 +43,8 @@ KERNEL 0x08000000 0x00010000
     ; Kernel stack segment - 4kB
     KERNEL_STACK 0x10000000 0x00001000
     {
-        platform_cmx.o                 (HEAP)
-        platform_cmx.o                 (STACK)
+        platform_a7m.o                 (HEAP)
+        platform_a7m.o                 (STACK)
     }
     
     ; Initial kernel data segment - 4kB 

@@ -39,8 +39,8 @@ KERNEL 0x08000000 0x00010000
     ; Kernel stack segment - 4kB
     KERNEL_STACK 0x20000000 0x00001000
     {
-        rme_platform_cmx.o                 (HEAP)
-        rme_platform_cmx.o                 (STACK)
+        rme_platform_a7m.o                 (HEAP)
+        rme_platform_a7m.o                 (STACK)
     }
     
     ; Initial kernel data segment - 8kB 

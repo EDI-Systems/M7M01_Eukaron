@@ -93,7 +93,7 @@ Component   : .text - The code segment.
 .text : ALIGN(4)
 {
     /* the startup code */
-    KEEP(*rme_platform_cmx_asm_gcc.o(.text .text.*))
+    KEEP(*rme_platform_a7m_asm_gcc.o(.text .text.*))
     /* All remaining code */
     *(.text .text.*)
     /* Read-only data (constants) */

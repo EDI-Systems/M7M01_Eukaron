@@ -3831,7 +3831,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(Boot, "/* End Private C Function Prototypes *****************************************/\n\n");
     fprintf(Boot, "/* Public C Function Prototypes **********************************************/\n");
     fprintf(Boot, "void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);\n");
-    fprintf(Boot, "rme_ptr_t RME_Boot_Int_Handler(rme_ptr_t Int_Num);\n");
+    fprintf(Boot, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);\n");
     fprintf(Boot, "/* End Public C Function Prototypes ******************************************/\n\n");
     /* Boot-time setup routine for the interrupt endpoints */
     Write_Func_Desc(Boot, "RME_Boot_Vect_Init");
@@ -3864,15 +3864,15 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
         fprintf(Boot, "    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);\n");
     }
     fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Int_Init");
+    Write_Func_Footer(Boot, "RME_Boot_Vect_Init");
     /* Print the interrupt relaying function */
-    Write_Func_Desc(Boot, "RME_Boot_Int_Handler");
+    Write_Func_Desc(Boot, "RME_Boot_Vect_Handler");
     fprintf(Boot, "Description : The interrupt handler entry for all the vectors.\n");
-    fprintf(Boot, "Input       : rme_ptr_t Int_Num - The interrupt number.\n");
+    fprintf(Boot, "Input       : rme_ptr_t Vect_Num - The vector number.\n");
     fprintf(Boot, "Output      : None.\n");
     fprintf(Boot, "Return      : rme_ptr_t - The number of signals to send to the generic vector endpoint.\n");
     fprintf(Boot, "******************************************************************************/\n");
-    fprintf(Boot, "rme_ptr_t RME_Boot_Int_Handler(rme_ptr_t Int_Num)\n");
+    fprintf(Boot, "rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num)\n");
     fprintf(Boot, "{\n");
     fprintf(Boot, "    rme_ptr_t Send_Num;\n\n");
     fprintf(Boot, "    switch(Int_Num)\n");
@@ -3892,7 +3892,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(Boot, "    }\n");
     fprintf(Boot, "    return 1;\n");
     fprintf(Boot, "}\n");
-    Write_Func_Footer(Boot, "RME_Boot_Int_Handler");
+    Write_Func_Footer(Boot, "RME_Boot_Vect_Handler");
     /* The rest are interrupt endpoint user preprocessing functions */
     for(Count=0;Count<Proj->RVM.Vector_Captbl_Front;Count++)
     {
@@ -3931,7 +3931,80 @@ Return      : None.
 ******************************************************************************/
 void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8* RME_Path, s8* Output_Path)
 {
-    /* Create user stubs */
+    s8* Buf;
+    FILE* Boot;
+    time_t Time;
+    struct tm* Time_Struct;
+    s8 Lower_Plat[16];
+
+    /* Convert platform name to lower case */
+    Lower_Case(Lower_Plat, Proj->Platform);
+    
+    Buf=Malloc(4096);
+    if(Buf==0)
+        EXIT_FAIL("Buffer allocation failed.");
+
+    /* Create user stubs - pre initialization and post initialization */
+    /* Generate rme_boot.c */
+    sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_user.c", Output_Path);
+    Boot=fopen(Buf, "wb");
+    if(Boot==0)
+        EXIT_FAIL("rme_user.c open failed.");
+    time(&Time);
+    Time_Struct=localtime(&Time);
+    sprintf(Buf,"%02d/%02d/%d",Time_Struct->tm_mday,Time_Struct->tm_mon+1,Time_Struct->tm_year+1900);
+    Write_Src_Desc(Boot, "rme_user.c", CODE_AUTHOR, Buf, 
+                   "LGPL v3+; see COPYING for details.", "The user hooks.");
+    /* Print all header includes */
+    fprintf(Boot, "/* Includes ******************************************************************/\n");
+    fprintf(Boot, "#define __HDR_DEFS__\n");
+    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(Boot, "#undef __HDR_DEFS__\n\n");
+    fprintf(Boot, "#define __HDR_STRUCTS__\n");
+    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(Boot, "#undef __HDR_STRUCTS__\n\n");
+    fprintf(Boot, "#define __HDR_PUBLIC_MEMBERS__\n");
+    fprintf(Boot, "#include \"Kernel/rme_kernel.h\"\n");
+    fprintf(Boot, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Platform, Lower_Plat);
+    fprintf(Boot, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
+    fprintf(Boot, "#include \"rme_boot.h\"\n");
+    fprintf(Boot, "/* End Includes **************************************************************/\n\n");
+    /* Print all global prototypes */
+    fprintf(Boot, "/* Public C Function Prototypes **********************************************/\n");
+    fprintf(Boot, "void RME_Boot_Pre_Init(void);\n");
+    fprintf(Boot, "void RME_Boot_Post_Init(void);\n");
+    fprintf(Boot, "/* End Public C Function Prototypes ******************************************/\n\n");
+    /* Preinitialization of hardware */
+    Write_Func_Desc(Boot, "RME_Boot_Pre_Init");
+    fprintf(Boot, "Description : Initialize critical hardware before any kernel initialization takes place.\n");
+    fprintf(Boot, "Input       : None.\n");
+    fprintf(Boot, "Input       : None.\n");
+    fprintf(Boot, "Output      : None.\n");
+    fprintf(Boot, "Return      : None.\n");
+    fprintf(Boot, "******************************************************************************/\n");
+    fprintf(Boot, "void RME_Boot_Pre_Init(void)\n");
+    fprintf(Boot, "{\n");
+    fprintf(Boot, "    /* Add code here */\n");
+    fprintf(Boot, "}\n");
+    Write_Func_Footer(Boot, "RME_Boot_Pre_Init");
+    /* Postinitialization of hardware */
+    Write_Func_Desc(Boot, "RME_Boot_Post_Init");
+    fprintf(Boot, "Description : Initialize hardware after all kernel initialization takes place.\n");
+    fprintf(Boot, "Input       : None.\n");
+    fprintf(Boot, "Input       : None.\n");
+    fprintf(Boot, "Output      : None.\n");
+    fprintf(Boot, "Return      : None.\n");
+    fprintf(Boot, "******************************************************************************/\n");
+    fprintf(Boot, "void RME_Boot_Post_Init(void)\n");
+    fprintf(Boot, "{\n");
+    fprintf(Boot, "    /* Add code here */\n");
+    fprintf(Boot, "}\n");
+    Write_Func_Footer(Boot, "RME_Boot_Post_Init");
+    /* Close the file */
+    Write_Src_Footer(Boot);
+    fclose(Boot);
 }
 /* End Function:Gen_RME_User *************************************************/
 
