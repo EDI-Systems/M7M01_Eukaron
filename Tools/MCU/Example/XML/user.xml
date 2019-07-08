@@ -2,8 +2,8 @@
 <Project> 
     <Name>Test_Proj</Name>
     <Platform>A7M</Platform>
-    <Chip>STM32F767IG</Chip>
-    <Fullname>STM32F767IGT6</Fullname>
+    <Chip_Class>STM32F767IG</Chip_Class>
+    <Chip_Full>STM32F767IGT6</Chip_Full>
     <RME>
         <Compiler>
             <Optimization>O2</Optimization>
@@ -18,18 +18,18 @@
             <Kmem_Order>4</Kmem_Order>
             <Kern_Prios>32</Kern_Prios>
         </General>
-        <A7M>
+        <Platform>
             <NVIC_Grouping>2-6</NVIC_Grouping>
             <Systick_Value>2160000</Systick_Value>
-        </A7M>
-        <STM32F767IG>
+        </Platform>
+        <Chip>
             <XTAL>25</XTAL>
             <PLLM>25</PLLM>
             <PLLN>432</PLLN>
             <PLLP>2</PLLP>
             <PLLQ>9</PLLQ>
             <IRQ>WWDG,EXTI0</IRQ>
-        </STM32F767IG>
+        </Chip>
     </RME>
     <RVM>
         <Compiler>

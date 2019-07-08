@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
-    <Name>STM32F767IG</Name>
+    <Class>STM32F767IG</Class>
+    <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
     <Vendor>STMicroelectronics</Vendor>
     <Platform>A7M</Platform>
     <Cores>1</Cores>
@@ -9,7 +10,6 @@
         <CPU_Type>Cortex-M7</CPU_Type>
         <FPU_Type>Double</FPU_Type>
         <Endianness>Little</Endianness>
-        <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
     </Attribute>
     <Memory>
         <M1>
