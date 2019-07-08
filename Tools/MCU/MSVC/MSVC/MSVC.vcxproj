@@ -44,6 +44,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>D:\desktop\M7M1_MuEukaron\Tools\MCU;D:\desktop\M5P2_MuMinion\MMinion\File\PBFS;D:\desktop\M5P2_MuMinion\MMinion\Serdes\XML;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -65,10 +67,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c" />
     <ClCompile Include="..\..\rme_mcu.c" />
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="..\..\Example\XML\rme_platform_STM32F767IG.xml" />
+    <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml" />
     <Xml Include="..\..\Example\XML\user.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

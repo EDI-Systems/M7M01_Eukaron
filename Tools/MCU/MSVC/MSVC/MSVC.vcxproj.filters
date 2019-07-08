@@ -18,12 +18,15 @@
     <ClCompile Include="..\..\rme_mcu.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="..\..\Example\XML\rme_platform_STM32F767IG.xml">
+    <Xml Include="..\..\Example\XML\user.xml">
       <Filter>Resource Files</Filter>
     </Xml>
-    <Xml Include="..\..\Example\XML\user.xml">
+    <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml">
       <Filter>Resource Files</Filter>
     </Xml>
   </ItemGroup>
