@@ -483,9 +483,9 @@ struct Mem_Map_Info
 /* Memory map information - min granularity 4B */
 struct Mem_Map
 {
-    struct List Info;
+    struct List Chip_Mem;
     /* The exact list of these unallocated requirements */
-    struct List Auto_Mem;
+    struct List Proc_Mem;
 };
 
 /* The capability and kernel memory information supplied by the port-specific generator */
@@ -1196,6 +1196,11 @@ void Parse_Proc_Mem(struct Proc_Info* Proc, xml_node_t* Node)
             if((Mem->Start+Mem->Size)>0x100000000ULL)
                 EXIT_FAIL("Process Memory Size out of bound.");
         }
+        else
+        {
+            if(Mem->Size>0x100000000ULL)
+                EXIT_FAIL("Process Memory Size out of bound.");
+        }
 
         /* Type */
         if((XML_Child(Trunk,"Type",&Temp)<0)||(Temp==0))
@@ -1205,7 +1210,12 @@ void Parse_Proc_Mem(struct Proc_Info* Proc, xml_node_t* Node)
         else if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Data",4)==0))
             List_Ins(&(Mem->Head),Proc->Data.Prev,&(Proc->Data));
         else if((Temp->XML_Val_Len==6)&&(strncmp(Temp->XML_Val,"Device",6)==0))
+        {
+            if(Mem->Start==AUTO)
+                EXIT_FAIL("Process Device memory cannot be automatically allocated.");
+
             List_Ins(&(Mem->Head),Proc->Device.Prev,&(Proc->Device));
+        }
         else
             EXIT_FAIL("Process Memory Type is malformed.");
 
@@ -1928,53 +1938,6 @@ struct Chip_Info* Parse_Chip(s8_t* Chip_File)
 }
 /* End Function:Parse_Chip ***************************************************/
 
-/* Begin Function:Insert_Mem **************************************************
-Description : Insert memory blocks into a queue with increasing start address/size.
-Input       : struct Mem_Info** Array - The array containing all the memory blocks to sort.
-              ptr_t Len - The maximum length of the array.
-              struct Mem_Info* Mem - The memory block to insert.
-              ptr_t Category - The insert option, 0 for start address, 1 for size.
-Output      : struct Mem_Info** Array - The updated array.
-Return      : ret_t - If successful, 0; else -1.
-******************************************************************************/
-ret_t Insert_Mem(struct Mem_Info** Array, ptr_t Len, struct Mem_Info* Mem, ptr_t Category)
-{
-    ptr_t Pos;
-    ptr_t End;
-
-    for(Pos=0;Pos<Len;Pos++)
-    {
-        if(Array[Pos]==0)
-            break;
-        if(Category==0)
-        {
-            if(Array[Pos]->Start>Mem->Start)
-                break;
-        }
-        else
-        {
-            if(Array[Pos]->Size>Mem->Size)
-                break;
-        }
-    }
-    if(Pos>=Len)
-        return -1;
-    for(End=Pos;End<Len;End++)
-    {
-        if(Array[End]==0)
-            break;
-    }
-    if(End>0)
-    {
-        for(End--;End>=Pos;End--)
-            Array[End+1]=Array[End];
-    }
-
-    Array[Pos]=Mem;
-    return 0;
-}
-/* End Function:Insert_Mem ***************************************************/
-
 /* Begin Function:Try_Bitmap **************************************************
 Description : See if this bitmap segment is already covered.
 Input       : s8_t* Bitmap - The bitmap.
@@ -1997,7 +1960,7 @@ ret_t Try_Bitmap(s8_t* Bitmap, ptr_t Start, ptr_t Size)
 /* End Function:Try_Bitmap ***************************************************/
 
 /* Begin Function:Mark_Bitmap *************************************************
-Description : Actually mark this bitmap segment.
+Description : Actually mark this bitmap segment. Each bit is always 4 bytes.
 Input       : s8_t* Bitmap - The bitmap.
               ptr_t Start - The starting bit location.
               ptr_t Size - The number of bits.
@@ -2013,7 +1976,7 @@ void Mark_Bitmap(s8_t* Bitmap, ptr_t Start, ptr_t Size)
 }
 /* End Function:Mark_Bitmap **************************************************/
 
-/* Begin Function:Populate_Mem ************************************************
+/* Begin Function:Fit_Static_Mem **********************************************
 Description : Populate the memory data structure with this memory segment.
               This operation will be conducted with no respect to whether this
               portion have been populated with someone else.
@@ -2023,54 +1986,61 @@ Input       : struct Mem_Map* Map - The memory map.
 Output      : struct Mem_Map* Map - The updated memory map.
 Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
-ret_t Populate_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
+ret_t Fit_Static_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
 {
     ptr_t Mem_Cnt;
     ptr_t Rel_Start;
+    struct List* Trav;
+    struct Mem_Info* Mem;
+    struct Mem_Map_Info* Info;
 
-    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
+    /* See if we can even find a segment that accomodates this */
+    for(Trav=Map->Chip_Mem.Next;Trav!=&(Map->Chip_Mem);Trav=Trav->Next)
     {
-        if((Start>=Map->Mem_Array[Mem_Cnt]->Start)&&
-           (Start<=Map->Mem_Array[Mem_Cnt]->Start+(Map->Mem_Array[Mem_Cnt]->Size-1)))
+        Info=(struct Mem_Map_Info*)Trav;
+        Mem=Info->Mem;
+        if((Start>=Mem->Start)&&(Start<=(Mem->Start+Mem->Size-1)))
             break;
     }
 
     /* Must be in this segment. See if we can fit there */
-    if(Mem_Cnt==Map->Mem_Num)
+    if(Trav==&(Map->Chip_Mem))
         return -1;
-    if((Map->Mem_Array[Mem_Cnt]->Start+(Map->Mem_Array[Mem_Cnt]->Size-1))<(Start+(Size-1)))
+    if((Mem->Start+Mem->Size-1)<(Start+Size-1))
         return -1;
     
-    /* It is clear that we can fit now. Mark all the bits */
-    Rel_Start=Start-Map->Mem_Array[Mem_Cnt]->Start;
-    Mark_Bitmap(Map->Mem_Bitmap[Mem_Cnt],Rel_Start/4,Size/4);
+    /* It is clear that we can fit now. Mark all the bits. We do not check it it
+     * is already marked, because we allow overlapping. */
+    Rel_Start=Start-Mem->Start;
+    Mark_Bitmap(Info->Bitmap,Rel_Start/4,Size/4);
     return 0;
 }
-/* End Function:Populate_Mem *************************************************/
+/* End Function:Fit_Static_Mem ***********************************************/
 
-/* Begin Function:Fit_Mem *****************************************************
+/* Begin Function:Fit_Auto_Mem ************************************************
 Description : Fit the auto-placed memory segments to a fixed location.
 Input       : struct Mem_Map* Map - The memory map.
               ptr_t Mem_Num - The memory info number in the process memory array.
 Output      : struct Mem_Map* Map - The updated memory map.
 Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
-ret_t Fit_Mem(struct Mem_Map* Map, ptr_t Mem_Num)
+ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem)
 {
     ptr_t Fit_Cnt;
     ptr_t Start_Addr;
     ptr_t End_Addr;
     ptr_t Try_Addr;
     ptr_t Bitmap_Start;
-    ptr_t Bitmap_End;
-    struct Mem_Info* Mem;
+    ptr_t Bitmap_Size;
     struct Mem_Info* Fit;
+    struct Mem_Map_Info* Info;
+    struct List* Trav;
 
-    Mem=Map->Proc_Mem_Array[Mem_Num];
     /* Find somewhere to fit this memory trunk, and if found, we will populate it */
-    for(Fit_Cnt=0;Fit_Cnt<Map->Mem_Num;Fit_Cnt++)
+    for(Trav=Map->Chip_Mem.Next;Trav!=&(Map->Chip_Mem);Trav=Trav->Next)
     {
-        Fit=Map->Mem_Array[Fit_Cnt];
+        Info=(struct Mem_Map_Info*)Trav;
+        Fit=Info->Mem;
         if(Mem->Size>Fit->Size)
             continue;
         /* Round start address up, round end address down, to alignment */
@@ -2082,10 +2052,10 @@ ret_t Fit_Mem(struct Mem_Map* Map, ptr_t Mem_Num)
         for(Try_Addr=Start_Addr;Try_Addr<End_Addr;Try_Addr+=Mem->Align)
         {
             Bitmap_Start=(Try_Addr-Fit->Start)/4;
-            Bitmap_End=Mem->Size/4;
-            if(Try_Bitmap(Map->Mem_Bitmap[Fit_Cnt], Bitmap_Start,Bitmap_End)==0)
+            Bitmap_Size=Mem->Size/4;
+            if(Try_Bitmap(Info->Bitmap,Bitmap_Start,Bitmap_Size)==0)
             {
-                Mark_Bitmap(Map->Mem_Bitmap[Fit_Cnt], Bitmap_Start,Bitmap_End);
+                Mark_Bitmap(Info->Bitmap,Bitmap_Start,Bitmap_Size);
                 Mem->Start=Try_Addr;
                 /* Found a fit */
                 return 0;
@@ -2095,7 +2065,110 @@ ret_t Fit_Mem(struct Mem_Map* Map, ptr_t Mem_Num)
     /* Can't find any fit */
     return -1;
 }
-/* End Function:Fit_Mem ******************************************************/
+/* End Function:Fit_Auto_Mem *************************************************/
+
+ret_t Compare_Addr(struct List* First, struct List* Second)
+{
+    struct Mem_Map_Info* First_Info;
+    struct Mem_Map_Info* Second_Info;
+
+    First_Info=(struct Mem_Map_Info*)First;
+    Second_Info=(struct Mem_Map_Info*)Second;
+
+    if((First_Info->Mem->Start)>(Second_Info->Mem->Start))
+        return 1;
+    else if((First_Info->Mem->Start)<(Second_Info->Mem->Start))
+        return -1;
+
+    return 0;
+}
+
+ret_t Compare_Size(struct List* First, struct List* Second)
+{
+    struct Mem_Map_Info* First_Info;
+    struct Mem_Map_Info* Second_Info;
+
+    First_Info=(struct Mem_Map_Info*)First;
+    Second_Info=(struct Mem_Map_Info*)Second;
+
+    if((First_Info->Mem->Size)>(Second_Info->Mem->Size))
+        return 1;
+    else if((First_Info->Mem->Size)<(Second_Info->Mem->Size))
+        return -1;
+
+    return 0;
+}
+
+
+/* Begin Function:Merge_Sort **************************************************
+Description : Merge sort the list according to a compare function.
+Input       : struct List* List - The List containing the objects to be sorted.
+Output      : struct List* List - The sorted list.
+Return      : None.
+******************************************************************************/
+void Merge_Sort(struct List* List, ret_t (*Compare)(struct List*, struct List*))
+{
+    struct List Head;
+    struct List* Trav;
+    struct List* Insert;
+    struct List* Temp;
+
+    /* There are zero or one element in it, return immediately */
+    if(List->Next==List->Prev)
+        return;
+
+    /* Half the list into two parts */
+    List_Crt(&Head);
+    Temp=0;
+    Trav=List->Next;
+    while(Trav!=List)
+    {
+        if(Temp==0)
+        {
+            Temp=Trav;
+            Trav=Trav->Next;
+            List_Del(Temp->Prev,Temp->Next);
+            List_Ins(Temp,Head.Prev,&Head);
+        }
+        else
+        {
+            Temp=0;
+            Trav=Trav->Next;
+        }
+    }
+
+    /* Merge sort the two sections */
+    Merge_Sort(List, Compare);
+    Merge_Sort(&Head, Compare);
+
+    /* Merge the Head into the List */
+    Trav=List->Next;
+    Insert=Head.Next;
+    while((Trav!=List)&&(Insert!=&Head))
+    {
+        while(Compare(Insert,Trav)<0)
+        {
+            Temp=Insert;
+            Insert=Insert->Next;
+            List_Del(Temp->Prev,Temp->Next);
+            List_Ins(Temp,Trav->Prev,Trav);
+            if(Insert==&Head)
+                break;
+        }
+        Trav=Trav->Next;
+    }
+
+    /* If there still are elements in Head, they must all be bigger than List */
+    Insert=Head.Next;
+    while(Insert!=&Head)
+    {
+        Temp=Insert;
+        Insert=Insert->Next;
+        List_Del(Temp->Prev,Temp->Next);
+        List_Ins(Temp,List->Prev,List);
+    }
+}
+/* End Function:Merge_Sort ***************************************************/
 
 /* Begin Function:Alloc_Code **************************************************
 Description : Allocate the code section of all processes.
@@ -2105,119 +2178,237 @@ Output      : struct Proj_Info* Proj - The struct containing the project informa
                                        with all memory location allocated.
 Return      : None.
 ******************************************************************************/
-void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip, ptr_t Type)
+void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
-    ptr_t Count;
-    ptr_t Proc_Cnt;
-    ptr_t Mem_Cnt;
     struct Mem_Map* Map;
+    struct Mem_Map_Info* Info;
+    struct Proc_Info* Proc;
+    struct List* Mem_Trav;
+    struct List* Proc_Trav;
 
     Map=Malloc(sizeof(struct Mem_Map));
-    List_Init(&(Map->Info));
+    List_Init(&(Map->Chip_Mem));
 
     /* Insert all memory trunks in a incremental order by address */
-    for(Mem_Cnt=0;Mem_Cnt<Chip->Mem_Num;Mem_Cnt++)
+    for(Mem_Trav=Chip->Code.Next;Mem_Trav!=&(Chip->Code);Mem_Trav=Mem_Trav->Next)
     {
-        if(Chip->Mem[Mem_Cnt].Type==Type)
-        {
-            if(Insert_Mem(Map->Mem_Array,Map->Mem_Num,&Chip->Mem[Mem_Cnt],0)!=0)
-                EXIT_FAIL("Code memory insertion sort failed.");
-        }
+        Info=Malloc(sizeof(struct Mem_Map_Info));
+        Info->Mem=(struct Mem_Info*)Mem_Trav;
+        Info->Bitmap=Malloc((Info->Mem->Size/4)+1);
+        memset(Info->Bitmap,0,(size_t)((Info->Mem->Size/4)+1));
+        List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
     }
 
-    /* Now allocate the bitmap array according to their size */
-    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
-    {
-        /* We insist that one bit represents 4 bytes in the bitmap */
-        Map->Mem_Bitmap[Mem_Cnt]=Malloc((Map->Mem_Array[Mem_Cnt]->Size/4)+1);
-        if(Map->Mem_Bitmap[Mem_Cnt]==0)
-            EXIT_FAIL("Code bitmap allocation failed");
-        memset(Map->Mem_Bitmap[Mem_Cnt],0,(size_t)((Map->Mem_Array[Mem_Cnt]->Size/4)+1));
-    }
+    Merge_Sort(&(Map->Chip_Mem),Compare_Addr);
 
-    /* Now populate the RME & RVM sections */
-    if(Populate_Mem(Map, Proj->RME.Code_Start,Proj->RME.Code_Size)!=0)
-        EXIT_FAIL("Invalid address designated.");
-    if(Populate_Mem(Map, Proj->RME.Code_Start+Proj->RME.Code_Size,Proj->RVM.Code_Size)!=0)
-        EXIT_FAIL("Invalid address designated.");
+    /* Now populate the RME & RVM sections - must be continuous */
+    if(Fit_Static_Mem(Map, Proj->RME.Code_Start,Proj->RME.Code_Size)!=0)
+        EXIT_FAIL("RME Code section is invalid.");
+    if(Fit_Static_Mem(Map, Proj->RME.Code_Start+Proj->RME.Code_Size,Proj->RVM.Code_Size)!=0)
+        EXIT_FAIL("RVM Code section is invalid.");
 
     /* Merge sort all processes's memory in according to their size */
-
-    /* Populate these memory sections one by one */
-
-    /* Find all project code memory sections */
-
-    /* Clean up before returning */
-
-    Count=0;
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
     {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        Proc=(struct Proc_Info*)Proc_Trav;
+        for(Mem_Trav=Proc->Code.Next;Mem_Trav!=&(Proc->Code);Mem_Trav=Mem_Trav->Next)
         {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
+            /* If this memory is not auto memory, we wait to deal with it */
+            Info=Malloc(sizeof(struct Mem_Map_Info));
+            Info->Mem=(struct Mem_Info*)Mem_Trav;
+            if(Info->Mem->Start!=AUTO)
             {
-                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
-                    Count++;
-                else
-                {
-                    if(Populate_Mem(Map, Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start, Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Size)!=0)
-                        EXIT_FAIL("Invalid address designated.");
-                }
+                if(Fit_Static_Mem(Map, Info->Mem->Start, Info->Mem->Size)!=0)
+                    EXIT_FAIL("Process Code section is invalid.");
+                Free(Info);
+                continue;
             }
+
+            /* No bitmap for such memory trunks waiting to be allocated */
+            List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
         }
     }
 
-    if(Count!=0)
+    Merge_Sort(&(Map->Proc_Mem),Compare_Size);
+
+    /* Fit whatever that does not have a fixed address */
+    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav->Next)
     {
-        Map->Proc_Mem_Num=Count;
-        Map->Proc_Mem_Array=Malloc(sizeof(struct Mem_Info*)*Map->Proc_Mem_Num);
-        if(Map->Proc_Mem_Array==0)
-            EXIT_FAIL("Memory map allocation failed.");
-        memset(Map->Proc_Mem_Array,0,(size_t)(sizeof(struct Mem_Info*)*Map->Proc_Mem_Num));
-
-        /* Insert sort according to size */
-        for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-        {
-            for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
-            {
-                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==Type)
-                {
-                    if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start==AUTO)
-                    {
-                        if(Insert_Mem(Map->Proc_Mem_Array,Map->Proc_Mem_Num,&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]),1)!=0)
-                            EXIT_FAIL("Code memory insertion sort failed.");
-                    }
-                }
-            }
-        }
-
-        /* Fit whatever that does not have a fixed address */
-        for(Mem_Cnt=0;Mem_Cnt<Map->Proc_Mem_Num;Mem_Cnt++)
-        {
-            if(Fit_Mem(Map,Mem_Cnt)!=0)
-                EXIT_FAIL("Memory fitter failed.");
-        }
-
-        Free(Map->Proc_Mem_Array);
+        if(Fit_Auto_Mem(Map, ((struct Mem_Map_Info*)Mem_Trav)->Mem)!=0)
+            EXIT_FAIL("Process Code memory fitter failed.");
     }
 
     /* Clean up before returning */
-    for(Mem_Cnt=0;Mem_Cnt<Map->Mem_Num;Mem_Cnt++)
-        Free(Map->Mem_Bitmap[Mem_Cnt]);
-    
-    Free(Map->Mem_Array);
-    Free(Map->Mem_Bitmap);
+    Mem_Trav=Map->Chip_Mem.Next;
+    while(Mem_Trav!=&(Map->Chip_Mem))
+    {
+        Info=(struct Mem_Map_Info*)Mem_Trav;
+        Mem_Trav=Mem_Trav->Next;
+        Free(Info->Bitmap);
+        Free(Info);
+    }
+
+    Mem_Trav=Map->Proc_Mem.Next;
+    while(Mem_Trav!=&(Map->Proc_Mem))
+    {
+        Info=(struct Mem_Map_Info*)Mem_Trav;
+        Mem_Trav=Mem_Trav->Next;
+        Free(Info);
+    }
+   
     Free(Map);
 }
-/* End Function:Alloc_Mem ****************************************************/
+/* End Function:Alloc_Code ***************************************************/
 
-/* Begin Function:Check_Mem ***************************************************
-Description : Check the memory layout to make sure that they don't overlap.
-              Also check if the device memory of all processes are in the device
-              memory range, and if all processes have at least a data segment and
-              a code segment. If not, we need to abort immediately.
-              These algorithms are far from efficient; there are O(nlogn) variants,
-              which we leave as a possible future optimization.
+/* Begin Function:Check_Code **************************************************
+Description : Check if the code layout is valid.
+Input       : struct Proj_Info* Proj - The struct containing the project information.
+              struct Chip_Info* Chip - The struct containing the chip information.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Check_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    struct Mem_Info* Mem1;
+    struct Mem_Info* Mem2;
+    struct Mem_Map_Info* Info;
+    struct Mem_Map* Map;
+    struct List* Proc_Trav;
+    struct Proc_Info* Proc;
+    struct List* Mem_Trav;
+
+    Map=Malloc(sizeof(struct Mem_Map));
+    List_Crt(&(Map->Proc_Mem));
+
+    /* Insert all primary code sections into that list and then sort */
+    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    {
+        Info=Malloc(sizeof(struct Mem_Map_Info));
+        Proc=(struct Proc_Info*)Proc_Trav;
+        Info->Mem=(struct Mem_Info*)(Proc->Code.Next);
+        List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
+    }
+
+    Merge_Sort(&(Map->Proc_Mem),Compare_Addr);
+
+    /* Check if adjacent memories will overlap */
+    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav=Mem_Trav->Next)
+    {
+        /* If we still have something after us, check for overlap */
+        if(Mem_Trav->Next!=&(Map->Proc_Mem))
+        {
+            Mem1=((struct Mem_Map_Info*)Mem_Trav)->Mem;
+            Mem2=((struct Mem_Map_Info*)(Mem_Trav->Next))->Mem;
+            if((Mem1->Start+Mem1->Size)>Mem2->Start)
+                EXIT_FAIL("Process primary Code section overlapped.");
+        }
+    }
+
+    /* Clean up */
+    Mem_Trav=Map->Proc_Mem.Next;
+    while(Mem_Trav!=&(Map->Proc_Mem))
+    {
+        Info=(struct Mem_Map_Info*)Mem_Trav;
+        Mem_Trav=Mem_Trav->Next;
+        Free(Info);
+    }
+
+    Free(Map);
+}
+/* End Function:Check_Code ***************************************************/
+
+/* Begin Function:Alloc_Data **************************************************
+Description : Allocate the data section of all processes.
+Input       : struct Proj_Info* Proj - The struct containing the project information.
+              struct Chip_Info* Chip - The struct containing the chip information.
+Output      : struct Proj_Info* Proj - The struct containing the project information,
+                                       with all memory location allocated.
+Return      : None.
+******************************************************************************/
+void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    struct Mem_Map* Map;
+    struct Mem_Map_Info* Info;
+    struct Proc_Info* Proc;
+    struct List* Mem_Trav;
+    struct List* Proc_Trav;
+
+    Map=Malloc(sizeof(struct Mem_Map));
+    List_Init(&(Map->Chip_Mem));
+
+    /* Insert all memory trunks in a incremental order by address */
+    for(Mem_Trav=Chip->Data.Next;Mem_Trav!=&(Chip->Data);Mem_Trav=Mem_Trav->Next)
+    {
+        Info=Malloc(sizeof(struct Mem_Map_Info));
+        Info->Mem=(struct Mem_Info*)Mem_Trav;
+        Info->Bitmap=Malloc((Info->Mem->Size/4)+1);
+        memset(Info->Bitmap,0,(size_t)((Info->Mem->Size/4)+1));
+        List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
+    }
+
+    Merge_Sort(&(Map->Chip_Mem),Compare_Addr);
+
+    /* Now populate the RME & RVM sections - must be continuous */
+    if(Fit_Static_Mem(Map, Proj->RME.Data_Start,Proj->RME.Data_Size)!=0)
+        EXIT_FAIL("RME Data section is invalid.");
+    if(Fit_Static_Mem(Map, Proj->RME.Data_Start+Proj->RME.Data_Size,Proj->RVM.Data_Size)!=0)
+        EXIT_FAIL("RVM Data section is invalid.");
+
+    /* Merge sort all processes's memory in according to their size */
+    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    {
+        Proc=(struct Proc_Info*)Proc_Trav;
+        for(Mem_Trav=Proc->Data.Next;Mem_Trav!=&(Proc->Data);Mem_Trav=Mem_Trav->Next)
+        {
+            /* If this memory is not auto memory, we wait to deal with it */
+            Info=Malloc(sizeof(struct Mem_Map_Info));
+            Info->Mem=(struct Mem_Info*)Mem_Trav;
+            if(Info->Mem->Start!=AUTO)
+            {
+                if(Fit_Static_Mem(Map, Info->Mem->Start, Info->Mem->Size)!=0)
+                    EXIT_FAIL("Process Data section is invalid.");
+                Free(Info);
+                continue;
+            }
+
+            /* No bitmap for such memory trunks waiting to be allocated */
+            List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
+        }
+    }
+
+    Merge_Sort(&(Map->Proc_Mem),Compare_Size);
+
+    /* Fit whatever that does not have a fixed address */
+    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav->Next)
+    {
+        if(Fit_Auto_Mem(Map, ((struct Mem_Map_Info*)Mem_Trav)->Mem)!=0)
+            EXIT_FAIL("Process Data memory fitter failed.");
+    }
+
+    /* Clean up before returning */
+    Mem_Trav=Map->Chip_Mem.Next;
+    while(Mem_Trav!=&(Map->Chip_Mem))
+    {
+        Info=(struct Mem_Map_Info*)Mem_Trav;
+        Mem_Trav=Mem_Trav->Next;
+        Free(Info->Bitmap);
+        Free(Info);
+    }
+
+    Mem_Trav=Map->Proc_Mem.Next;
+    while(Mem_Trav!=&(Map->Proc_Mem))
+    {
+        Info=(struct Mem_Map_Info*)Mem_Trav;
+        Mem_Trav=Mem_Trav->Next;
+        Free(Info);
+    }
+   
+    Free(Map);
+}
+/* End Function:Alloc_Data ***************************************************/
+
+/* Begin Function:Check_Device ************************************************
+Description : Check the device memory to make sure that all of them falls into range.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
               struct Chip_Info* Chip - The struct containing the chip information.
 Output      : None.
@@ -2225,91 +2416,67 @@ Return      : None.
 ******************************************************************************/
 void Check_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
-    ptr_t Proc_Cnt;
-    ptr_t Mem_Cnt;
-    ptr_t Proc_Temp_Cnt;
-    ptr_t Mem_Temp_Cnt;
-    ptr_t Chip_Mem_Cnt;
-    struct Mem_Info* Mem1;
-    struct Mem_Info* Mem2;
+    struct Mem_Info* Proc_Mem;
+    struct Mem_Info* Chip_Mem;
+    struct List* Proc_Trav;
+    struct List* Proc_Mem_Trav;
+    struct Proc_Info* Proc;
+    struct List* Chip_Mem_Trav;
 
-
-    /* Is it true that each process have a code segment and a data segment? */
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    /* Is it true that the device memory is in device memory range? */
+    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
     {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        Proc=(struct Proc_Info*)Proc_Trav;
+        for(Proc_Mem_Trav=Proc->Device.Next;Proc_Mem_Trav!=&(Proc->Device);Proc_Mem_Trav=Proc_Mem_Trav->Next)
         {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_CODE)
-                break;
-        }
-        if(Mem_Cnt==Proj->Proc[Proc_Cnt].Mem_Num)
-            EXIT_FAIL("At least one process does not have a single code segment.");
-
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
-        {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_DATA)
-                break;
-        }
-        if(Mem_Cnt==Proj->Proc[Proc_Cnt].Mem_Num)
-            EXIT_FAIL("At least one process does not have a single data segment.");
-    }
-    
-    /* Is it true that the device memory is in device memory range？
-     * Also, device memory cannot have AUTO placement, position must be designated. */
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
-        {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_DEVICE)
+            Proc_Mem=(struct Mem_Info*)Proc_Mem_Trav;
+            for(Chip_Mem_Trav=Chip->Device.Next;Chip_Mem_Trav!=&(Chip->Device);Chip_Mem_Trav=Chip_Mem_Trav->Next)
             {
-                if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Start>=INVALID)
-                    EXIT_FAIL("Device memory cannot have auto placement.");
-
-                for(Chip_Mem_Cnt=0;Chip_Mem_Cnt<Chip->Mem_Num;Chip_Mem_Cnt++)
+                Chip_Mem=(struct Mem_Info*)Chip_Mem_Trav;
+                if(Proc_Mem->Start<=Chip_Mem->Start)
                 {
-                    if(Chip->Mem[Chip_Mem_Cnt].Type==MEM_DEVICE)
-                    {
-                        Mem1=&(Chip->Mem[Chip_Mem_Cnt]);
-                        Mem2=&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]);
-                        if((Mem1->Start<=Mem2->Start)&&((Mem1->Start+(Mem1->Size-1))>=(Mem2->Start+(Mem2->Size-1))))
-                            break;
-                    }
+                    if((Proc_Mem->Start+Proc_Mem->Size)>=(Chip_Mem->Start+Chip_Mem->Size))
+                        break;
                 }
-                if(Chip_Mem_Cnt==Chip->Mem_Num)
-                    EXIT_FAIL("At least one device memory segment is out of bound.");
             }
-        }
-    }
 
-    /* Is it true that the primary code memory does not overlap with each other? */
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
-        {
-            if(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Type==MEM_CODE)
-                break;
-        }
-        for(Proc_Temp_Cnt=0;Proc_Temp_Cnt<Proj->Proc_Num;Proc_Temp_Cnt++)
-        {
-            if(Proc_Temp_Cnt==Proc_Cnt)
-                continue;
-            for(Mem_Temp_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Temp_Cnt].Mem_Num;Mem_Cnt++)
-            {
-                if(Proj->Proc[Proc_Temp_Cnt].Mem[Mem_Temp_Cnt].Type==MEM_CODE)
-                    break;
-            }
-            
-            Mem1=&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]);
-            Mem2=&(Proj->Proc[Proc_Temp_Cnt].Mem[Mem_Temp_Cnt]);
-
-            if(((Mem1->Start+(Mem1->Size-1))<Mem2->Start)||((Mem2->Start+(Mem2->Size-1))<Mem1->Start))
-                continue;
-            else
-                EXIT_FAIL("Two process's main code sections overlapped.");
+            if(Chip_Mem_Trav==&(Chip->Device))
+                EXIT_FAIL("Process Device segment is out of bound.");
         }
     }
 }
-/* End Function:Check_Mem ****************************************************/
+/* End Function:Check_Device *************************************************/
+
+void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    s8_t* Full_Pos;
+
+    /* Check platform validity */
+    if(strcmp(Proj->Plat, Chip->Plat)!=0)
+        EXIT_FAIL("Platform conflict.");
+
+    /* Check chip class validity */
+    if(strcmp(Proj->Chip_Class, Chip->Class)!=0)
+        EXIT_FAIL("Chip class conflict.");
+
+    /* Check chip full name validity */
+    Full_Pos=strstr(Chip->Compat, Proj->Chip_Full);
+    if(Full_Pos!=0)
+    {
+        if((Chip->Compat[Full_Pos+1]!=',')&&(Chip->Compat[Full_Pos+1]!='\0'))
+            EXIT_FAIL("Chip full name not found.");
+    }
+
+    
+    /* All memory segments shall be aligned to 32 bytes, no matter chip or process */
+
+    /* The chip shall have at least one code memory section and one data memory section */
+
+    /* Every process must have at least one code and data segment, and they must be static. 
+     * The primary code segment must be RXS, the primary data segment must allow RWS */
+
+    /* Every process have at least one thread */
+}
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -2339,15 +2506,13 @@ int main(int argc, char* argv[])
     /* Process the command line first */
     Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Format);
 
-	/* Read the project contents */
+	/* Read project XML file */
 	Input_Buf=Read_File(Input_Path);
 	Proj=Parse_Proj(Input_Buf);
 	Free(Input_Buf);
 
-	/* Parse the chip in a platform-agnostic way - we need to know where the chip file is. Now, we just give a fixed path */
+	/* Read chip XML file */
     Path_Buf=Malloc(4096);
-    if(Path_Buf==0)
-        EXIT_FAIL("Platform path synthesis buffer allocation failed.");
     sprintf(Path_Buf, "%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.xml",
                       RME_Path, Proj->Plat, Proj->Chip_Class, Proj->Chip_Class);
 	Input_Buf=Read_File(Path_Buf);
@@ -2355,12 +2520,8 @@ int main(int argc, char* argv[])
 	Free(Input_Buf);
     Free(Path_Buf);
 
-    /* Check if the platform is the same */
-    if(strcmp(Proj->Plat, Chip->Plat)!=0)
-        EXIT_FAIL("The chip description file platform conflicted with the project file.");
-
     /* Check the general validity of everything */
-    Check_Validity(Proj, Chip);
+    Check_Input(Proj, Chip);
 
 	/* Align memory to what it should be */
 	if(strcmp(Proj->Plat,"A7M")==0)
@@ -2372,9 +2533,8 @@ int main(int argc, char* argv[])
 	Alloc_Code(Proj, Chip);
     Check_Code(Proj, Chip);
 
-    /* Allocate and check data memory */
+    /* Allocate data memory */
 	Alloc_Data(Proj, Chip);
-    Check_Data(Proj, Chip);
 
     /* Check device memory */
     Check_Device(Proj, Chip);
