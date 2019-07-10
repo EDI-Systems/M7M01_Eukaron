@@ -119,6 +119,13 @@ do \
 } \
 while(0)
 
+#define EACH(Type,Trav,Head) \
+(Trav)=(Type)((Head).Next);((struct List*)(Trav))!=&(Head);(Trav)=((Type)(((struct List*)(Trav))->Next))
+
+#define NEXT(Type,Trav)     ((Type)(((struct List*)(Trav))->Next))
+
+#define IS_HEAD(Trav,Head)  (((struct List*)(Trav))==&(Head))
+
 /* The alignment value used when printing macros */
 #define MACRO_ALIGNMENT     (56)
 /* The code generator author name */
@@ -195,10 +202,11 @@ struct RME_Info
 /* RVM's capability information, from the user processes */
 struct RVM_Cap_Info
 {
+    struct List Head;
     /* What process is this capability in? */
     struct Proc_Info* Proc;
     /* What's the content of the capability, exactly? */
-    struct List* Cap;
+    void* Cap;
 };
 
 /* RVM user-level library information. */
@@ -365,7 +373,7 @@ struct Vect_Info
     /* Globally unique vector name */
 	s8_t* Name;
     /* Vector number */
-    ptr_t Vect_Num;
+    ptr_t Num;
 
     /* Capability related information */
     struct Cap_Info Cap;
@@ -395,9 +403,9 @@ struct Proc_Info
 	struct List Send;
 	struct List Vect;
     /* Capability information for itself */
-    struct Cap_Info Captbl;
-    struct Cap_Info Pgtbl;
-    struct Cap_Info Proc;
+    struct Cap_Info Captbl_Cap;
+    struct Cap_Info Pgtbl_Cap;
+    struct Cap_Info Proc_Cap;
 };
 
 /* Whole project information */
@@ -790,6 +798,8 @@ ret_t Copy_File(s8_t* Dst, s8_t* Src)
     return 0;
 }
 /* End Function:Copy_File ****************************************************/
+
+
 
 /* Begin Function:Cmdline_Proc ************************************************
 Description : Preprocess the input parameters, and generate a preprocessed
@@ -1670,7 +1680,7 @@ struct Proj_Info* Parse_Proj(s8_t* Proj_File)
     /* Parse RVM section */
     Parse_Proj_RVM(&(Proj->RVM),RVM);
     /* Parse Process section */
-    Parse_Proj_Proc(&(Proj->Proc),Process);
+    Parse_Proj_Proc(Proj,Process);
 
     /* Destroy XML DOM */
     if(XML_Del(Node)<0)
@@ -1885,12 +1895,12 @@ struct Chip_Info* Parse_Chip(s8_t* Chip_File)
     /* Cores */
     if((XML_Child(Node,"Cores",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Cores section missing.");
-    if(XML_Get_Uint(Temp,Malloc,&(Chip->Cores))<0)
+    if(XML_Get_Uint(Temp,&(Chip->Cores))<0)
         EXIT_FAIL("Chip Cores is not an unsigned integer.");
     /* Regions */
     if((XML_Child(Node,"Regions",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Regions section missing.");
-    if(XML_Get_Uint(Temp,Malloc,&(Chip->Regions))<0)
+    if(XML_Get_Uint(Temp,&(Chip->Regions))<0)
         EXIT_FAIL("Chip Regions is not an unsigned integer.");
     
     /* Attribute */
@@ -1919,7 +1929,7 @@ struct Chip_Info* Parse_Chip(s8_t* Chip_File)
             EXIT_FAIL("Chip Attribute value read failed.");
 
         List_Ins(&(Raw->Head),Chip->Attr.Prev,&(Chip->Attr));
-        if(XML_Child(Chip,"",&Temp)<0)
+        if(XML_Child(Attribute,"",&Temp)<0)
             EXIT_FAIL("Internal error.");
     }
 
@@ -1988,23 +1998,20 @@ Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
 ret_t Fit_Static_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size)
 {
-    ptr_t Mem_Cnt;
     ptr_t Rel_Start;
-    struct List* Trav;
     struct Mem_Info* Mem;
     struct Mem_Map_Info* Info;
 
     /* See if we can even find a segment that accomodates this */
-    for(Trav=Map->Chip_Mem.Next;Trav!=&(Map->Chip_Mem);Trav=Trav->Next)
+    for(EACH(struct Mem_Map_Info*,Info,Map->Chip_Mem))
     {
-        Info=(struct Mem_Map_Info*)Trav;
         Mem=Info->Mem;
         if((Start>=Mem->Start)&&(Start<=(Mem->Start+Mem->Size-1)))
             break;
     }
 
     /* Must be in this segment. See if we can fit there */
-    if(Trav==&(Map->Chip_Mem))
+    if(IS_HEAD(Info,Map->Chip_Mem))
         return -1;
     if((Mem->Start+Mem->Size-1)<(Start+Size-1))
         return -1;
@@ -2026,7 +2033,6 @@ Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
 ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem)
 {
-    ptr_t Fit_Cnt;
     ptr_t Start_Addr;
     ptr_t End_Addr;
     ptr_t Try_Addr;
@@ -2034,12 +2040,10 @@ ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem)
     ptr_t Bitmap_Size;
     struct Mem_Info* Fit;
     struct Mem_Map_Info* Info;
-    struct List* Trav;
 
     /* Find somewhere to fit this memory trunk, and if found, we will populate it */
-    for(Trav=Map->Chip_Mem.Next;Trav!=&(Map->Chip_Mem);Trav=Trav->Next)
+    for(EACH(struct Mem_Map_Info*,Info,Map->Chip_Mem))
     {
-        Info=(struct Mem_Map_Info*)Trav;
         Fit=Info->Mem;
         if(Mem->Size>Fit->Size)
             continue;
@@ -2062,6 +2066,7 @@ ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem)
             }
         }
     }
+
     /* Can't find any fit */
     return -1;
 }
@@ -2181,21 +2186,20 @@ Return      : None.
 void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     struct Mem_Map* Map;
+    struct Mem_Info* Mem;
     struct Mem_Map_Info* Info;
     struct Proc_Info* Proc;
-    struct List* Mem_Trav;
-    struct List* Proc_Trav;
 
     Map=Malloc(sizeof(struct Mem_Map));
-    List_Init(&(Map->Chip_Mem));
+    List_Crt(&(Map->Chip_Mem));
 
     /* Insert all memory trunks in a incremental order by address */
-    for(Mem_Trav=Chip->Code.Next;Mem_Trav!=&(Chip->Code);Mem_Trav=Mem_Trav->Next)
+    for(EACH(struct Mem_Info*,Mem,Chip->Code))
     {
         Info=Malloc(sizeof(struct Mem_Map_Info));
-        Info->Mem=(struct Mem_Info*)Mem_Trav;
-        Info->Bitmap=Malloc((Info->Mem->Size/4)+1);
-        memset(Info->Bitmap,0,(size_t)((Info->Mem->Size/4)+1));
+        Info->Mem=Mem;
+        Info->Bitmap=Malloc((Mem->Size/4)+1);
+        memset(Info->Bitmap,0,(size_t)((Mem->Size/4)+1));
         List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
     }
 
@@ -2208,14 +2212,13 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
         EXIT_FAIL("RVM Code section is invalid.");
 
     /* Merge sort all processes's memory in according to their size */
-    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        Proc=(struct Proc_Info*)Proc_Trav;
-        for(Mem_Trav=Proc->Code.Next;Mem_Trav!=&(Proc->Code);Mem_Trav=Mem_Trav->Next)
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
         {
             /* If this memory is not auto memory, we wait to deal with it */
             Info=Malloc(sizeof(struct Mem_Map_Info));
-            Info->Mem=(struct Mem_Info*)Mem_Trav;
+            Info->Mem=Mem;
             if(Info->Mem->Start!=AUTO)
             {
                 if(Fit_Static_Mem(Map, Info->Mem->Start, Info->Mem->Size)!=0)
@@ -2232,27 +2235,25 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
     Merge_Sort(&(Map->Proc_Mem),Compare_Size);
 
     /* Fit whatever that does not have a fixed address */
-    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav->Next)
+    for(EACH(struct Mem_Map_Info*,Info,Map->Proc_Mem))
     {
-        if(Fit_Auto_Mem(Map, ((struct Mem_Map_Info*)Mem_Trav)->Mem)!=0)
+        if(Fit_Auto_Mem(Map, Info->Mem)!=0)
             EXIT_FAIL("Process Code memory fitter failed.");
     }
 
     /* Clean up before returning */
-    Mem_Trav=Map->Chip_Mem.Next;
-    while(Mem_Trav!=&(Map->Chip_Mem))
+    while(!IS_HEAD(Map->Chip_Mem.Next,Map->Chip_Mem))
     {
-        Info=(struct Mem_Map_Info*)Mem_Trav;
-        Mem_Trav=Mem_Trav->Next;
+        Info=(struct Mem_Map_Info*)(Map->Chip_Mem.Next);
+        List_Del(Info->Head.Prev,Info->Head.Next);
         Free(Info->Bitmap);
         Free(Info);
     }
 
-    Mem_Trav=Map->Proc_Mem.Next;
-    while(Mem_Trav!=&(Map->Proc_Mem))
+    while(!IS_HEAD(Map->Proc_Mem.Next,Map->Proc_Mem))
     {
-        Info=(struct Mem_Map_Info*)Mem_Trav;
-        Mem_Trav=Mem_Trav->Next;
+        Info=(struct Mem_Map_Info*)(Map->Proc_Mem.Next);
+        List_Del(Info->Head.Prev,Info->Head.Next);
         Free(Info);
     }
    
@@ -2273,18 +2274,15 @@ void Check_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
     struct Mem_Info* Mem2;
     struct Mem_Map_Info* Info;
     struct Mem_Map* Map;
-    struct List* Proc_Trav;
     struct Proc_Info* Proc;
-    struct List* Mem_Trav;
 
     Map=Malloc(sizeof(struct Mem_Map));
     List_Crt(&(Map->Proc_Mem));
 
     /* Insert all primary code sections into that list and then sort */
-    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
         Info=Malloc(sizeof(struct Mem_Map_Info));
-        Proc=(struct Proc_Info*)Proc_Trav;
         Info->Mem=(struct Mem_Info*)(Proc->Code.Next);
         List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
     }
@@ -2292,24 +2290,23 @@ void Check_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
     Merge_Sort(&(Map->Proc_Mem),Compare_Addr);
 
     /* Check if adjacent memories will overlap */
-    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav=Mem_Trav->Next)
+    for(EACH(struct Mem_Map_Info*,Info,Map->Proc_Mem))
     {
         /* If we still have something after us, check for overlap */
-        if(Mem_Trav->Next!=&(Map->Proc_Mem))
+        if(!IS_HEAD(Info->Head.Next,Map->Proc_Mem))
         {
-            Mem1=((struct Mem_Map_Info*)Mem_Trav)->Mem;
-            Mem2=((struct Mem_Map_Info*)(Mem_Trav->Next))->Mem;
+            Mem1=Info->Mem;
+            Mem2=((struct Mem_Map_Info*)(Info->Head.Next))->Mem;
             if((Mem1->Start+Mem1->Size)>Mem2->Start)
                 EXIT_FAIL("Process primary Code section overlapped.");
         }
     }
 
     /* Clean up */
-    Mem_Trav=Map->Proc_Mem.Next;
-    while(Mem_Trav!=&(Map->Proc_Mem))
+    while(!IS_HEAD(Map->Proc_Mem.Next,Map->Proc_Mem))
     {
-        Info=(struct Mem_Map_Info*)Mem_Trav;
-        Mem_Trav=Mem_Trav->Next;
+        Info=(struct Mem_Map_Info*)(Map->Proc_Mem.Next);
+        List_Del(Info->Head.Prev,Info->Head.Next);
         Free(Info);
     }
 
@@ -2330,19 +2327,18 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
     struct Mem_Map* Map;
     struct Mem_Map_Info* Info;
     struct Proc_Info* Proc;
-    struct List* Mem_Trav;
-    struct List* Proc_Trav;
+    struct Mem_Info* Mem;
 
     Map=Malloc(sizeof(struct Mem_Map));
     List_Init(&(Map->Chip_Mem));
 
     /* Insert all memory trunks in a incremental order by address */
-    for(Mem_Trav=Chip->Data.Next;Mem_Trav!=&(Chip->Data);Mem_Trav=Mem_Trav->Next)
+    for(EACH(struct Mem_Info*,Mem,Chip->Data))
     {
         Info=Malloc(sizeof(struct Mem_Map_Info));
-        Info->Mem=(struct Mem_Info*)Mem_Trav;
-        Info->Bitmap=Malloc((Info->Mem->Size/4)+1);
-        memset(Info->Bitmap,0,(size_t)((Info->Mem->Size/4)+1));
+        Info->Mem=Mem;
+        Info->Bitmap=Malloc((Mem->Size/4)+1);
+        memset(Info->Bitmap,0,(size_t)((Mem->Size/4)+1));
         List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
     }
 
@@ -2355,17 +2351,16 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
         EXIT_FAIL("RVM Data section is invalid.");
 
     /* Merge sort all processes's memory in according to their size */
-    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        Proc=(struct Proc_Info*)Proc_Trav;
-        for(Mem_Trav=Proc->Data.Next;Mem_Trav!=&(Proc->Data);Mem_Trav=Mem_Trav->Next)
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
         {
             /* If this memory is not auto memory, we wait to deal with it */
             Info=Malloc(sizeof(struct Mem_Map_Info));
-            Info->Mem=(struct Mem_Info*)Mem_Trav;
-            if(Info->Mem->Start!=AUTO)
+            Info->Mem=Mem;
+            if(Mem->Start!=AUTO)
             {
-                if(Fit_Static_Mem(Map, Info->Mem->Start, Info->Mem->Size)!=0)
+                if(Fit_Static_Mem(Map, Mem->Start, Mem->Size)!=0)
                     EXIT_FAIL("Process Data section is invalid.");
                 Free(Info);
                 continue;
@@ -2379,27 +2374,25 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
     Merge_Sort(&(Map->Proc_Mem),Compare_Size);
 
     /* Fit whatever that does not have a fixed address */
-    for(Mem_Trav=Map->Proc_Mem.Next;Mem_Trav!=&(Map->Proc_Mem);Mem_Trav->Next)
+    for(EACH(struct Mem_Map_Info*,Info,Map->Proc_Mem))
     {
-        if(Fit_Auto_Mem(Map, ((struct Mem_Map_Info*)Mem_Trav)->Mem)!=0)
+        if(Fit_Auto_Mem(Map, Info->Mem)!=0)
             EXIT_FAIL("Process Data memory fitter failed.");
     }
 
     /* Clean up before returning */
-    Mem_Trav=Map->Chip_Mem.Next;
-    while(Mem_Trav!=&(Map->Chip_Mem))
+    while(!IS_HEAD(Map->Chip_Mem.Next,Map->Chip_Mem))
     {
-        Info=(struct Mem_Map_Info*)Mem_Trav;
-        Mem_Trav=Mem_Trav->Next;
+        Info=(struct Mem_Map_Info*)(Map->Chip_Mem.Next);
+        List_Del(Info->Head.Prev,Info->Head.Next);
         Free(Info->Bitmap);
         Free(Info);
     }
 
-    Mem_Trav=Map->Proc_Mem.Next;
-    while(Mem_Trav!=&(Map->Proc_Mem))
+    while(!IS_HEAD(Map->Proc_Mem.Next,Map->Proc_Mem))
     {
-        Info=(struct Mem_Map_Info*)Mem_Trav;
-        Mem_Trav=Mem_Trav->Next;
+        Info=(struct Mem_Map_Info*)(Map->Proc_Mem.Next);
+        List_Del(Info->Head.Prev,Info->Head.Next);
         Free(Info);
     }
    
@@ -2414,25 +2407,19 @@ Input       : struct Proj_Info* Proj - The struct containing the project informa
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Check_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip)
+void Check_Device(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     struct Mem_Info* Proc_Mem;
     struct Mem_Info* Chip_Mem;
-    struct List* Proc_Trav;
-    struct List* Proc_Mem_Trav;
     struct Proc_Info* Proc;
-    struct List* Chip_Mem_Trav;
 
     /* Is it true that the device memory is in device memory range? */
-    for(Proc_Trav=Proj->Proc.Next;Proc_Trav!=&(Proj->Proc);Proc_Trav=Proc_Trav->Next)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        Proc=(struct Proc_Info*)Proc_Trav;
-        for(Proc_Mem_Trav=Proc->Device.Next;Proc_Mem_Trav!=&(Proc->Device);Proc_Mem_Trav=Proc_Mem_Trav->Next)
+        for(EACH(struct Mem_Info*,Proc_Mem,Proc->Device))
         {
-            Proc_Mem=(struct Mem_Info*)Proc_Mem_Trav;
-            for(Chip_Mem_Trav=Chip->Device.Next;Chip_Mem_Trav!=&(Chip->Device);Chip_Mem_Trav=Chip_Mem_Trav->Next)
+            for(EACH(struct Mem_Info*,Chip_Mem,Chip->Device))
             {
-                Chip_Mem=(struct Mem_Info*)Chip_Mem_Trav;
                 if(Proc_Mem->Start<=Chip_Mem->Start)
                 {
                     if((Proc_Mem->Start+Proc_Mem->Size)>=(Chip_Mem->Start+Chip_Mem->Size))
@@ -2440,7 +2427,7 @@ void Check_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip)
                 }
             }
 
-            if(Chip_Mem_Trav==&(Chip->Device))
+            if(IS_HEAD(Chip_Mem,Chip->Device))
                 EXIT_FAIL("Process Device segment is out of bound.");
         }
     }
@@ -2450,6 +2437,8 @@ void Check_Mem(struct Proj_Info* Proj, struct Chip_Info* Chip)
 void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     s8_t* Full_Pos;
+    struct Proc_Info* Proc;
+    struct Mem_Info* Mem;
 
     /* Check platform validity */
     if(strcmp(Proj->Plat, Chip->Plat)!=0)
@@ -2463,20 +2452,650 @@ void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
     Full_Pos=strstr(Chip->Compat, Proj->Chip_Full);
     if(Full_Pos!=0)
     {
-        if((Chip->Compat[Full_Pos+1]!=',')&&(Chip->Compat[Full_Pos+1]!='\0'))
+        if((Full_Pos[1]!=',')&&(Full_Pos[1]!='\0'))
             EXIT_FAIL("Chip full name not found.");
     }
 
-    
-    /* All memory segments shall be aligned to 32 bytes, no matter chip or process */
-
     /* The chip shall have at least one code memory section and one data memory section */
+    if(Chip->Code.Next==&(Chip->Code))
+        EXIT_FAIL("Chip does not have a Code section.");
+    if(Chip->Data.Next==&(Chip->Data))
+        EXIT_FAIL("Chip does not have a Data section.");
+
+    /* All Chip memory segments shall be aligned to 32 bytes */
+    for(EACH(struct Mem_Info*,Mem,Chip->Code))
+    {
+        if((Mem->Size&0x1F)!=0)
+            EXIT_FAIL("Chip Code section not aligned to 32-byte boundary.");
+    }
+    for(EACH(struct Mem_Info*,Mem,Chip->Data))
+    {
+        if((Mem->Size&0x1F)!=0)
+            EXIT_FAIL("Chip Data section not aligned to 32-byte boundary.");
+    }
+    for(EACH(struct Mem_Info*,Mem,Chip->Device))
+    {
+        if((Mem->Size&0x1F)!=0)
+            EXIT_FAIL("Chip Device section not aligned to 32-byte boundary.");
+    }
 
     /* Every process must have at least one code and data segment, and they must be static. 
      * The primary code segment must be RXS, the primary data segment must allow RWS */
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        if(Proc->Code.Next==&(Proc->Code))
+            EXIT_FAIL("Process does not have a Code section.");
+        if(Proc->Data.Next==&(Proc->Data))
+            EXIT_FAIL("Process does not have a Data section.");
 
-    /* Every process have at least one thread */
+        Mem=(struct Mem_Info*)(Proc->Code.Next);
+        if(((Mem->Attr)&(MEM_READ|MEM_EXECUTE|MEM_STATIC))!=(MEM_READ|MEM_EXECUTE|MEM_STATIC))
+            EXIT_FAIL("Process primary Code section does not have RXS attribute.");
+        
+        Mem=(struct Mem_Info*)(Proc->Data.Next);
+        if(((Mem->Attr)&(MEM_READ|MEM_WRITE|MEM_STATIC))!=(MEM_READ|MEM_WRITE|MEM_STATIC))
+            EXIT_FAIL("Process primary Data section does not have RWS attribute.");
+
+        /* All process memory segments shall be aligned to 32 bytes */
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+        {
+            if((Mem->Size&0x1F)!=0)
+                EXIT_FAIL("Process Code section not aligned to 32-byte boundary.");
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+        {
+            if((Mem->Size&0x1F)!=0)
+                EXIT_FAIL("Process Data section not aligned to 32-byte boundary.");
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+        {
+            if((Mem->Size&0x1F)!=0)
+                EXIT_FAIL("Process Device section not aligned to 32-byte boundary.");
+        }
+
+        /* All process shall have at least one thread */
+        if(IS_HEAD(Proc->Thd.Next,Proc->Thd))
+            EXIT_FAIL("Process does not have a Thread.");
+    }
 }
+
+/* Begin Function:Strcicmp ****************************************************
+Description : Compare two strings in a case insensitive way.
+Input       : s8_t* Str1 - The first string.
+              s8_t* Str2 - The second string.
+Output      : None.
+Return      : ret_t - If two strings are equal, then 0; if the first is bigger, 
+                      then positive; else negative.
+******************************************************************************/
+ret_t Strcicmp(s8_t* Str1, s8_t* Str2)
+{
+    ptr_t Count;
+    ret_t Result;
+
+    Count=0;
+    while(1)
+    {
+        Result=tolower(Str1[Count])-tolower(Str2[Count]);
+        if(Result!=0)
+            return Result;
+        
+        if(Str1[Count]=='\0')
+            break;
+
+        Count++;
+    }
+
+    return Result;
+}
+/* End Function:Strcicmp *****************************************************/
+
+/* Begin Function:Check_Name **************************************************
+Description : See if the names are valid C identifiers.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : ret_t - If no conflict, 0; else -1.
+******************************************************************************/
+ret_t Check_Name(s8_t* Name)
+{
+    ptr_t Count;
+    /* Should not begin with number */
+    if((Name[0]>='0')&&(Name[0]<='9'))
+        return -1;
+    Count=0;
+    while(1)
+    {
+        Count++;
+        if(Name[Count]=='\0')
+            return 0;
+        if((Name[Count]>='a')&&(Name[Count]<='z'))
+            continue;
+        if((Name[Count]>='A')&&(Name[Count]<='Z'))
+            continue;
+        if((Name[Count]>='0')&&(Name[Count]<='9'))
+            continue;
+        if(Name[Count]=='_')
+            continue;
+        break;
+    }
+    return -1;
+}
+/* End Function:Check_Name ***************************************************/
+
+/* Begin Function:Check_Vect **************************************************
+Description : Detect vector conflicts in the system. Every vector name is globally
+              unique - it cannot overlap with any other vector in any other process.
+              If one of the processes have a vector endpoint, then no other process
+              can have the same one.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Check_Vect(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Vect_Info* Vect;
+    struct Proc_Info* Proc_Temp;
+    struct Vect_Info* Vect_Temp;
+    
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        {
+            for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+            {
+                for(EACH(struct Vect_Info*,Vect_Temp,Proc->Vect))
+                {
+                    if(Vect_Temp==Vect)
+                        continue;
+            
+                    if(Strcicmp(Vect->Name, Vect_Temp->Name)==0)
+                        EXIT_FAIL("Duplicate Vector endpoints are now allowed.");
+                }
+            }
+        }
+    } 
+}
+/* End Function:Check_Vect ***************************************************/
+
+/* Begin Function:Check_Conflict **********************************************
+Description : Detect namespace conflicts in the system. It also checks if the
+              names are at least regular C identifiers.
+Input       : struct Proj_Info* Proj - The project information struct.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Check_Conflict(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Proc_Info* Proc_Temp;
+    struct Thd_Info* Thd;
+    struct Thd_Info* Thd_Temp;
+    struct Inv_Info* Inv;
+    struct Inv_Info* Inv_Temp;
+    struct Port_Info* Port;
+    struct Port_Info* Port_Temp;
+    struct Recv_Info* Recv;
+    struct Recv_Info* Recv_Temp;
+    struct Send_Info* Send;
+    struct Send_Info* Send_Temp;
+
+    /* Are there two processes with the same name? */
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* Check for duplicate processes */
+        if(Check_Name(Proc->Name)!=0)
+            EXIT_FAIL("Invalid Process name.");
+
+        for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+        {
+            if(Proc_Temp==Proc)
+                continue;
+            if(Strcicmp(Proc_Temp->Name,Proc->Name)==0)
+                EXIT_FAIL("Duplicate Process name.");
+        }
+
+        /* Check for duplicate threads */
+        for(EACH(struct Thd_Info*,Thd,Proc->Thd))
+        {
+            if(Check_Name(Thd->Name)!=0)
+                EXIT_FAIL("Invalid Thread name.");
+            for(EACH(struct Thd_Info*,Thd_Temp,Proc->Thd))
+            {
+                if(Thd_Temp==Thd)
+                    continue;
+                if(Strcicmp(Thd_Temp->Name,Thd->Name)==0)
+                    EXIT_FAIL("Duplicate Thread name.");
+            }
+        }
+
+        /* Check for duplicate invocations */
+        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+        {
+            if(Check_Name(Inv->Name)!=0)
+                EXIT_FAIL("Invalid Invocation name.");
+            for(EACH(struct Inv_Info*,Inv_Temp,Proc->Inv))
+            {
+                if(Inv_Temp==Inv)
+                    continue;
+                if(Strcicmp(Inv_Temp->Name,Inv->Name)==0)
+                    EXIT_FAIL("Duplicate Invocation name.");
+            }
+        }
+
+        /* Check for duplicate ports */
+        for(EACH(struct Port_Info*,Port,Proc->Port))
+        {
+            if(Check_Name(Port->Name)!=0)
+                EXIT_FAIL("Invalid Port name.");
+            if(Check_Name(Port->Proc_Name)!=0)
+                EXIT_FAIL("Invalid Port Process name.");
+            if(Strcicmp(Port->Proc_Name,Proc->Name)==0)
+                EXIT_FAIL("Port cannot target within the same Process.");
+            for(EACH(struct Port_Info*,Port_Temp,Proc->Port))
+            {
+                if(Port_Temp==Port)
+                    continue;
+                if((Strcicmp(Port_Temp->Name,Port->Name)==0)&&
+                   (Strcicmp(Port_Temp->Proc_Name,Port->Proc_Name)==0))
+                    EXIT_FAIL("Duplicate Port name.");
+            }
+        }
+
+        /* Check for duplicate receive endpoints */
+        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+        {
+            if(Check_Name(Recv->Name)!=0)
+                EXIT_FAIL("Invalid Receive endpoint name.");
+            for(EACH(struct Recv_Info*,Recv_Temp,Proc->Recv))
+            {
+                if(Recv_Temp==Recv)
+                    continue;
+                if(Strcicmp(Recv_Temp->Name,Recv->Name)==0)
+                    EXIT_FAIL("Duplicate Receive endpoint name.");
+            }
+        }
+
+        /* Check for duplicate send endpoints */
+        for(EACH(struct Send_Info*,Send,Proc->Send))
+        {
+            if(Check_Name(Send->Name)!=0)
+                EXIT_FAIL("Invalid Send endpoint name.");
+            if(Check_Name(Send->Proc_Name)!=0)
+                EXIT_FAIL("Invalid Send endpoint Process name.");
+            for(EACH(struct Send_Info*,Send_Temp,Proc->Send))
+            {
+                if(Send_Temp==Send)
+                    continue;
+                if((Strcicmp(Send_Temp->Name,Send->Name)==0)&&
+                   (Strcicmp(Send_Temp->Proc_Name,Send->Proc_Name)==0))
+                    EXIT_FAIL("Duplicate Send name.");
+            }
+        }
+    }
+
+    /* Check for duplicate vector endpoints- they are globally unique */
+    Check_Vect(Proj);
+}
+/* End Function:Check_Conflict ***********************************************/
+
+/* Begin Function:Alloc_Local_Capid *******************************************
+Description : Allocate local capability IDs for all kernel objects. 
+              Only ports, receive endpoints, send endpoints and vector endpoints
+              have such ID.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Local_Capid(struct Proj_Info* Proj)
+{
+    ptr_t Capid;
+    struct Proc_Info* Proc;
+    struct Port_Info* Port;
+    struct Recv_Info* Recv;
+    struct Send_Info* Send;
+    struct Vect_Info* Vect;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        Capid=0;
+
+        for(EACH(struct Port_Info*,Port,Proc->Port))
+            Port->Cap.Loc_Capid=Capid++;
+
+        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+            Recv->Cap.Loc_Capid=Capid++;
+
+        for(EACH(struct Send_Info*,Send,Proc->Send))
+            Send->Cap.Loc_Capid=Capid++;
+
+        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+            Vect->Cap.Loc_Capid=Capid++;
+
+        Proc->Captbl_Front=Capid;
+    }
+}
+/* End Function:Alloc_Local_Capid ********************************************/
+
+/* Begin Function:Alloc_Global_Capid ******************************************
+Description : Allocate (relative) global capability IDs for all kernel objects. 
+              Each global object will reside in its onw capability table. 
+              This facilitates management, and circumvents the capability size
+              limit that may present on 32-bit systems.
+              How many distinct kernel objects are there? We just need to add up
+              the following: All captbls (each process have one), all processes,
+              all threads, all invocations, all receive endpoints. The ports and
+              send endpoints do not have a distinct kernel object; the vector 
+              endpoints are created by the kernel at boot-time, while the pgtbls
+              are decided by architecture-specific code.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Global_Capid(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Thd_Info* Thd;
+    struct Inv_Info* Inv;
+    struct Recv_Info* Recv;
+    struct Vect_Info* Vect;
+    struct RVM_Cap_Info* Cap;
+
+    List_Crt(&(Proj->RVM.Captbl));
+    List_Crt(&(Proj->RVM.Proc));
+    List_Crt(&(Proj->RVM.Thd));
+    List_Crt(&(Proj->RVM.Inv));
+    List_Crt(&(Proj->RVM.Recv));
+    List_Crt(&(Proj->RVM.Vect));
+
+    Proj->RVM.Captbl_Front=0;
+    Proj->RVM.Proc_Front=0;
+    Proj->RVM.Thd_Front=0;
+    Proj->RVM.Inv_Front=0;
+    Proj->RVM.Recv_Front=0;
+    Proj->RVM.Vect_Front=0;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* Fill in all captbls and processes */
+        Cap=Malloc(sizeof(struct RVM_Cap_Info));
+        Cap->Proc=Proc;
+        Cap->Cap=Proc;
+        Proc->Captbl_Cap.RVM_Capid=Proj->RVM.Captbl_Front++;
+        List_Ins(&(Cap->Head),Proj->RVM.Captbl.Prev,&(Proj->RVM.Captbl));
+        
+        Cap=Malloc(sizeof(struct RVM_Cap_Info));
+        Cap->Proc=Proc;
+        Cap->Cap=Proc;
+        Proc->Proc_Cap.RVM_Capid=Proj->RVM.Proc_Front++;
+        List_Ins(&(Cap->Head),Proj->RVM.Proc.Prev,&(Proj->RVM.Proc));
+
+        /* Fill in all threads */
+        for(EACH(struct Thd_Info*,Thd,Proc->Thd))
+        {
+            Cap=Malloc(sizeof(struct RVM_Cap_Info));
+            Cap->Proc=Proc;
+            Cap->Cap=Thd;
+            Thd->Cap.RVM_Capid=Proj->RVM.Thd_Front++;
+            List_Ins(&(Cap->Head),Proj->RVM.Thd.Prev,&(Proj->RVM.Thd));
+        }
+
+        /* Fill in all invocations */
+        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+        {
+            Cap=Malloc(sizeof(struct RVM_Cap_Info));
+            Cap->Proc=Proc;
+            Cap->Cap=Inv;
+            Inv->Cap.RVM_Capid=Proj->RVM.Inv_Front++;
+            List_Ins(&(Cap->Head),Proj->RVM.Inv.Prev,&(Proj->RVM.Inv));
+        }
+
+        /* Fill in all receive endpoints */
+        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+        {
+            Cap=Malloc(sizeof(struct RVM_Cap_Info));
+            Cap->Proc=Proc;
+            Cap->Cap=Recv;
+            Recv->Cap.RVM_Capid=Proj->RVM.Recv_Front++;
+            List_Ins(&(Cap->Head),Proj->RVM.Recv.Prev,&(Proj->RVM.Recv));
+        }
+
+        /* Fill in all vector endpoints */
+        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        {
+            Cap=Malloc(sizeof(struct RVM_Cap_Info));
+            Cap->Proc=Proc;
+            Cap->Cap=Vect;
+            Vect->Cap.RVM_Capid=Proj->RVM.Recv_Front++;
+            List_Ins(&(Cap->Head),Proj->RVM.Vect.Prev,&(Proj->RVM.Vect));
+        }
+    }
+}
+/* End Function:Alloc_Global_Capid *******************************************/
+
+/* Begin Function:Make_Macro **************************************************
+Description : Concatenate at most 4 parts into a macro, and turn everything uppercase.
+Input       : s8_t* Str1 - The first part.
+              s8_t* Str2 - The second part.
+              s8_t* Str3 - The third part.
+              s8_t* Str4 - The fourth part.
+Output      : None.
+Return      : s8_t* - The macro returned. This is allocated memory.
+******************************************************************************/
+s8_t* Make_Macro(s8_t* Str1, s8_t* Str2, s8_t* Str3, s8_t* Str4)
+{
+    ptr_t Count;
+    ptr_t Len;
+    s8_t* Ret;
+
+    /* Print to buffer */
+    Len=snprintf(NULL,0,"%s%s%s%s",Str1,Str2,Str3,Str4);
+    Ret=Malloc(Len+1);
+    if(Ret==0)
+        EXIT_FAIL("Macro buffer memory allocation failed.");
+    snprintf(Ret,(size_t)(Len+1),"%s%s%s%s",Str1,Str2,Str3,Str4);
+
+    /* Turn everything to uppercase */
+    for(Count=0;Count<Len;Count++)
+        Ret[Count]=toupper(Ret[Count]);
+
+    return Ret;
+}
+/* End Function:Make_Macro ***************************************************/
+
+/* Begin Function:Alloc_Capid_Macros ******************************************
+Description : Allocate the capability ID macros. Both the local one and the global
+              one will be allocated.
+              The allocation table is shown below:
+-------------------------------------------------------------------------------
+Type            Local                           Global
+-------------------------------------------------------------------------------
+Process         -                               RVM_PROC_<PROCNAME>
+-------------------------------------------------------------------------------
+Captbl          -                               RVM_CAPTBL_<PROCNAME>
+-------------------------------------------------------------------------------
+Thread          -                               RVM_PROC_<PROCNAME>_THD_<THDNAME>
+-------------------------------------------------------------------------------
+Invocation      -                               RVM_PROC_<PROCNAME>_INV_<INVNAME>
+-------------------------------------------------------------------------------
+Port            PROC_<PROCNAME>_PORT_<PORTNAME> (Inherit invocation name)
+-------------------------------------------------------------------------------
+Receive         RECV_<ENDPNAME>                 RVM_PROC_<PROCNAME>_RECV_<RECVNAME>
+-------------------------------------------------------------------------------
+Send            PROC_<PROCNAME>_SEND_<ENDPNAME> (Inherit receive endpoint name)
+-------------------------------------------------------------------------------
+Vector          VECT_<VECTNAME>                 RVM_BOOT_VECT_<VECTNAME> (RVM)
+                                                RME_BOOT_VECT_<VECTNAME> (RME)
+-------------------------------------------------------------------------------
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Capid_Macros(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Thd_Info* Thd;
+    struct Inv_Info* Inv;
+    struct Port_Info* Port;
+    struct Recv_Info* Recv;
+    struct Send_Info* Send;
+    struct Vect_Info* Vect;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* Processes and their capability tables */
+        Proc->Proc_Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"","");
+        Proc->Captbl_Cap.RVM_Macro=Make_Macro("RVM_CAPTBL_",Proc->Name,"","");
+
+        /* Threads - RVM only */
+        for(EACH(struct Thd_Info*,Thd,Proc->Thd))
+            Thd->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_THD_",Thd->Name);
+
+        /* Invocations - RVM only */
+        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+            Inv->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_INV_",Inv->Name);
+
+        /* Ports - Local only */
+        for(EACH(struct Port_Info*,Port,Proc->Port))
+            Port->Cap.Loc_Macro=Make_Macro("PORT_",Port->Name,"","");
+
+        /* Receive endpoints - RVM and local */
+        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+        {
+            Recv->Cap.Loc_Macro=Make_Macro("RECV_",Recv->Name,"","");
+            Recv->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_RECV_",Recv->Name);
+        }
+
+        /* Send endpoints - Local only */
+        for(EACH(struct Send_Info*,Send,Proc->Send))
+            Send->Cap.Loc_Macro=Make_Macro("SEND_",Send->Name,"","");
+
+        /* Vector endpoints - RVM, RME and local */
+        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        {
+            Vect->Cap.Loc_Macro=Make_Macro("VECT_",Vect->Name,"","");
+            Vect->Cap.RVM_Macro=Make_Macro("RVM_BOOT_VECT_",Vect->Name,"","");
+            Vect->Cap.RME_Macro=Make_Macro("RME_BOOT_VECT_",Vect->Name,"","");
+        }
+    }
+}
+/* End Function:Alloc_Capid_Macros *******************************************/
+
+/* Begin Function:Backprop_Global_Capid ***************************************
+Description : Back propagate the global ID to all the ports and send endpoints,
+              which are derived from kernel objects. Also detects if all the port
+              and send endpoint names in the system are valid. If any of them includes
+              dangling references to invocations and receive endpoints, abort.
+              These comparisons use strcmp because we require that the process name
+              cases match.
+Input       : struct Proj_Info* Proj - The project information structure.
+              struct Chip_Info* Chip - The chip information structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    struct Proc_Info* Proc;
+    struct Proc_Info* Proc_Temp;
+    struct Port_Info* Port;
+    struct Inv_Info* Inv;
+    struct Send_Info* Send;
+    struct Recv_Info* Recv;
+    struct Vect_Info* Vect;
+    struct Chip_Vect_Info* Chip_Vect;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* For every port, there must be a invocation somewhere */
+        for(EACH(struct Port_Info*,Port,Proc->Port))
+        {
+            for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+            {
+                if(strcmp(Proc_Temp->Name, Port->Proc_Name)==0)
+                    break;
+            }
+            if(IS_HEAD(Proc_Temp,Proj->Proc))
+                EXIT_FAIL("Invalid Process for Port.");
+
+            for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+            {
+                if(strcmp(Inv->Name, Port->Name)==0)
+                {
+                    Port->Cap.RVM_Capid=Inv->Cap.RVM_Capid;
+                    Port->Cap.RVM_Macro=Inv->Cap.RVM_Macro;
+                    break;
+                }
+            }
+            if(IS_HEAD(Inv,Proc->Inv))
+                EXIT_FAIL("Invalid Invocation for Port.");
+        }
+
+        /* For every send endpoint, there must be a receive endpoint somewhere */
+        for(EACH(struct Send_Info*,Send,Proc->Send))
+        {
+            for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+            {
+                if(strcmp(Proc_Temp->Name, Send->Proc_Name)==0)
+                    break;
+            }
+            if(IS_HEAD(Proc_Temp,Proj->Proc))
+                EXIT_FAIL("Invalid Process for Send endpoint.");
+
+            for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+            {
+                if(strcmp(Recv->Name, Send->Name)==0)
+                {
+                    Send->Cap.RVM_Capid=Recv->Cap.RVM_Capid;
+                    Send->Cap.RVM_Macro=Recv->Cap.RVM_Macro;
+                    break;
+                }
+            }
+            if(IS_HEAD(Recv,Proc->Recv))
+                EXIT_FAIL("Invalid Receive endpoint for Send endpoint.");
+        }
+
+        /* For every vector, there must be a corresponding chip interrupt vector somewhere */
+        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        {
+            for(EACH(struct Chip_Vect_Info*,Chip_Vect,Chip->Vect))
+            {
+                if(strcmp(Chip_Vect->Name, Vect->Name)==0)
+                {
+                    Vect->Num=Chip_Vect->Num;
+                    break;
+                }
+            }
+            if(IS_HEAD(Chip_Vect,Chip->Vect))
+                EXIT_FAIL("Invalid Chip vector for Vector endpoint.");
+        }
+    }
+}
+/* End Function:Backprop_Global_Capid ****************************************/
+
+/* Begin Function:Alloc_Captbl ************************************************
+Description : Allocate the capability table entries for the processes, then for
+              the RVM.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip)
+{
+    /* First, check whether there are conflicts - this is not case insensitive */
+    Check_Conflict(Proj);
+    /* Allocate local project IDs for all entries */
+    Alloc_Local_Capid(Proj);
+    /* Allocate global project IDs for kernel object entries */
+    Alloc_Global_Capid(Proj);
+    /* Allocate the global and local macros to them */
+    Alloc_Capid_Macros(Proj);
+    /* Back propagate global entrie number to the ports and send endpoints */
+    Backprop_Global_Capid(Proj, Chip);
+}
+/* End Function:Alloc_Captbl *************************************************/
+
+void A7M_Align_Mem(struct Proj_Info* Proj);
+
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -2562,27 +3181,16 @@ int main(int argc, char* argv[])
 }
 /* End Function:main *********************************************************/
 
-/* Begin Function:Align_Mem ***************************************************
-Description : Align the memory according to the platform's alignment functions.
+/* Begin Function:A7M_Align_Mem ***********************************************
+Description : Align the memory according to the A7M platform's alignment functions.
               We will only align the memory of the processes.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
-              ret_t (*Align)(struct Mem_Info*) - The platform's alignment function pointer.
 Output      : struct Proj_Info* Proj - The struct containing the project information,
                                        with all memory size aligned.
 Return      : None.
 ******************************************************************************/
-void Align_Mem(struct List* Mem, ret_t (*Align)(struct Mem_Info*))
+void A7M_Align_Mem(struct Proj_Info* Proj)
 {
-    ptr_t Proc_Cnt;
-    ptr_t Mem_Cnt;
 
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
-    {
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
-        {
-            if(Align(&(Proj->Proc[Proc_Cnt].Mem[Mem_Cnt]))!=0)
-                EXIT_FAIL("Memory aligning failed.");
-        }
-    }
 }
 /* End Function:Align_Mem ****************************************************/
