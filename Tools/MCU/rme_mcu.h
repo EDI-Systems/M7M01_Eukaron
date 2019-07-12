@@ -23,6 +23,9 @@ typedef unsigned long long u64_t;
 typedef s64_t ret_t;
 typedef u64_t ptr_t;
 
+/* EXTERN definition */
+#define EXTERN              extern
+
 /* Power of 2 macros */
 #define ALIGN_POW(X,POW)    (((X)>>(POW))<<(POW))
 #define POW2(POW)           (((ptr_t)1)<<(POW))
@@ -514,13 +517,71 @@ struct Cap_Alloc_Info
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
 /* The list containing all memory allocated */
-struct List Mem_List;
+static struct List Mem_List;
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
 /* Private C Function Prototypes *********************************************/
+static void Cmdline_Proc(int argc, char* argv[], s8_t** Input_File, s8_t** Output_Path,
+                         s8_t** RME_Path, s8_t** RVM_Path, s8_t** Format);
 
+static s8_t* Read_XML(s8_t* Path);
 
+static void Parse_Compiler(struct Comp_Info* Comp, xml_node_t* Node);
+static void Parse_Proj_RME(struct RME_Info* RME, xml_node_t* Node);
+static void Parse_Proj_RVM(struct RVM_Info* RVM, xml_node_t* Node);
+static void Parse_Proc_Mem(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Thd(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Inv(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Port(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Recv(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Send(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proc_Vect(struct Proc_Info* Proc, xml_node_t* Node);
+static void Parse_Proj_Proc(struct Proj_Info* Proj, xml_node_t* Node);
+static struct Proj_Info* Parse_Proj(s8_t* Proj_File);
+
+static void Parse_Chip_Mem(struct Chip_Info* Chip, xml_node_t* Node);
+static void Parse_Chip_Option(struct Chip_Info* Chip, xml_node_t* Node);
+static void Parse_Chip_Vect(struct Chip_Info* Chip, xml_node_t* Node);
+static struct Chip_Info* Parse_Chip(s8_t* Chip_File);
+
+static ret_t Try_Bitmap(s8_t* Bitmap, ptr_t Start, ptr_t Size);
+static void Mark_Bitmap(s8_t* Bitmap, ptr_t Start, ptr_t Size);
+static ret_t Fit_Static_Mem(struct Mem_Map* Map, ptr_t Start, ptr_t Size);
+static ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem);
+static ret_t Compare_Addr(struct List* First, struct List* Second);
+static ret_t Compare_Size(struct List* First, struct List* Second);
+
+static void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip);
+static void Check_Code(struct Proj_Info* Proj, struct Chip_Info* Chip);
+static void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip);
+
+static void Check_Device(struct Proj_Info* Proj, struct Chip_Info* Chip);
+static void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip);
+static void Check_Name(s8_t* Name);
+static void Check_Vect(struct Proj_Info* Proj);
+static void Check_Conflict(struct Proj_Info* Proj);
+
+static void Alloc_Local_Capid(struct Proj_Info* Proj);
+static void Alloc_Global_Capid(struct Proj_Info* Proj);
+static void Alloc_Capid_Macros(struct Proj_Info* Proj);
+static void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip);
+static void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip);
+
+static void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
+static void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
+
+static void Setup_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
+static void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
+
+static void Print_RME_Inc(FILE* File, struct Proj_Info* Proj);
+static void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                         struct Cap_Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path);
+static void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
+static void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj);
+static void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
+                         struct Cap_Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path);
+static void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -534,15 +595,44 @@ struct List Mem_List;
 
 /*****************************************************************************/
 
-
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
 
 /* Public C Function Prototypes **********************************************/
-/* Generic *******************************************************************/
-/* Kernel entry */
-__EXTERN__ 
+__EXTERN__ void List_Crt(volatile struct List* Head);
+__EXTERN__ void List_Del(volatile struct List* Prev,volatile struct List* Next);
+__EXTERN__ void List_Ins(volatile struct List* New,
+                         volatile struct List* Prev,
+                         volatile struct List* Next);
+
+__EXTERN__ void Free_All(void);
+__EXTERN__ void* Malloc(ptr_t Size);
+__EXTERN__ void Free(void* Addr);
+
+__EXTERN__ ret_t Dir_Present(s8_t* Path);
+__EXTERN__ ret_t Dir_Empty(s8_t* Path);
+__EXTERN__ ptr_t Get_Size(s8_t* Path);
+__EXTERN__ void Make_Dir(s8_t* Path);
+__EXTERN__ void Copy_File(s8_t* Dst, s8_t* Src);
+__EXTERN__ u8_t* Read_File(s8_t* Path);
+__EXTERN__ void Lower_Case(s8_t* Str);
+
+__EXTERN__ void Merge_Sort(struct List* List, ret_t (*Compare)(struct List*, struct List*));
+
+__EXTERN__ ret_t Strcicmp(s8_t* Str1, s8_t* Str2);
+__EXTERN__ s8_t* Make_Macro(s8_t* Str1, s8_t* Str2, s8_t* Str3, s8_t* Str4);
+__EXTERN__ s8_t* Make_Str(s8_t* Str1, s8_t* Str2);
+__EXTERN__ s8_t* Raw_Match(struct List* Raw, s8_t* Tag);
+
+__EXTERN__ void Write_Src_Desc(FILE* File, s8_t* Filename, s8_t* Description);
+__EXTERN__ void Write_Src_Footer(FILE* File);
+__EXTERN__ void Write_Func_Desc(FILE* File, s8_t* Funcname);
+__EXTERN__ void Write_Func_None(FILE* File);
+__EXTERN__ void Write_Func_Footer(FILE* File, s8_t* Funcname);
+__EXTERN__ void Make_Define_Str(FILE* File, s8_t* Macro, s8_t* Value, ptr_t Align);
+__EXTERN__ void Make_Define_Int(FILE* File, s8_t* Macro, ptr_t Value, ptr_t Align);
+__EXTERN__ void Make_Define_Hex(FILE* File, s8_t* Macro, ptr_t Value, ptr_t Align);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

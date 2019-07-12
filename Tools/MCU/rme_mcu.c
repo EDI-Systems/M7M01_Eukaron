@@ -89,7 +89,7 @@ Description : The configuration generator for the MCU ports. This does not
 #include "rme_mcu.h"
 
 #define __HDR_PUBLIC_MEMBERS__
-
+#include "rme_a7m.h"
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
@@ -2009,6 +2009,7 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
 
 /* Begin Function:Check_Device ************************************************
 Description : Check the device memory to make sure that all of them falls into range.
+              There are faster algorithms; but we don't do such optimization now.
 Input       : struct Proj_Info* Proj - The struct containing the project information.
               struct Chip_Info* Chip - The struct containing the chip information.
 Output      : None.
@@ -2041,6 +2042,14 @@ void Check_Device(struct Proj_Info* Proj, struct Chip_Info* Chip)
 }
 /* End Function:Check_Device *************************************************/
 
+/* Begin Function:Check_Input *************************************************
+Description : Check if the input from XML is valid. If it is invalid, we abort
+              immediately.
+Input       : struct Proj_Info* Proj - The project information struct.
+              struct Chip_Info* Chip - The chip information struct.
+Output      : None.
+Return      : None.
+******************************************************************************/
 void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     s8_t* Full_Pos;
@@ -2125,6 +2134,7 @@ void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
             EXIT_FAIL("Process does not have a Thread.");
     }
 }
+/* End Function:Check_Input **************************************************/
 
 /* Begin Function:Strcicmp ****************************************************
 Description : Compare two strings in a case insensitive way.
@@ -2160,20 +2170,21 @@ ret_t Strcicmp(s8_t* Str1, s8_t* Str2)
 Description : See if the names are valid C identifiers.
 Input       : struct Proj_Info* Proj - The project information struct.
 Output      : None.
-Return      : ret_t - If no conflict, 0; else -1.
+Return      : None.
 ******************************************************************************/
-ret_t Check_Name(s8_t* Name)
+void Check_Name(s8_t* Name)
 {
     ptr_t Count;
     /* Should not begin with number */
     if((Name[0]>='0')&&(Name[0]<='9'))
-        return -1;
+        EXIT_FAIL("Name is not a valid C identifier.");
+
     Count=0;
     while(1)
     {
         Count++;
         if(Name[Count]=='\0')
-            return 0;
+            return;
         if((Name[Count]>='a')&&(Name[Count]<='z'))
             continue;
         if((Name[Count]>='A')&&(Name[Count]<='Z'))
@@ -2184,7 +2195,8 @@ ret_t Check_Name(s8_t* Name)
             continue;
         break;
     }
-    return -1;
+    
+    EXIT_FAIL("Name is not a valid C identifier.");
 }
 /* End Function:Check_Name ***************************************************/
 
@@ -2250,9 +2262,7 @@ void Check_Conflict(struct Proj_Info* Proj)
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
         /* Check for duplicate processes */
-        if(Check_Name(Proc->Name)!=0)
-            EXIT_FAIL("Invalid Process name.");
-
+        Check_Name(Proc->Name);
         for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
         {
             if(Proc_Temp==Proc)
@@ -2264,8 +2274,7 @@ void Check_Conflict(struct Proj_Info* Proj)
         /* Check for duplicate threads */
         for(EACH(struct Thd_Info*,Thd,Proc->Thd))
         {
-            if(Check_Name(Thd->Name)!=0)
-                EXIT_FAIL("Invalid Thread name.");
+            Check_Name(Thd->Name);
             for(EACH(struct Thd_Info*,Thd_Temp,Proc->Thd))
             {
                 if(Thd_Temp==Thd)
@@ -2278,8 +2287,7 @@ void Check_Conflict(struct Proj_Info* Proj)
         /* Check for duplicate invocations */
         for(EACH(struct Inv_Info*,Inv,Proc->Inv))
         {
-            if(Check_Name(Inv->Name)!=0)
-                EXIT_FAIL("Invalid Invocation name.");
+            Check_Name(Inv->Name);
             for(EACH(struct Inv_Info*,Inv_Temp,Proc->Inv))
             {
                 if(Inv_Temp==Inv)
@@ -2292,10 +2300,8 @@ void Check_Conflict(struct Proj_Info* Proj)
         /* Check for duplicate ports */
         for(EACH(struct Port_Info*,Port,Proc->Port))
         {
-            if(Check_Name(Port->Name)!=0)
-                EXIT_FAIL("Invalid Port name.");
-            if(Check_Name(Port->Proc_Name)!=0)
-                EXIT_FAIL("Invalid Port Process name.");
+            Check_Name(Port->Name);
+            Check_Name(Port->Proc_Name);
             if(Strcicmp(Port->Proc_Name,Proc->Name)==0)
                 EXIT_FAIL("Port cannot target within the same Process.");
             for(EACH(struct Port_Info*,Port_Temp,Proc->Port))
@@ -2311,8 +2317,7 @@ void Check_Conflict(struct Proj_Info* Proj)
         /* Check for duplicate receive endpoints */
         for(EACH(struct Recv_Info*,Recv,Proc->Recv))
         {
-            if(Check_Name(Recv->Name)!=0)
-                EXIT_FAIL("Invalid Receive endpoint name.");
+            Check_Name(Recv->Name);
             for(EACH(struct Recv_Info*,Recv_Temp,Proc->Recv))
             {
                 if(Recv_Temp==Recv)
@@ -2325,10 +2330,8 @@ void Check_Conflict(struct Proj_Info* Proj)
         /* Check for duplicate send endpoints */
         for(EACH(struct Send_Info*,Send,Proc->Send))
         {
-            if(Check_Name(Send->Name)!=0)
-                EXIT_FAIL("Invalid Send endpoint name.");
-            if(Check_Name(Send->Proc_Name)!=0)
-                EXIT_FAIL("Invalid Send endpoint Process name.");
+            Check_Name(Send->Name);
+            Check_Name(Send->Proc_Name);
             for(EACH(struct Send_Info*,Send_Temp,Proc->Send))
             {
                 if(Send_Temp==Send)
@@ -3897,29 +3900,6 @@ void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
 }
 /* End Function:Gen_RVM_User *************************************************/
 
-/* Begin Function:Gen_Files ***************************************************
-Description : Generate all generic files.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              struct Cap_Alloc_Info* Alloc - The allocation information structure.
-              s8_t* RME_Path - The RME root folder path.
-              s8_t* RVM_Path - The RVM root folder path.
-              s8_t* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Gen_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct Cap_Alloc_Info* Alloc,
-               s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
-{
-    Gen_RME_Boot(Proj, Chip, Alloc, RME_Path, Output_Path);
-    Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
-    /* Generate RVM related files */
-    Gen_RVM_Boot(Proj, Chip, Alloc, RVM_Path, Output_Path);
-    /* Create rvm_user.c */
-    //Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
-}
-/* End Function:Gen_Files ****************************************************/
-
 void A7M_Align_Mem(struct Proj_Info* Proj);
 
 
@@ -4003,7 +3983,14 @@ int main(int argc, char* argv[])
     struct Cap_Alloc_Info Alloc;
     memset(&Alloc,0,sizeof(struct Cap_Alloc_Info));
     Alloc.Word_Bits=32;
-    Gen_Files(Proj, Chip, &Alloc, RME_Path, RVM_Path, Output_Path);
+
+    /* Generate RME related files */
+    Gen_RME_Boot(Proj, Chip, &Alloc, RME_Path, Output_Path);
+    Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
+
+    /* Generate RVM related files */
+    Gen_RVM_Boot(Proj, Chip, &Alloc, RVM_Path, Output_Path);
+    Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
     
 	/* All done, free all memory and we quit */
 	Free_All();
@@ -4011,16 +3998,6 @@ int main(int argc, char* argv[])
 }
 /* End Function:main *********************************************************/
 
-/* Begin Function:A7M_Align_Mem ***********************************************
-Description : Align the memory according to the A7M platform's alignment functions.
-              We will only align the memory of the processes.
-Input       : struct Proj_Info* Proj - The struct containing the project information.
-Output      : struct Proj_Info* Proj - The struct containing the project information,
-                                       with all memory size aligned.
-Return      : None.
-******************************************************************************/
-void A7M_Align_Mem(struct Proj_Info* Proj)
-{
+/* End Of File ***************************************************************/
 
-}
-/* End Function:Align_Mem ****************************************************/
+/* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/

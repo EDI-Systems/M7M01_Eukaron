@@ -21,6 +21,9 @@
     <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\rme_a7m.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">
@@ -29,5 +32,19 @@
     <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml">
       <Filter>Resource Files</Filter>
     </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pbfs_conf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\rme_a7m.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\rme_mcu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xml_conf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

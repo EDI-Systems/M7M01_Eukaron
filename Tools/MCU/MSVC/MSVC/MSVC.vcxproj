@@ -68,11 +68,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c" />
+    <ClCompile Include="..\..\rme_a7m.c" />
     <ClCompile Include="..\..\rme_mcu.c" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml" />
     <Xml Include="..\..\Example\XML\user.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pbfs_conf.h" />
+    <ClInclude Include="..\..\rme_a7m.h" />
+    <ClInclude Include="..\..\rme_mcu.h" />
+    <ClInclude Include="..\..\xml_conf.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
