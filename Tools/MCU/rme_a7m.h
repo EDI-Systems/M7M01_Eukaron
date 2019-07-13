@@ -38,10 +38,6 @@ Description : The header of the mcu tool.
 #define A7M_PGT_NOTHING         (0)
 #define A7M_PGT_MAPPED          ((struct A7M_Pgtbl*)(-1))
 
-/* RVM page table capability table size */
-#define A7M_PGTBL_CAPTBL_SIZE   (4096)
-/* The process capability table size limit */
-#define A7M_PROC_CAPTBL_LIMIT   (128)
 /* The A7M boot-time capability table starting slot */
 #define A7M_CAPTBL_START        (8)
 /*****************************************************************************/
@@ -61,6 +57,7 @@ Description : The header of the mcu tool.
 #undef __HDR_DEFS__
 
 /*****************************************************************************/
+/* Page table data structure */
 struct A7M_Pgtbl
 {
     /* The start address of the page table */
@@ -71,14 +68,13 @@ struct A7M_Pgtbl
     ptr_t Num_Order;
     /* The attribute */
     ptr_t Attr;
-    /* The global linear capability ID */
-    ptr_t RVM_Capid;
-    /* The macro corresponding to the global capid */
-    s8_t* RVM_Capid_Macro;
     /* Whether we have the 8 subregions mapped: 0 - not mapped 1 - mapped other - pointer to the next */
     struct A7M_Pgtbl* Mapping[8];
+    /* Capability information */
+    struct Cap_Info Cap;
 };
 
+/* A7M-specific project information */
 struct A7M_Info
 {
     /* The NVIC grouping */
@@ -91,11 +87,9 @@ struct A7M_Info
     ptr_t FPU_Type;
     /* Endianness - big or little */
     ptr_t Endianness;
-    /* The page tables for all processes */
-    struct A7M_Pgtbl** Pgtbl;
     /* Global captbl containing pgtbls */
-    ptr_t Pgtbl_Captbl_Front;
-    struct RVM_Cap_Info* Pgtbl_Captbl;
+    ptr_t Pgtbl_Front;
+    struct List Pgtbl;
 };
 /*****************************************************************************/
 /* __RME_A7M_H_STRUCTS__ */
@@ -126,7 +120,40 @@ struct A7M_Info
 /* End Private Global Variables **********************************************/
 
 /* Private C Function Prototypes *********************************************/
+static void A7M_Align(struct Mem_Info* Mem);
 
+static void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M);
+
+static ptr_t A7M_Total_Order(struct List* Mem_List, ptr_t* Start_Addr);
+static ptr_t A7M_Num_Order(struct List* Mem_List, ptr_t Total_Order, ptr_t Start_Addr);
+static void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl);
+static void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M, 
+                          struct List* Mem_List, struct A7M_Pgtbl* Pgtbl);
+static struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M, 
+                                       struct List* Mem_List, ptr_t Total_Max);
+
+static void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                           struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
+
+static void A7M_Gen_Keil_Proj(FILE* Keil,
+                              s8_t* Target, s8_t* Device, s8_t* Vendor, 
+                              s8_t* CPU_Type, s8_t* FPU_Type, s8_t* Endianness,
+                              ptr_t Timeopt, ptr_t Opt,
+                              s8_t** Includes, ptr_t Include_Num,
+                              s8_t** Paths, s8_t** Files, ptr_t File_Num);
+static void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                             struct A7M_Info* A7M, s8_t* RME_Path, s8_t* Output_Path);
+static void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                             struct A7M_Info* A7M, s8_t* RVM_Path, s8_t* Output_Path);
+static void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                              struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
+static void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                         struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
+
+static void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+                             ptr_t Output_Type, s8_t* Output_Path, s8_t* RME_Path, s8_t* RVM_Path);
+
+static void A7M_Gen_Check(struct Proj_Info* Proj, struct Chip_Info* Chip);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -146,8 +173,9 @@ struct A7M_Info
 /* End Public Global Variables ***********************************************/
 
 /* Public C Function Prototypes **********************************************/
-/* Generic *******************************************************************/
-
+__EXTERN__ void A7M_Align_Mem(struct Proj_Info* Proj);
+__EXTERN__ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                             s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

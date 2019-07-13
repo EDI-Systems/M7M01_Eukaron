@@ -42,6 +42,41 @@ Description : This toolset is for ARMv7-M. Specifically, this suits Cortex-M0+,
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
+/* Begin Function:A7M_Align ***************************************************
+Description : Align the memory according to Cortex-M platform's requirements.
+Input       : struct Mem_Info* Mem - The struct containing memory information.
+Output      : struct Mem_Info* Mem - The struct containing memory information,
+                                     with all memory size aligned.
+Return      : None.
+******************************************************************************/
+void A7M_Align(struct Mem_Info* Mem)
+{
+    ptr_t Temp;
+
+    if(Mem->Start!=AUTO)
+    {
+        /* This memory already have a fixed start address. Can we map it in? */
+        if((Mem->Start&0x1F)!=0)
+            EXIT_FAIL("Memory not aligned to 32 bytes");
+        if((Mem->Size&0x1F)!=0)
+            EXIT_FAIL("Memory not aligned to 32 bytes");
+        /* This is terrible. Or even horrible, this mapping algorithm is really hard */
+    }
+    else
+    {
+        /* This memory's start address is not designated yet. Decide its size after
+            * alignment and calculate its start address alignment granularity. 
+            * For Cortex-M, the roundup minimum granularity is 1/8 of the nearest power 
+            * of 2 for the size. */
+        Temp=1;
+        while(Temp<Mem->Size)
+            Temp<<=1;
+        Mem->Align=Temp/8;
+        Mem->Size=((Mem->Size-1)/Mem->Align+1)*Mem->Align;
+    }
+}
+/* End Function:A7M_Align ****************************************************/
+
 /* Begin Function:A7M_Align_Mem ***********************************************
 Description : Align the memory according to the A7M platform's alignment functions.
               We will only align the memory of the processes.
@@ -52,57 +87,20 @@ Return      : None.
 ******************************************************************************/
 void A7M_Align_Mem(struct Proj_Info* Proj)
 {
+    struct Proc_Info* Proc;
+    struct Mem_Info* Mem;
 
-}
-/* End Function:Align_Mem ****************************************************/
-
-/* A7M Toolset ***************************************************************/
-ret_t A7M_Align(struct Mem_Info* Mem);
-void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format);
-
-
-
-/* C Function Prototypes *****************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
-                                struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max);
-/* End C Function Prototypes *************************************************/
-
-/* Begin Function:A7M_Align ***************************************************
-Description : Align the memory according to Cortex-M platform's requirements.
-Input       : struct Mem_Info* Mem - The struct containing memory information.
-Output      : struct Mem_Info* Mem - The struct containing memory information,
-                                     with all memory size aligned.
-Return      : ret_t - If the start address and size is acceptable, 0; else -1.
-******************************************************************************/
-ret_t A7M_Align(struct Mem_Info* Mem)
-{
-    ptr_t Temp;
-    if(Mem->Start!=AUTO)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        /* This memory already have a fixed start address. Can we map it in? */
-        if((Mem->Start&0x1F)!=0)
-            return -1;
-        if((Mem->Size&0x1F)!=0)
-            return -1;
-        /* This is terrible. Or even horrible, this mapping algorithm is really hard */
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+            A7M_Align(Mem);
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+            A7M_Align(Mem);
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+            A7M_Align(Mem);
     }
-    else
-    {
-        /* This memory's start address is not designated yet. Decide its size after
-         * alignment and calculate its start address alignment granularity. 
-         * For Cortex-M, the roundup minimum granularity is 1/8 of the nearest power 
-         * of 2 for the size. */
-        Temp=1;
-        while(Temp<Mem->Size)
-            Temp<<=1;
-        Mem->Align=Temp/8;
-        Mem->Size=((Mem->Size-1)/Mem->Align+1)*Mem->Align;
-    }
-    
-	return 0;
 }
-/* End Function:A7M_Align ****************************************************/
+/* End Function:A7M_Align_Mem ************************************************/
 
 /* Begin Function:A7M_Parse_Options *******************************************
 Description : Parse the options that are specific to ARMv7-M.
@@ -143,7 +141,7 @@ void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7
     Temp=Raw_Match(&(Proj->RME.Plat), "Systick_Value");
     if(Temp==0)
         EXIT_FAIL("Missing systick value settings.");
-    A7M->Systick_Val=Get_Uint(Temp, &Temp[strlen(Temp)-1]);
+    A7M->Systick_Val=strtoull(Temp,0,10);
     if(A7M->Systick_Val>=INVALID)
         EXIT_FAIL("Wrong systick value entered.");
 
@@ -188,7 +186,7 @@ void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7
         EXIT_FAIL("FPU type value is invalid.");
 
     /* What is the endianness? */
-    Temp=Raw_Match(&(Chip->Attr_Raw), "Endianness");
+    Temp=Raw_Match(&(Chip->Attr), "Endianness");
     if(Temp==0)
         EXIT_FAIL("Missing endianness settings.");
     if(strcmp(Temp,"Little")==0)
@@ -202,41 +200,41 @@ void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7
 
 /* Begin Function:A7M_Total_Order *********************************************
 Description : Get the total order and the start address of the page table. 
-Input       : struct Mem_Info* Mem - The memory block list.
-              ptr_t Num - The number of memory blocks in the list.
+Input       : struct List* Mem_List - The memory block list.
 Output      : ptr_t* Start_Addr - The start address of this page table.
 Return      : ptr_t - The total order of the page table.
 ******************************************************************************/
-ptr_t A7M_Total_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t* Start_Addr)
+ptr_t A7M_Total_Order(struct List* Mem_List, ptr_t* Start_Addr)
 {
     /* Start is inclusive, end is exclusive */
     ptr_t Start;
     ptr_t End;
     ptr_t Total_Order;
-    ptr_t Mem_Cnt;
+    struct Mem_Info* Mem;
 
     /* What ranges does these stuff cover? */
     Start=(ptr_t)(-1);
     End=0;
-    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+    for(EACH(struct Mem_Info*,Mem,*Mem_List))
     {
-        if(Start>Mem[Mem_Cnt].Start)
-            Start=Mem[Mem_Cnt].Start;
-        if(End<(Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1)))
-            End=Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1);
+        if(Start>Mem->Start)
+            Start=Mem->Start;
+        if(End<(Mem->Start+Mem->Size))
+            End=Mem->Start+Mem->Size;
     }
     
-    /* Which power-of-2 box is this in? - do not shift more thyan 32 or you get undefined behavior */
+    /* Which power-of-2 box is this in? - do not shift more than 32 or you get undefined behavior */
     Total_Order=0;
     while(1)
     {  
         /* No bigger than 32 is ever possible */
         if(Total_Order>=32)
             break;
-        if(End<=(ALIGN_POW(Start, Total_Order)+(POW2(Total_Order)-1)))
+        if(End<=(ALIGN_POW(Start, Total_Order)+POW2(Total_Order)))
             break;
         Total_Order++;
     }
+
     /* If the total order less than 8, we wish to extend that to 8, because if we are smaller than this it makes no sense */
     if(Total_Order<8)
         Total_Order=8;
@@ -253,37 +251,36 @@ ptr_t A7M_Total_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t* Start_Addr)
 
 /* Begin Function:A7M_Num_Order ***********************************************
 Description : Get the number order of the page table. 
-Input       : struct Mem_Info* Mem - The memory block list.
-              ptr_t Num - The number of memory blocks in the list.
+Input       : struct List* Mem_List - The memory block list.
               ptr_t Total_Order - The total order of the page table.
               ptr_t Start_Addr - The start address of the page table.
 Output      : None.
 Return      : ptr_t - The number order of the page table.
 ******************************************************************************/
-ptr_t A7M_Num_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Order, ptr_t Start_Addr)
+ptr_t A7M_Num_Order(struct List* Mem_List, ptr_t Total_Order, ptr_t Start_Addr)
 {
-    ptr_t Mem_Cnt;
     ptr_t Num_Order;
     ptr_t Pivot_Cnt;
     ptr_t Pivot_Addr;
     ptr_t Cut_Apart;
+    struct Mem_Info* Mem;
 
     /* Can the memory segments get fully mapped in? If yes, there are two conditions
      * that must be met:
      * 1. There cannot be different access permissions in these memory segments.
      * 2. The memory start address and the size must be fully divisible by POW2(Total_Order-3). */
-    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+    for(EACH(struct Mem_Info*,Mem,*Mem_List))
     {
-        if(Mem[Mem_Cnt].Attr!=Mem[0].Attr)
+        if(Mem->Attr!=((struct Mem_Info*)(Mem_List->Next))->Attr)
             break;
-        if((Mem[Mem_Cnt].Start%POW2(Total_Order-3))!=0)
+        if((Mem->Start%POW2(Total_Order-3))!=0)
             break;
-        if((Mem[Mem_Cnt].Size%POW2(Total_Order-3))!=0)
+        if((Mem->Size%POW2(Total_Order-3))!=0)
             break;
     }
 
     /* Is this directly mappable? If yes, we always create page tables with 8 pages. */
-    if(Mem_Cnt==Num)
+    if(IS_HEAD(Mem,*Mem_List))
     {
         /* Yes, it is directly mappable. We choose the smallest number order, in this way
          * we have the largest size order. This will leave us plenty of chances to use huge
@@ -291,14 +288,15 @@ ptr_t A7M_Num_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Order, ptr_t St
          * as this maps in a single huge page. */
         for(Num_Order=0;Num_Order<=3;Num_Order++)
         {
-            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            for(EACH(struct Mem_Info*,Mem,*Mem_List))
             {
-                if((Mem[Mem_Cnt].Start%POW2(Total_Order-Num_Order))!=0)
+                if((Mem->Start%POW2(Total_Order-Num_Order))!=0)
                     break;
-                if((Mem[Mem_Cnt].Size%POW2(Total_Order-Num_Order))!=0)
+                if((Mem->Size%POW2(Total_Order-Num_Order))!=0)
                     break;
             }
-            if(Mem_Cnt==Num)
+
+            if(IS_HEAD(Mem,*Mem_List))
                 break;
         }
 
@@ -311,12 +309,12 @@ ptr_t A7M_Num_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Order, ptr_t St
         Cut_Apart=0;
         for(Num_Order=1;Num_Order<=3;Num_Order++)
         {
-            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            for(EACH(struct Mem_Info*,Mem,*Mem_List))
             {
                 for(Pivot_Cnt=1;Pivot_Cnt<POW2(Num_Order);Pivot_Cnt++)
                 {
                     Pivot_Addr=Start_Addr+Pivot_Cnt*POW2(Total_Order-Num_Order);
-                    if((Mem[Mem_Cnt].Start<Pivot_Addr)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Pivot_Addr))
+                    if((Mem->Start<Pivot_Addr)&&((Mem->Start+Mem->Size)>Pivot_Addr))
                     {
                         Cut_Apart=1;
                         break;
@@ -340,69 +338,61 @@ ptr_t A7M_Num_Order(struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Order, ptr_t St
 
 /* Begin Function:A7M_Map_Page ************************************************
 Description : Map pages into the page table as we can. 
-Input       : struct Mem_Info* Mem - The memory block list.
-              ptr_t Num - The number of memory blocks in the list.
+Input       : struct List* Mem_List - The memory block list.
               struct A7M_Pgtbl* Pgtbl - The current page table.
 Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
 Return      : None.
 ******************************************************************************/
-void A7M_Map_Page(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
+void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
 {
     ptr_t Page_Cnt;
-    ptr_t Mem_Cnt;
     ptr_t Page_Start;
     ptr_t Page_End;
-    ptr_t* Page_Num;
-    ptr_t Max_Pages;
-    ptr_t Max_Mem;
-
-    Page_Num=Malloc(sizeof(ptr_t)*Num);
-    if(Page_Num==0)
-        EXIT_FAIL("Page count buffer allocation failed.");
-    memset(Page_Num, 0, (size_t)(sizeof(ptr_t)*Num));
+    ptr_t Page_Num;
+    ptr_t Page_Num_Max;
+    struct Mem_Info* Mem;
+    struct Mem_Info* Mem_Max;
 
     /* Use the attribute of the block that covers most pages */
-    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+    Page_Num_Max=0;
+    for(EACH(struct Mem_Info*,Mem,*Mem_List))
     {
+        Page_Num=0;
         for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
         {
             Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
-            Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+            Page_End=Page_Start+POW2(Pgtbl->Size_Order);
 
-            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Page_End))
-                Page_Num[Mem_Cnt]++;
+            if((Mem->Start<=Page_Start)&&((Mem->Start+Mem->Size)>=Page_End))
+                Page_Num++;
         }
-    }
-    
-    Max_Pages=0;
-    for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
-    {
-        if(Page_Num[Mem_Cnt]>Max_Pages)
+
+        if(Page_Num>Page_Num_Max)
         {
-            Max_Pages=Page_Num[Mem_Cnt];
-            Max_Mem=Mem_Cnt;
+            Page_Num_Max=Page_Num;
+            Mem_Max=Mem;
         }
     }
 
     /* Is there anything that we should map? If no, we return early */
-    if(Max_Pages==0)
+    if(Page_Num_Max==0)
         return;
     /* The attribute is the most pronounced memory block's */
-    Pgtbl->Attr=Mem[Max_Mem].Attr;
+    Pgtbl->Attr=Mem_Max->Attr;
 
     /* Map whatever we can map, and postpone whatever we will have to postpone */
     for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
     {
         Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
-        Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+        Page_End=Page_Start+POW2(Pgtbl->Size_Order);
 
         /* Can this compartment be mapped? It can if there is one segment covering the range */
-        for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+        for(EACH(struct Mem_Info*,Mem,*Mem_List))
         {
-            if((Mem[Mem_Cnt].Start<=Page_Start)&&((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>=Page_End))
+            if((Mem->Start<=Page_Start)&&((Mem->Start+Mem->Size)>=Page_End))
             {
                 /* The attribute must be the same as what we map */
-                if(Pgtbl->Attr==Mem[Mem_Cnt].Attr)
+                if(Pgtbl->Attr==Mem->Attr)
                     Pgtbl->Mapping[Page_Cnt]=A7M_PGT_MAPPED;
             }
         }
@@ -414,73 +404,58 @@ void A7M_Map_Page(struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
 Description : Map page directories into the page table. 
 Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
               struct A7M_Info* A7M - The chip structure.
-              struct Mem_Info* Mem - The memory block list.
-              ptr_t Num - The number of memory blocks in the list.
+              struct List* Mem_List - The memory block list.
               struct A7M_Pgtbl* Pgtbl - The current page table.
 Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
 Return      : None.
 ******************************************************************************/
 void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M, 
-                   struct Mem_Info* Mem, ptr_t Num, struct A7M_Pgtbl* Pgtbl)
+                   struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
 {
     ptr_t Page_Cnt;
-    ptr_t Mem_Cnt;
     ptr_t Page_Start;
     ptr_t Page_End;
-    ptr_t Mem_Num;
-    struct Mem_Info* Mem_List;
-    ptr_t Mem_List_Ptr;
+    struct Mem_Info* Mem;
+    struct Mem_Info* Mem_Temp;
+    struct List Child_List;
 
     for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
     {
         Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
-        Page_End=Page_Start+(POW2(Pgtbl->Size_Order)-1);
+        Page_End=Page_Start+POW2(Pgtbl->Size_Order);
 
         if(Pgtbl->Mapping[Page_Cnt]==A7M_PGT_NOTHING)
         {
+            List_Crt(&Child_List);
+
             /* See if any residue memory list are here */
-            Mem_Num=0;
-            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
+            for(EACH(struct Mem_Info*,Mem,*Mem_List))
             {
-                if((Mem[Mem_Cnt].Start>Page_End)||((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))<Page_Start))
+                if((Mem->Start>=Page_End)||((Mem->Start+Mem->Size)<=Page_Start))
                     continue;
-                Mem_Num++;
-            }
 
-            if(Mem_Num==0)
-                continue;
-
-            Mem_List=Malloc(sizeof(struct Mem_Info)*Mem_Num);
-            if(Mem_List==0)
-                EXIT_FAIL("Memory list allocation failed.");
-                
-            /* Collect the memory list */
-            Mem_List_Ptr=0;
-            for(Mem_Cnt=0;Mem_Cnt<Num;Mem_Cnt++)
-            {
-                if((Mem[Mem_Cnt].Start>Page_End)||((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))<Page_Start))
-                    continue;
+                Mem_Temp=Malloc(sizeof(struct Mem_Info));
+                memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
 
                 /* Round anything inside to this range */
-                if(Mem[Mem_Cnt].Start<Page_Start)
-                    Mem_List[Mem_List_Ptr].Start=Page_Start;
-                else
-                    Mem_List[Mem_List_Ptr].Start=Mem[Mem_Cnt].Start;
+                if(Mem_Temp->Start<Page_Start)
+                    Mem_Temp->Start=Page_Start;
+                if((Mem_Temp->Start+Mem_Temp->Size)>Page_End)
+                    Mem_Temp->Size=Page_End-Mem_Temp->Start;
 
-                if((Mem[Mem_Cnt].Start+(Mem[Mem_Cnt].Size-1))>Page_End)
-                    Mem_List[Mem_List_Ptr].Size=Page_End-Mem_List[Mem_List_Ptr].Start+1;
-                else
-                    Mem_List[Mem_List_Ptr].Size=Mem[Mem_Cnt].Start+Mem[Mem_Cnt].Size-Mem_List[Mem_List_Ptr].Start;
-
-                Mem_List[Mem_List_Ptr].Attr=Mem[Mem_Cnt].Attr;
-                Mem_List[Mem_List_Ptr].Type=Mem[Mem_Cnt].Type;
-                /* The alignment is no longer important */
-                Mem_List_Ptr++;
+                List_Ins(&(Mem_Temp->Head),Child_List.Prev,&(Child_List));
             }
-            if(Mem_List_Ptr!=Mem_Num)
-                EXIT_FAIL("Internal bug occurred at page table allocator.");
 
-            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, Mem_List, Mem_Num, Pgtbl->Size_Order);
+            /* Map in the child list */
+            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, &Child_List, Pgtbl->Size_Order);
+
+            /* Clean up what we have allocated */
+            while(IS_HEAD(Child_List.Next,Child_List))
+            {
+                Mem=(struct Mem_Info*)(Child_List.Next);
+                List_Del(Mem->Head.Prev,Mem->Head.Next);
+                Free(Mem);
+            }
         }
     }
 }
@@ -489,58 +464,47 @@ void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M,
 /* Begin Function:A7M_Gen_Pgtbl ***********************************************
 Description : Recursively construct the page table for the ARMv7-M port.
               This also allocates capid for page tables.
-              We have no idea at all how many page tables we are gonna have,
-              thus the A7M Pgtbl_Captbl needs to be preallocated with a very large
-              number, say, 4096.
 Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
               struct A7M_Info* A7M - The chip structure.
-              struct Mem_Info* Mem - The struct containing memory segments to fit
-                                     into this level (and below).
-              ptr_t Num - The number of memory segments to fit in.
+              struct List* Mem_List - The list containing memory segments to fit
+                                      into this level (and below).
               ptr_t Total_Max - The maximum total order of the page table, cannot
-                                be exceeded when deciding the total order of
-                                the page table.
+                                be exceeded when deciding the total order of the
+                                page table.
 Output      : None.
 Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
-                                struct Mem_Info* Mem, ptr_t Num, ptr_t Total_Max)
+struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M, 
+                                struct List* Mem_List, ptr_t Total_Max)
 {
     ptr_t Total_Order;
     struct A7M_Pgtbl* Pgtbl;
-    static ptr_t Capid=0;
-    s8 Buf[16];
+    static ptr_t RVM_Capid=0;
+    static s8_t Buf[16];
 
     /* Allocate the page table data structure */
     Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
-    if(Pgtbl==0)
-        EXIT_FAIL("Page table data structure allocation failed.");
     memset(Pgtbl, 0, sizeof(struct A7M_Pgtbl));
 
     /* Allocate the capid for this page table */
-    Pgtbl->RVM_Capid=Capid;
-    sprintf(Buf,"%lld",Pgtbl->RVM_Capid);
-    Pgtbl->RVM_Capid_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_PGTBL",Buf);
-    A7M->Pgtbl_Captbl[Capid].Proc=Proc;
-    A7M->Pgtbl_Captbl[Capid].Cap=(void*)Pgtbl;
-    Capid++;
-    A7M->Pgtbl_Captbl_Front=Capid;
-    if(Capid>A7M_PGTBL_CAPTBL_SIZE)
-        EXIT_FAIL("Too many page tables allocated, exceeded the given pgtbl captbl size.");
+    Pgtbl->Cap.RVM_Capid=A7M->Pgtbl_Front++;
+    sprintf(Buf,"%lld",Pgtbl->Cap.RVM_Capid);
+    Pgtbl->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_PGTBL",Buf);
 
     /* Total order and start address of the page table */
-    Total_Order=A7M_Total_Order(Mem, Num, &(Pgtbl->Start_Addr));
+    Total_Order=A7M_Total_Order(Mem_List, &(Pgtbl->Start_Addr));
     /* See if this will violate the extension limit */
     if(Total_Order>Total_Max)
         EXIT_FAIL("Memory segment too small, cannot find a reasonable placement.");
+
     /* Number order */
-    Pgtbl->Num_Order=A7M_Num_Order(Mem, Num, Total_Order, Pgtbl->Start_Addr);
+    Pgtbl->Num_Order=A7M_Num_Order(Mem_List, Total_Order, Pgtbl->Start_Addr);
     /* Size order */
     Pgtbl->Size_Order=Total_Order-Pgtbl->Num_Order;
     /* Map in all pages */
-    A7M_Map_Page(Mem, Num, Pgtbl);
+    A7M_Map_Page(Mem_List, Pgtbl);
     /* Map in all page directories - recursive */
-    A7M_Map_Pgdir(Proc, A7M, Mem, Num, Pgtbl);
+    A7M_Map_Pgdir(Proc, A7M, Mem_List, Pgtbl);
 
     return Pgtbl;
 }
@@ -559,8 +523,8 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                    s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                    struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
 {
     s8_t* Buf1;
     s8_t* Buf2;
@@ -808,19 +772,15 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
-                      s8_t* RME_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                      struct A7M_Info* A7M, s8_t* RME_Path, s8_t* Output_Path)
 {
     s8_t* Buf1;
     s8_t* Buf2;
 
     /* Allocate the buffer */
-    Buf1=Malloc(sizeof(s8)*4096);
-    if(Buf1==0)
-        EXIT_FAIL("Buffer allocation failed");
-    Buf2=Malloc(sizeof(s8)*4096);
-    if(Buf2==0)
-        EXIT_FAIL("Buffer allocation failed");
+    Buf1=Malloc(4096);
+    Buf2=Malloc(4096);
 
     /* The toolchain specific assembler file */
     if(A7M->CPU_Type==A7M_CPU_CM0P)
@@ -833,8 +793,7 @@ void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M
         sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", Output_Path);
         sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", RME_Path);
     }
-    if(Copy_File(Buf1, Buf2)!=0)
-        EXIT_FAIL("File copying failed.");
+    Copy_File(Buf1, Buf2);
  
     /* The linker script */
 
@@ -854,8 +813,8 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
-                      s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                      struct A7M_Info* A7M, s8_t* RVM_Path, s8_t* Output_Path)
 {
 
 }
@@ -873,8 +832,8 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M, 
-                       s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                       struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
 {
 
 }
@@ -895,8 +854,8 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
-                  s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                  struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
 {
     /* Common for all projects */
     s8_t* Device;
@@ -923,20 +882,20 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Inf
         EXIT_FAIL("Project path allocation failed");
 
     /* Decide process specific macros - only STM32 is like this */
-    if((strncmp(Proj->Chip,"STM32", 5)==0))
+    if((strncmp(Proj->Chip_Class,"STM32", 5)==0))
     {
-        if(strncmp(Proj->Chip,"STM32F1", 7)==0)
-            Device=Proj->Chip;
+        if(strncmp(Proj->Chip_Class,"STM32F1", 7)==0)
+            Device=Proj->Chip_Class;
         else
         {
-            Device=Malloc(((ptr_t)strlen(Proj->Fullname))+1);
-            strcpy(Device, Proj->Fullname);
+            Device=Malloc(((ptr_t)strlen(Proj->Chip_Full))+1);
+            strcpy(Device, Proj->Chip_Full);
             /* Except for STM32F1, all chips end with suffix, and the last number is substituted with 'x' */
-            Device[strlen(Proj->Fullname)-1]='x';
+            Device[strlen(Proj->Chip_Full)-1]='x';
         }
     }
     else
-        Device=Proj->Chip;
+        Device=Proj->Chip_Full;
 
     Vendor=Chip->Vendor;
 
@@ -1047,21 +1006,27 @@ Return      : None.
 ******************************************************************************/
 void A7M_Gen_Check(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
-    ptr_t Proc_Cnt;
-    ptr_t Mem_Cnt;
+    struct Proc_Info* Proc;
+    struct Mem_Info* Mem;
 
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        /* Check memory blocks - they must be at least readable */
-        for(Mem_Cnt=0;Mem_Cnt<Proj->Proc[Proc_Cnt].Mem_Num;Mem_Cnt++)
+        /* Check memory blocks - they all must be at least readable */
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
         {
-            if((Proj->Proc[Proc_Cnt].Mem[Mem_Cnt].Attr&MEM_READ)==0)
+            if((Mem->Attr&MEM_READ)==0)
                 EXIT_FAIL("All memory allocated must be readable on A7M.");
         }
-        /* Check if the capability table of processes, plus the extra captbl space
-         * required, exceeds 128 - this is simply not allowed for processes. */
-        if((Proj->Proc[Proc_Cnt].Captbl_Front+Proj->Proc[Proc_Cnt].Extra_Captbl)>A7M_PROC_CAPTBL_LIMIT)
-            EXIT_FAIL("One of the processes have more capabilities in its capability table than allowed.");
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+        {
+            if((Mem->Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+        {
+            if((Mem->Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
     }
 }
 /* End Function:A7M_Gen_Check ************************************************/
@@ -1080,29 +1045,60 @@ Return      : None.
 void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
                   s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format)
 {
-    ptr_t Proc_Cnt;
+    struct Proc_Info* Proc;
     struct A7M_Info* A7M;
+    struct List Mem_List;
+    struct Mem_Info* Mem;
+    struct Mem_Info* Mem_Temp;
 
     /* Allocate architecture-specific project structure */
     A7M=Malloc(sizeof(struct A7M_Info));
-    if(A7M==0)
-        EXIT_FAIL("Platform specific project struct allocation failed.");
+
     /* Parse A7M-specific options */
     A7M_Parse_Options(Proj, Chip, A7M);
+
     /* Check if we can really create such a system */
     A7M_Gen_Check(Proj, Chip);
-    /* Allocate page table global captbl - it is unlikely that this number gets exceeded */
-    A7M->Pgtbl_Captbl=Malloc(sizeof(struct RVM_Cap_Info)*A7M_PGTBL_CAPTBL_SIZE);
-    /* Allocate page tables for all processes */
-    A7M->Pgtbl=Malloc(sizeof(struct A7M_Pgtbl*)*Proj->Proc_Num);
-    if(A7M->Pgtbl==0)
-        EXIT_FAIL("Project page table allocation failed.");
-    for(Proc_Cnt=0;Proc_Cnt<Proj->Proc_Num;Proc_Cnt++)
+
+    /* Allocate page table global captbl */
+    List_Crt(&A7M->Pgtbl);
+    A7M->Pgtbl_Front=0;
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        A7M->Pgtbl[Proc_Cnt]=A7M_Gen_Pgtbl(&(Proj->Proc[Proc_Cnt]),A7M,
-                                           Proj->Proc[Proc_Cnt].Mem,Proj->Proc[Proc_Cnt].Mem_Num,32);
-        if(A7M->Pgtbl[Proc_Cnt]==0)
+        /* Add everything to list */
+        List_Crt(&Mem_List);
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
+
+        Proc->Pgtbl=A7M_Gen_Pgtbl(Proc,A7M,&Mem_List,32);
+        if(Proc->Pgtbl==0)
             EXIT_FAIL("Page table generation failed.");
+
+        /* Copy this to the main structure so that we can generate processes */
+        memcpy(&(Proc->Pgtbl_Cap),&(((struct A7M_Pgtbl*)(Proc->Pgtbl))->Cap),sizeof(struct Cap_Info));
+
+        while(!IS_HEAD(Mem_List.Next,Mem_List))
+        {
+            Mem=(struct Mem_Info*)(Mem_List.Next);
+            List_Del(Mem->Head.Prev,Mem->Head.Next);
+            Free(Mem);
+        }
     }
 
     /* Set up the folder structures, and copy all files to where they should be */
