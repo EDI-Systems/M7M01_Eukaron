@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>D:\desktop\M7M1_MuEukaron\Tools\MCU;D:\desktop\M5P2_MuMinion\MMinion\File\PBFS;D:\desktop\M5P2_MuMinion\MMinion\Serdes\XML;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>

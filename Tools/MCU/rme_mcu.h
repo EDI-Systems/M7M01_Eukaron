@@ -360,6 +360,8 @@ struct Proc_Info
     struct Cap_Info Captbl_Cap;
     struct Cap_Info Pgtbl_Cap;
     struct Cap_Info Proc_Cap;
+    /* Page table information */
+    void* Pgtbl;
 };
 
 /* Whole project information */

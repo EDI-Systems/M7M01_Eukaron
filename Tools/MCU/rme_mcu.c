@@ -79,10 +79,12 @@ Description : The configuration generator for the MCU ports. This does not
 
 #define __HDR_DEFS__
 #include "rme_mcu.h"
+#include "rme_a7m.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
 #include "rme_mcu.h"
+#include "rme_a7m.h"
 #undef __HDR_STRUCTS__
 
 /* Private include */
@@ -3638,10 +3640,14 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Captbl))
     {
         Proc=(struct Proc_Info*)(Info->Cap);
+        if((Alloc->Word_Bits<=32)&&(Proc->Captbl_Front+Proc->Extra_Captbl)>128)
+            EXIT_FAIL("One of the processes have more capabilities in its capability table than allowed.");
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CTCAPTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, %lld)==0);\n",
                 Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity, Proc->Captbl_Front+Proc->Extra_Captbl);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n", Proc->Captbl_Front+Proc->Extra_Captbl);
     }
+
     fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Pgtbl_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Captbl_Crt");
@@ -3899,9 +3905,6 @@ void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     /* User stubs */
 }
 /* End Function:Gen_RVM_User *************************************************/
-
-void A7M_Align_Mem(struct Proj_Info* Proj);
-
 
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
