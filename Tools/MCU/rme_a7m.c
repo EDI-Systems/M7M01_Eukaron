@@ -146,7 +146,7 @@ void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7
         EXIT_FAIL("Wrong systick value entered.");
 
     /* What is the CPU type and the FPU type? */
-    Temp=Raw_Match(&(Proj->RME.Plat), "CPU_Type");
+    Temp=Raw_Match(&(Chip->Attr), "CPU_Type");
     if(Temp==0)
         EXIT_FAIL("Missing CPU type settings.");
     if(strcmp(Temp,"Cortex-M0+")==0)
@@ -446,15 +446,18 @@ void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M,
                 List_Ins(&(Mem_Temp->Head),Child_List.Prev,&(Child_List));
             }
 
-            /* Map in the child list */
-            Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, &Child_List, Pgtbl->Size_Order);
-
-            /* Clean up what we have allocated */
-            while(IS_HEAD(Child_List.Next,Child_List))
+            /* Map in the child list if there are any at all */
+            if(!IS_HEAD(Child_List.Next,Child_List))
             {
-                Mem=(struct Mem_Info*)(Child_List.Next);
-                List_Del(Mem->Head.Prev,Mem->Head.Next);
-                Free(Mem);
+                Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, &Child_List, Pgtbl->Size_Order);
+
+                /* Clean up what we have allocated */
+                while(!IS_HEAD(Child_List.Next,Child_List))
+                {
+                    Mem=(struct Mem_Info*)(Child_List.Next);
+                    List_Del(Mem->Head.Prev,Mem->Head.Next);
+                    Free(Mem);
+                }
             }
         }
     }
@@ -472,14 +475,16 @@ Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
                                 be exceeded when deciding the total order of the
                                 page table.
 Output      : None.
-Return      : struct A7M_Pgtbl* - The page table structure returned.
+Return      : struct A7M_Pgtbl* - The page table structure returned. This function
+                                  will never return NULL; if an error is encountered,
+                                  it will directly error out.
 ******************************************************************************/
 struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M, 
                                 struct List* Mem_List, ptr_t Total_Max)
 {
     ptr_t Total_Order;
     struct A7M_Pgtbl* Pgtbl;
-    static ptr_t RVM_Capid=0;
+    struct RVM_Cap_Info* Info;
     static s8_t Buf[16];
 
     /* Allocate the page table data structure */
@@ -490,6 +495,12 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
     Pgtbl->Cap.RVM_Capid=A7M->Pgtbl_Front++;
     sprintf(Buf,"%lld",Pgtbl->Cap.RVM_Capid);
     Pgtbl->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_PGTBL",Buf);
+
+    /* Insert into the global table */
+    Info=Malloc(sizeof(struct RVM_Cap_Info));
+    Info->Proc=Proc;
+    Info->Cap=Pgtbl;
+    List_Ins(&(Info->Head),A7M->Pgtbl.Prev,&(A7M->Pgtbl));
 
     /* Total order and start address of the page table */
     Total_Order=A7M_Total_Order(Mem_List, &(Pgtbl->Start_Addr));
@@ -1040,19 +1051,21 @@ Input       : struct Proj_Info* Proj - The project structure.
               s8_t* Output_Path - The output folder path.
               s8_t* Format - The output format.
 Output      : None.
-Return      : None.
+Return      : struct Alloc_Info* - The kernel object allocation information returned.
 ******************************************************************************/
-void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+struct Alloc_Info* A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
                   s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format)
 {
+    struct Alloc_Info* Alloc;
     struct Proc_Info* Proc;
     struct A7M_Info* A7M;
     struct List Mem_List;
     struct Mem_Info* Mem;
     struct Mem_Info* Mem_Temp;
 
-    /* Allocate architecture-specific project structure */
+    /* Allocate architecture-specific project structure and allocation structure */
     A7M=Malloc(sizeof(struct A7M_Info));
+    Alloc=Malloc(sizeof(struct Alloc_Info));
 
     /* Parse A7M-specific options */
     A7M_Parse_Options(Proj, Chip, A7M);
@@ -1087,8 +1100,6 @@ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
         }
 
         Proc->Pgtbl=A7M_Gen_Pgtbl(Proc,A7M,&Mem_List,32);
-        if(Proc->Pgtbl==0)
-            EXIT_FAIL("Page table generation failed.");
 
         /* Copy this to the main structure so that we can generate processes */
         memcpy(&(Proc->Pgtbl_Cap),&(((struct A7M_Pgtbl*)(Proc->Pgtbl))->Cap),sizeof(struct Cap_Info));
@@ -1101,6 +1112,8 @@ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
         }
     }
 
+    /* Generate the kernel object memory map - This is the most important step */
+
     /* Set up the folder structures, and copy all files to where they should be */
     A7M_Copy_Files(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
     /* Write the files that are tool-independent */
@@ -1111,6 +1124,8 @@ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
         A7M_Gen_Keil(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
     else
         EXIT_FAIL("Other projects not supported at the moment.");
+
+    return Alloc;
 }
 /* End Function:A7M_Gen_Proj *************************************************/
 

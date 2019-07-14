@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<Project> 
+<Project>
     <Name>Test_Proj</Name>
     <Platform>A7M</Platform>
     <Chip_Class>STM32F767IG</Chip_Class>

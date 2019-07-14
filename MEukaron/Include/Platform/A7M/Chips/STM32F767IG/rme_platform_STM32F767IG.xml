@@ -36,35 +36,36 @@
             <Name>XTAL</Name>
             <Type>Range</Type>
             <Macro>RME_CMX_STM32F767IG_XTAL</Macro>
-            <Value>8,25</Value>
+            <Range>8,25</Range>
             <Description>The external crystal frequency.</Description>
         </O1>
         <O2>
             <Name>PLLM</Name>
             <Type>Range</Type>
             <Macro>RME_CMX_STM32F767IG_PLLM</Macro>
-            <Value>2,63</Value>
+            <Range>2,63</Range>
             <Description>The PLL M factor.</Description>
         </O2>
         <O3>
             <Name>PLLN</Name>
             <Type>Range</Type>
             <Macro>RME_CMX_STM32F767IG_PLLN</Macro>
-            <Value>50,432</Value>
+            <Range>50,432</Range>
             <Description>The PLL N factor.</Description>
         </O3>
         <O4>
             <Name>PLLP</Name>
             <Type>Select</Type>
             <Macro>RME_CMX_STM32F767IG_PLLP</Macro>
-            <Value>2,4,6,8</Value>
+            <Range>2,4,6,8</Range>
             <Description>The PLL P factor.</Description>
+        
         </O4>
         <O5>
             <Name>PLLQ</Name>
             <Type>Range</Type>
             <Macro>RME_CMX_STM32F767IG_PLLQ</Macro>
-            <Value>2,15</Value>
+            <Range>2,15</Range>
             <Description>The PLL Q factor.</Description>
         </O5>
     </Option>

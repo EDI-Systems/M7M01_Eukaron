@@ -174,8 +174,8 @@ static void A7M_Gen_Check(struct Proj_Info* Proj, struct Chip_Info* Chip);
 
 /* Public C Function Prototypes **********************************************/
 __EXTERN__ void A7M_Align_Mem(struct Proj_Info* Proj);
-__EXTERN__ void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                             s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format);
+__EXTERN__ struct Alloc_Info* A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+                                           s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

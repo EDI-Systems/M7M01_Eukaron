@@ -455,7 +455,7 @@ struct Mem_Map
 };
 
 /* The capability and kernel memory information supplied by the port-specific generator */
-struct Cap_Alloc_Info
+struct Alloc_Info
 {
     /* Processor bits */
     ptr_t Word_Bits;
@@ -488,11 +488,11 @@ struct Cap_Alloc_Info
     /* Callbacks for generating the RVM page table part */
     void* Plat_Info;
     void (*Pgtbl_Macro)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                        struct Cap_Alloc_Info* Alloc);
+                        struct Alloc_Info* Alloc);
     void (*Pgtbl_Crt)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                      struct Cap_Alloc_Info* Alloc);
+                      struct Alloc_Info* Alloc);
     void (*Pgtbl_Init)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                       struct Cap_Alloc_Info* Alloc);
+                       struct Alloc_Info* Alloc);
 };
 /*****************************************************************************/
 /* __RME_MCU_H_STRUCTS__ */
@@ -578,11 +578,11 @@ static void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t*
 
 static void Print_RME_Inc(FILE* File, struct Proj_Info* Proj);
 static void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                         struct Cap_Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path);
+                         struct Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path);
 static void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj);
 static void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
-                         struct Cap_Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path);
+                         struct Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path);
 static void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 /*****************************************************************************/
 #define __EXTERN__
@@ -602,6 +602,10 @@ static void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* R
 /* End Public Global Variables ***********************************************/
 
 /* Public C Function Prototypes **********************************************/
+__EXTERN__ void* Memcpy(void* Dst, void* Src, xml_ptr_t Num);
+__EXTERN__ ret_t Strncmp(s8_t* Str1, s8_t* Str2, ptr_t Num);
+__EXTERN__ ptr_t Strlen(s8_t* Str);
+
 __EXTERN__ void List_Crt(volatile struct List* Head);
 __EXTERN__ void List_Del(volatile struct List* Prev,volatile struct List* Next);
 __EXTERN__ void List_Ins(volatile struct List* New,
