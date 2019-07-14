@@ -95,6 +95,46 @@ Description : The configuration generator for the MCU ports. This does not
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
+/* Begin Function:Memcpy ******************************************************
+Description : Memcpy wrapper for 64-bit XML library.
+Input       : void* Src - The source string.
+              xml_ptr_t Num - The number to copy.
+Output      : void* Dst - The destination string.
+Return      : void* - The destination is returned.
+******************************************************************************/
+void* Memcpy(void* Dst, void* Src, xml_ptr_t Num)
+{
+    return memcpy(Dst, Src, (size_t)Num);
+}
+/* End Function:Memcpy *******************************************************/
+
+/* Begin Function:Strncmp *****************************************************
+Description : Strncmp wrapper for 64-bit XML library.
+Input       : s8_t* Str1 - The first string.
+              s8_t* Str2 - The second string.
+              ptr_t Num - The number of characters to compare.
+Output      : None.
+Return      : ret_t - If Str1 is bigger, positive; if equal, 0; if Str2 is bigger,
+                      negative.
+******************************************************************************/
+ret_t Strncmp(s8_t* Str1, s8_t* Str2, ptr_t Num)
+{
+    return strncmp(Str1,Str2,(size_t)Num);
+}
+/* End Function:Strncmp ******************************************************/
+
+/* Begin Function:Strlen ******************************************************
+Description : Strlen wrapper for 64-bit XML library.
+Input       : s8_t* Str - The Input string.
+Output      : None.
+Return      : ptr_t - The length of the string.
+******************************************************************************/
+ptr_t Strlen(s8_t* Str)
+{
+    return strlen(Str);
+}
+/* End Function:Strlen *******************************************************/
+
 /* Begin Function:List_Crt ****************************************************
 Description : Create a doubly linkled list.
 Input       : volatile struct List* Head - The pointer to the list head.
@@ -604,31 +644,31 @@ void Parse_Proj_RME(struct RME_Info* RME, xml_node_t* Node)
     if((XML_Child(General,"Code_Start",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Code_Start section missing.");
     if(XML_Get_Hex(Temp,&(RME->Code_Start))<0)
-        EXIT_FAIL("RME General Code_Start is not a valid hex number.");
+        EXIT_FAIL("RME General Code_Start is not a valid hex integer.");
     /* Code size */
     if((XML_Child(General,"Code_Size",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Code_Size section missing.");
     if(XML_Get_Hex(Temp,&(RME->Code_Size))<0)
-        EXIT_FAIL("RME General Code_Size is not a valid hex number.");
+        EXIT_FAIL("RME General Code_Size is not a valid hex integer.");
     /* Data start address */
     if((XML_Child(General,"Data_Start",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Data_Start section missing.");
     if(XML_Get_Hex(Temp,&(RME->Data_Start))<0)
-        EXIT_FAIL("RME General Data_Start is not a valid hex number.");
+        EXIT_FAIL("RME General Data_Start is not a valid hex integer.");
     /* Data size */
     if((XML_Child(General,"Data_Size",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Data_Size section missing.");
     if(XML_Get_Hex(Temp,&(RME->Data_Size))<0)
-        EXIT_FAIL("RME General Data_Size is not a valid hex number.");
+        EXIT_FAIL("RME General Data_Size is not a valid hex integer.");
     /* Extra Kmem */
     if((XML_Child(General,"Extra_Kmem",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Extra_Kmem section missing.");
     if(XML_Get_Hex(Temp,&(RME->Extra_Kmem))<0)
-        EXIT_FAIL("RME General Extra_Kmem is not a valid hex number.");
+        EXIT_FAIL("RME General Extra_Kmem is not a valid hex integer.");
     /* Kmem_Order */
     if((XML_Child(General,"Kmem_Order",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Kmem_Order section missing.");
-    if(XML_Get_Uint(Temp,&(RME->Extra_Kmem))<0)
+    if(XML_Get_Uint(Temp,&(RME->Kmem_Order))<0)
         EXIT_FAIL("RME General Kmem_Order is not a valid unsigned integer.");
     /* Priorities */
     if((XML_Child(General,"Kern_Prios",&Temp)<0)||(Temp==0))
@@ -705,12 +745,12 @@ void Parse_Proj_RVM(struct RVM_Info* RVM, xml_node_t* Node)
     if((XML_Child(General,"Code_Size",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Code_Size section missing.");
     if(XML_Get_Hex(Temp,&(RVM->Code_Size))<0)
-        EXIT_FAIL("RME General Code_Size is not a valid hex number.");
+        EXIT_FAIL("RME General Code_Size is not a valid hex integer.");
     /* Data size */
     if((XML_Child(General,"Data_Size",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Data_Size section missing.");
     if(XML_Get_Hex(Temp,&(RVM->Data_Size))<0)
-        EXIT_FAIL("RME General Data_Size is not a valid hex number.");
+        EXIT_FAIL("RME General Data_Size is not a valid hex integer.");
     /* Extra Captbl */
     if((XML_Child(General,"Extra_Captbl",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Extra_Captbl section missing.");
@@ -763,13 +803,13 @@ void Parse_Proc_Mem(struct Proc_Info* Proc, xml_node_t* Node)
         if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Auto",4)==0))
             Mem->Start=AUTO;
         else if(XML_Get_Hex(Temp,&(Mem->Start))<0)
-            EXIT_FAIL("Process Memory Start is not a valid hex number.");
+            EXIT_FAIL("Process Memory Start is not a valid hex integer.");
 
         /* Size */
         if((XML_Child(Trunk,"Size",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Memory Size section missing.");
         if(XML_Get_Hex(Temp,&(Mem->Size))<0)
-            EXIT_FAIL("Process Memory Size is not a valid hex number.");
+            EXIT_FAIL("Process Memory Size is not a valid hex integer.");
         if(Mem->Size==0)
             EXIT_FAIL("Process Memory Size cannot be zero.");
         if(Mem->Start!=AUTO)
@@ -825,7 +865,7 @@ void Parse_Proc_Mem(struct Proc_Info* Proc, xml_node_t* Node)
 
         Free(Attr_Temp);
 
-        if(XML_Child(Node,0,&Trunk)<0)
+        if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
 }
@@ -858,28 +898,33 @@ void Parse_Proc_Thd(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Thread Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Thd->Name))<0)
             EXIT_FAIL("Internal error.");
+
         /* Entry */
         if((XML_Child(Trunk,"Entry",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Entry section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Thd->Entry))<0)
             EXIT_FAIL("Internal error.");
+
         /* Stack Addr */
         if((XML_Child(Trunk,"Stack_Addr",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Stack_Addr section missing.");
         if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Auto",4)==0))
             Thd->Stack_Addr=AUTO;
         else if(XML_Get_Hex(Temp,&(Thd->Stack_Addr))<0)
-            EXIT_FAIL("Process Thread Stack_Addr is not a valid hex number.");
+            EXIT_FAIL("Process Thread Stack_Addr is not a valid hex integer.");
+
         /* Stack Size */
         if((XML_Child(Trunk,"Stack_Size",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Stack_Size section missing.");
         if(XML_Get_Hex(Temp,&(Thd->Stack_Size))<0)
-            EXIT_FAIL("Process Thread Stack_Size is not a valid hex number.");
+            EXIT_FAIL("Process Thread Stack_Size is not a valid hex integer.");
+
         /* Parameter */
         if((XML_Child(Trunk,"Parameter",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Parameter section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Thd->Parameter))<0)
             EXIT_FAIL("Internal error.");
+
         /* Priority */
         if((XML_Child(Trunk,"Priority",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Priority section missing.");
@@ -887,6 +932,7 @@ void Parse_Proc_Thd(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Thread Priority is not a valid unsigned integer.");
 
         List_Ins(&(Thd->Head),Proc->Thd.Prev,&(Proc->Thd));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -920,25 +966,29 @@ void Parse_Proc_Inv(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Invocation Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Inv->Name))<0)
             EXIT_FAIL("Internal error.");
+
         /* Entry */
         if((XML_Child(Trunk,"Entry",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Invocation Entry section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Inv->Entry))<0)
             EXIT_FAIL("Internal error.");
+
         /* Stack Addr */
         if((XML_Child(Trunk,"Stack_Addr",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Invocation Stack_Addr section missing.");
         if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Auto",4)==0))
             Inv->Stack_Addr=AUTO;
         else if(XML_Get_Hex(Temp,&(Inv->Stack_Addr))<0)
-            EXIT_FAIL("Process Invocation Stack_Addr is not a valid hex number.");
+            EXIT_FAIL("Process Invocation Stack_Addr is not a valid hex integer.");
+
         /* Stack Size */
         if((XML_Child(Trunk,"Stack_Size",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Invocation Stack_Size section missing.");
         if(XML_Get_Hex(Temp,&(Inv->Stack_Size))<0)
-            EXIT_FAIL("Process Invocation Stack_Size is not a valid hex number.");
+            EXIT_FAIL("Process Invocation Stack_Size is not a valid hex integer.");
 
         List_Ins(&(Inv->Head),Proc->Inv.Prev,&(Proc->Inv));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -972,13 +1022,15 @@ void Parse_Proc_Port(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Port Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Port->Name))<0)
             EXIT_FAIL("Internal error.");
+
         /* Proc_Name */
-        if((XML_Child(Trunk,"Name",&Temp)<0)||(Temp==0))
-            EXIT_FAIL("Process Port Name section missing.");
+        if((XML_Child(Trunk,"Process",&Temp)<0)||(Temp==0))
+            EXIT_FAIL("Process Port Process Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Port->Proc_Name))<0)
             EXIT_FAIL("Internal error.");
 
         List_Ins(&(Port->Head),Proc->Port.Prev,&(Proc->Port));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1014,6 +1066,7 @@ void Parse_Proc_Recv(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Internal error.");
 
         List_Ins(&(Recv->Head),Proc->Recv.Prev,&(Proc->Recv));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1047,13 +1100,15 @@ void Parse_Proc_Send(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Send Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Send->Name))<0)
             EXIT_FAIL("Internal error.");
+
         /* Proc_Name */
-        if((XML_Child(Trunk,"Name",&Temp)<0)||(Temp==0))
-            EXIT_FAIL("Process Send Name section missing.");
+        if((XML_Child(Trunk,"Process",&Temp)<0)||(Temp==0))
+            EXIT_FAIL("Process Send Process Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Send->Proc_Name))<0)
             EXIT_FAIL("Internal error.");
 
         List_Ins(&(Send->Head),Proc->Send.Prev,&(Proc->Send));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1089,6 +1144,7 @@ void Parse_Proc_Vect(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Internal error.");
 
         List_Ins(&(Vect->Head),Proc->Vect.Prev,&(Proc->Vect));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1130,27 +1186,35 @@ void Parse_Proj_Proc(struct Proj_Info* Proj, xml_node_t* Node)
         /* General */
         if((XML_Child(Trunk,"General",&General)<0)||(General==0))
             EXIT_FAIL("Process General section missing.");
+
         /* Compiler */
         if((XML_Child(Trunk,"Compiler",&Compiler)<0)||(Compiler==0))
             EXIT_FAIL("Process Compiler section missing.");
+
         /* Memory */
         if((XML_Child(Trunk,"Memory",&Memory)<0)||(Memory==0))
             EXIT_FAIL("Process Memory section missing.");
+
         /* Thread */
         if((XML_Child(Trunk,"Thread",&Thread)<0)||(Thread==0))
             EXIT_FAIL("Process Thread section missing.");
+
         /* Invocation */
         if((XML_Child(Trunk,"Invocation",&Invocation)<0)||(Invocation==0))
             EXIT_FAIL("Process Invocation section missing.");
+
         /* Port */
         if((XML_Child(Trunk,"Port",&Port)<0)||(Port==0))
             EXIT_FAIL("Process Port section missing.");
+
         /* Receive */
         if((XML_Child(Trunk,"Receive",&Receive)<0)||(Receive==0))
             EXIT_FAIL("Process Receive section missing.");
+
         /* Send */
         if((XML_Child(Trunk,"Send",&Send)<0)||(Send==0))
             EXIT_FAIL("Process Send section missing.");
+
         /* Vector */
         if((XML_Child(Trunk,"Vector",&Vector)<0)||(Vector==0))
             EXIT_FAIL("Process Vector section missing.");
@@ -1161,6 +1225,7 @@ void Parse_Proj_Proc(struct Proj_Info* Proj, xml_node_t* Node)
             EXIT_FAIL("Process Name section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Proc->Name))<0)
             EXIT_FAIL("Internal error.");
+
         /* Extra Captbl */
         if((XML_Child(General,"Extra_Captbl",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Extra_Captbl section missing.");
@@ -1185,6 +1250,7 @@ void Parse_Proj_Proc(struct Proj_Info* Proj, xml_node_t* Node)
         Parse_Proc_Vect(Proc,Vector);
 
         List_Ins(&(Proc->Head),Proj->Proc.Prev,&(Proj->Proc));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1239,20 +1305,24 @@ struct Proj_Info* Parse_Proj(s8_t* Proj_File)
         EXIT_FAIL("Project Name section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Proj->Name))<0)
         EXIT_FAIL("Internal error.");
+
     /* Platform */
     if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Project Platform section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Proj->Plat))<0)
         EXIT_FAIL("Internal error.");
+
     /* Platform to lower case */
     if(XML_Get_Val(Temp,Malloc,&(Proj->Lower_Plat))<0)
         EXIT_FAIL("Internal error.");
     Lower_Case(Proj->Lower_Plat);
+
     /* Chip_Class */
     if((XML_Child(Node,"Chip_Class",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Project Chip_Class section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Proj->Chip_Class))<0)
         EXIT_FAIL("Internal error.");
+
     /* Chip_Full */
     if((XML_Child(Node,"Chip_Full",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Project Chip_Full section missing.");
@@ -1262,9 +1332,11 @@ struct Proj_Info* Parse_Proj(s8_t* Proj_File)
     /* RME */
     if((XML_Child(Node,"RME",&RME)<0)||(RME==0))
         EXIT_FAIL("Project RME section missing.");
+
     /* RVM */
     if((XML_Child(Node,"RVM",&RVM)<0)||(RVM==0))
         EXIT_FAIL("Project RVM section missing.");
+
     /* Process */
     if((XML_Child(Node,"Process",&Process)<0)||(Process==0))
         EXIT_FAIL("Project Process section missing.");
@@ -1312,13 +1384,13 @@ void Parse_Chip_Mem(struct Chip_Info* Chip, xml_node_t* Node)
         if((XML_Child(Trunk,"Start",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Chip Memory Start section missing.");
         if(XML_Get_Hex(Temp,&(Mem->Start))<0)
-            EXIT_FAIL("Chip Memory Start is not a valid hex number.");
+            EXIT_FAIL("Chip Memory Start is not a valid hex integer.");
 
         /* Size */
         if((XML_Child(Trunk,"Size",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Chip Memory Size section missing.");
         if(XML_Get_Hex(Temp,&(Mem->Size))<0)
-            EXIT_FAIL("Chip Memory Size is not a valid hex number.");
+            EXIT_FAIL("Chip Memory Size is not a valid hex integer.");
         if(Mem->Size==0)
             EXIT_FAIL("Chip Memory Size cannot be zero.");
         if((Mem->Start+Mem->Size)>0x100000000ULL)
@@ -1336,7 +1408,7 @@ void Parse_Chip_Mem(struct Chip_Info* Chip, xml_node_t* Node)
         else
             EXIT_FAIL("Chip Memory Type is malformed.");
 
-        if(XML_Child(Node,0,&Trunk)<0)
+        if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
 }
@@ -1393,6 +1465,7 @@ void Parse_Chip_Option(struct Chip_Info* Chip, xml_node_t* Node)
             EXIT_FAIL("Internal error.");
 
         List_Ins(&(Option->Head),Chip->Option.Prev,&(Chip->Option));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1428,12 +1501,13 @@ void Parse_Chip_Vect(struct Chip_Info* Chip, xml_node_t* Node)
             EXIT_FAIL("Internal error.");
 
         /* Number */
-        if((XML_Child(Trunk,"Name",&Temp)<0)||(Temp==0))
+        if((XML_Child(Trunk,"Number",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Chip Vector Number section missing.");
         if(XML_Get_Uint(Temp,&(Vect->Num))<0)
             EXIT_FAIL("Chip Vector Number is not an unsigned integer.");
 
         List_Ins(&(Vect->Head),Chip->Vect.Prev,&(Chip->Vect));
+
         if(XML_Child(Node,"",&Trunk)<0)
             EXIT_FAIL("Internal error.");
     }
@@ -1471,26 +1545,31 @@ struct Chip_Info* Parse_Chip(s8_t* Chip_File)
         EXIT_FAIL("Chip Class section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Chip->Class))<0)
         EXIT_FAIL("Internal error.");
+
     /* Compatible */
     if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Compatible section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Chip->Compat))<0)
         EXIT_FAIL("Internal error.");
+
     /* Vendor */
     if((XML_Child(Node,"Vendor",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Vendor section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Chip->Vendor))<0)
         EXIT_FAIL("Internal error.");
+
     /* Platform */
     if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Platform section missing.");
     if(XML_Get_Val(Temp,Malloc,&(Chip->Plat))<0)
         EXIT_FAIL("Internal error.");
+
     /* Cores */
     if((XML_Child(Node,"Cores",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Cores section missing.");
     if(XML_Get_Uint(Temp,&(Chip->Cores))<0)
         EXIT_FAIL("Chip Cores is not an unsigned integer.");
+
     /* Regions */
     if((XML_Child(Node,"Regions",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Chip Regions section missing.");
@@ -1500,12 +1579,15 @@ struct Chip_Info* Parse_Chip(s8_t* Chip_File)
     /* Attribute */
     if((XML_Child(Node,"Attribute",&Attribute)<0)||(Attribute==0))
         EXIT_FAIL("Chip Attribute section missing.");
+
     /* Memory */
     if((XML_Child(Node,"Memory",&Memory)<0)||(Memory==0))
         EXIT_FAIL("Chip Memory section missing.");
+
     /* Option */
     if((XML_Child(Node,"Option",&Option)<0)||(Option==0))
         EXIT_FAIL("Chip Option section missing.");
+
     /* Vector */
     if((XML_Child(Node,"Vector",&Vector)<0)||(Vector==0))
         EXIT_FAIL("Chip Vector section missing.");
@@ -1641,21 +1723,26 @@ ret_t Fit_Auto_Mem(struct Mem_Map* Map, struct Mem_Info* Mem)
         Fit=Info->Mem;
         if(Mem->Size>Fit->Size)
             continue;
+
         /* Round start address up, round end address down, to alignment */
         Start_Addr=((Fit->Start+Mem->Align-1)/Mem->Align)*Mem->Align;
         End_Addr=((Fit->Start+Fit->Size)/Mem->Align)*Mem->Align;
+
         if(Mem->Size>(End_Addr-Start_Addr))
             continue;
+
         End_Addr-=Mem->Size;
+
         for(Try_Addr=Start_Addr;Try_Addr<End_Addr;Try_Addr+=Mem->Align)
         {
             Bitmap_Start=(Try_Addr-Fit->Start)/4;
             Bitmap_Size=Mem->Size/4;
+
             if(Try_Bitmap(Info->Bitmap,Bitmap_Start,Bitmap_Size)==0)
             {
+                /* Found a fit */
                 Mark_Bitmap(Info->Bitmap,Bitmap_Start,Bitmap_Size);
                 Mem->Start=Try_Addr;
-                /* Found a fit */
                 return 0;
             }
         }
@@ -1800,9 +1887,9 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
     struct Proc_Info* Proc;
 
     Map=Malloc(sizeof(struct Mem_Map));
-    List_Crt(&(Map->Chip_Mem));
 
     /* Insert all memory trunks in a incremental order by address */
+    List_Crt(&(Map->Chip_Mem));
     for(EACH(struct Mem_Info*,Mem,Chip->Code))
     {
         Info=Malloc(sizeof(struct Mem_Map_Info));
@@ -1811,7 +1898,6 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
         memset(Info->Bitmap,0,(size_t)((Mem->Size/4)+1));
         List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
     }
-
     Merge_Sort(&(Map->Chip_Mem),Compare_Addr);
 
     /* Now populate the RME & RVM sections - must be continuous */
@@ -1821,6 +1907,7 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
         EXIT_FAIL("RVM Code section is invalid.");
 
     /* Merge sort all processes's memory in according to their size */
+    List_Crt(&(Map->Proc_Mem));
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
         for(EACH(struct Mem_Info*,Mem,Proc->Code))
@@ -1835,12 +1922,10 @@ void Alloc_Code(struct Proj_Info* Proj, struct Chip_Info* Chip)
                 Free(Info);
                 continue;
             }
-
             /* No bitmap for such memory trunks waiting to be allocated */
             List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
         }
     }
-
     Merge_Sort(&(Map->Proc_Mem),Compare_Size);
 
     /* Fit whatever that does not have a fixed address */
@@ -1939,9 +2024,9 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
     struct Mem_Info* Mem;
 
     Map=Malloc(sizeof(struct Mem_Map));
-    List_Crt(&(Map->Chip_Mem));
 
     /* Insert all memory trunks in a incremental order by address */
+    List_Crt(&(Map->Chip_Mem));
     for(EACH(struct Mem_Info*,Mem,Chip->Data))
     {
         Info=Malloc(sizeof(struct Mem_Map_Info));
@@ -1950,7 +2035,6 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
         memset(Info->Bitmap,0,(size_t)((Mem->Size/4)+1));
         List_Ins(&(Info->Head),Map->Chip_Mem.Prev,&(Map->Chip_Mem));
     }
-
     Merge_Sort(&(Map->Chip_Mem),Compare_Addr);
 
     /* Now populate the RME & RVM sections - must be continuous */
@@ -1960,6 +2044,7 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
         EXIT_FAIL("RVM Data section is invalid.");
 
     /* Merge sort all processes's memory in according to their size */
+    List_Crt(&(Map->Proc_Mem));
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
         for(EACH(struct Mem_Info*,Mem,Proc->Data))
@@ -1974,12 +2059,10 @@ void Alloc_Data(struct Proj_Info* Proj, struct Chip_Info* Chip)
                 Free(Info);
                 continue;
             }
-
             /* No bitmap for such memory trunks waiting to be allocated */
             List_Ins(&(Info->Head),Map->Proc_Mem.Prev,&(Map->Proc_Mem));
         }
     }
-
     Merge_Sort(&(Map->Proc_Mem),Compare_Size);
 
     /* Fit whatever that does not have a fixed address */
@@ -2030,9 +2113,9 @@ void Check_Device(struct Proj_Info* Proj, struct Chip_Info* Chip)
         {
             for(EACH(struct Mem_Info*,Chip_Mem,Chip->Device))
             {
-                if(Proc_Mem->Start<=Chip_Mem->Start)
+                if(Proc_Mem->Start>=Chip_Mem->Start)
                 {
-                    if((Proc_Mem->Start+Proc_Mem->Size)>=(Chip_Mem->Start+Chip_Mem->Size))
+                    if((Proc_Mem->Start+Proc_Mem->Size)<=(Chip_Mem->Start+Chip_Mem->Size))
                         break;
                 }
             }
@@ -2477,7 +2560,7 @@ void Alloc_Global_Capid(struct Proj_Info* Proj)
             Cap=Malloc(sizeof(struct RVM_Cap_Info));
             Cap->Proc=Proc;
             Cap->Cap=Vect;
-            Vect->Cap.RVM_Capid=Proj->RVM.Recv_Front++;
+            Vect->Cap.RVM_Capid=Proj->RVM.Vect_Front++;
             List_Ins(&(Cap->Head),Proj->RVM.Vect.Prev,&(Proj->RVM.Vect));
         }
     }
@@ -2628,7 +2711,7 @@ void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
             if(IS_HEAD(Proc_Temp,Proj->Proc))
                 EXIT_FAIL("Invalid Process for Port.");
 
-            for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+            for(EACH(struct Inv_Info*,Inv,Proc_Temp->Inv))
             {
                 if(strcmp(Inv->Name, Port->Name)==0)
                 {
@@ -2652,7 +2735,7 @@ void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
             if(IS_HEAD(Proc_Temp,Proj->Proc))
                 EXIT_FAIL("Invalid Process for Send endpoint.");
 
-            for(EACH(struct Recv_Info*,Recv,Proc->Recv))
+            for(EACH(struct Recv_Info*,Recv,Proc_Temp->Recv))
             {
                 if(strcmp(Recv->Name, Send->Name)==0)
                 {
@@ -2894,7 +2977,7 @@ void Make_Define_Int(FILE* File, s8_t* Macro, ptr_t Value, ptr_t Align)
 Description : Make a define statement in the file. The define statement can have
               three parts, which will be converted to uppercase and concatenated
               together.
-              The value here is a hex number.
+              The value here is a hex integer.
 Input       : FILE* File - The file structure.
               s8_t* Macro - The macro.
               ptr_t Value - The value of the macro.
@@ -3092,6 +3175,8 @@ void Setup_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Pa
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
+
+    Free(Buf);
 }
 /* End Function:Setup_RME_Conf ***********************************************/
 
@@ -3138,6 +3223,8 @@ void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Pa
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
+
+    Free(Buf);
 }
 /* End Function:Setup_RVM_Conf ***********************************************/
 
@@ -3171,14 +3258,14 @@ Description : Generate the rme_boot.h and rme_boot.c. These files are mainly
               responsible for setting up interrupt endpoints.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct Cap_Alloc_Info* Alloc - The allocation information structure.
+              struct Alloc_Info* Alloc - The allocation information structure.
               s8_t* RME_Path - The RME root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
 void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  struct Cap_Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path)
+                  struct Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path)
 {
     s8_t* Buf;
     FILE* File;
@@ -3276,6 +3363,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(%lld));\n",
                 (Proj->RVM.Vect_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Vect_Front%Capacity));
     }
+    fprintf(File, "\n    /* Then all the vectors */\n");
     Obj_Cnt=0;
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Vect))
     {
@@ -3340,6 +3428,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     /* Close the file */
     Write_Src_Footer(File);
     fclose(File);
+    Free(Buf);
 }
 /* End Function:Gen_RME_Boot *************************************************/
 
@@ -3404,6 +3493,7 @@ void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path
     /* Close the file */
     Write_Src_Footer(File);
     fclose(File);
+    Free(Buf);
 }
 /* End Function:Gen_RME_User *************************************************/
 
@@ -3441,14 +3531,14 @@ Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsibl
               is enabled, these kernel objects will also be handled by such file.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct Cap_Alloc_Info* Alloc - The allocation information structure.
+              struct Alloc_Info* Alloc - The allocation information structure.
               s8_t* RVM_Path - The RVM root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
 void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
-                  struct Cap_Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path)
+                  struct Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path)
 {
     s8_t* Buf;
     FILE* File;
@@ -3886,6 +3976,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     /* Close the file */
     Write_Src_Footer(File);
     fclose(File);
+    Free(Buf);
 }
 /* End Function:Gen_RVM_Boot *************************************************/
 
@@ -3927,6 +4018,7 @@ int main(int argc, char* argv[])
 	/* The project and chip pointers */
 	struct Proj_Info* Proj;
 	struct Chip_Info* Chip;
+	struct Alloc_Info* Alloc;
 
 	/* Initialize memory pool */
 	List_Crt(&Mem_List);
@@ -3978,25 +4070,23 @@ int main(int argc, char* argv[])
     Setup_RME_Conf(Proj, Chip, RME_Path, Output_Path);
     Setup_RVM_Conf(Proj, Chip, RVM_Path, Output_Path);
 
-	/* Generate the project-specific files */
+	/* Generate the project-specific files, and allocate all kernel objects' addresses */
 	if(strcmp(Proj->Plat,"A7M")==0)
-		A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
+		Alloc=A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
 
-    /* Create all files */
-    struct Cap_Alloc_Info Alloc;
-    memset(&Alloc,0,sizeof(struct Cap_Alloc_Info));
-    Alloc.Word_Bits=32;
-
-    /* Generate RME related files */
-    Gen_RME_Boot(Proj, Chip, &Alloc, RME_Path, Output_Path);
+    /* Generate generic RME related files */
+    Gen_RME_Boot(Proj, Chip, Alloc, RME_Path, Output_Path);
     Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
 
-    /* Generate RVM related files */
-    Gen_RVM_Boot(Proj, Chip, &Alloc, RVM_Path, Output_Path);
+    /* Generate generic RVM related files */
+    Gen_RVM_Boot(Proj, Chip, Alloc, RVM_Path, Output_Path);
     Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
+
+    /* Generate generic files for every single project */
     
 	/* All done, free all memory and we quit */
 	Free_All();
+
     return 0;
 }
 /* End Function:main *********************************************************/

@@ -25,11 +25,11 @@ typedef double                              xml_flt_t;
 /* Configuration Defines *****************************************************/
 #define XML_STATIC
 
-#define XML_MALLOC_FUNC_NAME                malloc
-#define XML_FREE_FUNC_NAME                  free
-#define XML_STRNCMP_FUNC_NAME               strncmp
-#define XML_MEMCPY_FUNC_NAME                memcpy
-#define XML_STRLEN_FUNC_NAME                strlen
+#define XML_MALLOC_FUNC_NAME                Malloc
+#define XML_FREE_FUNC_NAME                  Free
+#define XML_STRNCMP_FUNC_NAME               Strncmp
+#define XML_MEMCPY_FUNC_NAME                Memcpy
+#define XML_STRLEN_FUNC_NAME                Strlen
 
 /* 
 #define XML_MINIMAL
