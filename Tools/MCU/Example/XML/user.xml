@@ -14,6 +14,7 @@
             <Code_Size>0x10000</Code_Size>
             <Data_Start>0x20000000</Data_Start>
             <Data_Size>0x10000</Data_Size>
+            <Stack_Size>0x1000</Stack_Size>
             <Extra_Kmem>0x8000</Extra_Kmem>
             <Kmem_Order>4</Kmem_Order>
             <Kern_Prios>32</Kern_Prios>
@@ -39,6 +40,7 @@
         <General>
             <Code_Size>0x10000</Code_Size>
             <Data_Size>0x10000</Data_Size>
+            <Stack_Size>0x1000</Stack_Size>
             <Extra_Captbl>128</Extra_Captbl>
             <Recovery>Process</Recovery>
         </General>
@@ -84,7 +86,6 @@
                 <T1>
                     <Name>Test_Proc1_Thd1</Name>
                     <Entry>Test_Proc1_Thd1_Entry</Entry>
-                    <Stack_Addr>Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
@@ -136,7 +137,6 @@
                 <T1>
                     <Name>Test_Proc2_Thd1</Name>
                     <Entry>Test_Proc2_Thd1_Entry</Entry>
-                    <Stack_Addr>Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
@@ -146,7 +146,6 @@
                 <I1>
                     <Name>Test_Proc2_Inv1</Name>
                     <Entry>Test_Proc2_Inv1_Entry</Entry>
-                    <Stack_Addr>Auto</Stack_Addr>
                     <Stack_Size>0x1000</Stack_Size>
                 </I1>
             </Invocation>

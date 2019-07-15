@@ -84,6 +84,22 @@ while(0);
 #define MACRO_ALIGNMENT     (56)
 /* The code generator author name */
 #define CODE_AUTHOR         ("The A7M project generator.")
+
+/* Generic kernel object sizes */
+#define CAPTBL_SIZE(NUM,BITS)        0
+#define PROC_SIZE(BITS)              0
+#define SIG_SIZE(BITS)               0
+
+/* Interrupt flag area size (in bytes) */
+#define KERNEL_INTF_SIZE             1024
+/* Entry point slot size (in words) */
+#define ENTRY_SLOT_SIZE              8
+
+/* Kerneo object size rounding macro */
+#define KOTBL_ROUND(SIZE)            0
+/* Compute the total capability table size when given the macros */
+#define CAPTBL_TOTAL(NUM,CAPACITY,BITS)     (((NUM)/(CAPACITY))*KOTBL_ROUND(CAPTBL_SIZE(CAPACITY,(BITS)))+ \
+                                             KOTBL_ROUND(CAPTBL_SIZE((NUM)%(CAPACITY),(BITS))))
 /*****************************************************************************/
 /* __RME_MCU_H_DEFS__ */
 #endif
@@ -128,6 +144,49 @@ struct Raw_Info
 	s8_t* Val;
 };
 
+/* Platform information */
+struct Plat_Info
+{
+    ptr_t Word_Bits;
+    ptr_t Captbl_Capacity;
+    ptr_t Init_Pgtbl_Num_Ord;
+    ptr_t Thd_Size;
+    ptr_t Inv_Size;
+
+    void (*Parse_Options)(struct Proj_Info* Proj, struct Chip_Info* Chip);
+    void (*Check_Input)(struct Proj_Info* Proj, struct Chip_Info* Chip);
+    void (*Align_Mem)(struct Proj_Info* Proj);
+    void (*Alloc_Pgtbl)(struct Proj_Info* Proj, struct Chip_Info* Chip);
+    ptr_t (*Pgtbl_Size)(ptr_t Num_Order, ptr_t Is_Top);
+
+    /* Extra information used by the platform itself */
+    void* Extra;
+};
+
+/* The memory map information for RME */
+struct RME_Memmap_Info
+{
+    /* Kernel code section */
+    ptr_t Code_Base;
+    ptr_t Code_Size;
+    /* Kernel data section */
+    ptr_t Data_Base;
+    ptr_t Data_Size;
+    /* Kernel memory */
+    ptr_t Kmem_Base;
+    ptr_t Kmem_Size;
+    /* Kernel stack */
+    ptr_t Stack_Base;
+    ptr_t Stack_Size;
+    /* Interrupt flag section */
+    ptr_t Intf_Base;
+    ptr_t Intf_Size;
+
+    /* Initial state for vector creation */
+    ptr_t Vect_Cap_Front;
+    ptr_t Vect_Kmem_Front;
+};
+
 /* RME kernel information */
 struct RME_Info
 {
@@ -141,16 +200,22 @@ struct RME_Info
 	ptr_t Data_Start;
     /* RME data section size */
 	ptr_t Data_Size;
+    /* RME kernel stack size */
+	ptr_t Stack_Size;
     /* Extra amount of kernel memory */
 	ptr_t Extra_Kmem;
     /* Slot order of kernel memory */
 	ptr_t Kmem_Order;
     /* Priorities supported */
 	ptr_t Kern_Prios;
+
     /* Raw information about platform, to be deal with by the platform-specific generator */
 	struct List Plat;
     /* Raw information about chip, to be deal with by the platform-specific generator */
 	struct List Chip;
+
+    /* Final memory map information */
+    struct RME_Memmap_Info Map;
 };
 
 /* RVM's capability information, from the user processes */
@@ -163,6 +228,51 @@ struct RVM_Cap_Info
     void* Cap;
 };
 
+/* The memory map information for RVM */
+struct RVM_Memmap_Info
+{   
+    /* Kernel code section */
+    ptr_t Code_Base;
+    ptr_t Code_Size;
+    /* Kernel data section */
+    ptr_t Data_Base;
+    ptr_t Data_Size;
+    /* Guard daemon stack */
+    ptr_t Guard_Stack_Base;
+    ptr_t Guard_Stack_Size;
+    /* VMM daemon stack - currently unused */
+    ptr_t VMM_Stack_Base;
+    ptr_t VMM_Stack_Size;
+    /* Interrupt daemon stack - currently unused */
+    ptr_t Intd_Stack_Base;
+    ptr_t Intd_Stack_Size;
+
+    /* Initial state for RVM setup */ 
+    ptr_t Before_Cap_Front;
+    ptr_t Before_Kmem_Front;
+    /* When we begin creating capability tables */
+    ptr_t Captbl_Cap_Front;
+    ptr_t Captbl_Kmem_Front;
+    /* When we begin creating page tables */
+    ptr_t Pgtbl_Cap_Front;
+    ptr_t Pgtbl_Kmem_Front;
+    /* When we begin creating processes */
+    ptr_t Proc_Cap_Front;
+    ptr_t Proc_Kmem_Front;
+    /* When we begin creating threads */
+    ptr_t Thd_Cap_Front;
+    ptr_t Thd_Kmem_Front;
+    /* When we begin creating invocations */
+    ptr_t Inv_Cap_Front;
+    ptr_t Inv_Kmem_Front;
+    /* When we begin creating receive endpoints */
+    ptr_t Recv_Cap_Front;
+    ptr_t Recv_Kmem_Front;
+    /* After the booting all finishes */ 
+    ptr_t After_Cap_Front;
+    ptr_t After_Kmem_Front;
+};
+
 /* RVM user-level library information. */
 struct RVM_Info
 {
@@ -172,6 +282,8 @@ struct RVM_Info
     ptr_t Code_Size;
     /* Size of the data section. This always immediately follow the data section of RME. */
     ptr_t Data_Size;
+    /* RVM service threads stack size */
+	ptr_t Stack_Size;
     /* The extra amount in the main capability table */
 	ptr_t Extra_Captbl;
     /* The recovery mode - by thread, process or the whole system? */
@@ -180,6 +292,9 @@ struct RVM_Info
     /* Global captbl containing captbls */
     ptr_t Captbl_Front;
     struct List Captbl;
+    /* Global captbl containing page tables */
+    ptr_t Pgtbl_Front;
+    struct List Pgtbl;
     /* Global captbl containing processes */
     ptr_t Proc_Front;
     struct List Proc;
@@ -195,6 +310,9 @@ struct RVM_Info
     /* Global captbl containing kernel endpoints - actually created by kernel itself */
     ptr_t Vect_Front;
     struct List Vect;
+
+    /* Final memory map information */
+    struct RVM_Memmap_Info Map;
 };
 
 /* Memory segment information */
@@ -226,17 +344,38 @@ struct Cap_Info
     s8_t* RME_Macro;
 };
 
-/* Port-specific stack initialization routine parameters */
-struct Plat_Stack
+struct Pgtbl_Info
 {
-    /* Address of the entry - including ths stub, etc */
+    struct List Head;
+    /* Is this a top-level? */
+    ptr_t Is_Top;
+    /* The start address of the page table */
+    ptr_t Start_Addr;
+    /* The size order */
+    ptr_t Size_Order;
+    /* The number order */
+    ptr_t Num_Order;
+    /* The attribute (on this table) */
+    ptr_t Attr;
+    /* Page directories mapped in */
+    struct Pgtbl_Info** Child_Pgdir;
+    /* Pages mapped in - if not 0, then attr is directly here */
+    ptr_t* Child_Page;
+    /* Capability information */
+    struct Cap_Info Cap;
+};
+
+/* Thread memory map information */
+struct Thd_Memmap_Info
+{
+    /* Position of the entry address from the header */
     ptr_t Entry_Addr;
     /* Value of the parameter at creation time */
     ptr_t Param_Value;
-    /* Port-specific stack initialization parameter */
-    ptr_t Stack_Init_Param;
-    /* Port-specific stack initialization address */
-    ptr_t Stack_Init_Addr;
+    /* The address of the stack */
+    ptr_t Stack_Base;
+    /* The size of the stack */
+    ptr_t Stack_Size;
 };
 
 /* Thread information */
@@ -247,8 +386,6 @@ struct Thd_Info
 	s8_t* Name;
     /* The entry of the thread */
 	s8_t* Entry;
-    /* The stack address of the thread */
-	ptr_t Stack_Addr;
     /* The stack size of the thread */
 	ptr_t Stack_Size;
     /* The parameter passed to the thread */
@@ -258,8 +395,20 @@ struct Thd_Info
 
     /* Capability related information */
     struct Cap_Info Cap;
-    /* Platform-specific initialization parameters */
-    struct Plat_Stack Plat;
+
+    /* Memory map information */
+    struct Thd_Memmap_Info Map;
+};
+
+/* Invocation memory map information */
+struct Inv_Memmap_Info
+{
+    /* Address of the entry */
+    ptr_t Entry_Addr;
+    /* Address of the stack */
+    ptr_t Stack_Base;
+    /* The size of the stack */
+    ptr_t Stack_Size;
 };
 
 /* Invocation information */
@@ -270,15 +419,14 @@ struct Inv_Info
 	s8_t* Name;
     /* The entry address of the invocation */
 	s8_t* Entry;
-    /* The stack address of the invocation */
-	ptr_t Stack_Addr;
     /* The stack size of the invocation */
 	ptr_t Stack_Size;
 
     /* Capability related information */
     struct Cap_Info Cap;
-    /* Port-specific initialization parameters */
-    struct Plat_Stack Port;
+
+    /* Memory map information */
+    struct Inv_Memmap_Info Map;
 };
 
 /* Port information */
@@ -333,6 +481,18 @@ struct Vect_Info
     struct Cap_Info Cap;
 };
 
+struct Proc_Memmap_Info
+{
+    /* Code memory */
+    ptr_t Code_Base;
+    ptr_t Code_Size;
+    /* Data memory */
+    ptr_t Data_Base;
+    ptr_t Data_Size;
+    /* Code memory frontier for entries */
+    ptr_t Entry_Code_Front;
+};
+
 /* Process information */
 struct Proc_Info
 {
@@ -343,6 +503,8 @@ struct Proc_Info
 	ptr_t Extra_Captbl;
     /* Current local capability table frontier */ 
     ptr_t Captbl_Front;
+    /* Page table information */
+    struct Pgtbl_Info* Pgtbl;
     /* Compiler information */
 	struct Comp_Info Comp;
     /* Memory trunk information */
@@ -356,12 +518,12 @@ struct Proc_Info
 	struct List Recv;
 	struct List Send;
 	struct List Vect;
+
     /* Capability information for itself */
     struct Cap_Info Captbl_Cap;
-    struct Cap_Info Pgtbl_Cap;
     struct Cap_Info Proc_Cap;
-    /* Page table information */
-    void* Pgtbl;
+
+    struct Proc_Memmap_Info Map;
 };
 
 /* Whole project information */
@@ -370,13 +532,15 @@ struct Proj_Info
     /* The name of the project */
 	s8_t* Name;
     /* The platform used */
-    s8_t* Plat;
+    s8_t* Plat_Name;
     /* The all-lower-case of the platform used */
     s8_t* Lower_Plat;
     /* The chip class used */
 	s8_t* Chip_Class;
     /* The full name of the exact chip used */
     s8_t* Chip_Full;
+    /* The platform information */
+    struct Plat_Info Plat;
     /* The RME kernel information */
 	struct RME_Info RME;
     /* The RVM user-library information */
@@ -452,47 +616,6 @@ struct Mem_Map
     struct List Chip_Mem;
     /* The exact list of these unallocated requirements */
     struct List Proc_Mem;
-};
-
-/* The capability and kernel memory information supplied by the port-specific generator */
-struct Alloc_Info
-{
-    /* Processor bits */
-    ptr_t Word_Bits;
-    /* Kernel memory base */
-    ptr_t Kmem_Abs_Base;
-    /* When we go into creating the kernel endpoints */
-    ptr_t Vect_Cap_Front;
-    ptr_t Vect_Kmem_Front;
-    /* When we go into creating capability tables */
-    ptr_t Captbl_Cap_Front;
-    ptr_t Captbl_Kmem_Front;
-    /* When we go into creating page tables */
-    ptr_t Pgtbl_Cap_Front;
-    ptr_t Pgtbl_Kmem_Front;
-    /* When we go into creating processes */
-    ptr_t Proc_Cap_Front;
-    ptr_t Proc_Kmem_Front;
-    /* When we go into creating threads */
-    ptr_t Thd_Cap_Front;
-    ptr_t Thd_Kmem_Front;
-    /* When we go into creating invocations */
-    ptr_t Inv_Cap_Front;
-    ptr_t Inv_Kmem_Front;
-    /* When we go into creating receive endpoints */
-    ptr_t Recv_Cap_Front;
-    ptr_t Recv_Kmem_Front;
-    /* After the booting all finishes */ 
-    ptr_t Boot_Cap_Front;
-    ptr_t Kmem_Boot_Front;
-    /* Callbacks for generating the RVM page table part */
-    void* Plat_Info;
-    void (*Pgtbl_Macro)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                        struct Alloc_Info* Alloc);
-    void (*Pgtbl_Crt)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                      struct Alloc_Info* Alloc);
-    void (*Pgtbl_Init)(FILE* File, struct Proj_Info* Proj, struct Chip_Info* Chip,
-                       struct Alloc_Info* Alloc);
 };
 /*****************************************************************************/
 /* __RME_MCU_H_STRUCTS__ */
@@ -570,6 +693,12 @@ static void Alloc_Capid_Macros(struct Proj_Info* Proj);
 static void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip);
 static void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip);
 
+static void Get_Kmem_Size(struct Proj_Info* Proj, ptr_t Capacity, ptr_t Init_Captbl_Size);
+static void Alloc_RME_Kmem(struct Proj_Info* Proj);
+static void Alloc_RVM_Mem(struct Proj_Info* Proj);
+static void Alloc_Proc_Mem(struct Proj_Info* Proj);
+static void Alloc_Mem(struct Proj_Info* Proj);
+
 static void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 
@@ -577,12 +706,10 @@ static void Setup_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t*
 static void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 
 static void Print_RME_Inc(FILE* File, struct Proj_Info* Proj);
-static void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                         struct Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path);
+static void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj);
-static void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
-                         struct Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path);
+static void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 static void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 /*****************************************************************************/
 #define __EXTERN__

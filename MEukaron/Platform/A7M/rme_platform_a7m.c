@@ -390,7 +390,7 @@ rme_ptr_t __RME_Boot(void)
     
     /* Create the capability table for the init process */
     RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,18)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(18));
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(128));
     
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
@@ -501,8 +501,8 @@ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struc
 {
     /* Set the LR to a value indicating that we have never used FPU in this new task */
     Reg->LR=0xFFFFFFFD;
-    /* Here the process address is not passed because we only have one entry point anyway */
-    Reg->R4=Entry;
+    /* The entry point needs to have the last bit set to avoid ARM mode */
+    Reg->R4=Entry|0x01;
     /* Put something in the SP later */
     Reg->SP=Stack;
     /* Set the parameter */

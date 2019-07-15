@@ -660,6 +660,11 @@ void Parse_Proj_RME(struct RME_Info* RME, xml_node_t* Node)
         EXIT_FAIL("RME General Data_Size section missing.");
     if(XML_Get_Hex(Temp,&(RME->Data_Size))<0)
         EXIT_FAIL("RME General Data_Size is not a valid hex integer.");
+    /* Stack size */
+    if((XML_Child(General,"Stack_Size",&Temp)<0)||(Temp==0))
+        EXIT_FAIL("RME General Stack_Size section missing.");
+    if(XML_Get_Hex(Temp,&(RME->Stack_Size))<0)
+        EXIT_FAIL("RME General Stack_Size is not a valid hex integer.");
     /* Extra Kmem */
     if((XML_Child(General,"Extra_Kmem",&Temp)<0)||(Temp==0))
         EXIT_FAIL("RME General Extra_Kmem section missing.");
@@ -743,22 +748,27 @@ void Parse_Proj_RVM(struct RVM_Info* RVM, xml_node_t* Node)
     /* Now read the contents of the General section */
     /* Code size */
     if((XML_Child(General,"Code_Size",&Temp)<0)||(Temp==0))
-        EXIT_FAIL("RME General Code_Size section missing.");
+        EXIT_FAIL("RVM General Code_Size section missing.");
     if(XML_Get_Hex(Temp,&(RVM->Code_Size))<0)
-        EXIT_FAIL("RME General Code_Size is not a valid hex integer.");
+        EXIT_FAIL("RVM General Code_Size is not a valid hex integer.");
     /* Data size */
     if((XML_Child(General,"Data_Size",&Temp)<0)||(Temp==0))
-        EXIT_FAIL("RME General Data_Size section missing.");
+        EXIT_FAIL("RVM General Data_Size section missing.");
     if(XML_Get_Hex(Temp,&(RVM->Data_Size))<0)
-        EXIT_FAIL("RME General Data_Size is not a valid hex integer.");
+        EXIT_FAIL("RVM General Data_Size is not a valid hex integer.");
+    /* Stack size */
+    if((XML_Child(General,"Stack_Size",&Temp)<0)||(Temp==0))
+        EXIT_FAIL("RVM General Stack_Size section missing.");
+    if(XML_Get_Hex(Temp,&(RVM->Stack_Size))<0)
+        EXIT_FAIL("RVM General Stack_Size is not a valid hex integer.");
     /* Extra Captbl */
     if((XML_Child(General,"Extra_Captbl",&Temp)<0)||(Temp==0))
-        EXIT_FAIL("RME General Extra_Captbl section missing.");
+        EXIT_FAIL("RVM General Extra_Captbl section missing.");
     if(XML_Get_Uint(Temp,&(RVM->Extra_Captbl))<0)
-        EXIT_FAIL("RME General Extra_Captbl is not a valid unsigned integer.");
+        EXIT_FAIL("RVM General Extra_Captbl is not a valid unsigned integer.");
     /* Recovery */
     if((XML_Child(General,"Recovery",&Temp)<0)||(Temp==0))
-        EXIT_FAIL("RME General Recovery section missing.");
+        EXIT_FAIL("RVM General Recovery section missing.");
     if((Temp->XML_Val_Len==6)&&(strncmp(Temp->XML_Val,"Thread",6)==0))
         RVM->Recovery=RECOVERY_THD;
     else if((Temp->XML_Val_Len==7)&&(strncmp(Temp->XML_Val,"Process",7)==0))
@@ -766,7 +776,7 @@ void Parse_Proj_RVM(struct RVM_Info* RVM, xml_node_t* Node)
     else if((Temp->XML_Val_Len==6)&&(strncmp(Temp->XML_Val,"System",6)==0))
         RVM->Recovery=RECOVERY_SYS;
     else
-        EXIT_FAIL("RME General Recovery option is malformed.");
+        EXIT_FAIL("RVM General Recovery option is malformed.");
 
     /* The VMM section is currently unused. We don't care about this now */
 }
@@ -905,14 +915,6 @@ void Parse_Proc_Thd(struct Proc_Info* Proc, xml_node_t* Node)
         if(XML_Get_Val(Temp,Malloc,&(Thd->Entry))<0)
             EXIT_FAIL("Internal error.");
 
-        /* Stack Addr */
-        if((XML_Child(Trunk,"Stack_Addr",&Temp)<0)||(Temp==0))
-            EXIT_FAIL("Process Thread Stack_Addr section missing.");
-        if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Auto",4)==0))
-            Thd->Stack_Addr=AUTO;
-        else if(XML_Get_Hex(Temp,&(Thd->Stack_Addr))<0)
-            EXIT_FAIL("Process Thread Stack_Addr is not a valid hex integer.");
-
         /* Stack Size */
         if((XML_Child(Trunk,"Stack_Size",&Temp)<0)||(Temp==0))
             EXIT_FAIL("Process Thread Stack_Size section missing.");
@@ -972,14 +974,6 @@ void Parse_Proc_Inv(struct Proc_Info* Proc, xml_node_t* Node)
             EXIT_FAIL("Process Invocation Entry section missing.");
         if(XML_Get_Val(Temp,Malloc,&(Inv->Entry))<0)
             EXIT_FAIL("Internal error.");
-
-        /* Stack Addr */
-        if((XML_Child(Trunk,"Stack_Addr",&Temp)<0)||(Temp==0))
-            EXIT_FAIL("Process Invocation Stack_Addr section missing.");
-        if((Temp->XML_Val_Len==4)&&(strncmp(Temp->XML_Val,"Auto",4)==0))
-            Inv->Stack_Addr=AUTO;
-        else if(XML_Get_Hex(Temp,&(Inv->Stack_Addr))<0)
-            EXIT_FAIL("Process Invocation Stack_Addr is not a valid hex integer.");
 
         /* Stack Size */
         if((XML_Child(Trunk,"Stack_Size",&Temp)<0)||(Temp==0))
@@ -1309,7 +1303,7 @@ struct Proj_Info* Parse_Proj(s8_t* Proj_File)
     /* Platform */
     if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
         EXIT_FAIL("Project Platform section missing.");
-    if(XML_Get_Val(Temp,Malloc,&(Proj->Plat))<0)
+    if(XML_Get_Val(Temp,Malloc,&(Proj->Plat_Name))<0)
         EXIT_FAIL("Internal error.");
 
     /* Platform to lower case */
@@ -2142,7 +2136,7 @@ void Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
     struct Mem_Info* Mem;
 
     /* Check platform validity */
-    if(strcmp(Proj->Plat, Chip->Plat)!=0)
+    if(strcmp(Proj->Plat_Name, Chip->Plat)!=0)
         EXIT_FAIL("Platform conflict.");
 
     /* Check chip class validity */
@@ -2789,6 +2783,316 @@ void Alloc_Captbl(struct Proj_Info* Proj,  struct Chip_Info* Chip)
 }
 /* End Function:Alloc_Captbl *************************************************/
 
+/* Begin Function:Get_Kmem_Size ***********************************************
+Description : Get the size of the kernel memory, and generate the initial states
+              for kernel object creation.
+Input       : struct Proj_Info* Proj - The project structure.
+              ptr_t Capacity - The capacity of the capability table.
+              ptr_t Init_Captbl_Size - The initial capability table's size;
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Get_Kmem_Size(struct Proj_Info* Proj, ptr_t Capacity, ptr_t Init_Captbl_Size)
+{
+    struct RVM_Cap_Info* Info;
+    struct Proc_Info* Proc;
+    struct Pgtbl_Info* Pgtbl;
+    ptr_t Cap_Front;
+    ptr_t Kmem_Front;
+
+    /* Compute initial state when creating the vectors */
+    Cap_Front=0;
+    Kmem_Front=0;
+    /* Initial capability table */
+    Cap_Front++;
+    Kmem_Front+=KOTBL_ROUND(CAPTBL_SIZE(Init_Captbl_Size,Proj->Plat.Word_Bits));
+    /* Initial page table */
+    Cap_Front++;
+    Kmem_Front+=KOTBL_ROUND(Proj->Plat.Pgtbl_Size(8,1));
+    /* Initial RVM process */
+    Cap_Front++;
+    Kmem_Front+=KOTBL_ROUND(PROC_SIZE(Proj->Plat.Word_Bits));
+    /* Initial kcap and kmem */
+    Cap_Front+=2;
+    /* Initial tick timer/interrupt endpoint */
+    Cap_Front+=2;
+    Kmem_Front+=2*KOTBL_ROUND(SIG_SIZE(Proj->Plat.Word_Bits));
+    /* Initial thread */
+    Cap_Front++;
+    Kmem_Front+=KOTBL_ROUND(Proj->Plat.Thd_Size);
+
+    Proj->RME.Map.Vect_Cap_Front=Cap_Front;
+    Proj->RME.Map.Vect_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before entering the RVM */
+    /* Capability tables for containing vector endpoints */
+    Cap_Front+=(Proj->RVM.Vect_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Vect_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Vector endpoint themselves */
+    Kmem_Front+=Proj->RVM.Vect_Front*KOTBL_ROUND(SIG_SIZE(Proj->Plat.Word_Bits));
+
+    Proj->RVM.Map.Before_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Before_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating capability tables */
+    /* Three threads for RVM - now only one will be started */
+    Cap_Front+=3;
+    Kmem_Front+=3*KOTBL_ROUND(A7M_THD_SIZE);
+
+    Proj->RVM.Map.Captbl_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Captbl_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating page tables */
+    /* Capability tables for containing capability tables */
+    Cap_Front+=(Proj->RVM.Captbl_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Captbl_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Capability tables themselves */
+    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Captbl))
+    {
+        Proc=Info->Cap;
+        if((Proc->Captbl_Front+Proc->Extra_Captbl)>Capacity)
+            EXIT_FAIL("Process capability table too large.");
+
+        Kmem_Front+=KOTBL_ROUND(CAPTBL_SIZE(Proc->Captbl_Front+Proc->Extra_Captbl,Proj->Plat.Word_Bits));
+    }
+
+    Proj->RVM.Map.Pgtbl_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Pgtbl_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating processes */
+    /* Capability tables for containing page tables */
+    Cap_Front+=(Proj->RVM.Pgtbl_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Pgtbl_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Page table themselves */
+    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
+    {
+        Pgtbl=Info->Cap;
+        Kmem_Front+=KOTBL_ROUND(Proj->Plat.Pgtbl_Size(Pgtbl->Num_Order,Pgtbl->Is_Top));
+    }
+    
+    Proj->RVM.Map.Proc_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Proc_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating threads */
+    /* Capability tables for containing processes */
+    Cap_Front+=(Proj->RVM.Proc_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Proc_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Processes themselves */
+    Kmem_Front+=Proj->RVM.Proc_Front*KOTBL_ROUND(PROC_SIZE(Proj->Plat.Word_Bits));
+
+    Proj->RVM.Map.Thd_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Thd_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating invocations */
+    /* Capability tables for containing threads */
+    Cap_Front+=(Proj->RVM.Thd_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Thd_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Threads themselves */
+    Kmem_Front+=Proj->RVM.Thd_Front*KOTBL_ROUND(Proj->Plat.Thd_Size);
+
+    Proj->RVM.Map.Inv_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Inv_Kmem_Front=Kmem_Front;
+
+    /* Compute initial state before creating receive endpoints */
+    /* Capability tables for containing invocations */
+    Cap_Front+=(Proj->RVM.Inv_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Inv_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Invocations themselves */
+    Kmem_Front+=Proj->RVM.Inv_Front*KOTBL_ROUND(Proj->Plat.Inv_Size);
+
+    Proj->RVM.Map.Recv_Cap_Front=Cap_Front;
+    Proj->RVM.Map.Recv_Kmem_Front=Kmem_Front;
+
+    /* Compute the final utilization */
+    /* Capability tables for containing receive endpoints */
+    Cap_Front+=(Proj->RVM.Recv_Front+(Capacity-1))/Capacity;
+    Kmem_Front+=CAPTBL_TOTAL(Proj->RVM.Recv_Front,Capacity,Proj->Plat.Word_Bits);
+    /* Receive endpoints themselves */
+    Kmem_Front+=Proj->RVM.Recv_Front*KOTBL_ROUND(SIG_SIZE(Proj->Plat.Word_Bits));
+
+    Proj->RVM.Map.After_Cap_Front=Cap_Front;
+    Proj->RVM.Map.After_Kmem_Front=Kmem_Front;
+}
+/* End Function:Get_Kmem_Size ************************************************/
+
+/* Begin Function:Alloc_RME_Kmem **********************************************
+Description : Allocate the kernel objects and memory for RME itself.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_RME_Kmem(struct Proj_Info* Proj)
+{
+    /* Code section */
+    Proj->RME.Map.Code_Base=Proj->RME.Code_Start;
+    Proj->RME.Map.Code_Size=Proj->RME.Code_Size;
+
+    /* Data section */
+    Proj->RME.Map.Data_Base=Proj->RME.Data_Start;
+    Proj->RME.Map.Data_Size=Proj->RME.Data_Size;
+
+    /* The data section should at least be as large as what is to be allocated */
+    if(Proj->RME.Map.Data_Size<=(KERNEL_INTF_SIZE+Proj->RME.Stack_Size+Proj->RVM.Map.After_Kmem_Front))
+        EXIT_FAIL("RME General Data_Size is not big enough.");
+
+    /* Interrupt flag section - cut out from the data section */
+    Proj->RME.Map.Intf_Base=Proj->RME.Map.Data_Base+Proj->RME.Map.Data_Size-KERNEL_INTF_SIZE;
+    Proj->RME.Map.Intf_Size=KERNEL_INTF_SIZE;
+    if(Proj->RME.Map.Intf_Base<=Proj->RME.Map.Data_Base)
+        EXIT_FAIL("RME General Data_Size is not big enough.");
+    Proj->RME.Map.Data_Size=Proj->RME.Map.Intf_Base-Proj->RME.Map.Data_Base;
+
+    /* Stack section - cut out from the data section */
+    Proj->RME.Map.Stack_Base=Proj->RME.Map.Data_Base+Proj->RME.Map.Data_Size-Proj->RME.Stack_Size;
+    Proj->RME.Map.Stack_Size=Proj->RME.Stack_Size;
+    if(Proj->RME.Map.Stack_Base<=Proj->RME.Map.Data_Base)
+        EXIT_FAIL("RME General Data_Size is not big enough.");
+    Proj->RME.Map.Data_Size=Proj->RME.Map.Stack_Base-Proj->RME.Map.Data_Base;
+
+    /* Kernel memory section - cut out from the data section */
+    Proj->RME.Map.Kmem_Base=Proj->RME.Map.Data_Base+Proj->RME.Map.Data_Size-Proj->RVM.Map.After_Kmem_Front;
+    Proj->RME.Map.Kmem_Base=KOTBL_ROUND(Proj->RME.Map.Kmem_Base)-KOTBL_ROUND(1);
+    Proj->RME.Map.Kmem_Size=Proj->RVM.Map.After_Kmem_Front;
+    if(Proj->RME.Map.Kmem_Base<=Proj->RME.Map.Data_Base)
+        EXIT_FAIL("RME General Data_Size is not big enough.");
+    Proj->RME.Map.Data_Size=Proj->RME.Map.Kmem_Base-Proj->RME.Map.Data_Base;
+}
+/* End Function:Alloc_RME_Kmem ***********************************************/
+
+/* Begin Function:Alloc_RVM_Mem **********************************************
+Description : Allocate the kernel objects and memory for RVM user-level library.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_RVM_Mem(struct Proj_Info* Proj)
+{
+    /* Code section */
+    Proj->RVM.Map.Code_Base=Proj->RME.Code_Start+Proj->RME.Code_Size;
+    Proj->RVM.Map.Code_Size=Proj->RVM.Code_Size;
+
+    /* Data section */
+    Proj->RVM.Map.Data_Base=Proj->RME.Data_Start+Proj->RME.Data_Size;
+    Proj->RVM.Map.Data_Size=Proj->RVM.Data_Size;
+
+    /* The data section should at least be as large as what is to be allocated */
+    if(Proj->RVM.Map.Data_Size<=(3*Proj->RVM.Stack_Size))
+        EXIT_FAIL("RVM General Data_Size is not big enough.");
+
+    /* Guard stack section - cut out from the data section */
+    Proj->RVM.Map.Guard_Stack_Base=Proj->RVM.Map.Data_Base+Proj->RVM.Map.Data_Size-Proj->RVM.Stack_Size;
+    Proj->RVM.Map.Guard_Stack_Size=Proj->RVM.Stack_Size;
+    if(Proj->RVM.Map.Guard_Stack_Base<=Proj->RVM.Map.Data_Base)
+        EXIT_FAIL("RVM General Data_Size is not big enough.");
+    Proj->RVM.Map.Data_Size=Proj->RVM.Map.Guard_Stack_Base-Proj->RVM.Map.Data_Base;
+
+    /* VMM stack section - cut out from the data section */
+    Proj->RVM.Map.VMM_Stack_Base=Proj->RVM.Map.Data_Base+Proj->RVM.Map.Data_Size-Proj->RVM.Stack_Size;
+    Proj->RVM.Map.VMM_Stack_Size=Proj->RVM.Stack_Size;
+    if(Proj->RVM.Map.VMM_Stack_Base<=Proj->RVM.Map.Data_Base)
+        EXIT_FAIL("RVM General Data_Size is not big enough.");
+    Proj->RVM.Map.Data_Size=Proj->RVM.Map.VMM_Stack_Base-Proj->RVM.Map.Data_Base;
+    
+    /* Interrupt stack section - cut out from the data section */
+    Proj->RVM.Map.Intd_Stack_Base=Proj->RVM.Map.Data_Base+Proj->RVM.Map.Data_Size-Proj->RVM.Stack_Size;
+    Proj->RVM.Map.Intd_Stack_Size=Proj->RVM.Stack_Size;
+    if(Proj->RVM.Map.Intd_Stack_Base<=Proj->RVM.Map.Data_Base)
+        EXIT_FAIL("RVM General Data_Size is not big enough.");
+    Proj->RVM.Map.Data_Size=Proj->RVM.Map.Intd_Stack_Base-Proj->RVM.Map.Data_Base;
+}
+/* End Function:Alloc_RVM_Mem ************************************************/
+
+/* Begin Function:Alloc_Proc_Mem **********************************************
+Description : Allocate process memory.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Proc_Mem(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Thd_Info* Thd;
+    struct Inv_Info* Inv;
+    struct Mem_Info* Mem;
+    
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        Mem=(struct Mem_Info*)(Proc->Code.Next);
+        Proc->Map.Code_Base=Mem->Start;
+        Proc->Map.Code_Size=Mem->Size;
+        Proc->Map.Entry_Code_Front=Proc->Map.Code_Base;
+        Mem=(struct Mem_Info*)(Proc->Data.Next);
+        Proc->Map.Data_Base=Mem->Start;
+        Proc->Map.Data_Size=Mem->Size;
+
+        /* Threads come first */
+        for(EACH(struct Thd_Info*,Thd,Proc->Thd))
+        {
+            /* Allocate stack from the main data memory */
+            Thd->Map.Stack_Base=Proc->Map.Data_Base+Proc->Map.Data_Size-Thd->Stack_Size;
+            Thd->Map.Stack_Size=Thd->Stack_Size;
+            if(Thd->Map.Stack_Base<=Proc->Map.Data_Base)
+                EXIT_FAIL("Process Data_Size is not big enough.");
+            Proc->Map.Data_Size=Thd->Map.Stack_Base-Proc->Map.Data_Base;
+
+            /* Allocate entry from code memory */
+            Thd->Map.Entry_Addr=Proc->Map.Entry_Code_Front;
+            Proc->Map.Entry_Code_Front+=Proj->Plat.Word_Bits*ENTRY_SLOT_SIZE/8;
+
+            /* The parameter is always the param, turned into an unsigned integer */
+            Thd->Map.Param_Value=strtoull(Thd->Parameter,0,0);
+        }
+
+        /* Then invocations */
+        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+        {
+            /* Allocate stack from the main data memory */
+            Inv->Map.Stack_Base=Proc->Map.Data_Base+Proc->Map.Data_Size-Inv->Stack_Size;
+            Inv->Map.Stack_Size=Inv->Stack_Size;
+            if(Inv->Map.Stack_Base<=Proc->Map.Data_Base)
+                EXIT_FAIL("Process Data_Size is not big enough.");
+            Proc->Map.Data_Size=Inv->Map.Stack_Base-Proc->Map.Data_Base;
+
+            /* Allocate entry from code memory */
+            Inv->Map.Entry_Addr=Proc->Map.Entry_Code_Front;
+            Proc->Map.Entry_Code_Front+=Proj->Plat.Word_Bits*ENTRY_SLOT_SIZE/8;
+        }
+    }
+}
+/* End Function:Alloc_Proc_Mem ***********************************************/
+
+/* Begin Function:Alloc_Mem ***************************************************
+Description : Allocate the kernel objects and memory.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Alloc_Mem(struct Proj_Info* Proj)
+{
+    ptr_t Capacity;
+    
+    Capacity=Proj->Plat.Captbl_Capacity;
+
+    /* Compute the kernel memory needed, disregarding the initial
+     * capability table size because we don't know its size yet */
+    Get_Kmem_Size(Proj,Capacity,0);
+
+    /* Are we exceeding the maximum of our capability tables? */
+    if((Proj->RVM.Map.After_Cap_Front+Proj->RVM.Extra_Captbl)>Capacity)
+        EXIT_FAIL("RVM capability table too large.");
+
+    /* Now recompute to get the real usage */
+    Get_Kmem_Size(Proj,Capacity,Proj->RVM.Map.After_Cap_Front+Proj->RVM.Extra_Captbl);
+
+    /* Populate RME information */
+    Alloc_RME_Kmem(Proj);
+    /* Populate RVM information */
+    Alloc_RVM_Mem(Proj);
+    /* Populate Process information */
+    Alloc_Proc_Mem(Proj);
+}
+/* End Function:Alloc_Mem ****************************************************/
+
 /* Begin Function:Make_Str ****************************************************
 Description : Concatenate two strings and return the result.
 Input       : s8_t* Str1 - The first string.
@@ -3020,12 +3324,12 @@ void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform",Output_Path);
-    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s",Output_Path,Proj->Plat);
-    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips",Output_Path,Proj->Plat);
-    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s",Output_Path,Proj->Plat,Chip->Class);
+    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s",Output_Path,Proj->Plat_Name);
+    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips",Output_Path,Proj->Plat_Name);
+    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s",Output_Path,Proj->Plat_Name,Chip->Class);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Kernel",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform",Output_Path);
-    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s",Output_Path,Proj->Plat);
+    MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s",Output_Path,Proj->Plat_Name);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/Project",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/Project/Source",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M1_MuEukaron/Project/Include",Output_Path);
@@ -3041,8 +3345,8 @@ void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_
     sprintf(Buf2,"%s/MEukaron/Kernel/rme_kernel.c",RME_Path);
     Copy_File(Buf1, Buf2);
     /* The toolchain specific one will be created when we are playing with toolchains */
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s/rme_platform_%s.c",Output_Path,Proj->Plat,Proj->Lower_Plat);
-    sprintf(Buf2,"%s/MEukaron/Platform/%s/rme_platform_%s.c",RME_Path,Proj->Plat,Proj->Lower_Plat);
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/%s/rme_platform_%s.c",Output_Path,Proj->Plat_Name,Proj->Lower_Plat);
+    sprintf(Buf2,"%s/MEukaron/Platform/%s/rme_platform_%s.c",RME_Path,Proj->Plat_Name,Proj->Lower_Plat);
     Copy_File(Buf1, Buf2);
     sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/rme.h",Output_Path);
     sprintf(Buf2,"%s/MEukaron/Include/rme.h",RME_Path);
@@ -3050,12 +3354,12 @@ void Setup_RME_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_
     sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h",Output_Path);
     sprintf(Buf2,"%s/MEukaron/Include/Kernel/rme_kernel.h",RME_Path);
     Copy_File(Buf1, Buf2);
-    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s.h",Output_Path,Proj->Plat,Proj->Lower_Plat);
-    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/rme_platform_%s.h",RME_Path,Proj->Plat,Proj->Lower_Plat);
+    sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s.h",Output_Path,Proj->Plat_Name,Proj->Lower_Plat);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/rme_platform_%s.h",RME_Path,Proj->Plat_Name,Proj->Lower_Plat);
     Copy_File(Buf1, Buf2);
     sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",
-                  Output_Path,Proj->Plat,Chip->Class,Chip->Class);
-    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h", RME_Path,Proj->Plat,Chip->Class,Chip->Class);
+                  Output_Path,Proj->Plat_Name,Chip->Class,Chip->Class);
+    sprintf(Buf2,"%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h", RME_Path,Proj->Plat_Name,Chip->Class,Chip->Class);
     Copy_File(Buf1, Buf2);
 
     Free(Buf1);
@@ -3088,12 +3392,12 @@ void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Init",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform",Output_Path);
-    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",Output_Path,Proj->Plat);
-    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",Output_Path,Proj->Plat);
-    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",Output_Path,Proj->Plat,Chip->Class);
+    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",Output_Path,Proj->Plat_Name);
+    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",Output_Path,Proj->Plat_Name);
+    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",Output_Path,Proj->Plat_Name,Chip->Class);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Init",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform",Output_Path);
-    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s",Output_Path,Proj->Plat);
+    MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s",Output_Path,Proj->Plat_Name);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/Project",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/Project/Source",Output_Path);
     MAKE_DIR(Buf1,"%s/M7M2_MuAmmonite/Project/Include",Output_Path);
@@ -3110,8 +3414,8 @@ void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_
     sprintf(Buf2,"%s/MAmmonite/Init/rvm_init.c",RVM_Path);
     Copy_File(Buf1, Buf2);
     /* The toolchain specific one will be created when we are playing with toolchains */
-    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",Output_Path,Proj->Plat,Proj->Lower_Plat);
-    sprintf(Buf2,"%s/MAmmonite/Platform/%s/rvm_platform_%s.c",RVM_Path,Proj->Plat,Proj->Lower_Plat);
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",Output_Path,Proj->Plat_Name,Proj->Lower_Plat);
+    sprintf(Buf2,"%s/MAmmonite/Platform/%s/rvm_platform_%s.c",RVM_Path,Proj->Plat_Name,Proj->Lower_Plat);
     Copy_File(Buf1, Buf2);
     sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/rvm.h",Output_Path);
     sprintf(Buf2,"%s/MAmmonite/Include/rvm.h",RVM_Path);
@@ -3119,12 +3423,12 @@ void Setup_RVM_Folder(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_
     sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h",Output_Path);
     sprintf(Buf2,"%s/MAmmonite/Include/Init/rvm_init.h",RVM_Path);
     Copy_File(Buf1, Buf2);
-    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",Output_Path,Proj->Plat,Proj->Lower_Plat);
-    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",RVM_Path,Proj->Plat,Proj->Lower_Plat);
+    sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",Output_Path,Proj->Plat_Name,Proj->Lower_Plat);
+    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",RVM_Path,Proj->Plat_Name,Proj->Lower_Plat);
     Copy_File(Buf1, Buf2);
     sprintf(Buf1,"%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",
-                 Output_Path,Proj->Plat,Chip->Class,Chip->Class);
-    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",RVM_Path,Proj->Plat,Chip->Class,Chip->Class);
+                 Output_Path,Proj->Plat_Name,Chip->Class,Chip->Class);
+    sprintf(Buf2,"%s/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",RVM_Path,Proj->Plat_Name,Chip->Class,Chip->Class);
     Copy_File(Buf1, Buf2);
 
     Free(Buf1);
@@ -3157,13 +3461,13 @@ void Setup_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Pa
 
     Write_Src_Desc(File, "rme_platform.h", "The platform selection header.");
     fprintf(File, "/* Platform Includes *********************************************************/\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
 
     /* Generate rme_platform.h */
-    sprintf(Buf, "%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h", Output_Path, Proj->Plat, Proj->Lower_Plat);
+    sprintf(Buf, "%s/M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h", Output_Path, Proj->Plat_Name, Proj->Lower_Plat);
     File=fopen(Buf, "wb");
     sprintf(Buf, "rme_platform_%s_conf.h", Proj->Lower_Plat);
     if(File==0)
@@ -3171,7 +3475,7 @@ void Setup_RME_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Pa
 
     Write_Src_Desc(File, Buf, "The platform chip selection header.");
     fprintf(File, "/* Platform Includes *********************************************************/\n");
-    fprintf(File, "#include \"Platform/%s/Chips/%s/rme_platform_%s.h\"\n", Proj->Plat, Chip->Class, Chip->Class);
+    fprintf(File, "#include \"Platform/%s/Chips/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Chip->Class, Chip->Class);
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
@@ -3205,13 +3509,13 @@ void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Pa
 
     Write_Src_Desc(File, "rvm_platform.h", "The platform selection header.");
     fprintf(File, "/* Platform Includes *********************************************************/\n");
-    fprintf(File, "#include \"Platform/%s/rvm_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rvm_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
 
     /* Generate rme_platform.h */
-    sprintf(Buf, "%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rme_platform_%s_conf.h", Output_Path, Proj->Plat, Proj->Lower_Plat);
+    sprintf(Buf, "%s/M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rme_platform_%s_conf.h", Output_Path, Proj->Plat_Name, Proj->Lower_Plat);
     File=fopen(Buf, "wb");
     sprintf(Buf, "rvm_platform_%s_conf.h", Proj->Lower_Plat);
     if(File==0)
@@ -3219,7 +3523,7 @@ void Setup_RVM_Conf(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Pa
 
     Write_Src_Desc(File, Buf, "The platform chip selection header.");
     fprintf(File, "/* Platform Includes *********************************************************/\n");
-    fprintf(File, "#include \"Platform/%s/Chips/%s/rvm_platform_%s.h\"\n", Proj->Plat, Chip->Class, Chip->Class);
+    fprintf(File, "#include \"Platform/%s/Chips/%s/rvm_platform_%s.h\"\n", Proj->Plat_Name, Chip->Class, Chip->Class);
     fprintf(File, "/* End Platform Includes *****************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
@@ -3239,15 +3543,15 @@ void Print_RME_Inc(FILE* File, struct Proj_Info* Proj)
 {
     /* Print includes */
     fprintf(File, "#define __HDR_DEFS__\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
     fprintf(File, "#undef __HDR_DEFS__\n\n");
     fprintf(File, "#define __HDR_STRUCTS__\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
     fprintf(File, "#undef __HDR_STRUCTS__\n\n");
     fprintf(File, "#define __HDR_PUBLIC_MEMBERS__\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Kernel/rme_kernel.h\"\n");
     fprintf(File, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
 }
@@ -3258,14 +3562,12 @@ Description : Generate the rme_boot.h and rme_boot.c. These files are mainly
               responsible for setting up interrupt endpoints.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct Alloc_Info* Alloc - The allocation information structure.
               s8_t* RME_Path - The RME root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  struct Alloc_Info* Alloc, s8_t* RME_Path, s8_t* Output_Path)
+void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path)
 {
     s8_t* Buf;
     FILE* File;
@@ -3274,6 +3576,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     struct RVM_Cap_Info* Info;
     ptr_t Cap_Front;
     ptr_t Capacity;
+    ptr_t Captbl_Size;
 
     Buf=Malloc(4096);
 
@@ -3287,8 +3590,8 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "/* Vector endpoint capability tables */\n");
 
     /* Vector capability table */
-    Cap_Front=Alloc->Vect_Cap_Front;
-    Capacity=POW2((Alloc->Word_Bits/4)-1);
+    Cap_Front=Proj->RME.Map.Vect_Cap_Front;
+    Capacity=Proj->Plat.Captbl_Capacity;
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vect_Front;Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RME_BOOT_CTVECT%lld",Obj_Cnt/Capacity);
@@ -3352,16 +3655,20 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
     fprintf(File, "    /* The address here shall match what is in the generator */\n");
-    fprintf(File, "    RME_ASSERT(Cap_Front==%lld);\n", Alloc->Vect_Cap_Front);
-    fprintf(File, "    RME_ASSERT(Kmem_Front==0x%llx);\n\n", Alloc->Vect_Kmem_Front+Alloc->Kmem_Abs_Base);
+    fprintf(File, "    RME_ASSERT(Cap_Front==%lld);\n", Proj->RME.Map.Vect_Cap_Front);
+    fprintf(File, "    RME_ASSERT(Kmem_Front==0x%llx);\n\n", Proj->RME.Map.Vect_Kmem_Front+Proj->RME.Map.Kmem_Base);
     fprintf(File, "    Cur_Addr=Kmem_Front;\n");
     fprintf(File, "    /* Create all the vector capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vect_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Vect_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Vect_Front%Capacity;
+
         fprintf(File, "    RME_ASSERT(_RME_Captbl_Boot_Crt(Captbl, RME_BOOT_CAPTBL, RME_BOOT_CTVECT%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Vect_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Vect_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Vect_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Vect_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     fprintf(File, "\n    /* Then all the vectors */\n");
     Obj_Cnt=0;
@@ -3508,17 +3815,17 @@ void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj)
 {
     /* Print includes */
     fprintf(File, "#define __HDR_DEFS__\n");
-    fprintf(File, "#include \"Platform/%s/rvm_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rvm_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
     fprintf(File, "#include \"Init/rvm_init.h\"\n");
     fprintf(File, "#undef __HDR_DEFS__\n\n");
     fprintf(File, "#define __HDR_STRUCTS__\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
     fprintf(File, "#include \"Init/rvm_init.h\"\n");
     fprintf(File, "#undef __HDR_STRUCTS__\n\n");
     fprintf(File, "#define __HDR_PUBLIC_MEMBERS__\n");
-    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat, Proj->Lower_Plat);
+    fprintf(File, "#include \"Platform/%s/rme_platform_%s.h\"\n", Proj->Plat_Name, Proj->Lower_Plat);
     fprintf(File, "#include \"Init/rvm_syssvc.h\"\n");
     fprintf(File, "#include \"Init/rvm_init.h\"\n");
     fprintf(File, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
@@ -3531,19 +3838,18 @@ Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsibl
               is enabled, these kernel objects will also be handled by such file.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct Alloc_Info* Alloc - The allocation information structure.
               s8_t* RVM_Path - The RVM root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, 
-                  struct Alloc_Info* Alloc, s8_t* RVM_Path, s8_t* Output_Path)
+void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path)
 {
     s8_t* Buf;
     FILE* File;
     ptr_t Obj_Cnt;
     struct RVM_Cap_Info* Info;
+    struct Pgtbl_Info* Pgtbl;
     struct Proc_Info* Proc;
     struct Thd_Info* Thd;
     struct Inv_Info* Inv;
@@ -3553,6 +3859,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     struct Vect_Info* Vect;
     ptr_t Cap_Front;
     ptr_t Capacity;
+    ptr_t Captbl_Size;
 
     Buf=Malloc(4096);
 
@@ -3565,8 +3872,8 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "/* Defines *******************************************************************/\n");
 
     /* Vector capability tables & Vectors */
-    Cap_Front=Alloc->Vect_Cap_Front;
-    Capacity=POW2((Alloc->Word_Bits/4)-1);
+    Cap_Front=Proj->RME.Map.Vect_Cap_Front;
+    Capacity=Proj->Plat.Captbl_Capacity;
     fprintf(File, "/* Vector capability table capability tables */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vect_Front;Obj_Cnt+=Capacity)
     {
@@ -3584,7 +3891,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
 
     /* There is a gap - the RVM needs to create its own kernel objects */
     /* Captbl capability tables & Captbls */
-    Cap_Front=Alloc->Captbl_Cap_Front;
+    Cap_Front=Proj->RVM.Map.Captbl_Cap_Front;
     fprintf(File, "\n/* Process capability table capability tables */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Front;Obj_Cnt+=Capacity)
     {
@@ -3599,11 +3906,27 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity);
         Make_Define_Str(File, Proc->Captbl_Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
     }
-    if(Cap_Front!=Alloc->Pgtbl_Cap_Front)
+    if(Cap_Front!=Proj->RVM.Map.Pgtbl_Cap_Front)
         EXIT_FAIL("Internal capability table computation failure.");
 
     /* Pgtbl capability tables & Pgtbls */
-    Alloc->Pgtbl_Macro(File, Proj, Chip, Alloc);
+    Cap_Front=Proj->RVM.Map.Pgtbl_Cap_Front;
+    fprintf(File, "\n/* Process page table capability tables */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Pgtbl_Front;Obj_Cnt+=Capacity)
+    {
+        sprintf(Buf, "RVM_BOOT_CTPGTBL%lld",Obj_Cnt/Capacity);
+        Make_Define_Int(File, Buf, Cap_Front++, MACRO_ALIGNMENT);
+    }
+    fprintf(File, "\n/* Process page tables */\n");
+    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
+    {
+        Pgtbl=(struct Pgtbl_Info*)(Info->Cap);
+        sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTPGTBL%lld,%lld)", 
+                     Pgtbl->Cap.RVM_Capid/Capacity, Pgtbl->Cap.RVM_Capid%Capacity);
+        Make_Define_Str(File, Pgtbl->Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
+    }
+    if(Cap_Front!=Proj->RVM.Map.Proc_Cap_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
 
     /* Process capability tables & Processes */
     fprintf(File, "\n/* Process capability tables */\n");
@@ -3620,7 +3943,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      Proc->Proc_Cap.RVM_Capid/Capacity, Proc->Proc_Cap.RVM_Capid%Capacity);
         Make_Define_Str(File, Proc->Proc_Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
     }
-    if(Cap_Front!=Alloc->Thd_Cap_Front)
+    if(Cap_Front!=Proj->RVM.Map.Thd_Cap_Front)
         EXIT_FAIL("Internal capability table computation failure.");
 
     /* Thread capability tables & Threads */
@@ -3638,7 +3961,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      Thd->Cap.RVM_Capid/Capacity, Thd->Cap.RVM_Capid%Capacity);
         Make_Define_Str(File, Thd->Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
     }
-    if(Cap_Front!=Alloc->Inv_Cap_Front)
+    if(Cap_Front!=Proj->RVM.Map.Inv_Cap_Front)
         EXIT_FAIL("Internal capability table computation failure.");
 
     /* Invocation capability tables & Invocations */
@@ -3656,7 +3979,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      Inv->Cap.RVM_Capid/Capacity, Inv->Cap.RVM_Capid%Capacity);
         Make_Define_Str(File, Inv->Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
     }
-    if(Cap_Front!=Alloc->Recv_Cap_Front)
+    if(Cap_Front!=Proj->RVM.Map.Recv_Cap_Front)
         EXIT_FAIL("Internal capability table computation failure.");
 
     /* Receive endpoint capability tables & Receive endpoints */
@@ -3674,6 +3997,17 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                      Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity);
         Make_Define_Str(File, Recv->Cap.RVM_Macro, Buf, MACRO_ALIGNMENT);
     }
+    if(Cap_Front!=Proj->RVM.Map.After_Cap_Front)
+        EXIT_FAIL("Internal capability table computation failure.");
+    
+    /* Extra capability table frontier */
+    sprintf(Buf, "%lld",Proj->RVM.Map.After_Cap_Front);
+    Make_Define_Str(File, "RVM_BOOT_CAP_FRONTIER", Buf, MACRO_ALIGNMENT);
+    /* Extra kernel memory frontier */
+    sprintf(Buf, "0x%llX",Proj->RVM.Map.After_Kmem_Front);
+    Make_Define_Str(File, "RVM_BOOT_KMEM_FRONTIER", Buf, MACRO_ALIGNMENT);
+
+    /* Finish file generation */
     fprintf(File, "/* End Defines ***************************************************************/\n\n");
     Write_Src_Footer(File);
     fclose(File);
@@ -3718,27 +4052,29 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Captbl_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llx;\n", Alloc->Captbl_Kmem_Front);
+    fprintf(File, "    Cur_Addr==0x%llx;\n", Proj->RVM.Map.Captbl_Kmem_Front);
     fprintf(File, "    /* Create all the captbl capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Captbl_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Captbl_Front%Capacity;
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTCAPTBL%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Captbl_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Captbl_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Captbl_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Captbl))
     {
         Proc=(struct Proc_Info*)(Info->Cap);
-        if((Alloc->Word_Bits<=32)&&(Proc->Captbl_Front+Proc->Extra_Captbl)>128)
-            EXIT_FAIL("One of the processes have more capabilities in its capability table than allowed.");
 
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CTCAPTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, %lld)==0);\n",
                 Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity, Proc->Captbl_Front+Proc->Extra_Captbl);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n", Proc->Captbl_Front+Proc->Extra_Captbl);
     }
 
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Pgtbl_Kmem_Front);
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Captbl_Crt");
 
@@ -3749,9 +4085,34 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Pgtbl_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llx;\n", Alloc->Pgtbl_Kmem_Front);
-    Alloc->Pgtbl_Crt(File, Proj, Chip, Alloc);
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Proc_Kmem_Front);
+    fprintf(File, "    Cur_Addr==0x%llx;\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
+    fprintf(File, "    /* Create all the captbl capability tables first */\n");
+    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Pgtbl_Front;Obj_Cnt+=Capacity)
+    {
+        if(Proj->RVM.Pgtbl_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Pgtbl_Front%Capacity;
+
+        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPGTBL%lld, Cur_Addr, %lld)==0);\n", 
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
+    }
+    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
+    {
+        Pgtbl=Info->Cap;
+
+        fprintf(File, "    RVM_ASSERT(RVM_Pgtbl_Crt(RVM_BOOT_CTPGTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, 0x%llX, %lld, %lld, %lld)==0);\n",
+                Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity,
+                Pgtbl->Start_Addr,(ptr_t)(Pgtbl->Is_Top!=0),Pgtbl->Size_Order, Pgtbl->Num_Order);
+
+        if(Pgtbl->Is_Top!=0)
+            fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_TOP(%lld));\n", Pgtbl->Num_Order);
+        else
+            fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_NOM(%lld));\n", Pgtbl->Num_Order);
+    }
+
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.Proc_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Pgtbl_Crt");
 
@@ -3762,20 +4123,24 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Proc_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Alloc->Proc_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Proc_Kmem_Front);
     fprintf(File, "    /* Create all the process capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Proc_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Proc_Front%Capacity;
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPROC%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Proc_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Proc_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Proc_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Proc_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Proc))
     {
         Proc=(struct Proc_Info*)(Info->Cap);
         fprintf(File, "    RVM_ASSERT(RVM_Proc_Crt(RVM_BOOT_CTPROC%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %s, Cur_Addr)==0);\n",
-                Proc->Proc_Cap.RVM_Capid/Capacity, Proc->Proc_Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Proc->Pgtbl_Cap.RVM_Macro);
+                Proc->Proc_Cap.RVM_Capid/Capacity, Proc->Proc_Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Proc->Pgtbl->Cap.RVM_Macro);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);\n");
     }
     fprintf(File, "}\n");
@@ -3788,14 +4153,18 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Thd_Init(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Alloc->Thd_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Thd_Kmem_Front);
     fprintf(File, "    /* Create all the thread capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Thd_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Thd_Front%Capacity;
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTTHD%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Thd_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Thd_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Thd_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Thd_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Thd))
     {
@@ -3815,14 +4184,18 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Inv_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Alloc->Inv_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Inv_Kmem_Front);
     fprintf(File, "    /* Create all the invocation capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Inv_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Inv_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Inv_Front%Capacity;
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTINV%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Inv_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Inv_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Inv_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Inv_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Inv))
     {
@@ -3842,14 +4215,18 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     fprintf(File, "void RVM_Boot_Recv_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Alloc->Recv_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Recv_Kmem_Front);
     fprintf(File, "    /* Create all the receive endpoint capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Recv_Front;Obj_Cnt+=Capacity)
     {
+        if(Proj->RVM.Recv_Front>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=Proj->RVM.Recv_Front%Capacity;
+
         fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTRECV%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,(Proj->RVM.Recv_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Recv_Front%Capacity));
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",
-                (Proj->RVM.Recv_Front>(Obj_Cnt+1)*Capacity)?(Capacity):(Proj->RVM.Recv_Front%Capacity));
+                Obj_Cnt/Capacity,Captbl_Size);
+        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Recv))
     {
@@ -3858,7 +4235,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
                 Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_SIG_SIZE);\n");
     }
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Alloc->Kmem_Boot_Front);
+    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.After_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Recv_Crt");
 
@@ -3931,7 +4308,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     Write_Func_None(File);
     fprintf(File, "void RVM_Boot_Pgtbl_Init(void)\n");
     fprintf(File, "{\n");
-    Alloc->Pgtbl_Init(File, Proj, Chip, Alloc);
+    // Alloc->Pgtbl_Init(File, Proj, Chip, Alloc);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Pgtbl_Init");
 
@@ -3952,6 +4329,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
     Write_Func_None(File);
     fprintf(File, "void RVM_Boot_Thd_Init(void)\n");
     fprintf(File, "{\n");
+    fprintf(File, "    rvm_ptr_t Init_Stack_Addr;\n");
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
         fprintf(File, "    \n/* Initializing thread for process: %s */\n", Proc->Name);
@@ -3961,9 +4339,10 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip,
         {
             fprintf(File, "    RVM_ASSERT(RVM_Thd_Sched_Bind(%s, RVM_INIT_GUARD_THD, RVM_INIT_GUARD_SIG, %s, %lld)==0);\n",
                     Thd->Cap.RVM_Macro, Thd->Cap.RVM_Macro, Thd->Priority);
-            fprintf(File, "    RVM_Stack_Init(0x%llx, 0x%llx);\n", Thd->Plat.Stack_Init_Addr, Thd->Plat.Stack_Init_Param);
-            fprintf(File, "    RVM_ASSERT(RVM_Thd_Exec_Set(%s, 0x%llx, 0x%llx, 0x%llx)==0);\n",
-                    Thd->Cap.RVM_Macro, Thd->Plat.Entry_Addr, Thd->Plat.Stack_Init_Addr, Thd->Plat.Param_Value);
+            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llx, 0x%llX);\n",
+                    Thd->Map.Stack_Base, Thd->Map.Stack_Size, Thd->Map.Entry_Addr, Thd->Map.Param_Value, Proc->Map.Entry_Code_Front);
+            fprintf(File, "    RVM_ASSERT(RVM_Thd_Exec_Set(%s, 0x%llX, Init_Stack_Addr, 0x%llX)==0);\n",
+                    Thd->Cap.RVM_Macro, Thd->Map.Entry_Addr, Thd->Map.Param_Value);
         }
     }
     fprintf(File, "}\n");
@@ -4018,73 +4397,70 @@ int main(int argc, char* argv[])
 	/* The project and chip pointers */
 	struct Proj_Info* Proj;
 	struct Chip_Info* Chip;
-	struct Alloc_Info* Alloc;
 
+/* Phase 1: Process command line and do parsing ******************************/
 	/* Initialize memory pool */
 	List_Crt(&Mem_List);
-
     /* Process the command line first */
     Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Format);
-
 	/* Read project XML file */
 	Input_Buf=Read_File(Input_Path);
 	Proj=Parse_Proj(Input_Buf);
 	Free(Input_Buf);
-
 	/* Read chip XML file */
     Path_Buf=Malloc(4096);
     sprintf(Path_Buf, "%s/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.xml",
-                      RME_Path, Proj->Plat, Proj->Chip_Class, Proj->Chip_Class);
+                      RME_Path, Proj->Plat_Name, Proj->Chip_Class, Proj->Chip_Class);
 	Input_Buf=Read_File(Path_Buf);
 	Chip=Parse_Chip(Input_Buf);
 	Free(Input_Buf);
     Free(Path_Buf);
-
-    /* Check the general validity of everything */
-    Check_Input(Proj, Chip);
-
-	/* Align memory to what it should be */
-	if(strcmp(Proj->Plat,"A7M")==0)
-	    A7M_Align_Mem(Proj);
+    /* Decide platform functions */
+    if(strcmp(Proj->Plat_Name,"A7M")==0)
+        A7M_Plat_Select(Proj);
     else
 		EXIT_FAIL("Other platforms not currently supported.");
+    /* Parse general options of the architecture */
+	Proj->Plat.Parse_Options(Proj,Chip);
+    /* Check the general validity of everything */
+    Check_Input(Proj, Chip);
+	Proj->Plat.Check_Input(Proj,Chip);
 
+/* Phase 2: Allocate kernel objects ******************************************/
+	/* Align memory to what it should be */
+	Proj->Plat.Align_Mem(Proj);
 	/* Allocate and check code memory */
 	Alloc_Code(Proj, Chip);
     Check_Code(Proj, Chip);
-
     /* Allocate data memory */
 	Alloc_Data(Proj, Chip);
-
     /* Check device memory */
     Check_Device(Proj, Chip);
-
-    /* Allocate the local and global capid of all kernel objects */
+    /* Allocate the local and global capid of all kernel objects, except for page tables */
     Alloc_Captbl(Proj, Chip);
+	/* Allocate page tables */
+	Proj->Plat.Alloc_Pgtbl(Proj, Chip);
+    /* Allocate kernel memory */
+    Alloc_Mem(Proj);
 
+/* Phase 3: Generate the project files ***************************************/
     /* Set the folder up */
     Setup_RME_Folder(Proj, Chip, RME_Path, Output_Path);
     Setup_RVM_Folder(Proj, Chip, RVM_Path, Output_Path);
-
     /* Set the configuration header up */
     Setup_RME_Conf(Proj, Chip, RME_Path, Output_Path);
     Setup_RVM_Conf(Proj, Chip, RVM_Path, Output_Path);
-
-	/* Generate the project-specific files, and allocate all kernel objects' addresses */
-	if(strcmp(Proj->Plat,"A7M")==0)
-		Alloc=A7M_Gen_Proj(Proj, Chip, RME_Path, RVM_Path, Output_Path, Format);
-
     /* Generate generic RME related files */
-    Gen_RME_Boot(Proj, Chip, Alloc, RME_Path, Output_Path);
+    Gen_RME_Boot(Proj, Chip, RME_Path, Output_Path);
     Gen_RME_User(Proj, Chip, RME_Path, Output_Path);
-
     /* Generate generic RVM related files */
-    Gen_RVM_Boot(Proj, Chip, Alloc, RVM_Path, Output_Path);
+    Gen_RVM_Boot(Proj, Chip, RVM_Path, Output_Path);
     Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
-
     /* Generate generic files for every single project */
+
+    /* Generate target related files */
     
-	/* All done, free all memory and we quit */
+/* Phase 4: Clean up *********************************************************/
 	Free_All();
 
     return 0;
