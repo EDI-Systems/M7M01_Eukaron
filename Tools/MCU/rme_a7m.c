@@ -42,77 +42,59 @@ Description : This toolset is for ARMv7-M. Specifically, this suits Cortex-M0+,
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
-/* Begin Function:A7M_Align ***************************************************
-Description : Align the memory according to Cortex-M platform's requirements.
-Input       : struct Mem_Info* Mem - The struct containing memory information.
-Output      : struct Mem_Info* Mem - The struct containing memory information,
-                                     with all memory size aligned.
+/* Begin Function:A7M_Plat_Select *********************************************
+Description : Select the ARMv7-M platform.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-void A7M_Align(struct Mem_Info* Mem)
+void A7M_Plat_Select(struct Proj_Info* Proj)
 {
-    ptr_t Temp;
+    Proj->Plat.Word_Bits=32;
+    Proj->Plat.Captbl_Capacity=128;
+    Proj->Plat.Init_Pgtbl_Num_Ord=A7M_INIT_PGTBL_ORD;
+    Proj->Plat.Thd_Size=A7M_THD_SIZE;
+    Proj->Plat.Inv_Size=A7M_INV_SIZE;
 
-    if(Mem->Start!=AUTO)
-    {
-        /* This memory already have a fixed start address. Can we map it in? */
-        if((Mem->Start&0x1F)!=0)
-            EXIT_FAIL("Memory not aligned to 32 bytes");
-        if((Mem->Size&0x1F)!=0)
-            EXIT_FAIL("Memory not aligned to 32 bytes");
-        /* This is terrible. Or even horrible, this mapping algorithm is really hard */
-    }
+    Proj->Plat.Parse_Options=A7M_Parse_Options;
+    Proj->Plat.Check_Input=A7M_Check_Input;
+    Proj->Plat.Align_Mem=A7M_Align_Mem;
+    Proj->Plat.Alloc_Pgtbl=A7M_Alloc_Pgtbl;
+    Proj->Plat.Pgtbl_Size=A7M_Pgtbl_Size;
+
+    Proj->Plat.Extra=Malloc(sizeof(struct A7M_Info));
+}
+/* End Function:A7M_Plat_Select **********************************************/
+
+/* Begin Function:A7M_Pgtbl_Size **********************************************
+Description : Compute the page table size for ARMv7-M.
+Input       : ptr_t Num_Order - The number order.
+              ptr_t Is_Top - Whether this is a top-level.
+Output      : None.
+Return      : None.
+******************************************************************************/
+ptr_t A7M_Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top)
+{
+    if(Is_Top!=0)
+        return A7M_PGTBL_SIZE_TOP(Num_Order);
     else
-    {
-        /* This memory's start address is not designated yet. Decide its size after
-            * alignment and calculate its start address alignment granularity. 
-            * For Cortex-M, the roundup minimum granularity is 1/8 of the nearest power 
-            * of 2 for the size. */
-        Temp=1;
-        while(Temp<Mem->Size)
-            Temp<<=1;
-        Mem->Align=Temp/8;
-        Mem->Size=((Mem->Size-1)/Mem->Align+1)*Mem->Align;
-    }
+        return A7M_PGTBL_SIZE_NOM(Num_Order);
 }
-/* End Function:A7M_Align ****************************************************/
-
-/* Begin Function:A7M_Align_Mem ***********************************************
-Description : Align the memory according to the A7M platform's alignment functions.
-              We will only align the memory of the processes.
-Input       : struct Proj_Info* Proj - The struct containing the project information.
-Output      : struct Proj_Info* Proj - The struct containing the project information,
-                                       with all memory size aligned.
-Return      : None.
-******************************************************************************/
-void A7M_Align_Mem(struct Proj_Info* Proj)
-{
-    struct Proc_Info* Proc;
-    struct Mem_Info* Mem;
-
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        for(EACH(struct Mem_Info*,Mem,Proc->Code))
-            A7M_Align(Mem);
-        for(EACH(struct Mem_Info*,Mem,Proc->Data))
-            A7M_Align(Mem);
-        for(EACH(struct Mem_Info*,Mem,Proc->Device))
-            A7M_Align(Mem);
-    }
-}
-/* End Function:A7M_Align_Mem ************************************************/
+/* End Function:A7M_Pgtbl_Size ***********************************************/
 
 /* Begin Function:A7M_Parse_Options *******************************************
 Description : Parse the options that are specific to ARMv7-M.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform sprcific project structure.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M)
+void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
     s8_t* Temp;
+    struct A7M_Info* A7M;
+
+    A7M=Proj->Plat.Extra;
 
     /* What is the NVIC grouping that we use? */
     Temp=Raw_Match(&(Proj->RME.Plat), "NVIC_Grouping");
@@ -197,6 +179,100 @@ void A7M_Parse_Options(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7
         EXIT_FAIL("Endianness value is invalid.");
 }
 /* End Function:A7M_Parse_Options ********************************************/
+
+/* Begin Function:A7M_Check_Input *********************************************
+Description : Check if the input is really valid for the ARMv7-M port.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Check_Input(struct Proj_Info* Proj, struct Chip_Info* Chip)
+{
+    struct Proc_Info* Proc;
+    struct Mem_Info* Mem;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* Check memory blocks - they all must be at least readable */
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+        {
+            if((Mem->Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+        {
+            if((Mem->Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+        {
+            if((Mem->Attr&MEM_READ)==0)
+                EXIT_FAIL("All memory allocated must be readable on A7M.");
+        }
+    }
+}
+/* End Function:A7M_Check_Input **********************************************/
+
+/* Begin Function:A7M_Align ***************************************************
+Description : Align the memory according to Cortex-M platform's requirements.
+Input       : struct Mem_Info* Mem - The struct containing memory information.
+Output      : struct Mem_Info* Mem - The struct containing memory information,
+                                     with all memory size aligned.
+Return      : None.
+******************************************************************************/
+void A7M_Align(struct Mem_Info* Mem)
+{
+    ptr_t Temp;
+
+    if(Mem->Start!=AUTO)
+    {
+        /* This memory already have a fixed start address. Can we map it in? */
+        if((Mem->Start&0x1F)!=0)
+            EXIT_FAIL("Memory not aligned to 32 bytes");
+        if((Mem->Size&0x1F)!=0)
+            EXIT_FAIL("Memory not aligned to 32 bytes");
+        /* This is terrible. Or even horrible, this mapping algorithm is really hard */
+    }
+    else
+    {
+        /* This memory's start address is not designated yet. Decide its size after
+            * alignment and calculate its start address alignment granularity. 
+            * For Cortex-M, the roundup minimum granularity is 1/8 of the nearest power 
+            * of 2 for the size. */
+        Temp=1;
+        while(Temp<Mem->Size)
+            Temp<<=1;
+        Mem->Align=Temp/8;
+        Mem->Size=((Mem->Size-1)/Mem->Align+1)*Mem->Align;
+    }
+}
+/* End Function:A7M_Align ****************************************************/
+
+/* Begin Function:A7M_Align_Mem ***********************************************
+Description : Align the memory according to the A7M platform's alignment functions.
+              We will only align the memory of the processes.
+Input       : struct Proj_Info* Proj - The struct containing the project information.
+Output      : struct Proj_Info* Proj - The struct containing the project information,
+                                       with all memory size aligned.
+Return      : None.
+******************************************************************************/
+void A7M_Align_Mem(struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Mem_Info* Mem;
+
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+            A7M_Align(Mem);
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+            A7M_Align(Mem);
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+            A7M_Align(Mem);
+    }
+}
+/* End Function:A7M_Align_Mem ************************************************/
 
 /* Begin Function:A7M_Total_Order *********************************************
 Description : Get the total order and the start address of the page table. 
@@ -339,12 +415,13 @@ ptr_t A7M_Num_Order(struct List* Mem_List, ptr_t Total_Order, ptr_t Start_Addr)
 /* Begin Function:A7M_Map_Page ************************************************
 Description : Map pages into the page table as we can. 
 Input       : struct List* Mem_List - The memory block list.
-              struct A7M_Pgtbl* Pgtbl - The current page table.
-Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
+              struct Pgtbl_Info* Pgtbl - The current page table.
+Output      : struct Pgtbl_Info* Pgtbl - The updated current page table.
 Return      : None.
 ******************************************************************************/
-void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
+void A7M_Map_Page(struct List* Mem_List, struct Pgtbl_Info* Pgtbl)
 {
+    ptr_t Attr;
     ptr_t Page_Cnt;
     ptr_t Page_Start;
     ptr_t Page_End;
@@ -352,6 +429,9 @@ void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
     ptr_t Page_Num_Max;
     struct Mem_Info* Mem;
     struct Mem_Info* Mem_Max;
+
+    Pgtbl->Child_Page=Malloc(sizeof(ptr_t)*POW2(Pgtbl->Num_Order));
+    memset(Pgtbl->Child_Page,0,sizeof(ptr_t)*POW2(Pgtbl->Num_Order));
 
     /* Use the attribute of the block that covers most pages */
     Page_Num_Max=0;
@@ -377,8 +457,10 @@ void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
     /* Is there anything that we should map? If no, we return early */
     if(Page_Num_Max==0)
         return;
-    /* The attribute is the most pronounced memory block's */
-    Pgtbl->Attr=Mem_Max->Attr;
+    /* The page attribute is the most pronounced memory block's */
+    Attr=Mem_Max->Attr;
+    /* Page table attributes are in fact not used in A7M, we always set to full attributes */
+    Pgtbl->Attr=MEM_READ|MEM_WRITE|MEM_EXECUTE|MEM_BUFFERABLE|MEM_CACHEABLE;
 
     /* Map whatever we can map, and postpone whatever we will have to postpone */
     for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
@@ -392,8 +474,8 @@ void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
             if((Mem->Start<=Page_Start)&&((Mem->Start+Mem->Size)>=Page_End))
             {
                 /* The attribute must be the same as what we map */
-                if(Pgtbl->Attr==Mem->Attr)
-                    Pgtbl->Mapping[Page_Cnt]=A7M_PGT_MAPPED;
+                if(Attr==Mem->Attr)
+                    Pgtbl->Child_Page[Page_Cnt]=Attr;
             }
         }
     }
@@ -402,15 +484,15 @@ void A7M_Map_Page(struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
 
 /* Begin Function:A7M_Map_Pgdir ***********************************************
 Description : Map page directories into the page table. 
-Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
-              struct A7M_Info* A7M - The chip structure.
+Input       : struct Proc_Info* Proj - The current project.
+              struct Proc_Info* Proc - The process we are generating pgtbls for.
               struct List* Mem_List - The memory block list.
-              struct A7M_Pgtbl* Pgtbl - The current page table.
-Output      : struct A7M_Pgtbl* Pgtbl - The updated current page table.
+              struct Pgtbl* Pgtbl - The current page table.
+Output      : struct Pgtbl* Pgtbl - The updated current page table.
 Return      : None.
 ******************************************************************************/
-void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M, 
-                   struct List* Mem_List, struct A7M_Pgtbl* Pgtbl)
+void A7M_Map_Pgdir(struct Proj_Info* Proj, struct Proc_Info* Proc,
+                   struct List* Mem_List, struct Pgtbl_Info* Pgtbl)
 {
     ptr_t Page_Cnt;
     ptr_t Page_Start;
@@ -419,12 +501,15 @@ void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M,
     struct Mem_Info* Mem_Temp;
     struct List Child_List;
 
+    Pgtbl->Child_Pgdir=Malloc(sizeof(struct Pgtbl_Info)*POW2(Pgtbl->Num_Order));
+    memset(Pgtbl->Child_Pgdir,0,sizeof(struct Pgtbl_Info)*POW2(Pgtbl->Num_Order));
+
     for(Page_Cnt=0;Page_Cnt<POW2(Pgtbl->Num_Order);Page_Cnt++)
     {
         Page_Start=Pgtbl->Start_Addr+Page_Cnt*POW2(Pgtbl->Size_Order);
         Page_End=Page_Start+POW2(Pgtbl->Size_Order);
 
-        if(Pgtbl->Mapping[Page_Cnt]==A7M_PGT_NOTHING)
+        if(Pgtbl->Child_Page[Page_Cnt]==0)
         {
             List_Crt(&Child_List);
 
@@ -449,7 +534,7 @@ void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M,
             /* Map in the child list if there are any at all */
             if(!IS_HEAD(Child_List.Next,Child_List))
             {
-                Pgtbl->Mapping[Page_Cnt]=A7M_Gen_Pgtbl(Proc, A7M, &Child_List, Pgtbl->Size_Order);
+                Pgtbl->Child_Pgdir[Page_Cnt]=A7M_Gen_Pgtbl(Proj, Proc, &Child_List, Pgtbl->Size_Order);
 
                 /* Clean up what we have allocated */
                 while(!IS_HEAD(Child_List.Next,Child_List))
@@ -467,8 +552,8 @@ void A7M_Map_Pgdir(struct Proc_Info* Proc, struct A7M_Info* A7M,
 /* Begin Function:A7M_Gen_Pgtbl ***********************************************
 Description : Recursively construct the page table for the ARMv7-M port.
               This also allocates capid for page tables.
-Input       : struct Proc_Info* Proc - The process we are generating pgtbls for.
-              struct A7M_Info* A7M - The chip structure.
+Input       : struct Proc_Info* Proj - The current project.
+              struct Proc_Info* Proc - The process we are generating pgtbls for.
               struct List* Mem_List - The list containing memory segments to fit
                                       into this level (and below).
               ptr_t Total_Max - The maximum total order of the page table, cannot
@@ -479,20 +564,21 @@ Return      : struct A7M_Pgtbl* - The page table structure returned. This functi
                                   will never return NULL; if an error is encountered,
                                   it will directly error out.
 ******************************************************************************/
-struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M, 
-                                struct List* Mem_List, ptr_t Total_Max)
+struct Pgtbl_Info* A7M_Gen_Pgtbl(struct Proj_Info* Proj, struct Proc_Info* Proc,
+                                 struct List* Mem_List, ptr_t Total_Max)
 {
     ptr_t Total_Order;
-    struct A7M_Pgtbl* Pgtbl;
+    struct Pgtbl_Info* Pgtbl;
     struct RVM_Cap_Info* Info;
     static s8_t Buf[16];
 
     /* Allocate the page table data structure */
-    Pgtbl=Malloc(sizeof(struct A7M_Pgtbl));
-    memset(Pgtbl, 0, sizeof(struct A7M_Pgtbl));
+    Pgtbl=Malloc(sizeof(struct Pgtbl_Info));
+    memset(Pgtbl, 0, sizeof(struct Pgtbl_Info));
 
     /* Allocate the capid for this page table */
-    Pgtbl->Cap.RVM_Capid=A7M->Pgtbl_Front++;
+    Pgtbl->Is_Top=0;
+    Pgtbl->Cap.RVM_Capid=Proj->RVM.Pgtbl_Front++;
     sprintf(Buf,"%lld",Pgtbl->Cap.RVM_Capid);
     Pgtbl->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_PGTBL",Buf);
 
@@ -500,7 +586,7 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
     Info=Malloc(sizeof(struct RVM_Cap_Info));
     Info->Proc=Proc;
     Info->Cap=Pgtbl;
-    List_Ins(&(Info->Head),A7M->Pgtbl.Prev,&(A7M->Pgtbl));
+    List_Ins(&(Info->Head),Proj->RVM.Pgtbl.Prev,&(Proj->RVM.Pgtbl));
 
     /* Total order and start address of the page table */
     Total_Order=A7M_Total_Order(Mem_List, &(Pgtbl->Start_Addr));
@@ -515,41 +601,64 @@ struct A7M_Pgtbl* A7M_Gen_Pgtbl(struct Proc_Info* Proc, struct A7M_Info* A7M,
     /* Map in all pages */
     A7M_Map_Page(Mem_List, Pgtbl);
     /* Map in all page directories - recursive */
-    A7M_Map_Pgdir(Proc, A7M, Mem_List, Pgtbl);
+    A7M_Map_Pgdir(Proj, Proc, Mem_List, Pgtbl);
 
     return Pgtbl;
 }
 /* End Function:A7M_Gen_Pgtbl ************************************************/
 
-/* Begin Function:A7M_Copy_Files **********************************************
-Description : Copy all necessary files to the destination folder. This is generic;
-              Format-specific files will be copied and generated in the format-specific
-              generator.
+/* Begin Function:A7M_Alloc_Pgtbl *********************************************
+Description : Allocate page tables for all processes.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The platform-specific project structure.
-              s8_t* RME_Path - The RME root folder path.
-              s8_t* RVM_Path - The RVM root folder path.
-              s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Copy_Files(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                    struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Alloc_Pgtbl(struct Proj_Info* Proj, struct Chip_Info* Chip)
 {
-    s8_t* Buf1;
-    s8_t* Buf2;
+    struct Proc_Info* Proc;
+    struct List Mem_List;
+    struct Mem_Info* Mem;
+    struct Mem_Info* Mem_Temp;
 
-    /* Allocate the buffer */
-    Buf1=Malloc(4096);
-    Buf2=Malloc(4096);
+    /* Allocate page table global captbl */
+    List_Crt(&Proj->RVM.Pgtbl);
+    Proj->RVM.Pgtbl_Front=0;
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        /* Add everything to list */
+        List_Crt(&Mem_List);
+        for(EACH(struct Mem_Info*,Mem,Proc->Code))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Data))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
+        for(EACH(struct Mem_Info*,Mem,Proc->Device))
+        {
+            Mem_Temp=Malloc(sizeof(struct Mem_Info));
+            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
+            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
+        }
 
-    /* Perhaps copy some other manuals, etc */
+        Proc->Pgtbl=A7M_Gen_Pgtbl(Proj, Proc, &Mem_List, 32);
+        Proc->Pgtbl->Is_Top=1;
 
-    Free(Buf1);
-    Free(Buf2);
+        while(!IS_HEAD(Mem_List.Next,Mem_List))
+        {
+            Mem=(struct Mem_Info*)(Mem_List.Next);
+            List_Del(Mem->Head.Prev,Mem->Head.Next);
+            Free(Mem);
+        }
+    }
 }
-/* End Function:A7M_Copy_Files ***********************************************/
+/* End Function:A7M_Alloc_Pgtbl **********************************************/
 
 /* Begin Function:A7M_Gen_Keil_Proj *******************************************
 Description : Generate the keil project for ARMv7-M architectures.
@@ -777,14 +886,12 @@ Description : Generate the RME files for keil uvision.
               This includes the platform-specific assembly file and the scatter.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
               s8_t* RME_Path - The RME root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                      struct A7M_Info* A7M, s8_t* RME_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path)
 {
     s8_t* Buf1;
     s8_t* Buf2;
@@ -818,14 +925,12 @@ Description : Generate the RVM files for keil uvision.
               This includes the platform-specific assembly file and the scatter.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
               s8_t* RVM_Path - The RVM root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                      struct A7M_Info* A7M, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path)
 {
 
 }
@@ -836,15 +941,13 @@ Description : Generate the process files for keil uvision.
               This includes the platform-specific assembly file and the scatter.
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
               s8_t* RME_Path - The RME root folder path.
               s8_t* RVM_Path - The RVM root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                       struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
 {
 
 }
@@ -858,15 +961,13 @@ Description : Generate the keil project for ARMv7-M.
               .uvoptx (the options for some unimportant stuff)
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
               s8_t* RME_Path - The RME root folder path.
               s8_t* RVM_Path - The RVM root folder path.
               s8_t* Output_Path - The output folder path.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip,
-                  struct A7M_Info* A7M, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
 {
     /* Common for all projects */
     s8_t* Device;
@@ -967,16 +1068,16 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip,
         Files[4]="rme_platform_a7m_asm.s";
     }
     File_Num=5;
-    /* Generate whatever files that are keil specific */
-    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
+
     /* Actually generate the project */
     A7M_Gen_Keil_Proj(Keil, Target, Device, Vendor, CPU_Type, FPU_Type, Endianness,
                       Timeopt, Opt,
                       Includes, Include_Num,
                       Paths, Files, File_Num);
     fclose(Keil);
+
     /* Project files needs to be generated as well */
-    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
+    A7M_Gen_Keil_RME(Proj, Chip, RME_Path, Output_Path);
 
     /* Generate the RVM keil project then */
 
@@ -993,7 +1094,6 @@ void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip,
 Description : Generate the makefile project for ARMv7-M. 
 Input       : struct Proj_Info* Proj - The project structure.
               struct Chip_Info* Chip - The chip structure.
-              struct A7M_Info* A7M - The port specific structure.
               ptr_t Output_Type - The output type.
               s8_t* Output_Path - The output folder path.
               s8_t* RME_Path - The RME root folder path.
@@ -1001,46 +1101,12 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : None.
 Return      : struct A7M_Pgtbl* - The page table structure returned.
 ******************************************************************************/
-void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip, struct A7M_Info* A7M,
+void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip,
                       ptr_t Output_Type, s8_t* Output_Path, s8_t* RME_Path, s8_t* RVM_Path)
 {
     /* Generate the makefile project */
 }
 /* End Function:A7M_Gen_Makefile *********************************************/
-
-/* Begin Function:A7M_Gen_Check ***********************************************
-Description : Check if the input is really valid for the ARMv7-M port.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Check(struct Proj_Info* Proj, struct Chip_Info* Chip)
-{
-    struct Proc_Info* Proc;
-    struct Mem_Info* Mem;
-
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        /* Check memory blocks - they all must be at least readable */
-        for(EACH(struct Mem_Info*,Mem,Proc->Code))
-        {
-            if((Mem->Attr&MEM_READ)==0)
-                EXIT_FAIL("All memory allocated must be readable on A7M.");
-        }
-        for(EACH(struct Mem_Info*,Mem,Proc->Data))
-        {
-            if((Mem->Attr&MEM_READ)==0)
-                EXIT_FAIL("All memory allocated must be readable on A7M.");
-        }
-        for(EACH(struct Mem_Info*,Mem,Proc->Device))
-        {
-            if((Mem->Attr&MEM_READ)==0)
-                EXIT_FAIL("All memory allocated must be readable on A7M.");
-        }
-    }
-}
-/* End Function:A7M_Gen_Check ************************************************/
 
 /* Begin Function:A7M_Gen_Proj ************************************************
 Description : Generate the project for Cortex-M based processors.
@@ -1051,81 +1117,16 @@ Input       : struct Proj_Info* Proj - The project structure.
               s8_t* Output_Path - The output folder path.
               s8_t* Format - The output format.
 Output      : None.
-Return      : struct Alloc_Info* - The kernel object allocation information returned.
+Return      : None.
 ******************************************************************************/
-struct Alloc_Info* A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
+void A7M_Gen_Proj(struct Proj_Info* Proj, struct Chip_Info* Chip,
                   s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path, s8_t* Format)
 {
-    struct Alloc_Info* Alloc;
-    struct Proc_Info* Proc;
-    struct A7M_Info* A7M;
-    struct List Mem_List;
-    struct Mem_Info* Mem;
-    struct Mem_Info* Mem_Temp;
-
-    /* Allocate architecture-specific project structure and allocation structure */
-    A7M=Malloc(sizeof(struct A7M_Info));
-    Alloc=Malloc(sizeof(struct Alloc_Info));
-
-    /* Parse A7M-specific options */
-    A7M_Parse_Options(Proj, Chip, A7M);
-
-    /* Check if we can really create such a system */
-    A7M_Gen_Check(Proj, Chip);
-
-    /* Allocate page table global captbl */
-    List_Crt(&A7M->Pgtbl);
-    A7M->Pgtbl_Front=0;
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        /* Add everything to list */
-        List_Crt(&Mem_List);
-        for(EACH(struct Mem_Info*,Mem,Proc->Code))
-        {
-            Mem_Temp=Malloc(sizeof(struct Mem_Info));
-            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
-            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
-        }
-        for(EACH(struct Mem_Info*,Mem,Proc->Data))
-        {
-            Mem_Temp=Malloc(sizeof(struct Mem_Info));
-            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
-            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
-        }
-        for(EACH(struct Mem_Info*,Mem,Proc->Device))
-        {
-            Mem_Temp=Malloc(sizeof(struct Mem_Info));
-            memcpy(Mem_Temp,Mem,sizeof(struct Mem_Info));
-            List_Ins(&(Mem_Temp->Head),Mem_List.Prev,&Mem_List);
-        }
-
-        Proc->Pgtbl=A7M_Gen_Pgtbl(Proc,A7M,&Mem_List,32);
-
-        /* Copy this to the main structure so that we can generate processes */
-        memcpy(&(Proc->Pgtbl_Cap),&(((struct A7M_Pgtbl*)(Proc->Pgtbl))->Cap),sizeof(struct Cap_Info));
-
-        while(!IS_HEAD(Mem_List.Next,Mem_List))
-        {
-            Mem=(struct Mem_Info*)(Mem_List.Next);
-            List_Del(Mem->Head.Prev,Mem->Head.Next);
-            Free(Mem);
-        }
-    }
-
-    /* Generate the kernel object memory map - This is the most important step */
-
-    /* Set up the folder structures, and copy all files to where they should be */
-    A7M_Copy_Files(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
-    /* Write the files that are tool-independent */
-    //A7M_Gen_Scripts(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
-
 	/* Create the folder first and copy all necessary files into whatever possible */
     if(strcmp(Format, "keil")==0)
-        A7M_Gen_Keil(Proj, Chip, A7M, RME_Path, RVM_Path, Output_Path);
+        A7M_Gen_Keil(Proj, Chip, RME_Path, RVM_Path, Output_Path);
     else
         EXIT_FAIL("Other projects not supported at the moment.");
-
-    return Alloc;
 }
 /* End Function:A7M_Gen_Proj *************************************************/
 
