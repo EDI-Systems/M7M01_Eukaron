@@ -4606,9 +4606,10 @@ int main(int argc, char* argv[])
 	struct Proj_Info* Proj;
 	struct Chip_Info* Chip;
 
-/* Phase 1: Process command line and do parsing ******************************/
 	/* Initialize memory pool */
 	List_Crt(&Mem_List);
+
+/* Phase 1: Process command line and do parsing ******************************/
     /* Process the command line first */
     Cmdline_Proc(argc,argv, &Input_Path, &Output_Path, &RME_Path, &RVM_Path, &Format);
 	/* Read project XML file */
@@ -4665,10 +4666,10 @@ int main(int argc, char* argv[])
     Gen_RVM_Boot(Proj, Chip, RVM_Path, Output_Path);
     Gen_RVM_User(Proj, Chip, RVM_Path, Output_Path);
     /* Generate generic files for every single project */
-
+    Gen_Proj_User(Proj, Chip, RVM_Path, Output_Path);
     /* Generate target related files */
+    Proj->Plat.Gen_Proj(Proj, Chip, Output_Path);
     
-/* Phase 4: Clean up *********************************************************/
 	Free_All();
 
     return 0;

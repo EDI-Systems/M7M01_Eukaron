@@ -158,6 +158,7 @@ struct Plat_Info
     void (*Align_Mem)(struct Proj_Info* Proj);
     void (*Alloc_Pgtbl)(struct Proj_Info* Proj, struct Chip_Info* Chip);
     ptr_t (*Pgtbl_Size)(ptr_t Num_Order, ptr_t Is_Top);
+    void (*Gen_Proj)();
 
     /* Extra information used by the platform itself */
     void* Extra;
