@@ -3189,7 +3189,7 @@ void Write_Func_Desc(FILE* File, s8_t* Funcname)
     ptr_t Len;
     s8_t Buf[256];
 
-    for(Len=sprintf(Buf, "/* Begin Function:%s ", Funcname);Len<80;Len++)
+    for(Len=sprintf(Buf, "/* Begin Function:%s ", Funcname);Len<79;Len++)
         Buf[Len]='*';
     Buf[Len]='\0';
     fprintf(File, "%s\n",Buf);
@@ -3224,7 +3224,7 @@ void Write_Func_Footer(FILE* File, s8_t* Funcname)
     ptr_t Len;
     s8_t Buf[256];
 
-    for(Len=sprintf(Buf, "/* End Function:%s ", Funcname);Len<79;Len++)
+    for(Len=sprintf(Buf, "/* End Function:%s ", Funcname);Len<78;Len++)
         Buf[Len]='*';
 
     Buf[Len]='/';
@@ -3294,7 +3294,7 @@ void Make_Define_Hex(FILE* File, s8_t* Macro, ptr_t Value, ptr_t Align)
     s8_t Buf[32];
 
     /* Print to file */
-    sprintf(Buf, "#define %%-%llds    (0x%%llx)\n", Align-4-8);
+    sprintf(Buf, "#define %%-%llds    (0x%%llX)\n", Align-4-8);
     fprintf(File, Buf, Macro, Value);
 }
 /* End Function:Make_Define_Hex **********************************************/
@@ -3656,7 +3656,7 @@ void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
     fprintf(File, "    /* The address here shall match what is in the generator */\n");
     fprintf(File, "    RME_ASSERT(Cap_Front==%lld);\n", Proj->RME.Map.Vect_Cap_Front);
-    fprintf(File, "    RME_ASSERT(Kmem_Front==0x%llx);\n\n", Proj->RME.Map.Vect_Kmem_Front+Proj->RME.Map.Kmem_Base);
+    fprintf(File, "    RME_ASSERT(Kmem_Front==0x%llX);\n\n", Proj->RME.Map.Vect_Kmem_Front+Proj->RME.Map.Kmem_Base);
     fprintf(File, "    Cur_Addr=Kmem_Front;\n");
     fprintf(File, "    /* Create all the vector capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Vect_Front;Obj_Cnt+=Capacity)
@@ -3758,7 +3758,7 @@ void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path
     Buf=Malloc(4096);
 
     /* Create user stubs - pre initialization and post initialization */
-    /* Generate rme_boot.c */
+    /* Generate rme_user.c */
     sprintf(Buf, "%s/M7M1_MuEukaron/Project/Source/rme_user.c", Output_Path);
     File=fopen(Buf, "wb");
     if(File==0)
@@ -3789,7 +3789,7 @@ void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path
 
     /* Postinitialization of hardware */
     Write_Func_Desc(File, "RME_Boot_Post_Init");
-    fprintf(File, "Description : Initialize hardware after all kernel initialization takes place.\n");
+    fprintf(File, "Description : Initialize hardware after all kernel initialization took place.\n");
     Write_Func_None(File);
     fprintf(File, "void RME_Boot_Post_Init(void)\n");
     fprintf(File, "{\n");
@@ -3831,6 +3831,130 @@ void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj)
     fprintf(File, "#undef __HDR_PUBLIC_MEMBERS__\n\n");
 }
 /* End Function:Print_RVM_Inc ************************************************/
+
+/* Begin Function:Cons_RVM_Pgtbl **********************************************
+Description : Construct the page table for RVM. This will produce the desired final
+              page table tree, and is recursive.
+Input       : FILE* File - The file output.
+              struct Pgtbl_Info* Pgtbl - The page table structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Cons_RVM_Pgtbl(FILE* File, struct Pgtbl_Info* Pgtbl)
+{
+    ptr_t Count;
+    struct Pgtbl_Info* Child;
+
+    /* Construct whatever page table to this page table */
+    for(Count=0;Count<POW2(Pgtbl->Num_Order);Count++)
+    {
+        Child=Pgtbl->Child_Pgdir[Count];
+        if(Child==0)
+            continue;
+        
+        fprintf(File, "    RVM_ASSERT(RVM_Pgtbl_Cons(%s, 0x%llX, %s, %s)==0);\n",
+                      Pgtbl->Cap.RVM_Macro, Count, Child->Cap.RVM_Macro, "RVM_PGTBL_ALL_PERM");
+
+        /* Recursively call this for all the page tables */
+        Cons_RVM_Pgtbl(File, Child);
+    }
+}
+/* End Function:Cons_RVM_Pgtbl ***********************************************/
+
+/* Begin Function:Map_RVM_Pgtbl ***********************************************
+Description : Map pages into a page table. This is not recursive.
+Input       : FILE* File - The file output.
+              struct Pgtbl_Info* Pgtbl - The page table structure.
+              ptr_t Init_Size_Ord - The initial page table's size order.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Map_RVM_Pgtbl(FILE* File, struct Pgtbl_Info* Pgtbl, ptr_t Init_Size_Ord)
+{
+    ptr_t Count;
+    ptr_t Attr;
+    ptr_t Pos_Src;
+    ptr_t Index;
+    ptr_t Page_Start;
+    ptr_t Page_Size;
+    ptr_t Page_Num;
+    ptr_t Init_Size;
+    s8_t Flags[256];
+
+    Page_Size=POW2(Pgtbl->Size_Order);
+    Page_Num=POW2(Pgtbl->Num_Order);
+    Init_Size=POW2(Init_Size_Ord);
+
+    /* Map whatever pages into this page table */
+    for(Count=0;Count<Page_Num;Count++)
+    {
+        Attr=Pgtbl->Child_Page[Count];
+        if(Attr==0)
+            continue;
+
+        /* Compute flags */
+        Flags[0]='\0';
+
+        if((Attr&MEM_READ)!=0)
+            strcat(Flags,"RVM_PGTBL_READ|");
+        if((Attr&MEM_WRITE)!=0)
+            strcat(Flags,"RVM_PGTBL_WRITE|");
+        if((Attr&MEM_EXECUTE)!=0)
+            strcat(Flags,"RVM_PGTBL_EXECUTE|");
+        if((Attr&MEM_CACHEABLE)!=0)
+            strcat(Flags,"RVM_PGTBL_CACHEABLE|");
+        if((Attr&MEM_BUFFERABLE)!=0)
+            strcat(Flags,"RVM_PGTBL_BUFFERABLE|");
+        if((Attr&MEM_STATIC)!=0)
+            strcat(Flags,"RVM_PGTBL_STATIC|");
+
+        Flags[strlen(Flags)-1]='\0';
+
+        /* Compute Pos_Src and Index */
+        Page_Start=Pgtbl->Start_Addr+Count*Page_Size;
+        Pos_Src=Page_Start/Init_Size;
+        Index=(Page_Start-Pos_Src*Init_Size)/Page_Size;
+
+        fprintf(File, "    RVM_ASSERT(RVM_Pgtbl_Add(%s, 0x%llX, \\\n"
+                      "                             %s, \\\n"
+                      "                             %s, 0x%llX, 0x%llX)==0);\n",
+                      Pgtbl->Cap.RVM_Macro, Count, Flags, "RVM_BOOT_PGTBL", Pos_Src, Index);
+    }
+}
+/* End Function:Map_RVM_Pgtbl ************************************************/
+
+/* Begin Function:Init_RVM_Pgtbl **********************************************
+Description : Initialize page tables.
+Input       : FILE* File - The file output.
+              struct Pgtbl_Info* Pgtbl - The page table structure.
+              ptr_t Init_Size_Ord - The initial page table's size order.
+              ptr_t Init_Num_Ord - The initial page table's number order.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Init_RVM_Pgtbl(FILE* File, struct Proj_Info* Proj)
+{
+    struct Proc_Info* Proc;
+    struct Pgtbl_Info* Pgtbl;
+    struct RVM_Cap_Info* Info;
+
+    /* Do page table construction first */
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        fprintf(File, "\n    /* Constructing page tables for process: %s */\n",Proc->Name);
+        Cons_RVM_Pgtbl(File,Proc->Pgtbl);
+    }
+    
+    /* Then do the mapping for all page tables */
+    fprintf(File, "\n    /* Mapping pages into page tables */\n");
+    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
+    {
+        Pgtbl=Info->Cap;
+        Map_RVM_Pgtbl(File, Pgtbl,
+                      Proj->Plat.Word_Bits-Proj->Plat.Init_Pgtbl_Num_Ord);
+    }
+}
+/* End Function:Init_RVM_Pgtbl ***********************************************/
 
 /* Begin Function:Gen_RVM_Boot ************************************************
 Description : Generate the rvm_boot.h and rvm_boot.c. They are mainly responsible
@@ -4001,9 +4125,11 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
         EXIT_FAIL("Internal capability table computation failure.");
     
     /* Extra capability table frontier */
+    fprintf(File, "\n/* Capability table frontier */\n");
     sprintf(Buf, "%lld",Proj->RVM.Map.After_Cap_Front);
     Make_Define_Str(File, "RVM_BOOT_CAP_FRONTIER", Buf, MACRO_ALIGNMENT);
     /* Extra kernel memory frontier */
+    fprintf(File, "\n/* Kernel memory frontier */\n");
     sprintf(Buf, "0x%llX",Proj->RVM.Map.After_Kmem_Front);
     Make_Define_Str(File, "RVM_BOOT_KMEM_FRONTIER", Buf, MACRO_ALIGNMENT);
 
@@ -4013,7 +4139,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fclose(File);
 
     /* Generate rvm_boot.c */
-    sprintf(Buf, "%s/M7M2_MuEukaron/Project/Source/rvm_boot.c", Output_Path);
+    sprintf(Buf, "%s/M7M2_MuAmmonite/Project/Source/rvm_boot.c", Output_Path);
     File=fopen(Buf, "wb");
     if(File==0)
         EXIT_FAIL("rvm_boot.c open failed.");
@@ -4032,7 +4158,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "static void RVM_Boot_Pgtbl_Crt(void);\n");
     fprintf(File, "static void RVM_Boot_Proc_Crt(void);\n");
     fprintf(File, "static void RVM_Boot_Inv_Crt(void);\n");
-    fprintf(File, "static void RVM_Boot_Recv_Crt(void);\n");
+    fprintf(File, "static void RVM_Boot_Recv_Crt(void);\n\n");
     fprintf(File, "/* Kernel object initialization */\n");
     fprintf(File, "static void RVM_Boot_Captbl_Init(void);\n");
     fprintf(File, "static void RVM_Boot_Pgtbl_Init(void);\n");
@@ -4052,8 +4178,8 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "void RVM_Boot_Captbl_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llx;\n", Proj->RVM.Map.Captbl_Kmem_Front);
-    fprintf(File, "    /* Create all the captbl capability tables first */\n");
+    fprintf(File, "    Cur_Addr==0x%llX;\n\n", Proj->RVM.Map.Captbl_Kmem_Front);
+    fprintf(File, "    /* Create all the capability table capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Front;Obj_Cnt+=Capacity)
     {
         if(Proj->RVM.Captbl_Front>=(Obj_Cnt+1)*Capacity)
@@ -4065,6 +4191,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the capability tables themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Captbl))
     {
         Proc=(struct Proc_Info*)(Info->Cap);
@@ -4074,7 +4201,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n", Proc->Captbl_Front+Proc->Extra_Captbl);
     }
 
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Captbl_Crt");
 
@@ -4085,8 +4212,8 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "void RVM_Boot_Pgtbl_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llx;\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
-    fprintf(File, "    /* Create all the captbl capability tables first */\n");
+    fprintf(File, "    Cur_Addr==0x%llX;\n\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
+    fprintf(File, "    /* Create all the page tables capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Pgtbl_Front;Obj_Cnt+=Capacity)
     {
         if(Proj->RVM.Pgtbl_Front>=(Obj_Cnt+1)*Capacity)
@@ -4098,6 +4225,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the page tables themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
     {
         Pgtbl=Info->Cap;
@@ -4112,7 +4240,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
             fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_NOM(%lld));\n", Pgtbl->Num_Order);
     }
 
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.Proc_Kmem_Front);
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Proc_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Pgtbl_Crt");
 
@@ -4123,7 +4251,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "void RVM_Boot_Proc_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Proc_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Proc_Kmem_Front);
     fprintf(File, "    /* Create all the process capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Front;Obj_Cnt+=Capacity)
     {
@@ -4136,6 +4264,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the processes themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Proc))
     {
         Proc=(struct Proc_Info*)(Info->Cap);
@@ -4143,17 +4272,18 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Proc->Proc_Cap.RVM_Capid/Capacity, Proc->Proc_Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Proc->Pgtbl->Cap.RVM_Macro);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);\n");
     }
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Thd_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Proc_Crt");
 
     /* Thread creation */
-    Write_Func_Desc(File, "RVM_Boot_Thd_Init");
+    Write_Func_Desc(File, "RVM_Boot_Thd_Crt");
     fprintf(File, "Description : Create all threads at boot-time.\n");
     Write_Func_None(File);
     fprintf(File, "void RVM_Boot_Thd_Init(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Thd_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Thd_Kmem_Front);
     fprintf(File, "    /* Create all the thread capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Front;Obj_Cnt+=Capacity)
     {
@@ -4166,6 +4296,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the threads themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Thd))
     {
         Thd=(struct Thd_Info*)(Info->Cap);
@@ -4174,8 +4305,9 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Thd->Cap.RVM_Capid/Capacity, Thd->Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Thd->Priority);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_THD_SIZE);\n");
     }
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Inv_Kmem_Front);
     fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Thd_Init");
+    Write_Func_Footer(File, "RVM_Boot_Thd_Crt");
 
     /* Invocation creation */
     Write_Func_Desc(File, "RVM_Boot_Inv_Crt");
@@ -4184,7 +4316,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "void RVM_Boot_Inv_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Inv_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Inv_Kmem_Front);
     fprintf(File, "    /* Create all the invocation capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Inv_Front;Obj_Cnt+=Capacity)
     {
@@ -4197,6 +4329,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the invocations themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Inv))
     {
         Inv=(struct Inv_Info*)(Info->Cap);
@@ -4205,6 +4338,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Inv->Cap.RVM_Capid/Capacity, Inv->Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_INV_SIZE);\n");
     }
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Recv_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Inv_Crt");
 
@@ -4215,7 +4349,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "void RVM_Boot_Recv_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llx;\n", Proj->RVM.Map.Recv_Kmem_Front);
+    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Recv_Kmem_Front);
     fprintf(File, "    /* Create all the receive endpoint capability tables first */\n");
     for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Recv_Front;Obj_Cnt+=Capacity)
     {
@@ -4228,6 +4362,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Obj_Cnt/Capacity,Captbl_Size);
         fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
     }
+    fprintf(File, "\n    /* Then the receive endpoints themselves */\n");
     for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Recv))
     {
         Recv=(struct Recv_Info*)(Info->Cap);
@@ -4235,19 +4370,20 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
                 Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity);
         fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_SIG_SIZE);\n");
     }
-    fprintf(File, "    RME_ASSERT(Cur_Addr==0x%llx);\n", Proj->RVM.Map.After_Kmem_Front);
+    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.After_Kmem_Front);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Recv_Crt");
 
     /* Main creation function */
     Write_Func_Desc(File, "RVM_Boot_Kobj_Crt");
-    fprintf(File, "Description : Initialize all kernel objects at boot-time.\n");
+    fprintf(File, "Description : Create all kernel objects at boot-time.\n");
     Write_Func_None(File);
     fprintf(File, "void RVM_Boot_Kobj_Crt(void)\n");
     fprintf(File, "{\n");
     fprintf(File, "    RVM_Boot_Captbl_Crt();\n");
     fprintf(File, "    RVM_Boot_Pgtbl_Crt();\n");
     fprintf(File, "    RVM_Boot_Proc_Crt();\n");
+    fprintf(File, "    RVM_Boot_Thd_Crt();\n");
     fprintf(File, "    RVM_Boot_Inv_Crt();\n");
     fprintf(File, "    RVM_Boot_Recv_Crt();\n");
     fprintf(File, "}\n");
@@ -4261,7 +4397,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "{");
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        fprintf(File, "    \n/* Initializing captbl for process: %s */\n", Proc->Name);
+        fprintf(File, "\n    /* Initializing captbl for process: %s */\n", Proc->Name);
 
         /* Ports */
         fprintf(File, "    /* Ports */\n");
@@ -4278,7 +4414,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
         {
             fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTRECV%lld, %lld, %s)==0);\n",
                     Proc->Captbl_Cap.RVM_Macro, Recv->Cap.Loc_Capid, Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity,
-                    "RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM");
+                    "RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV");
         }
 
         /* Send endpoints */
@@ -4296,7 +4432,7 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
         {
             fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTVECT%lld, %lld, %s)==0);\n",
                     Proc->Captbl_Cap.RVM_Macro, Vect->Cap.Loc_Capid, Vect->Cap.RVM_Capid/Capacity, Vect->Cap.RVM_Capid%Capacity,
-                    "RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM");
+                    "RME_SIG_FLAG_RCV");
         }
     }
     fprintf(File, "}\n");
@@ -4308,20 +4444,10 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     Write_Func_None(File);
     fprintf(File, "void RVM_Boot_Pgtbl_Init(void)\n");
     fprintf(File, "{\n");
-    // Alloc->Pgtbl_Init(File, Proj, Chip, Alloc);
+    /* Recursively print all page table initialization routine */
+    Init_RVM_Pgtbl(File,Proj);
     fprintf(File, "}\n");
     Write_Func_Footer(File, "RVM_Boot_Pgtbl_Init");
-
-    /* Process initialization - only calls the capability table and page table initialization */
-    Write_Func_Desc(File, "RVM_Boot_Proc_Init");
-    fprintf(File, "Description : Initialize the all processes.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Proc_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    RVM_Boot_Captbl_Init();\n");
-    fprintf(File, "    RVM_Boot_Pgtbl_Init();\n");
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Proc_Init");
 
     /* Thread initialization */
     Write_Func_Desc(File, "RVM_Boot_Thd_Init");
@@ -4332,15 +4458,14 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     fprintf(File, "    rvm_ptr_t Init_Stack_Addr;\n");
     for(EACH(struct Proc_Info*,Proc,Proj->Proc))
     {
-        fprintf(File, "    \n/* Initializing thread for process: %s */\n", Proc->Name);
-        fprintf(File, "    /* Set scheduler and bind to core */\n");
+        fprintf(File, "    \n    /* Initializing thread for process: %s */\n", Proc->Name);
         
         for(EACH(struct Thd_Info*,Thd,Proc->Thd))
         {
             fprintf(File, "    RVM_ASSERT(RVM_Thd_Sched_Bind(%s, RVM_INIT_GUARD_THD, RVM_INIT_GUARD_SIG, %s, %lld)==0);\n",
                     Thd->Cap.RVM_Macro, Thd->Cap.RVM_Macro, Thd->Priority);
-            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llx, 0x%llX);\n",
-                    Thd->Map.Stack_Base, Thd->Map.Stack_Size, Thd->Map.Entry_Addr, Thd->Map.Param_Value, Proc->Map.Entry_Code_Front);
+            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);\n",
+                    Thd->Map.Stack_Base, Thd->Map.Stack_Size, Thd->Map.Entry_Addr, Proc->Map.Entry_Code_Front);
             fprintf(File, "    RVM_ASSERT(RVM_Thd_Exec_Set(%s, 0x%llX, Init_Stack_Addr, 0x%llX)==0);\n",
                     Thd->Cap.RVM_Macro, Thd->Map.Entry_Addr, Thd->Map.Param_Value);
         }
@@ -4349,8 +4474,43 @@ void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path
     Write_Func_Footer(File, "RVM_Boot_Thd_Init");
 
     /* Invocation initialization */
+    Write_Func_Desc(File, "RVM_Boot_Inv_Init");
+    fprintf(File, "Description : Initialize the all invocations.\n");
+    Write_Func_None(File);
+    fprintf(File, "void RVM_Boot_Inv_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    rvm_ptr_t Init_Stack_Addr;\n");
+    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    {
+        fprintf(File, "\n    /* Initializing invocation for process: %s */\n", Proc->Name);
+        
+        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
+        {
+            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);\n",
+                    Inv->Map.Stack_Base, Inv->Map.Stack_Size, Inv->Map.Entry_Addr, Proc->Map.Entry_Code_Front);
+            /* We always return directly on fault for MCUs, because RVM does not do fault handling there */
+            fprintf(File, "    RVM_ASSERT(RVM_Inv_Set(%s, 0x%llX, Init_Stack_Addr, 1)==0);\n",
+                    Inv->Cap.RVM_Macro, Inv->Map.Entry_Addr);
+        }
+    }
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Inv_Init");
 
-    /* Receive endpoint initialization */
+    /* Receive endpoint initialization - no need at all */
+
+    /* Main initialization function */
+    Write_Func_Desc(File, "RVM_Boot_Kobj_Init");
+    fprintf(File, "Description : Initialize all kernel objects at boot-time.\n");
+    Write_Func_None(File);
+    fprintf(File, "void RVM_Boot_Kobj_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    RVM_Boot_Captbl_Init();\n");
+    fprintf(File, "    RVM_Boot_Pgtbl_Init();\n");
+    fprintf(File, "    RVM_Boot_Thd_Init();\n");
+    fprintf(File, "    RVM_Boot_Inv_Init();\n");
+    fprintf(File, "    RVM_Boot_Recv_Init();\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Kobj_Init");
 
     /* Close the file */
     Write_Src_Footer(File);
@@ -4372,7 +4532,55 @@ Return      : None.
 ******************************************************************************/
 void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path)
 {
-    /* User stubs */
+    s8_t* Buf;
+    FILE* File;
+    
+    Buf=Malloc(4096);
+
+    /* Create user stubs - pre initialization and post initialization */
+    /* Generate rvm_user.c */
+    sprintf(Buf, "%s/M7M2_MuAmmonite/Project/Source/rvm_user.c", Output_Path);
+    File=fopen(Buf, "wb");
+    if(File==0)
+        EXIT_FAIL("rvm_user.c open failed.");
+    Write_Src_Desc(File, "rvm_user.c", "The user hook file.");
+
+    /* Print all header includes */
+    fprintf(File, "/* Includes ******************************************************************/\n");
+    Print_RVM_Inc(File, Proj);
+    fprintf(File, "#include \"rvm_boot.h\"\n");
+    fprintf(File, "/* End Includes **************************************************************/\n\n");
+
+    /* Print all global prototypes */
+    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
+    fprintf(File, "void RVM_Boot_Pre_Init(void);\n");
+    fprintf(File, "void RVM_Boot_Post_Init(void);\n");
+    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+
+    /* Preinitialization of hardware */
+    Write_Func_Desc(File, "RVM_Boot_Pre_Init");
+    fprintf(File, "Description : Initialize critical hardware before any kernel object creation takes place.\n");
+    Write_Func_None(File);
+    fprintf(File, "void RVM_Boot_Pre_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    /* Add code here */\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Pre_Init");
+
+    /* Postinitialization of hardware */
+    Write_Func_Desc(File, "RVM_Boot_Post_Init");
+    fprintf(File, "Description : Initialize hardware after all kernel object creation took place.\n");
+    Write_Func_None(File);
+    fprintf(File, "void RVM_Boot_Post_Init(void)\n");
+    fprintf(File, "{\n");
+    fprintf(File, "    /* Add code here */\n");
+    fprintf(File, "}\n");
+    Write_Func_Footer(File, "RVM_Boot_Post_Init");
+
+    /* Close the file */
+    Write_Src_Footer(File);
+    fclose(File);
+    Free(Buf);
 }
 /* End Function:Gen_RVM_User *************************************************/
 

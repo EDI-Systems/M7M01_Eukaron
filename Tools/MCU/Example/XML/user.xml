@@ -41,7 +41,7 @@
             <Code_Size>0x10000</Code_Size>
             <Data_Size>0x10000</Data_Size>
             <Stack_Size>0x1000</Stack_Size>
-            <Extra_Captbl>128</Extra_Captbl>
+            <Extra_Captbl>32</Extra_Captbl>
             <Recovery>Process</Recovery>
         </General>
         <VMM></VMM>
@@ -49,7 +49,7 @@
     <Process>                                                                   
         <P1>
             <General>
-                <Name>Test_Proc1</Name>
+                <Name>Proc1</Name>
                 <Extra_Captbl>9</Extra_Captbl>
             </General>
             <Compiler>
@@ -84,8 +84,8 @@
             </Memory>
             <Thread>
                 <T1>
-                    <Name>Test_Proc1_Thd1</Name>
-                    <Entry>Test_Proc1_Thd1_Entry</Entry>
+                    <Name>Thd1</Name>
+                    <Entry>Thd1_Entry</Entry>
                     <Stack_Size>0x1000</Stack_Size>
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
@@ -95,13 +95,13 @@
             </Invocation>
             <Port>
                 <P1>
-                    <Name>Test_Proc2_Inv1</Name>
-                    <Process>Test_Proc2</Process>
+                    <Name>Inv1</Name>
+                    <Process>Proc2</Process>
                 </P1>
             </Port>
             <Receive>
                 <R1>
-                     <Name>Test_Proc1_Rcv1</Name>
+                     <Name>Rcv1</Name>
                      <Type>Receive</Type>
                 </R1>
             </Receive>
@@ -112,7 +112,7 @@
         </P1>
         <P2>
             <General>
-                <Name>Test_Proc2</Name>
+                <Name>Proc2</Name>
                 <Extra_Captbl>0</Extra_Captbl>
             </General>
             <Compiler>
@@ -135,8 +135,8 @@
             </Memory>
             <Thread>
                 <T1>
-                    <Name>Test_Proc2_Thd1</Name>
-                    <Entry>Test_Proc2_Thd1_Entry</Entry>
+                    <Name>Thd1</Name>
+                    <Entry>Thd1_Entry</Entry>
                     <Stack_Size>0x1000</Stack_Size>
                     <Parameter>0x1234</Parameter>
                     <Priority>3</Priority>
@@ -144,8 +144,8 @@
             </Thread>
             <Invocation>
                 <I1>
-                    <Name>Test_Proc2_Inv1</Name>
-                    <Entry>Test_Proc2_Inv1_Entry</Entry>
+                    <Name>Inv1</Name>
+                    <Entry>Inv1_Entry</Entry>
                     <Stack_Size>0x1000</Stack_Size>
                 </I1>
             </Invocation>
@@ -155,8 +155,8 @@
             </Receive>
             <Send>
                 <S1>
-                     <Name>Test_Proc1_Rcv1</Name>
-                     <Process>Test_Proc1</Process>
+                     <Name>Rcv1</Name>
+                     <Process>Proc1</Process>
                 </S1>
             </Send>
             <Vector>
