@@ -52,7 +52,7 @@ void A7M_Plat_Select(struct Proj_Info* Proj)
 {
     Proj->Plat.Word_Bits=32;
     Proj->Plat.Captbl_Capacity=128;
-    Proj->Plat.Init_Pgtbl_Num_Ord=A7M_INIT_PGTBL_ORD;
+    Proj->Plat.Init_Pgtbl_Num_Ord=A7M_INIT_PGTBL_NUM_ORD;
     Proj->Plat.Thd_Size=A7M_THD_SIZE;
     Proj->Plat.Inv_Size=A7M_INV_SIZE;
 
@@ -660,6 +660,78 @@ void A7M_Alloc_Pgtbl(struct Proj_Info* Proj, struct Chip_Info* Chip)
 }
 /* End Function:A7M_Alloc_Pgtbl **********************************************/
 
+/* Begin Function:A7M_Gen_Keil_RME ********************************************
+Description : Generate the RME files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8_t* RME_Path - The RME root folder path.
+              s8_t* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path)
+{
+    s8_t* Buf1;
+    s8_t* Buf2;
+
+    /* Allocate the buffer */
+    Buf1=Malloc(4096);
+    Buf2=Malloc(4096);
+
+    /* The toolchain specific assembler file */
+    if(A7M->CPU_Type==A7M_CPU_CM0P)
+    {
+        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", Output_Path);
+        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", RME_Path);
+    }
+    else
+    {
+        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", Output_Path);
+        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", RME_Path);
+    }
+    Copy_File(Buf1, Buf2);
+ 
+    /* The linker script */
+
+    Free(Buf1);
+    Free(Buf2);
+}
+/* End Function:A7M_Gen_Keil_RME *********************************************/
+
+/* Begin Function:A7M_Gen_Keil_RVM ********************************************
+Description : Generate the RVM files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8_t* RVM_Path - The RVM root folder path.
+              s8_t* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_Keil_RVM *********************************************/
+
+/* Begin Function:A7M_Gen_Keil_Proc *******************************************
+Description : Generate the process files for keil uvision. 
+              This includes the platform-specific assembly file and the scatter.
+Input       : struct Proj_Info* Proj - The project structure.
+              struct Chip_Info* Chip - The chip structure.
+              s8_t* RME_Path - The RME root folder path.
+              s8_t* RVM_Path - The RVM root folder path.
+              s8_t* Output_Path - The output folder path.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
+{
+
+}
+/* End Function:A7M_Gen_Keil_Proc ********************************************/
+
 /* Begin Function:A7M_Gen_Keil_Proj *******************************************
 Description : Generate the keil project for ARMv7-M architectures.
 Input       : FILE* Keil - The file pointer to the project file.
@@ -880,78 +952,6 @@ void A7M_Gen_Keil_Proj(FILE* Keil,
     fprintf(Keil, "</Project>\n");
 }
 /* End Function:A7M_Gen_Keil_Proj ********************************************/
-
-/* Begin Function:A7M_Gen_Keil_RME ********************************************
-Description : Generate the RME files for keil uvision. 
-              This includes the platform-specific assembly file and the scatter.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8_t* RME_Path - The RME root folder path.
-              s8_t* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path)
-{
-    s8_t* Buf1;
-    s8_t* Buf2;
-
-    /* Allocate the buffer */
-    Buf1=Malloc(4096);
-    Buf2=Malloc(4096);
-
-    /* The toolchain specific assembler file */
-    if(A7M->CPU_Type==A7M_CPU_CM0P)
-    {
-        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", Output_Path);
-        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s", RME_Path);
-    }
-    else
-    {
-        sprintf(Buf1,"%s/M7M1_MuEukaron/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", Output_Path);
-        sprintf(Buf2,"%s/MEukaron/Platform/A7M/rme_platform_a7m_asm.s", RME_Path);
-    }
-    Copy_File(Buf1, Buf2);
- 
-    /* The linker script */
-
-    Free(Buf1);
-    Free(Buf2);
-}
-/* End Function:A7M_Gen_Keil_RME *********************************************/
-
-/* Begin Function:A7M_Gen_Keil_RVM ********************************************
-Description : Generate the RVM files for keil uvision. 
-              This includes the platform-specific assembly file and the scatter.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8_t* RVM_Path - The RVM root folder path.
-              s8_t* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_Keil_RVM *********************************************/
-
-/* Begin Function:A7M_Gen_Keil_Proc *******************************************
-Description : Generate the process files for keil uvision. 
-              This includes the platform-specific assembly file and the scatter.
-Input       : struct Proj_Info* Proj - The project structure.
-              struct Chip_Info* Chip - The chip structure.
-              s8_t* RME_Path - The RME root folder path.
-              s8_t* RVM_Path - The RVM root folder path.
-              s8_t* Output_Path - The output folder path.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path)
-{
-
-}
-/* End Function:A7M_Gen_Keil_Proc ********************************************/
 
 /* Begin Function:A7M_Gen_Keil ************************************************
 Description : Generate the keil project for ARMv7-M. 

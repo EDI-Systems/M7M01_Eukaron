@@ -35,13 +35,13 @@ Description : The header of the mcu tool.
 #define A7M_END_BIG             (1)
 
 /* Initial page table order */
-#define A7M_INIT_PGTBL_ORD      (8)
+#define A7M_INIT_PGTBL_NUM_ORD  (3)
 /* Thread size and invocation size */
-#define A7M_THD_SIZE            (0)
-#define A7M_INV_SIZE            (0)
+#define A7M_THD_SIZE            (64)
+#define A7M_INV_SIZE            (32)
 /* Page table size */
-#define A7M_PGTBL_SIZE_TOP(NUM_ORDER)   (0)
-#define A7M_PGTBL_SIZE_NOM(NUM_ORDER)   (0)
+#define A7M_PGTBL_SIZE_TOP(NUM_ORDER)   (POW2(NUM_ORDER)*4)
+#define A7M_PGTBL_SIZE_NOM(NUM_ORDER)   (POW2(NUM_ORDER)*4)
 /*****************************************************************************/
 /* __RME_A7M_H_DEFS__ */
 #endif
@@ -114,15 +114,15 @@ static void A7M_Map_Pgdir(struct Proj_Info* Proj, struct Proc_Info* Proc,
 static struct Pgtbl_Info* A7M_Gen_Pgtbl(struct Proj_Info* Proj, struct Proc_Info* Proc,
                                         struct List* Mem_List, ptr_t Total_Max);
 
+static void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
+static void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
+static void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
 static void A7M_Gen_Keil_Proj(FILE* Keil,
                               s8_t* Target, s8_t* Device, s8_t* Vendor, 
                               s8_t* CPU_Type, s8_t* FPU_Type, s8_t* Endianness,
                               ptr_t Timeopt, ptr_t Opt,
                               s8_t** Includes, ptr_t Include_Num,
                               s8_t** Paths, s8_t** Files, ptr_t File_Num);
-static void A7M_Gen_Keil_RME(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
-static void A7M_Gen_Keil_RVM(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
-static void A7M_Gen_Keil_Proc(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
 static void A7M_Gen_Keil(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* RVM_Path, s8_t* Output_Path);
 
 static void A7M_Gen_Makefile(struct Proj_Info* Proj, struct Chip_Info* Chip,

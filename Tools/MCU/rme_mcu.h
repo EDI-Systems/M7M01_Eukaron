@@ -86,17 +86,17 @@ while(0);
 #define CODE_AUTHOR         ("The A7M project generator.")
 
 /* Generic kernel object sizes */
-#define CAPTBL_SIZE(NUM,BITS)        0
-#define PROC_SIZE(BITS)              0
-#define SIG_SIZE(BITS)               0
+#define CAPTBL_SIZE(NUM,BITS)        ((BITS)/8*8*(NUM))
+#define PROC_SIZE(BITS)              ((BITS)/8*8)
+#define SIG_SIZE(BITS)               ((BITS)/8*4)
 
 /* Interrupt flag area size (in bytes) */
-#define KERNEL_INTF_SIZE             1024
+#define KERNEL_INTF_SIZE             (1024)
 /* Entry point slot size (in words) */
-#define ENTRY_SLOT_SIZE              8
+#define ENTRY_SLOT_SIZE              (8)
 
 /* Kerneo object size rounding macro */
-#define KOTBL_ROUND(SIZE)            0
+#define KOTBL_ROUND(SIZE)            (SIZE)
 /* Compute the total capability table size when given the macros */
 #define CAPTBL_TOTAL(NUM,CAPACITY,BITS)     (((NUM)/(CAPACITY))*KOTBL_ROUND(CAPTBL_SIZE(CAPACITY,(BITS)))+ \
                                              KOTBL_ROUND(CAPTBL_SIZE((NUM)%(CAPACITY),(BITS))))
@@ -709,6 +709,9 @@ static void Print_RME_Inc(FILE* File, struct Proj_Info* Proj);
 static void Gen_RME_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Gen_RME_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RME_Path, s8_t* Output_Path);
 static void Print_RVM_Inc(FILE* File, struct Proj_Info* Proj);
+static void Cons_RVM_Pgtbl(FILE* File, struct Pgtbl_Info* Pgtbl);
+static void Map_RVM_Pgtbl(FILE* File, struct Pgtbl_Info* Pgtbl, ptr_t Init_Size_Ord);
+static void Init_RVM_Pgtbl(FILE* File, struct Proj_Info* Proj);
 static void Gen_RVM_Boot(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 static void Gen_RVM_User(struct Proj_Info* Proj, struct Chip_Info* Chip, s8_t* RVM_Path, s8_t* Output_Path);
 /*****************************************************************************/
