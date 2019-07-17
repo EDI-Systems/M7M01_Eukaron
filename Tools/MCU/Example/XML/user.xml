@@ -5,10 +5,6 @@
     <Chip_Class>STM32F767IG</Chip_Class>
     <Chip_Full>STM32F767IGT6</Chip_Full>
     <RME>
-        <Compiler>
-            <Optimization>O2</Optimization>
-            <Prioritization>Time</Prioritization>
-        </Compiler>
         <General>
             <Code_Start>0x08000000</Code_Start>
             <Code_Size>0x10000</Code_Size>
@@ -19,6 +15,10 @@
             <Kmem_Order>4</Kmem_Order>
             <Kern_Prios>32</Kern_Prios>
         </General>
+        <Compiler>
+            <Optimization>O2</Optimization>
+            <Prioritization>Time</Prioritization>
+        </Compiler>
         <Platform>
             <NVIC_Grouping>2-6</NVIC_Grouping>
             <Systick_Value>2160000</Systick_Value>
@@ -33,10 +33,6 @@
         </Chip>
     </RME>
     <RVM>
-        <Compiler>
-            <Optimization>O2</Optimization>
-            <Prioritization>Time</Prioritization>
-        </Compiler>
         <General>
             <Code_Size>0x10000</Code_Size>
             <Data_Size>0x10000</Data_Size>
@@ -44,14 +40,17 @@
             <Extra_Captbl>32</Extra_Captbl>
             <Recovery>Process</Recovery>
         </General>
-        <VMM></VMM>
+        <Compiler>
+            <Optimization>O2</Optimization>
+            <Prioritization>Time</Prioritization>
+        </Compiler>
+        <VMM>
+        </VMM>
     </RVM>
     <Process>                                                                   
         <P1>
-            <General>
-                <Name>Proc1</Name>
-                <Extra_Captbl>9</Extra_Captbl>
-            </General>
+            <Name>Proc1</Name>
+            <Extra_Captbl>9</Extra_Captbl>
             <Compiler>
                 <Optimization>O2</Optimization>
                 <Prioritization>Time</Prioritization>
@@ -111,10 +110,8 @@
             </Vector>
         </P1>
         <P2>
-            <General>
-                <Name>Proc2</Name>
-                <Extra_Captbl>0</Extra_Captbl>
-            </General>
+            <Name>Proc2</Name>
+            <Extra_Captbl>0</Extra_Captbl>
             <Compiler>
                 <Optimization>O3</Optimization>
                 <Prioritization>Size</Prioritization>

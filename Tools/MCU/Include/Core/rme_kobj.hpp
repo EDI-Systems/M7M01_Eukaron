@@ -1,27 +1,21 @@
 /******************************************************************************
-Filename    : rme_mem.hpp
+Filename    : rme_kobj.hpp
 Author      : pry
 Date        : 16/07/2019
 Licence     : LGPL v3+; see COPYING for details.
-Description : The header for the memory class.
+Description : The header for the kernel object class.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
 namespace rme_mcu
 {
 #ifdef __HDR_DEFS__
-#ifndef __RME_MEM_HPP_DEFS__
-#define __RME_MEM_HPP_DEFS__
+#ifndef __RME_KOBJ_HPP_DEFS__
+#define __RME_KOBJ_HPP_DEFS__
 /*****************************************************************************/
-/* Memory access permissions */
-#define MEM_READ            POW2(0)
-#define MEM_WRITE           POW2(1)
-#define MEM_EXECUTE         POW2(2)
-#define MEM_BUFFERABLE      POW2(3)
-#define MEM_CACHEABLE       POW2(4)
-#define MEM_STATIC          POW2(5)
+
 /*****************************************************************************/
-/* __RME_MEM_HPP_DEFS__ */
+/* __RME_MCU_HPP_DEFS__ */
 #endif
 /* __HDR_DEFS__ */
 #endif
@@ -29,32 +23,36 @@ namespace rme_mcu
 
 /* Classes *******************************************************************/
 #ifdef __HDR_CLASSES__
-#ifndef __RME_MEM_HPP_CLASSES__
-#define __RME_MEM_HPP_CLASSES__
+#ifndef __RME_KOBJ_HPP_CLASSES__
+#define __RME_KOBJ_HPP_CLASSES__
 
 /* Use defines in these headers */
 #define __HDR_DEFS__
 #undef __HDR_DEFS__
 
 /*****************************************************************************/
-/* Send endpoint information */
-class Mem
+/* Kernel object information */
+class Kobj
 {
 public:
-    /* The start address */
-	ptr_t Start;
-    /* The size */
-	ptr_t Size;
-    /* The attributes - read, write, execute, cacheable, bufferable, static */
-	ptr_t Attr;
-    /* The alignment granularity */
-    ptr_t Align;
-
-    Mem(xml_node_t* Node);
-    ~Mem(void){};
+    /* Name of the kernel object */
+    std::unique_ptr<std::string> Name;
+    /* The local capid of the port */
+    ptr_t Loc_Capid;
+    /* The global linear capid of the endpoint */
+    ptr_t RVM_Capid;
+    /* The macro denoting the global capid */
+    std::unique_ptr<std::string> Loc_Macro;
+    /* The macro denoting the global capid */
+    std::unique_ptr<std::string> RVM_Macro;
+    /* The macro denoting the global capid - for RME */
+    std::unique_ptr<std::string> RME_Macro;
+ 
+    Kobj(void){};
+    ~Kobj(void){};
 };
 /*****************************************************************************/
-/* __RME_MEM_HPP_CLASSES__ */
+/* __RME_KOBJ_HPP_CLASSES__ */
 #endif
 /* __HDR_CLASSES__ */
 #endif
