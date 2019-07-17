@@ -1,50 +1,140 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
-    <Filter Include="Resource Files">
+    <Filter Include="A7M Backend">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Core\Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Core\Header Files">
+      <UniqueIdentifier>{178d4fb2-1b8f-40d7-b342-a0a572c55cfc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Example Resource">
+      <UniqueIdentifier>{569e5991-ecd9-4368-888a-1d2d92ecb7b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="A7M Backend\Header Files">
+      <UniqueIdentifier>{6f3cdf02-c2b2-4178-87ee-4df569fcadbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="A7M Backend\Source Files">
+      <UniqueIdentifier>{c18d21f7-c10c-4cce-b350-c25ef211572d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\rme_mcu.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c">
-      <Filter>Source Files</Filter>
+      <Filter>Core\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\rme_a7m.c">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\Source\Core\rme_captbl.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_chip.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_mcu.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_mem.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_pgtbl.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_proj.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_thd.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m.cpp">
+      <Filter>A7M Backend\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_inv.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_recv.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_send.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_vect.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_proc.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_comp.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_port.cpp">
+      <Filter>Core\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">
-      <Filter>Resource Files</Filter>
+      <Filter>Example Resource</Filter>
     </Xml>
     <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml">
-      <Filter>Resource Files</Filter>
+      <Filter>Example Resource</Filter>
     </Xml>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\pbfs_conf.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\Include\Core\pbfs_conf.h">
+      <Filter>Core\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\rme_a7m.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\Include\Core\rme_captbl.hpp">
+      <Filter>Core\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\rme_mcu.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\Include\Core\rme_chip.hpp">
+      <Filter>Core\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xml_conf.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\Include\Core\rme_mcu.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_mem.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_pgtbl.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_proj.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_thd.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m.hpp">
+      <Filter>A7M Backend\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_proc.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_kobj.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_inv.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_recv.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_send.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_vect.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_comp.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_port.hpp">
+      <Filter>Core\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
