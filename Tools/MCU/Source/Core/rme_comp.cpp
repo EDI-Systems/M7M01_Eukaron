@@ -74,9 +74,9 @@ Return      : None.
         else
             throw std::invalid_argument("Optimization prioritization is malformed.");
     }
-    catch(std::exception* Exc)
+    catch(std::exception& Exc)
     {
-        throw std::runtime_error(std::string("Compiler options: ")+"\n"+Exc->what());
+        throw std::runtime_error(std::string("Compiler options: ")+"\n"+Exc.what());
     }
 }
 /* End Function:Comp::Comp ***************************************************/

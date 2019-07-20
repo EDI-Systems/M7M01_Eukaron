@@ -72,6 +72,7 @@
     <ClCompile Include="..\..\Source\Core\rme_captbl.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_chip.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_comp.cpp" />
+    <ClCompile Include="..\..\Source\Core\rme_fsys.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_inv.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_mcu.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_mem.cpp" />
@@ -79,6 +80,7 @@
     <ClCompile Include="..\..\Source\Core\rme_port.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_proc.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_proj.cpp" />
+    <ClCompile Include="..\..\Source\Core\rme_raw.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_recv.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_send.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_thd.cpp" />
@@ -94,6 +96,7 @@
     <ClInclude Include="..\..\Include\Core\rme_captbl.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_chip.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_comp.hpp" />
+    <ClInclude Include="..\..\Include\Core\rme_fsys.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_inv.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_kobj.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_mcu.hpp" />
@@ -102,6 +105,7 @@
     <ClInclude Include="..\..\Include\Core\rme_port.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_proc.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_proj.hpp" />
+    <ClInclude Include="..\..\Include\Core\rme_raw.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_recv.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_send.hpp" />
     <ClInclude Include="..\..\Include\Core\rme_thd.hpp" />

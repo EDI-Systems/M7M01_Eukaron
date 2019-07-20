@@ -55,12 +55,12 @@ Return      : None.
             throw std::invalid_argument("Process name section is empty.");
         this->Proc_Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
     }
-    catch(std::exception* Exc)
+    catch(std::exception& Exc)
     {
         if(this->Name!=nullptr)
-            throw std::runtime_error(std::string("Port: ")+*(this->Name)+"\n"+Exc->what());
+            throw std::runtime_error(std::string("Port: ")+*(this->Name)+"\n"+Exc.what());
         else
-            throw std::runtime_error(std::string("Port: ")+"Unknown"+"\n"+Exc->what());
+            throw std::runtime_error(std::string("Port: ")+"Unknown"+"\n"+Exc.what());
     }
 }
 /* End Function:Port::Port ***************************************************/

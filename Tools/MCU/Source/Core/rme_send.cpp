@@ -58,9 +58,9 @@ Return      : None.
     catch(std::exception& Exc)
     {
         if(this->Name!=nullptr)
-            throw std::runtime_error(std::string("Send endpoint: ")+*(this->Name)+"\n"+Exc->what());
+            throw std::runtime_error(std::string("Send endpoint: ")+*(this->Name)+"\n"+Exc.what());
         else
-            throw std::runtime_error(std::string("Send endpoint: ")+"Unknown"+"\n"+Exc->what());
+            throw std::runtime_error(std::string("Send endpoint: ")+"Unknown"+"\n"+Exc.what());
     }
 }
 /* End Function:Send::Send ***************************************************/

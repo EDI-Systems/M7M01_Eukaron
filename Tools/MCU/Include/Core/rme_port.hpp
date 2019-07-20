@@ -1,9 +1,9 @@
 /******************************************************************************
-Filename    : rme_vect.hpp
+Filename    : rme_port.hpp
 Author      : pry
 Date        : 16/07/2019
 Licence     : LGPL v3+; see COPYING for details.
-Description : The header for the vector class.
+Description : The header for the port class.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
@@ -13,7 +13,7 @@ namespace rme_mcu
 #ifndef __RME_PORT_HPP_DEFS__
 #define __RME_PORT_HPP_DEFS__
 /*****************************************************************************/
-
+    
 /*****************************************************************************/
 /* __RME_PORT_HPP_DEFS__ */
 #endif
@@ -25,11 +25,6 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_PORT_HPP_CLASSES__
 #define __RME_PORT_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Port information */
 class Port:public Kobj
@@ -46,7 +41,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

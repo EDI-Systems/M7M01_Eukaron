@@ -25,11 +25,6 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_THD_HPP_CLASSES__
 #define __RME_THD_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Thread memory map information */
 class Thd_Memmap
@@ -72,7 +67,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

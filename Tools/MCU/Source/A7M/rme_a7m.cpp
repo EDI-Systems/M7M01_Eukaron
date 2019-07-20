@@ -8,25 +8,11 @@ Description : This toolset is for ARMv7-M. Specifically, this suits Cortex-M0+,
 ******************************************************************************/
 
 /* Includes ******************************************************************/
-/* Kill CRT warnings for MS. This also relies on Shlwapi.lib, remember to add it */
-#ifdef _MSC_VER
-#define _CRT_SECURE_NO_WARNINGS
-#endif
-
-#include "stdio.h"
-#include "memory.h"
-#include "stdlib.h"
-#include "string.h"
-#include "time.h"
-#include "sys/types.h"
-#include "sys/stat.h"
-
 #include "xml.h"
-#include "pbfs.h"
 
 #define __HDR_DEFS__
-#include "rme_mcu.h"
-#include "rme_a7m.h"
+#include "rme_mcu.hpp"
+#include "rme_a7m.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__

@@ -13,7 +13,7 @@ namespace rme_mcu
 #ifndef __RME_RECV_HPP_DEFS__
 #define __RME_RECV_HPP_DEFS__
 /*****************************************************************************/
-
+    
 /*****************************************************************************/
 /* __RME_RECV_HPP_DEFS__ */
 #endif
@@ -25,11 +25,6 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_RECV_HPP_CLASSES__
 #define __RME_RECV_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Receive endpoint information */
 class Recv:public Kobj
@@ -44,7 +39,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

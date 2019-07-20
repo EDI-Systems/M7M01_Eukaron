@@ -13,7 +13,7 @@ namespace rme_mcu
 #ifndef __RME_VECT_HPP_DEFS__
 #define __RME_VECT_HPP_DEFS__
 /*****************************************************************************/
-
+    
 /*****************************************************************************/
 /* __RME_VECT_HPP_DEFS__ */
 #endif
@@ -25,18 +25,15 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_VECT_HPP_CLASSES__
 #define __RME_VECT_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Vector endpoint information */
 class Vect:public Kobj
 {
 public:
+    ptr_t Num;
+
     Vect(xml_node_t* Node);
-    ~Vect(void);
+    ~Vect(void){};
 };
 /*****************************************************************************/
 /* __RME_VECT_HPP_CLASSES__ */
@@ -44,7 +41,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

@@ -5,16 +5,14 @@
     <Chip_Class>STM32F767IG</Chip_Class>
     <Chip_Full>STM32F767IGT6</Chip_Full>
     <RME>
-        <General>
-            <Code_Start>0x08000000</Code_Start>
-            <Code_Size>0x10000</Code_Size>
-            <Data_Start>0x20000000</Data_Start>
-            <Data_Size>0x10000</Data_Size>
-            <Stack_Size>0x1000</Stack_Size>
-            <Extra_Kmem>0x8000</Extra_Kmem>
-            <Kmem_Order>4</Kmem_Order>
-            <Kern_Prios>32</Kern_Prios>
-        </General>
+        <Code_Start>0x08000000</Code_Start>
+        <Code_Size>0x10000</Code_Size>
+        <Data_Start>0x20000000</Data_Start>
+        <Data_Size>0x10000</Data_Size>
+        <Stack_Size>0x1000</Stack_Size>
+        <Extra_Kmem>0x8000</Extra_Kmem>
+        <Kmem_Order>4</Kmem_Order>
+        <Kern_Prios>32</Kern_Prios>
         <Compiler>
             <Optimization>O2</Optimization>
             <Prioritization>Time</Prioritization>
@@ -33,13 +31,11 @@
         </Chip>
     </RME>
     <RVM>
-        <General>
-            <Code_Size>0x10000</Code_Size>
-            <Data_Size>0x10000</Data_Size>
-            <Stack_Size>0x1000</Stack_Size>
-            <Extra_Captbl>32</Extra_Captbl>
-            <Recovery>Process</Recovery>
-        </General>
+        <Code_Size>0x10000</Code_Size>
+        <Data_Size>0x10000</Data_Size>
+        <Stack_Size>0x1000</Stack_Size>
+        <Extra_Captbl>32</Extra_Captbl>
+        <Recovery>Process</Recovery>
         <Compiler>
             <Optimization>O2</Optimization>
             <Prioritization>Time</Prioritization>
