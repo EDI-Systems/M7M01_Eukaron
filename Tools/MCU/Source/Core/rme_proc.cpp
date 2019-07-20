@@ -19,11 +19,14 @@ extern "C"
 
 #define __HDR_DEFS__
 #include "Core/rme_mcu.hpp"
+#include "Core/rme_comp.hpp"
+#include "Core/rme_mem.hpp"
 #include "Core/rme_kobj.hpp"
 #include "Core/rme_captbl.hpp"
 #include "Core/rme_pgtbl.hpp"
 #include "Core/rme_thd.hpp"
 #include "Core/rme_inv.hpp"
+#include "Core/rme_port.hpp"
 #include "Core/rme_recv.hpp"
 #include "Core/rme_send.hpp"
 #include "Core/rme_vect.hpp"
@@ -31,11 +34,14 @@ extern "C"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
+#include "Core/rme_comp.hpp"
+#include "Core/rme_mem.hpp"
 #include "Core/rme_kobj.hpp"
 #include "Core/rme_captbl.hpp"
 #include "Core/rme_pgtbl.hpp"
 #include "Core/rme_thd.hpp"
 #include "Core/rme_inv.hpp"
+#include "Core/rme_port.hpp"
 #include "Core/rme_recv.hpp"
 #include "Core/rme_send.hpp"
 #include "Core/rme_vect.hpp"
@@ -69,7 +75,8 @@ Return      : None.
         /* Extra_Captbl */
         if((XML_Child(Node,"Extra_Captbl",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Extra capability table size section is missing.");
-        if(XML_Get_Uint(Temp,&(this->Extra_Captbl))<0)
+        this->Captbl=std::make_unique<class Captbl>();
+        if(XML_Get_Uint(Temp,&(this->Captbl->Extra))<0)
             throw std::invalid_argument("Extra capability table size is not a valid unsigned integer.");
 
         /* Compiler */
@@ -101,8 +108,6 @@ Return      : None.
                 this->Device.push_back(std::make_unique<class Mem>(Trunk));
             else
                 throw std::invalid_argument("Memory type is malformed.");
-
-            this->Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
 
             if(XML_Child(Node,"",&Trunk)<0)
                 throw std::invalid_argument("Memory section parsing internal error.");

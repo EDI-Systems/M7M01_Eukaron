@@ -13,9 +13,9 @@ namespace rme_mcu
 #ifndef __RME_PROC_HPP_DEFS__
 #define __RME_PROC_HPP_DEFS__
 /*****************************************************************************/
-
+    
 /*****************************************************************************/
-/* __RME_MCU_HPP_DEFS__ */
+/* __RME_PROC_HPP_DEFS__ */
 #endif
 /* __HDR_DEFS__ */
 #endif
@@ -25,13 +25,8 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_PROC_HPP_CLASSES__
 #define __RME_PROC_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
- /* Process memory map */
+/* Process memory map */
  class Proc_Memmap
 {
 public:
@@ -87,7 +82,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

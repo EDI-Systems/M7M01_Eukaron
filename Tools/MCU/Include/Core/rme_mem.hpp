@@ -20,6 +20,8 @@ namespace rme_mcu
 #define MEM_BUFFERABLE      POW2(3)
 #define MEM_CACHEABLE       POW2(4)
 #define MEM_STATIC          POW2(5)
+/* Memory placement */
+#define MEM_AUTO            ((ptr_t)(-1LL))
 /*****************************************************************************/
 /* __RME_MEM_HPP_DEFS__ */
 #endif
@@ -31,11 +33,6 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_MEM_HPP_CLASSES__
 #define __RME_MEM_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Send endpoint information */
 class Mem
@@ -59,7 +56,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 

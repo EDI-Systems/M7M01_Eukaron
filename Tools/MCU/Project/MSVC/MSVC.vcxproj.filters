@@ -75,6 +75,12 @@
     <ClCompile Include="..\..\Source\Core\rme_port.cpp">
       <Filter>Core\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_raw.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_fsys.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">
@@ -134,6 +140,12 @@
       <Filter>Core\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\Core\rme_port.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_raw.hpp">
+      <Filter>Core\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Core\rme_fsys.hpp">
       <Filter>Core\Header Files</Filter>
     </ClInclude>
   </ItemGroup>

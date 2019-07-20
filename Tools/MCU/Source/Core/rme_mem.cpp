@@ -1,9 +1,9 @@
 /******************************************************************************
-Filename    : rme_send.cpp
+Filename    : rme_mem.cpp
 Author      : pry
 Date        : 16/07/2019
 Licence     : LGPL v3+; see COPYING for details.
-Description : The send endpoint class.
+Description : The memory block class.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -46,7 +46,7 @@ Return      : None.
         if((XML_Child(Node,"Start",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Start section is missing.");
         if((Temp->XML_Val_Len==4)&&(std::string(Temp->XML_Val,4)=="Auto"))
-            this->Start=AUTO;
+            this->Start=MEM_AUTO;
         else if(XML_Get_Hex(Temp,&(this->Start))<0)
             throw std::invalid_argument("Start is not a valid hex integer.");
 
@@ -57,7 +57,7 @@ Return      : None.
             throw std::invalid_argument("Size is not a valid hex integer.");
         if(this->Size==0)
             throw std::invalid_argument("Size cannot be zero.");
-        if(this->Start!=AUTO)
+        if(this->Start!=MEM_AUTO)
         {
             if((this->Start+this->Size)>0x100000000ULL)
                 throw std::invalid_argument("Size is out of bound.");
@@ -73,7 +73,7 @@ Return      : None.
             throw std::invalid_argument("Type section is missing.");
         if((Temp->XML_Val_Len==6)&&(std::string(Temp->XML_Val,6)=="Device"))
         {
-            if(this->Start==AUTO)
+            if(this->Start==MEM_AUTO)
                 throw std::invalid_argument("Device typed memory cannot be automatically allocated.");
         }
 

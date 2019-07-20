@@ -15,7 +15,7 @@ namespace rme_mcu
 /*****************************************************************************/
 
 /*****************************************************************************/
-/* __RME_MCU_HPP_DEFS__ */
+/* __RME_KOBJ_HPP_DEFS__ */
 #endif
 /* __HDR_DEFS__ */
 #endif
@@ -25,11 +25,6 @@ namespace rme_mcu
 #ifdef __HDR_CLASSES__
 #ifndef __RME_KOBJ_HPP_CLASSES__
 #define __RME_KOBJ_HPP_CLASSES__
-
-/* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
-
 /*****************************************************************************/
 /* Kernel object information */
 class Kobj
@@ -57,7 +52,7 @@ public:
 /* __HDR_CLASSES__ */
 #endif
 }
-/* End C++ Classes ***********************************************************/
+/* End Classes ***************************************************************/
 
 /* End Of File ***************************************************************/
 
