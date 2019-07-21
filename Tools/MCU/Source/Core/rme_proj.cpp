@@ -173,6 +173,20 @@ Return      : None.
 }
 /* End Function:RME::RME *****************************************************/
 
+/* Begin Function:Cap::Cap ****************************************************
+Description : Constructor for Cap class.
+Input       : class Proc* Proc - The pointer to the process.
+              class Kobj* Kobj - The pointer to the kernel object.
+Output      : None.
+Return      : None.
+******************************************************************************/
+/* void */ Cap::Cap(class Proc* Proc, class Kobj* Kobj)
+{
+    this->Proc=Proc;
+    this->Kobj=Kobj;
+}
+/* End Function:Cap::Cap *****************************************************/
+
 /* Begin Function:RVM::RVM ****************************************************
 Description : Constructor for RVM class.
 Input       : xml_node_t* Node - The node containing the whole project.

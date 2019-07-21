@@ -90,6 +90,7 @@ private:
     void Alloc_Macro_Pgtbl(std::unique_ptr<class Proc>& Proc,
                            std::unique_ptr<class Pgtbl>& Pgtbl);
     void Alloc_Macro(void);
+    void Backprop_RVM(void);
 
 public:
     std::unique_ptr<std::string> Input;
