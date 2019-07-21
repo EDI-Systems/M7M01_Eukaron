@@ -578,13 +578,13 @@ void Main::Alloc_RVM_Pgtbl(std::unique_ptr<class Proc>& Proc,
     ptr_t Count;
 
     Pgtbl->RVM_Capid=this->Proj->RVM->Pgtbl.size();
-    this->Proj->RVM->Pgtbl.push_back(std::make_unique<class Cap>(Pgtbl,Proc));
+    this->Proj->RVM->Pgtbl.push_back(std::make_unique<class Cap>(Proc.get(),Pgtbl.get()));
 
     /* Recursively do allocation */
     for(Count=0;Count<Pgtbl->Pgdir.size();Count++)
     {
-        if(Pgtbl->Pgdir[Count]!=nullptr)
-            Alloc_RVM_Pgtbl(Proc, Pgtbl->Pgdir[Count]);
+        if(Pgtbl->Pgdir[(unsigned int)Count]!=nullptr)
+            Alloc_RVM_Pgtbl(Proc, Pgtbl->Pgdir[(unsigned int)Count]);
     }
 }
 /* End Function:Main::Alloc_RVM_Pgtbl ****************************************/
@@ -609,33 +609,33 @@ void Main::Alloc_RVM(void)
     for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
     {
         Proc->Captbl->RVM_Capid=this->Proj->RVM->Captbl.size();
-        this->Proj->RVM->Captbl.push_back(std::make_unique<class Cap>(Proc->Captbl,Proc));
+        this->Proj->RVM->Captbl.push_back(std::make_unique<class Cap>(Proc.get(),Proc->Captbl.get()));
         Alloc_RVM_Pgtbl(Proc, Proc->Pgtbl);
         Proc->RVM_Capid=this->Proj->RVM->Proc.size();
-        this->Proj->RVM->Proc.push_back(std::make_unique<class Cap>(Proc,Proc));
+        this->Proj->RVM->Proc.push_back(std::make_unique<class Cap>(Proc.get(),Proc.get()));
 
         for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
         {
             Thd->RVM_Capid=this->Proj->RVM->Thd.size();
-            this->Proj->RVM->Thd.push_back(std::make_unique<class Cap>(Thd,Proc));
+            this->Proj->RVM->Thd.push_back(std::make_unique<class Cap>(Proc.get(),Thd.get()));
         }
 
         for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
         {
             Inv->RVM_Capid=this->Proj->RVM->Inv.size();
-            this->Proj->RVM->Inv.push_back(std::make_unique<class Cap>(Inv,Proc));
+            this->Proj->RVM->Inv.push_back(std::make_unique<class Cap>(Proc.get(),Inv.get()));
         }
 
         for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
         {
             Recv->RVM_Capid=this->Proj->RVM->Recv.size();
-            this->Proj->RVM->Recv.push_back(std::make_unique<class Cap>(Recv,Proc));
+            this->Proj->RVM->Recv.push_back(std::make_unique<class Cap>(Proc.get(),Recv.get()));
         }
 
         for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
         {
             Vect->RVM_Capid=this->Proj->RVM->Vect.size();
-            this->Proj->RVM->Vect.push_back(std::make_unique<class Cap>(Vect,Proc));
+            this->Proj->RVM->Vect.push_back(std::make_unique<class Cap>(Proc.get(),Vect.get()));
         }
     }
 }
@@ -663,8 +663,8 @@ void Main::Alloc_Macro_Pgtbl(std::unique_ptr<class Proc>& Proc,
     /* Recursively do allocation */
     for(Count=0;Count<Pgtbl->Pgdir.size();Count++)
     {
-        if(Pgtbl->Pgdir[Count]!=nullptr)
-            Alloc_Macro_Pgtbl(Proc, Pgtbl->Pgdir[Count]);
+        if(Pgtbl->Pgdir[(unsigned int)Count]!=nullptr)
+            Alloc_Macro_Pgtbl(Proc, Pgtbl->Pgdir[(unsigned int)Count]);
     }
 }
 /* End Function:Main::Alloc_Macro_Pgtbl **************************************/
@@ -707,132 +707,162 @@ void Main::Alloc_Macro(void)
         Proj::To_Upper(Proc->RVM_Macro);
         Alloc_Macro_Pgtbl(Proc,Proc->Pgtbl);
         Proc->Captbl->RVM_Macro=std::make_unique<std::string>(std::string("RVM_CAPTBL_")+*(Proc->Name));
+        Proj::To_Upper(Proc->Captbl->RVM_Macro);
 
         for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
-            Thd->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_THD_",*(Thd->Name));
-
-        /* Invocations - RVM only */
-        for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
-            Inv->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_INV_",Inv->Name);
-
-        /* Ports - Local only */
-        for(EACH(struct Port_Info*,Port,Proc->Port))
-            Port->Cap.Loc_Macro=Make_Macro("PORT_",Port->Name,"","");
-
-        /* Receive endpoints - RVM and local */
-        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
         {
-            Recv->Cap.Loc_Macro=Make_Macro("RECV_",Recv->Name,"","");
-            Recv->Cap.RVM_Macro=Make_Macro("RVM_PROC_",Proc->Name,"_RECV_",Recv->Name);
+            Thd->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_THD_"+*(Thd->Name));
+            Proj::To_Upper(Thd->RVM_Macro);
         }
 
-        /* Send endpoints - Local only */
-        for(EACH(struct Send_Info*,Send,Proc->Send))
-            Send->Cap.Loc_Macro=Make_Macro("SEND_",Send->Name,"","");
-
-        /* Vector endpoints - RVM, RME and local */
-        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
         {
-            Vect->Cap.Loc_Macro=Make_Macro("VECT_",Vect->Name,"","");
-            Vect->Cap.RVM_Macro=Make_Macro("RVM_BOOT_VECT_",Vect->Name,"","");
-            Vect->Cap.RME_Macro=Make_Macro("RME_BOOT_VECT_",Vect->Name,"","");
+            Inv->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_INV_"+*(Inv->Name));
+            Proj::To_Upper(Inv->RVM_Macro);
+        }
+
+        for(std::unique_ptr<class Port>& Port:Proc->Port)
+        {
+            Port->Loc_Macro=std::make_unique<std::string>(std::string("PORT_")+*(Port->Name));
+            Proj::To_Upper(Port->Loc_Macro);
+        }
+
+        for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
+        {
+            Recv->Loc_Macro=std::make_unique<std::string>(std::string("RECV_")+*(Recv->Name));
+            Proj::To_Upper(Recv->Loc_Macro);
+            Recv->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_RECV_"+*(Recv->Name));
+            Proj::To_Upper(Recv->RVM_Macro);
+        }
+
+        for(std::unique_ptr<class Send>& Send:Proc->Send)
+        {
+            Send->Loc_Macro=std::make_unique<std::string>(std::string("SEND_")+*(Send->Name));
+            Proj::To_Upper(Send->Loc_Macro);
+        }
+
+        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
+        {
+            Vect->Loc_Macro=std::make_unique<std::string>(std::string("VECT_")+*(Vect->Name));
+            Proj::To_Upper(Vect->Loc_Macro);
+            Vect->RVM_Macro=std::make_unique<std::string>(std::string("RVM_BOOT_VECT_")+*(Vect->Name));
+            Proj::To_Upper(Vect->RVM_Macro);
+            Vect->RME_Macro=std::make_unique<std::string>(std::string("RME_BOOT_VECT_")+*(Vect->Name));
+            Proj::To_Upper(Vect->RME_Macro);
         }
     }
 }
 /* End Function:Main::Alloc_Macro ********************************************/
 
-/* Begin Function:Backprop_Global_Capid ***************************************
+/* Begin Function:Main::Backprop_RVM ******************************************
 Description : Back propagate the global ID to all the ports and send endpoints,
               which are derived from kernel objects. Also detects if all the port
               and send endpoint names in the system are valid. If any of them includes
               dangling references to invocations and receive endpoints, abort.
               These comparisons use strcmp because we require that the process name
               cases match.
-Input       : struct Proj_Info* Proj - The project information structure.
-              struct Chip_Info* Chip - The chip information structure.
-Output      : struct Proj_Info* Proj - The updated project structure.
+Input       : None.
+Output      : None.
 Return      : None.
 ******************************************************************************/
-void Backprop_Global_Capid(struct Proj_Info* Proj, struct Chip_Info* Chip)
+void Main::Backprop_RVM(void)
 {
-    struct Proc_Info* Proc;
-    struct Proc_Info* Proc_Temp;
-    struct Port_Info* Port;
-    struct Inv_Info* Inv;
-    struct Send_Info* Send;
-    struct Recv_Info* Recv;
-    struct Vect_Info* Vect;
-    struct Chip_Vect_Info* Chip_Vect;
+    class Proc* Proc_Dst;
+    class Inv* Inv_Dst;
+    class Recv* Recv_Dst;
+    class Vect* Vect_Dst;
 
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
+    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
     {
         /* For every port, there must be a invocation somewhere */
-        for(EACH(struct Port_Info*,Port,Proc->Port))
+        for(std::unique_ptr<class Port>& Port:Proc->Port)
         {
-            for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+            Proc_Dst=0;
+            for(std::unique_ptr<class Proc>& Proc_Temp:this->Proj->Proc)
             {
-                if(strcmp(Proc_Temp->Name, Port->Proc_Name)==0)
-                    break;
-            }
-            if(IS_HEAD(Proc_Temp,Proj->Proc))
-                EXIT_FAIL("Invalid Process for Port.");
-
-            for(EACH(struct Inv_Info*,Inv,Proc_Temp->Inv))
-            {
-                if(strcmp(Inv->Name, Port->Name)==0)
+                if(*(Proc_Temp->Name)==*(Port->Proc_Name))
                 {
-                    Port->Cap.RVM_Capid=Inv->Cap.RVM_Capid;
-                    Port->Cap.RVM_Macro=Inv->Cap.RVM_Macro;
+                    Proc_Dst=Proc_Temp.get();
                     break;
                 }
             }
-            if(IS_HEAD(Inv,Proc->Inv))
-                EXIT_FAIL("Invalid Invocation for Port.");
+            if(Proc_Dst==0)
+                throw std::runtime_error(std::string("Port:")+*(Port->Name)+"\nInvalid process name.");
+
+            Inv_Dst=0;
+            for(std::unique_ptr<class Inv>& Inv:Proc_Dst->Inv)
+            {
+                if(*(Inv->Name)==*(Port->Name))
+                {
+                    Inv_Dst=Inv.get();
+                    break;
+                }
+            }
+            if(Inv_Dst==0)
+                throw std::runtime_error(std::string("Port:")+*(Port->Name)+"\nInvalid invocation name.");
+
+            Port->RVM_Capid=Inv_Dst->RVM_Capid;
+            Port->RVM_Macro=std::make_unique<std::string>(*(Inv_Dst->RVM_Macro));
         }
 
         /* For every send endpoint, there must be a receive endpoint somewhere */
-        for(EACH(struct Send_Info*,Send,Proc->Send))
+        for(std::unique_ptr<class Send>& Send:Proc->Send)
         {
-            for(EACH(struct Proc_Info*,Proc_Temp,Proj->Proc))
+            Proc_Dst=0;
+            for(std::unique_ptr<class Proc>& Proc_Temp:this->Proj->Proc)
             {
-                if(strcmp(Proc_Temp->Name, Send->Proc_Name)==0)
-                    break;
-            }
-            if(IS_HEAD(Proc_Temp,Proj->Proc))
-                EXIT_FAIL("Invalid Process for Send endpoint.");
-
-            for(EACH(struct Recv_Info*,Recv,Proc_Temp->Recv))
-            {
-                if(strcmp(Recv->Name, Send->Name)==0)
+                if(*(Proc_Temp->Name)==*(Send->Proc_Name))
                 {
-                    Send->Cap.RVM_Capid=Recv->Cap.RVM_Capid;
-                    Send->Cap.RVM_Macro=Recv->Cap.RVM_Macro;
+                    Proc_Dst=Proc_Temp.get();
                     break;
                 }
             }
-            if(IS_HEAD(Recv,Proc->Recv))
-                EXIT_FAIL("Invalid Receive endpoint for Send endpoint.");
+            if(Proc_Dst==0)
+                throw std::runtime_error(std::string("Send endpoint:")+*(Send->Name)+"\nInvalid process name.");
+
+            Recv_Dst=0;
+            for(std::unique_ptr<class Recv>& Recv:Proc_Dst->Recv)
+            {
+                if(*(Recv->Name)==*(Send->Name))
+                {
+                    Recv_Dst=Recv.get();
+                    break;
+                }
+            }
+            if(Recv_Dst==0)
+                throw std::runtime_error(std::string("Send endpoint:")+*(Send->Name)+"\nInvalid invocation name.");
+
+            Send->RVM_Capid=Recv_Dst->RVM_Capid;
+            Send->RVM_Macro=std::make_unique<std::string>(*(Recv_Dst->RVM_Macro));
         }
 
         /* For every vector, there must be a corresponding chip interrupt vector somewhere */
-        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
+        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
         {
-            for(EACH(struct Chip_Vect_Info*,Chip_Vect,Chip->Vect))
+            Vect_Dst=0;
+            for(std::unique_ptr<class Vect>& Vect_Chip:Chip->Vect)
             {
-                if(strcmp(Chip_Vect->Name, Vect->Name)==0)
+                if(*(Vect_Chip->Name)==*(Vect->Name))
                 {
-                    Vect->Num=Chip_Vect->Num;
+                    Vect_Dst=Vect_Chip.get();
                     break;
                 }
             }
-            if(IS_HEAD(Chip_Vect,Chip->Vect))
-                EXIT_FAIL("Invalid Chip vector for Vector endpoint.");
+            if(Vect_Dst==0)
+                throw std::runtime_error(std::string("Vector endpoint:")+*(Vect->Name)+"\nInvalid vector name.");
+
+            Vect->Num=Vect_Dst->Num;
         }
     }
 }
-/* End Function:Backprop_RVM *************************************************/
+/* End Function:Main::Backprop_RVM *******************************************/
 
-
+/* Begin Function:Main::Alloc_Captbl ******************************************
+Description : Allocate capability IDs and macros for all kernel objects.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
 void Main::Alloc_Captbl(void)
 {
     /* First, check whether there are conflicts - this is not case insensitive */
@@ -846,6 +876,7 @@ void Main::Alloc_Captbl(void)
     /* Back propagate global entrie number to the ports and send endpoints */
     Backprop_RVM();
 }
+/* End Function:Main::Alloc_Captbl *******************************************/
 }
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.

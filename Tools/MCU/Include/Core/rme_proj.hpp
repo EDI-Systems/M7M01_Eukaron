@@ -117,7 +117,7 @@ public:
     /* What's the content of the capability, exactly? */
     class Kobj* Kobj;
 
-    Cap(std::unique_ptr<class Proc>& Proc, std::unique_ptr<class Kobj>& Kobj);
+    Cap(class Proc* Proc, class Kobj* Kobj);
 };
 
 /* The memory map information for RVM */
