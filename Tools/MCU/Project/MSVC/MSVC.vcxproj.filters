@@ -81,6 +81,9 @@
     <ClCompile Include="..\..\Source\Core\rme_fsys.cpp">
       <Filter>Core\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Core\rme_kobj.cpp">
+      <Filter>Core\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">

@@ -43,7 +43,6 @@ public:
     ptr_t Prio;
 
     Comp(xml_node_t* Node);
-    ~Comp(void);
 };
 /*****************************************************************************/
 /* __RME_COMP_HPP_CLASSES__ */

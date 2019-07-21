@@ -9,6 +9,7 @@ Description : The receive endpoint class.
 /* Includes ******************************************************************/
 #include "string"
 #include "memory"
+#include "vector"
 #include "stdexcept"
 
 extern "C"

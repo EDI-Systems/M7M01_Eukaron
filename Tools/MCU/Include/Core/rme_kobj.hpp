@@ -42,9 +42,16 @@ public:
     std::unique_ptr<std::string> RVM_Macro;
     /* The macro denoting the global capid - for RME */
     std::unique_ptr<std::string> RME_Macro;
- 
-    Kobj(void){};
-    ~Kobj(void){};
+
+    virtual ~Kobj(void)=0;
+
+    static ret_t Strcicmp(const std::string& Str1, const std::string& Str2);
+    static ret_t Check_Name(const std::string& Name);
+
+    template<class T>
+    static std::string* Check_Kobj(std::vector<std::unique_ptr<T>>& List);
+    template<class T>
+    static std::string* Check_Kobj_Proc_Name(std::vector<std::unique_ptr<T>>& List);
 };
 /*****************************************************************************/
 /* __RME_KOBJ_HPP_CLASSES__ */

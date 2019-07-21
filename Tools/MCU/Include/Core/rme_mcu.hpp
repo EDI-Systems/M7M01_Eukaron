@@ -7,11 +7,9 @@ Description : The header of the mcu tool.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
-namespace rme_mcu
-{
 #ifdef __HDR_DEFS__
-#ifndef __RME_MCU_HPP_DEFS__
-#define __RME_MCU_HPP_DEFS__
+#ifndef __RME_MCU_HPP_TYPES__
+#define __RME_MCU_HPP_TYPES__
 /*****************************************************************************/
 typedef char                                s8_t;
 typedef short                               s16_t;
@@ -24,7 +22,18 @@ typedef unsigned long long                  u64_t;
 /* Make things compatible in 32-bit or 64-bit environments */
 typedef s64_t                               ret_t;
 typedef u64_t                               ptr_t;
+/*****************************************************************************/
+/* __RME_MCU_HPP_TYPES__ */
+#endif
+/* __HDR_DEFS__ */
+#endif
 
+namespace rme_mcu
+{
+#ifdef __HDR_DEFS__
+#ifndef __RME_MCU_HPP_DEFS__
+#define __RME_MCU_HPP_DEFS__
+/*****************************************************************************/
 /* EXTERN definition */
 #define EXTERN                              extern
 
@@ -67,6 +76,21 @@ typedef u64_t                               ptr_t;
 /* The application instance class */
 class Main
 {
+private:
+    void Alloc_Code(void);
+    void Check_Code(void);
+    void Alloc_Data(void);
+    void Check_Device(void);
+
+    void Check_Kobj(void);
+    void Alloc_Loc(void);
+    void Alloc_RVM_Pgtbl(std::unique_ptr<class Proc>& Proc,
+                         std::unique_ptr<class Pgtbl>& Pgtbl);
+    void Alloc_RVM(void);
+    void Alloc_Macro_Pgtbl(std::unique_ptr<class Proc>& Proc,
+                           std::unique_ptr<class Pgtbl>& Pgtbl);
+    void Alloc_Macro(void);
+
 public:
     std::unique_ptr<std::string> Input;
     std::unique_ptr<std::string> Output;
@@ -75,13 +99,14 @@ public:
     std::unique_ptr<class Fsys> Fsys;
     std::unique_ptr<class Proj> Proj;
     std::unique_ptr<class Chip> Chip;
+    std::unique_ptr<class Plat> Plat;
     
     Main(int argc, char* argv[]);
-    ~Main(void){};
 
     void Parse(void);
+    void Alloc_Mem(void);
+    void Alloc_Captbl(void);
 };
-
 /*****************************************************************************/
 /* __RME_MCU_HPP_CLASSES__ */
 #endif

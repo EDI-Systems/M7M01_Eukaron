@@ -13,7 +13,8 @@ namespace rme_mcu
 #ifndef __RME_PGTBL_HPP_DEFS__
 #define __RME_PGTBL_HPP_DEFS__
 /*****************************************************************************/
-    
+#define PGTBL_TOP       1
+#define PGTBL_NOM       0
 /*****************************************************************************/
 /* __RME_PGTBL_HPP_DEFS__ */
 #endif
@@ -45,8 +46,7 @@ public:
     /* Pages mapped in - if not 0, then attr is directly here */
     std::vector<ptr_t> Page;
 
-    Pgtbl(void){};
-    ~Pgtbl(void){};
+    Pgtbl(ptr_t Start_Addr, ptr_t Size_Order, ptr_t Num_Order, ptr_t Attr);
 };
 /*****************************************************************************/
 /* __RME_PGTBL_HPP_CLASSES__ */

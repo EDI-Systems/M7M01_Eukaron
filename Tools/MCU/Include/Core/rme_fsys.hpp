@@ -30,7 +30,6 @@ namespace rme_mcu
 class Fsys
 {
 public:
-    Fsys(void){};
     virtual ~Fsys(void){};
 
     ret_t Fsys::Dir_Present(std::unique_ptr<std::string>& Path);
@@ -50,7 +49,6 @@ public:
     std::unique_ptr<std::string> Output;
 
     Sysfs(std::unique_ptr<std::string>& Root, std::unique_ptr<std::string>& Output);
-    ~Sysfs(void){};
 
     virtual ptr_t File_Size(std::unique_ptr<std::string>& Path) final override;
     virtual void Copy_File(std::unique_ptr<std::string>& File) final override;
@@ -65,7 +63,6 @@ public:
     std::unique_ptr<std::string> Output;
 
     Pbfs(std::unique_ptr<std::string>& PBFS, std::unique_ptr<std::string>& Output);
-    ~Pbfs(void){};
 
     virtual ptr_t File_Size(std::unique_ptr<std::string>& Path) final override;
     virtual void Copy_File(std::unique_ptr<std::string>& File) final override;
