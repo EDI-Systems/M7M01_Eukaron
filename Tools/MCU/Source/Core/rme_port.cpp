@@ -9,6 +9,7 @@ Description : The port class.
 /* Includes ******************************************************************/
 #include "string"
 #include "memory"
+#include "vector"
 #include "stdexcept"
 
 extern "C"

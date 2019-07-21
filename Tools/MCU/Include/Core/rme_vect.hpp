@@ -33,7 +33,8 @@ public:
     ptr_t Num;
 
     Vect(xml_node_t* Node);
-    ~Vect(void){};
+
+    static std::string* Vect::Check_Vect(std::unique_ptr<class Proj>& Proj);
 };
 /*****************************************************************************/
 /* __RME_VECT_HPP_CLASSES__ */

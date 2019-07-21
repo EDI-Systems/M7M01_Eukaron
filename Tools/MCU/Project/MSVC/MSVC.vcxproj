@@ -74,6 +74,7 @@
     <ClCompile Include="..\..\Source\Core\rme_comp.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_fsys.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_inv.cpp" />
+    <ClCompile Include="..\..\Source\Core\rme_kobj.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_mcu.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_mem.cpp" />
     <ClCompile Include="..\..\Source\Core\rme_pgtbl.cpp" />

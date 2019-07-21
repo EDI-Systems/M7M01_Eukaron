@@ -38,20 +38,12 @@ public:
     ptr_t Data_Size;
     /* Code memory frontier for entries */
     ptr_t Entry_Code_Front;
-
-    Proc_Memmap(void){};
-    ~Proc_Memmap(void){};
 };
 
 /* For parsing and storing process information */
 class Proc:public Kobj
 {
 public:
-    /* Extra first level captbl capacity required */
-	ptr_t Extra_Captbl;
-    /* Current local capability table frontier */ 
-    ptr_t Captbl_Front;
-
     /* Compiler information */
     std::unique_ptr<class Comp> Comp;
 
@@ -62,7 +54,7 @@ public:
 
     /* Kernel object information */
     std::unique_ptr<class Captbl> Captbl;
-    std::shared_ptr<class Pgtbl> Pgtbl;
+    std::unique_ptr<class Pgtbl> Pgtbl;
     std::vector<std::unique_ptr<class Thd>> Thd;
     std::vector<std::unique_ptr<class Inv>> Inv;
     std::vector<std::unique_ptr<class Port>> Port;
@@ -74,7 +66,6 @@ public:
     std::unique_ptr<class Proc_Memmap> Map;
 
     Proc(xml_node_t* Node);
-    ~Proc(void){};
 };
 /*****************************************************************************/
 /* __RME_PROC_HPP_CLASSES__ */

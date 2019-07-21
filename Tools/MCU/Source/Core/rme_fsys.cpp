@@ -51,8 +51,31 @@ extern "C"
 #include "Core/rme_fsys.hpp"
 #undef __HDR_CLASSES__
 /* End Includes **************************************************************/
-namespace rme_mcu
+
+/* Begin Function:Malloc ******************************************************
+Description : Allocate some memory and register it with the system.
+Input       : ptr_t Size - The size to allocate, in bytes.
+Output      : None.
+Return      : void* - If successful, the address; else 0.
+******************************************************************************/
+extern "C" void* Malloc(ptr_t Size)
 {
+	return malloc((size_t)Size);
+}
+/* End Function:Malloc *******************************************************/
+
+/* Begin Function:Free ********************************************************
+Description : Deallocate the memory and deregister it.
+Input       : void* Addr - The address to free.
+Output      : None.
+Return      : None.
+******************************************************************************/
+extern "C" void Free(void* Addr)
+{
+	free(Addr);
+}
+/* End Function:Free *********************************************************/
+
 /* Begin Function:Memcpy ******************************************************
 Description : Memcpy wrapper for 64-bit XML library.
 Input       : void* Src - The source string.
@@ -92,7 +115,8 @@ extern "C" ptr_t Strlen(s8_t* Str)
     return strlen(Str);
 }
 /* End Function:Strlen *******************************************************/
-
+namespace rme_mcu
+{
 /* Begin Function:Fsys::Dir_Present *******************************************
 Description : Figure out whether the directory is present.
 Input       : std::unique_ptr<std::string>& Path - The path to the directory.

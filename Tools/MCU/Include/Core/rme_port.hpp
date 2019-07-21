@@ -33,7 +33,6 @@ public:
     std::unique_ptr<std::string> Proc_Name;
 
     Port(xml_node_t* Node);
-    ~Port(void);
 };
 /*****************************************************************************/
 /* __RME_PORT_HPP_CLASSES__ */

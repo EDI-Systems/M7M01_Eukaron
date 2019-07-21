@@ -33,24 +33,19 @@ class Plat
 {
 public:
     ptr_t Word_Bits;
-    ptr_t Captbl_Capacity;
+    ptr_t Capacity;
     ptr_t Init_Num_Ord;
     ptr_t Thd_Size;
     ptr_t Inv_Size;
 
+    Plat(ptr_t Word_Bits, ptr_t Init_Num_Ord, ptr_t Thd_Size, ptr_t Inv_Size);
+
     /* Page table size */
     virtual ptr_t Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top)=0;
-    /* Check input validity */
-    virtual void Check_Input(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip)=0;
-    /* Parse platform-related options */
-    virtual void Parse_Options(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip)=0;
     /* Align memory */
     virtual void Align_Mem(std::unique_ptr<class Proj>& Proj)=0;
     /* Allocate page table */
     virtual void Alloc_Pgtbl(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip)=0;
-
-    Plat(ptr_t Word_Bits, ptr_t Init_Num_Ord, ptr_t Thd_Size, ptr_t Inv_Size);
-    ~Plat(void){};
 };
 
 /* The memory map information for RME */
@@ -76,9 +71,6 @@ public:
     /* Initial state for vector creation */
     ptr_t Vect_Cap_Front;
     ptr_t Vect_Kmem_Front;
-
-    RME_Memmap(void){};
-    ~RME_Memmap(void){};
 };
 
 /* RME kernel information */
@@ -114,7 +106,6 @@ public:
     std::unique_ptr<class RME_Memmap> Map;
 
     RME(xml_node_t* Node);
-    ~RME(void){};
 };
 
 /* RVM's capability information, from the user processes */
@@ -127,7 +118,6 @@ public:
     class Kobj* Kobj;
 
     Cap(std::unique_ptr<class Proc>& Proc, std::unique_ptr<class Kobj>& Kobj);
-    ~Cap(void);
 };
 
 /* The memory map information for RVM */
@@ -174,9 +164,6 @@ public:
     /* After the booting all finishes */ 
     ptr_t After_Cap_Front;
     ptr_t After_Kmem_Front;
-
-    RVM_Memmap(void){};
-    ~RVM_Memmap(void){};
 };
 
 /* RVM user-level library information. */
@@ -210,7 +197,6 @@ public:
     std::unique_ptr<class RVM_Memmap> Map;
 
     RVM(xml_node_t* Node);
-    ~RVM(void);
 };
 
 /* For parsing and storing project information */
@@ -228,8 +214,6 @@ public:
     /* The full name of the exact chip used */
     std::unique_ptr<std::string> Chip_Full;
     
-    /* The platform information */
-    std::unique_ptr<class Plat> Plat;
     /* The RME kernel information */
 	std::unique_ptr<class RME> RME;
     /* The RVM user-library information */
@@ -238,7 +222,9 @@ public:
 	std::vector<std::unique_ptr<class Proc>> Proc;
 
     Proj(xml_node_t* Node);
-    ~Proj(void){};
+
+    static void To_Upper(std::unique_ptr<std::string>& Str);
+    static void To_Lower(std::unique_ptr<std::string>& Str);
 };
 /*****************************************************************************/
 /* __RME_PROJ_HPP_CLASSES__ */

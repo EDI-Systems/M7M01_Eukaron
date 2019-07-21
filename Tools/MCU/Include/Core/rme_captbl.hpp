@@ -36,9 +36,6 @@ public:
     ptr_t Extra;
     /* The ultimate size */
     ptr_t Size;
-
-    Captbl(void){};
-    ~Captbl(void){};
 };
 /*****************************************************************************/
 /* __RME_CAPTBL_HPP_CLASSES__ */

@@ -42,7 +42,6 @@ public:
     std::vector<std::unique_ptr<std::string>> Range;
 
     Option(xml_node_t* Node);
-    ~Option(void){};
 };
 
 /* Chip information */
@@ -74,7 +73,6 @@ public:
 	std::vector<std::unique_ptr<class Vect>> Vect;
 
     Chip(xml_node_t* Node);
-    ~Chip(void){};
 };
 /*****************************************************************************/
 /* __RME_CHIP_HPP_CLASSES__ */

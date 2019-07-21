@@ -55,6 +55,25 @@ extern "C"
 /* End Includes **************************************************************/
 namespace rme_mcu
 {
+/* Begin Function:Plat::Plat **************************************************
+Description : Constructor for Plat class.
+Input       : ptr_t Word_Bits - The number of bits in a processor word.
+              ptr_t Init_Num_Ord - The initial number order of the page table.
+              ptr_t Thd_Size - The thread size.
+              ptr_t Inv_Size - The invocation size.
+Output      : None.
+Return      : None.
+******************************************************************************/
+/* void */ Plat::Plat(ptr_t Word_Bits, ptr_t Init_Num_Ord, ptr_t Thd_Size, ptr_t Inv_Size)
+{
+    this->Word_Bits=Word_Bits;
+    this->Capacity=POW2(Word_Bits/4-1);
+    this->Init_Num_Ord=Init_Num_Ord;
+    this->Thd_Size=Thd_Size;
+    this->Inv_Size=Inv_Size;
+}
+/* End Function:Plat::Plat ***************************************************/
+
 /* Begin Function:RME::RME ****************************************************
 Description : Constructor for RME class.
 Input       : xml_node_t* Node - The node containing the whole project.
@@ -252,7 +271,7 @@ Return      : None.
             throw std::invalid_argument("Platform section is empty.");
         this->Plat_Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
         this->Plat_Lower=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
-        std::transform(this->Plat_Lower->begin(), this->Plat_Lower->end(), this->Plat_Lower->begin(), std::tolower);
+        To_Lower(this->Plat_Lower);
 
         /* Chip_Class */
         if((XML_Child(Node,"Chip_Class",&Temp)<0)||(Temp==0))
@@ -300,6 +319,30 @@ Return      : None.
     }
 }
 /* End Function:Proj::Proj ***************************************************/
+
+/* Begin Function:Proj::To_Upper **********************************************
+Description : Convert the string to uppercase.
+Input       : std::unique_ptr<std::string>& Str - The string to convert.
+Output      : std::unique_ptr<std::string>& Str - The converted string.
+Return      : None.
+******************************************************************************/
+void Proj::To_Upper(std::unique_ptr<std::string>& Str)
+{
+    std::transform(Str->begin(), Str->end(), Str->begin(), std::toupper);
+}
+/* End Function:Proj::To_Upper ***********************************************/
+
+/* Begin Function:Proj::To_Lower **********************************************
+Description : Convert the string to lowercase.
+Input       : std::unique_ptr<std::string>& Str - The string to convert.
+Output      : std::unique_ptr<std::string>& Str - The converted string.
+Return      : None.
+******************************************************************************/
+void Proj::To_Lower(std::unique_ptr<std::string>& Str)
+{
+    std::transform(Str->begin(), Str->end(), Str->begin(), std::tolower);
+}
+/* End Function:Proj::To_Lower ***********************************************/
 }
 /* End Of File ***************************************************************/
 

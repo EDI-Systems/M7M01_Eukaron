@@ -31,7 +31,6 @@ class Recv:public Kobj
 {
 public:
     Recv(xml_node_t* Node);
-    ~Recv(void);
 };
 /*****************************************************************************/
 /* __RME_RECV_HPP_CLASSES__ */

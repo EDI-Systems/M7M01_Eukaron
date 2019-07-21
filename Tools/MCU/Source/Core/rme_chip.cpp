@@ -203,6 +203,13 @@ Return      : None.
                 throw std::invalid_argument("Memory section parsing internal error.");
         }
 
+        if(this->Code.size()==0)
+            throw std::invalid_argument("No code section exists.");
+        if(this->Data.size()==0)
+            throw std::invalid_argument("No data section exists.");
+        if(this->Device.size()==0)
+            throw std::invalid_argument("No device section exists.");
+
         /* Option */
         if((XML_Child(Node,"Option",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Option section is missing.");

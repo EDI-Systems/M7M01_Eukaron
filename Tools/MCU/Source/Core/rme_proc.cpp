@@ -192,6 +192,23 @@ Return      : None.
             if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Vector section parsing internal error.");
         }
+
+        /* Every process must have at least one code and data segment, and they must be static. 
+         * The primary code segment allow RXS, the primary data segment must allow RWS */
+        if(this->Code.size()==0)
+            throw std::invalid_argument("No code section exists.");
+        if(this->Data.size()==0)
+            throw std::invalid_argument("No data section exists.");
+
+        if(((this->Code[0]->Attr)&(MEM_READ|MEM_EXECUTE|MEM_STATIC))!=(MEM_READ|MEM_EXECUTE|MEM_STATIC))
+            throw std::invalid_argument("Primary code section does not have RXS attribute.");
+        
+        if(((this->Data[0]->Attr)&(MEM_READ|MEM_WRITE|MEM_STATIC))!=(MEM_READ|MEM_WRITE|MEM_STATIC))
+            throw std::invalid_argument("Primary data section does not have RWS attribute.");
+
+        /* All processes shall have at least one thread */
+        if(this->Thd.size()==0)
+            throw std::invalid_argument("No thread exists.");
     }
     catch(std::exception& Exc)
     {

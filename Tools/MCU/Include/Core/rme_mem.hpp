@@ -22,6 +22,8 @@ namespace rme_mcu
 #define MEM_STATIC          POW2(5)
 /* Memory placement */
 #define MEM_AUTO            ((ptr_t)(-1LL))
+/* Memmap granularity */
+#define MAP_ALIGN           (32)
 /*****************************************************************************/
 /* __RME_MEM_HPP_DEFS__ */
 #endif
@@ -48,7 +50,21 @@ public:
     ptr_t Align;
 
     Mem(xml_node_t* Node);
-    ~Mem(void){};
+    Mem(ptr_t Start, ptr_t Size, ptr_t Attr, ptr_t Align);
+};
+
+class Memmap
+{
+public:
+    class Mem* Mem;
+    std::vector<bool> Map;
+
+    Memmap(std::unique_ptr<class Mem>& Mem);
+
+    static ret_t Try(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size);
+    static ret_t Mark(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size);
+    static ret_t Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t Start, ptr_t Size);
+    static ret_t Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t* Start, ptr_t Size, ptr_t Align);
 };
 /*****************************************************************************/
 /* __RME_MEM_HPP_CLASSES__ */

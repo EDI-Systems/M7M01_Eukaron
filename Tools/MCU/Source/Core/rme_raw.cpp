@@ -9,6 +9,7 @@ Description : The raw information class.
 /* Includes ******************************************************************/
 #include "string"
 #include "memory"
+#include "vector"
 #include "stdexcept"
 
 extern "C"
@@ -51,6 +52,26 @@ Return      : None.
     }
 }
 /* End Function:Raw::Raw *****************************************************/
+
+/* Begin Function:Raw::Match **************************************************
+Description : Constructor for Raw class.
+Input       : std::vector<std::unique_ptr<class Raw>>& Array - Thev array containing raw info.
+              std::unique_ptr<std::string>& Tag - The tag to look for.
+Output      : None.
+Return      : std::unique_ptr<std::string>* - The value found.
+******************************************************************************/
+std::unique_ptr<std::string>* Raw::Match(std::vector<std::unique_ptr<class Raw>>& Array,
+                                         std::unique_ptr<std::string>& Tag)
+{
+    for(std::unique_ptr<class Raw>& Item:Array)
+    {
+        if(*(Item->Tag)==*Tag)
+            return &(Item->Val);
+    }
+
+    return 0;
+}
+/* End Function:Raw::Match ***************************************************/
 }
 /* End Of File ***************************************************************/
 

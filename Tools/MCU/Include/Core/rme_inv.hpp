@@ -36,9 +36,6 @@ public:
     ptr_t Stack_Base;
     /* The size of the stack */
     ptr_t Stack_Size;
-
-    Inv_Memmap(void){};
-    ~Inv_Memmap(void){};
 };
 
 /* Invocation information */
@@ -53,7 +50,6 @@ public:
     std::unique_ptr<class Inv_Memmap> Map;
  
     Inv(xml_node_t* Node);
-    ~Inv(void);
 };
 /*****************************************************************************/
 /* __RME_INV_HPP_CLASSES__ */

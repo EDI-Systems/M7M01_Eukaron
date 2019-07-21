@@ -34,7 +34,9 @@ public:
     std::unique_ptr<std::string> Val;
 
     Raw(xml_node_t* Node);
-    ~Raw(void){};
+
+    static std::unique_ptr<std::string>* Match(std::vector<std::unique_ptr<class Raw>>& Array,
+                                               std::unique_ptr<std::string>& Tag);
 };
 /*****************************************************************************/
 /* __RME_RAW_HPP_CLASSES__ */
