@@ -34,33 +34,20 @@ namespace rme_mcu
 #ifndef __RME_MCU_HPP_DEFS__
 #define __RME_MCU_HPP_DEFS__
 /*****************************************************************************/
-/* EXTERN definition */
-#define EXTERN                              extern
-
 /* Power of 2 macros */
-#define ALIGN_POW(X,POW)                    (((X)>>(POW))<<(POW))
 #define POW2(POW)                           (((ptr_t)1)<<(POW))
+#define ROUND_DOWN(X,POW)                   (((X)>>(POW))<<(POW))
+#define ROUND_UP(X,POW)                     ROUND_DOWN((X)+POW2(POW)-1,POW)
 
 /* The alignment value used when printing macros */
 #define MACRO_ALIGNMENT                     (56)
 /* The code generator author name */
 #define CODE_AUTHOR                         ("The A7M project generator.")
 
-/* Generic kernel object sizes */
-#define CAPTBL_SIZE(NUM,BITS)               ((BITS)/8*8*(NUM))
-#define PROC_SIZE(BITS)                     ((BITS)/8*8)
-#define SIG_SIZE(BITS)                      ((BITS)/8*4)
-
-/* Interrupt flag area size (in bytes) */
+/* Interrupt flag area size (in bytes), fixed across all architectures */
 #define KERNEL_INTF_SIZE                    (1024)
-/* Entry point slot size (in words) */
+/* Entry point slot size (in words), fixed across all architectures */
 #define ENTRY_SLOT_SIZE                     (8)
-
-/* Kerneo object size rounding macro */
-#define KOTBL_ROUND(SIZE)                   (SIZE)
-/* Compute the total capability table size when given the macros */
-#define CAPTBL_TOTAL(NUM,CAPACITY,BITS)     (((NUM)/(CAPACITY))*KOTBL_ROUND(CAPTBL_SIZE(CAPACITY,(BITS)))+ \
-                                             KOTBL_ROUND(CAPTBL_SIZE((NUM)%(CAPACITY),(BITS))))
 /*****************************************************************************/
 /* __RME_MCU_HPP_DEFS__ */
 #endif
@@ -82,16 +69,6 @@ private:
     void Alloc_Data(void);
     void Check_Device(void);
 
-    void Check_Kobj(void);
-    void Alloc_Loc(void);
-    void Alloc_RVM_Pgtbl(std::unique_ptr<class Proc>& Proc,
-                         std::unique_ptr<class Pgtbl>& Pgtbl);
-    void Alloc_RVM(void);
-    void Alloc_Macro_Pgtbl(std::unique_ptr<class Proc>& Proc,
-                           std::unique_ptr<class Pgtbl>& Pgtbl);
-    void Alloc_Macro(void);
-    void Backprop_RVM(void);
-
 public:
     std::unique_ptr<std::string> Input;
     std::unique_ptr<std::string> Output;
@@ -106,7 +83,9 @@ public:
 
     void Parse(void);
     void Alloc_Mem(void);
-    void Alloc_Captbl(void);
+    void Alloc_Cap(void);
+    void Link_Cap(void);
+    void Alloc_Obj(void);
 };
 /*****************************************************************************/
 /* __RME_MCU_HPP_CLASSES__ */

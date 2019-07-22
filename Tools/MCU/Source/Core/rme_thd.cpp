@@ -73,6 +73,8 @@ Return      : None.
             throw std::invalid_argument("Priority section is missing.");
         if(XML_Get_Uint(Node,&(this->Prio))<0)
             throw std::invalid_argument("Priority is not a valid unsigned integer.");
+
+        this->Map=std::make_unique<class Thd_Memmap>();
     }
     catch(std::exception& Exc)
     {

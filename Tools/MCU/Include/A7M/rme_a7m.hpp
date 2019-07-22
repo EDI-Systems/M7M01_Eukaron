@@ -14,30 +14,39 @@ namespace rme_mcu
 #define __RME_A7M_HPP_DEFS__
 /*****************************************************************************/
 /* NVIC grouping */
-#define A7M_NVIC_P0S8           (7)    
-#define A7M_NVIC_P1S7           (6)
-#define A7M_NVIC_P2S6           (5)
-#define A7M_NVIC_P3S5           (4)
-#define A7M_NVIC_P4S4           (3)
-#define A7M_NVIC_P5S3           (2)
-#define A7M_NVIC_P6S2           (1)
-#define A7M_NVIC_P7S1           (0)
+#define A7M_NVIC_P0S8                           (7)    
+#define A7M_NVIC_P1S7                           (6)
+#define A7M_NVIC_P2S6                           (5)
+#define A7M_NVIC_P3S5                           (4)
+#define A7M_NVIC_P4S4                           (3)
+#define A7M_NVIC_P5S3                           (2)
+#define A7M_NVIC_P6S2                           (1)
+#define A7M_NVIC_P7S1                           (0)
 /* CPU type */
-#define A7M_CPU_CM0P            (0)
-#define A7M_CPU_CM3             (1)
-#define A7M_CPU_CM4             (2)
-#define A7M_CPU_CM7             (3)
+#define A7M_CPU_CM0P                            (0)
+#define A7M_CPU_CM3                             (1)
+#define A7M_CPU_CM4                             (2)
+#define A7M_CPU_CM7                             (3)
 /* FPU type */
-#define A7M_FPU_NONE            (0)
-#define A7M_FPU_FPV4            (1)
-#define A7M_FPU_FPV5_SP         (2)
-#define A7M_FPU_FPV5_DP         (3)
+#define A7M_FPU_NONE                            (0)
+#define A7M_FPU_FPV4                            (1)
+#define A7M_FPU_FPV5_SP                         (2)
+#define A7M_FPU_FPV5_DP                         (3)
 /* Endianness */
-#define A7M_END_LITTLE          (0)
-#define A7M_END_BIG             (1)
+#define A7M_END_LITTLE                          (0)
+#define A7M_END_BIG                             (1)
 
 /* Alignment requirements for A7M */
-#define A7M_MEM_ALIGN           (0x20)
+#define A7M_MEM_ALIGN                           (0x20)
+
+#define A7M_WORD_BITS                           (32)
+#define A7M_INIT_NUM_ORD                        (0)
+
+/* A7M kernel object size */
+#define A7M_RAW_THD_SIZE                        (64)
+#define A7M_RAW_INV_SIZE                        (32)
+#define A7M_RAW_PGTBL_SIZE_TOP(ORDER)           (POW2(ORDER))
+#define A7M_RAW_PGTBL_SIZE_NOM(ORDER)           (POW2(ORDER))
 /*****************************************************************************/
 /* __RME_A7M_HPP_DEFS__ */
 #endif
@@ -83,7 +92,7 @@ public:
     A7M(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip);
     ~A7M(void){};
 
-    virtual ptr_t Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top) final override;
+    virtual ptr_t Raw_Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top) final override;
     virtual void Align_Mem(std::unique_ptr<class Proj>& Proj) final override;
     virtual void Alloc_Pgtbl(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip) final override;
 };

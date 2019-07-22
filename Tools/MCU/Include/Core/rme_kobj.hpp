@@ -44,7 +44,9 @@ public:
     std::unique_ptr<std::string> RME_Macro;
 
     virtual ~Kobj(void)=0;
-
+    
+    static void To_Upper(std::unique_ptr<std::string>& Str);
+    static void To_Lower(std::unique_ptr<std::string>& Str);
     static ret_t Strcicmp(const std::string& Str1, const std::string& Str2);
     static ret_t Check_Name(const std::string& Name);
 
