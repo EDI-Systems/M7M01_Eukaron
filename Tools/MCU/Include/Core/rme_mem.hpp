@@ -63,8 +63,10 @@ public:
 
     static ret_t Try(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size);
     static ret_t Mark(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size);
-    static ret_t Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t Start, ptr_t Size);
-    static ret_t Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t* Start, ptr_t Size, ptr_t Align);
+    static ret_t Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map,
+                            ptr_t Start, ptr_t Size, ptr_t Attr);
+    static ret_t Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map,
+                          ptr_t* Start, ptr_t Size, ptr_t Align, ptr_t Attr);
 };
 /*****************************************************************************/
 /* __RME_MEM_HPP_CLASSES__ */

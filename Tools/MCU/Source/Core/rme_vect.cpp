@@ -64,14 +64,13 @@ Return      : None.
             throw std::invalid_argument("Name section is empty.");
         this->Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
 
-        /* If the number does exist, parse it - This is only for chip */
-        if(XML_Child(Node,"Number",&Temp)<0)
-            throw std::invalid_argument("Number section parsing internal error.");
-        if(Temp!=0)
-        {
-            if(XML_Get_Uint(Node,&(this->Num))<0)
-                throw std::invalid_argument("Number is not a valid unsigned integer.");
-        }
+        /* Number */
+        if((XML_Child(Node,"Number",&Temp)<0)||(Temp==0))
+            throw std::invalid_argument("Number section is missing.");
+        if(Temp->XML_Val_Len==0)
+            throw std::invalid_argument("Number section is empty.");
+        if(XML_Get_Uint(Temp,&(this->Num))<0)
+            throw std::invalid_argument("Number is not a valid unsigned integer.");
     }
     catch(std::exception& Exc)
     {

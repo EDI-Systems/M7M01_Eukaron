@@ -84,7 +84,7 @@ Return      : None.
             throw std::invalid_argument("Attribute section is missing.");
         if(Temp->XML_Val_Len==0)
             throw std::invalid_argument("Attribute section is empty.");
-        Str=std::make_unique<std::string>(Temp->XML_Tag,(int)Temp->XML_Tag_Len);
+        Str=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
         this->Attr=0;
 
         if(Str->rfind('R')!=std::string::npos)
@@ -140,7 +140,7 @@ Return      : None.
     /* This pointer does not assume ownership */
     this->Mem=Mem.get();
     this->Map.resize((unsigned int)(Mem->Size/MAP_ALIGN+1));
-    std::fill(this->Map.begin(), this->Map.end(), 0);
+    std::fill(this->Map.begin(), this->Map.end(), false);
 }
 /* End Function:Memmap::Memmap ***********************************************/
 
@@ -166,10 +166,10 @@ ret_t Memmap::Try(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size)
 
     Bit_Start=(Start-Map->Mem->Start)/MAP_ALIGN;
     Bit_Size=Size/MAP_ALIGN;
-
-    for(Count=0;Count<Size;Count++)
+    
+    for(Count=Bit_Start;Count<Bit_Start+Bit_Size;Count++)
     {
-        if(Map->Map[(unsigned int)Count]!=0)
+        if(Map->Map[(unsigned int)Count]!=false)
             return -1;
     }
     return 0;
@@ -200,7 +200,7 @@ ret_t Memmap::Mark(std::unique_ptr<class Memmap>& Map, ptr_t Start, ptr_t Size)
     Bit_Size=Size/MAP_ALIGN;
 
     for(Count=Bit_Start;Count<Bit_Start+Bit_Size;Count++)
-        Map->Map[(unsigned int)Count]=1;
+        Map->Map[(unsigned int)Count]=true;
 
     return 0;
 }
@@ -213,10 +213,12 @@ Description : Populate the memory data structure with this memory segment.
 Input       : std::vector<std::unique_ptr<class Memmap>>& Map - The memory map.
               ptr_t Start - The start address of the memory.
               ptr_t Size - The size of the memory.
+              ptr_t Attr - The attributes of the memory.
 Output      : std::vector<std::unique_ptr<class Memmap>>& Map - The updated memory map.
 Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
-ret_t Memmap::Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t Start, ptr_t Size)
+ret_t Memmap::Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map,
+                         ptr_t Start, ptr_t Size, ptr_t Attr)
 {
     class Mem* Mem;
 
@@ -228,6 +230,10 @@ ret_t Memmap::Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t 
         {
             /* See if we can fit there */
             if((Mem->Start+Mem->Size)<(Start+Size))
+                return -1;
+
+            /* Is the attributes correct? */
+            if((Mem->Attr&Attr)!=Attr)
                 return -1;
 
             /* It is clear that we can fit now. Mark all the bits. We do not check it it
@@ -243,13 +249,16 @@ ret_t Memmap::Fit_Static(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t 
 /* Begin Function:Memmap::Fit_Auto ********************************************
 Description : Fit the auto-placed memory segments to a fixed location.
 Input       : std::vector<std::unique_ptr<class Memmap>>& Map - The memory map.
+              ptr_t Start - The start address of the memory.
               ptr_t Size - The size of the memory.
-              ptr_t Size - The alignment of the memory.
+              ptr_t Attr - The attributes of the memory.
+              ptr_t Align - The alignment granularity of the memory.
 Output      : std::vector<std::unique_ptr<class Memmap>>& Map - The updated memory map.
               ptr_t* Start - The start address of the memory.
 Return      : ret_t - If successful, 0; else -1.
 ******************************************************************************/
-ret_t Memmap::Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t* Start, ptr_t Size, ptr_t Align)
+ret_t Memmap::Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map,
+                       ptr_t* Start, ptr_t Size, ptr_t Align, ptr_t Attr)
 {
     ptr_t Fit_Start;
     ptr_t Fit_End;
@@ -260,7 +269,13 @@ ret_t Memmap::Fit_Auto(std::vector<std::unique_ptr<class Memmap>>& Map, ptr_t* S
     for(std::unique_ptr<class Memmap>& Info:Map)
     {
         Fit=Info->Mem;
+
+        /* Is the size possibly sufficient? */
         if(Size>Fit->Size)
+            continue;
+
+        /* Is the attribute a superset of what we require? */
+        if((Fit->Attr&Attr)!=Attr)
             continue;
 
         /* Round start address up, round end address down, to alignment */

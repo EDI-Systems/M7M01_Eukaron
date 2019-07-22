@@ -69,7 +69,7 @@ std::unique_ptr<std::string>* Raw::Match(std::vector<std::unique_ptr<class Raw>>
             return &(Item->Val);
     }
 
-    return 0;
+    return nullptr;
 }
 /* End Function:Raw::Match ***************************************************/
 }

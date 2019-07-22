@@ -320,6 +320,7 @@ std::unique_ptr<std::string> Sysfs::Read_Proj(std::unique_ptr<std::string>& Path
 
     try
     {
+        File=0;
         Str=std::make_unique<std::string>(*(this->Root)+*Path);
         Size=File_Size(Path);
         Buf=new s8_t[(unsigned int)(Size+1)];
@@ -333,10 +334,13 @@ std::unique_ptr<std::string> Sysfs::Read_Proj(std::unique_ptr<std::string>& Path
 
         Str=std::make_unique<std::string>(Buf);
         delete[] Buf;
+        fclose(File);
         return Str;
     }
     catch(std::exception& Exc)
     {
+        if(File!=0)
+            fclose(File);
         throw std::runtime_error(std::string("System file storage:\n")+Exc.what());
         return nullptr;
     }
@@ -360,10 +364,10 @@ std::unique_ptr<std::string> Sysfs::Read_Chip(std::unique_ptr<std::string>& Path
     try
     {
         Str=std::make_unique<std::string>(*(this->Root)+*Path);
-        Size=File_Size(Path);
+        Size=File_Size(Str);
         Buf=new s8_t[(unsigned int)(Size+1)];
 
-        File=fopen((*Path).c_str(), "rb");
+        File=fopen((*Str).c_str(), "rb");
         if(File==0)
             throw std::runtime_error("Read text file:\nCannot read file.");
 
@@ -372,10 +376,13 @@ std::unique_ptr<std::string> Sysfs::Read_Chip(std::unique_ptr<std::string>& Path
 
         Str=std::make_unique<std::string>(Buf);
         delete[] Buf;
+        fclose(File);
         return Str;
     }
     catch(std::exception& Exc)
     {
+        if(File!=0)
+            fclose(File);
         throw std::runtime_error(std::string("System file storage:\n")+Exc.what());
         return nullptr;
     }

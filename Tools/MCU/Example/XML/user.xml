@@ -56,7 +56,7 @@
                     <Start>0x08020000</Start>
                     <Size>0x10000</Size>
                     <Type>Code</Type>
-                    <Attribute>RWXBCS</Attribute>
+                    <Attribute>RXBCS</Attribute>
                 </M1>
                 <M2>
                     <Start>0x20020000</Start>
@@ -96,8 +96,7 @@
             </Port>
             <Receive>
                 <R1>
-                     <Name>Rcv1</Name>
-                     <Type>Receive</Type>
+                     <Name>Recv1</Name>
                 </R1>
             </Receive>
             <Send>
@@ -117,7 +116,7 @@
                     <Start>Auto</Start>
                     <Size>0x10000</Size>
                     <Type>Code</Type>
-                    <Attribute>RWXBCS</Attribute>
+                    <Attribute>RXBCS</Attribute>
                 </M1>
                 <M2>
                     <Start>Auto</Start>
@@ -148,13 +147,14 @@
             </Receive>
             <Send>
                 <S1>
-                     <Name>Rcv1</Name>
+                     <Name>Recv1</Name>
                      <Process>Proc1</Process>
                 </S1>
             </Send>
             <Vector>
                 <V1>
                      <Name>TIM1</Name>
+                     <Number>8</Number>
                 </V1>
             </Vector>
         </P2>

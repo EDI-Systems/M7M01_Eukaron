@@ -16,19 +16,19 @@
             <Start>0x08000000</Start>
             <Size>0x00100000</Size>
             <Type>Code</Type>
-            <Description>The main code memory.</Description>
+            <Attribute>RXBCS</Attribute>
         </M1>
         <M2>
             <Start>0x20000000</Start>
             <Size>0x00080000</Size>
             <Type>Data</Type>
-            <Description>The main data memory.</Description>
+            <Attribute>RWXBCS</Attribute>
         </M2>
         <M3>
             <Start>0x40000000</Start>
             <Size>0xC0000000</Size>
             <Type>Device</Type>
-            <Description>The main device memory.</Description>
+            <Attribute>RWS</Attribute>
         </M3>
     </Memory>
     <Option>
@@ -77,7 +77,7 @@
         </V1>
         <V2>
             <Name>TIM2</Name>
-            <Number>8</Number>
+            <Number>9</Number>
             <Description>Timer2 interrupt vector.</Description>
         </V2>
     </Vector>
