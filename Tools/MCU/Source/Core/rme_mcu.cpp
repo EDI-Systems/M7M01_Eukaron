@@ -232,6 +232,8 @@ void Main::Parse(void)
 
         if(*(this->Chip->Plat)=="A7M")
             this->Plat=std::make_unique<class A7M>(this->Proj,this->Chip);
+
+        this->Plat->Kmem_Order=this->Proj->RME->Kmem_Order;
     }
     catch(std::exception& Exc)
     {
@@ -446,7 +448,7 @@ void Main::Check_Device(void)
         }
     }
 }
-/* End Function:Check_Device *************************************************/
+/* End Function:Main::Check_Device *******************************************/
 
 /* Begin Function:Main::Alloc_Mem *********************************************
 Description : Allocate memoro trunks to their respective positions.
@@ -470,291 +472,7 @@ void Main::Alloc_Mem(void)
 }
 /* End Function:Main::Alloc_Mem **********************************************/
 
-/* Begin Function:Main::Check_Kobj ********************************************
-Description : Detect namespace conflicts in the system. It also checks if the
-              names are at least regular C identifiers.
-Input       : struct Proj_Info* Proj - The project information struct.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Main::Check_Kobj(void)
-{
-    std::string* Errmsg;
-
-    /* Check processes */
-    Errmsg=Kobj::Check_Kobj<class Proc>(this->Proj->Proc);
-    if(Errmsg!=0)
-        throw std::invalid_argument(std::string("Process: ")+*Errmsg+"\nName is duplicate or invalid.");
-        
-    /* Check other kernel objects */
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
-    {
-        try
-        {
-            /* Check for duplicate threads */
-            Errmsg=Kobj::Check_Kobj<class Thd>(Proc->Thd);
-            if(Errmsg!=0)
-                throw std::invalid_argument(std::string("Thread: ")+*Errmsg+"\nName is duplicate or invalid.");
-
-            /* Check for duplicate invocations */
-            Errmsg=Kobj::Check_Kobj<class Inv>(Proc->Inv);
-            if(Errmsg!=0)
-                throw std::invalid_argument(std::string("Invocation: ")+*Errmsg+"\nName is duplicate or invalid.");
-
-            /* Check for duplicate ports */
-            Errmsg=Kobj::Check_Kobj_Proc_Name<class Port>(Proc->Port);
-            if(Errmsg!=0)
-                throw std::invalid_argument(std::string("Port: ")+*Errmsg+"\nName/process name is duplicate or invalid.");
-
-            /* Check for duplicate receive endpoints */
-            Errmsg=Kobj::Check_Kobj<class Recv>(Proc->Recv);
-            if(Errmsg!=0)
-                throw std::invalid_argument(std::string("Receive endpoint: ")+*Errmsg+"\nName is duplicate or invalid.");
-
-            /* Check for duplicate send endpoints */
-            Errmsg=Kobj::Check_Kobj_Proc_Name<class Send>(Proc->Send);
-            if(Errmsg!=0)
-                throw std::invalid_argument(std::string("Send endpoint: ")+*Errmsg+"\nName/process name is duplicate or invalid.");
-        }
-        catch(std::exception& Exc)
-        {
-            throw std::runtime_error(std::string("Process: ")+*(Proc->Name)+"\n"+Exc.what());
-        }
-    }
-    
-    /* Check for duplicate vectors */
-    Errmsg=Vect::Check_Vect(this->Proj);
-    if(Errmsg!=0)
-        throw std::invalid_argument(std::string("Vector endpoint: ")+*Errmsg+"\nName/name is duplicate or invalid.");
-}
-/* End Function:Main::Check_Kobj *********************************************/
-
-/* Begin Function:Main::Alloc_Loc *********************************************
-Description : Allocate local capability IDs for all kernel objects. 
-              Only ports, receive endpoints, send endpoints and vector endpoints
-              have such ID.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Main::Alloc_Loc(void)
-{
-    ptr_t Capid;
-
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
-    {
-        Capid=0;
-
-        for(std::unique_ptr<class Port>& Port:Proc->Port)
-            Port->Loc_Capid=Capid++;
-
-        for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
-            Recv->Loc_Capid=Capid++;
-
-        for(std::unique_ptr<class Send>& Send:Proc->Send)
-            Send->Loc_Capid=Capid++;
-
-        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
-            Vect->Loc_Capid=Capid++;
-
-        Proc->Captbl->Front=Capid;
-        Proc->Captbl->Size=Proc->Captbl->Front+Proc->Captbl->Extra;
-
-        if(Proc->Captbl->Size>this->Plat->Capacity)
-            throw std::runtime_error("Process: "+*(Proc->Name)+"\n"+"Capability too large.");
-    }
-}
-/* End Function:Main::Alloc_Loc **********************************************/
-
-/* Begin Function:Main::Alloc_RVM_Pgtbl ***************************************
-Description : Recursively allocate page tables.
-Input       : std::unique_ptr<class Proc>& Proc, std::unique_ptr<class Pgtbl>& Pgtbl.
-Output      : struct Proj_Info* Proj - The updated project structure.
-Return      : None.
-******************************************************************************/
-void Main::Alloc_RVM_Pgtbl(std::unique_ptr<class Proc>& Proc,
-                           std::unique_ptr<class Pgtbl>& Pgtbl)
-{
-    ptr_t Count;
-
-    Pgtbl->RVM_Capid=this->Proj->RVM->Pgtbl.size();
-    this->Proj->RVM->Pgtbl.push_back(std::make_unique<class Cap>(Proc.get(),Pgtbl.get()));
-
-    /* Recursively do allocation */
-    for(Count=0;Count<Pgtbl->Pgdir.size();Count++)
-    {
-        if(Pgtbl->Pgdir[(unsigned int)Count]!=nullptr)
-            Alloc_RVM_Pgtbl(Proc, Pgtbl->Pgdir[(unsigned int)Count]);
-    }
-}
-/* End Function:Main::Alloc_RVM_Pgtbl ****************************************/
-
-/* Begin Function:Main::Alloc_RVM *********************************************
-Description : Allocate (relative) global capability IDs for all kernel objects. 
-              Each global object will reside in its own capability table. 
-              This facilitates management, and circumvents the capability size
-              limit that may present on 32-bit systems.
-              How many distinct kernel objects are there? We just need to add up
-              the following: All captbls (each process have one), all processes,
-              all threads, all invocations, all receive endpoints. The ports and
-              send endpoints do not have a distinct kernel object; the vector 
-              endpoints are created by the kernel at boot-time, while the pgtbls
-              are decided by architecture-specific code.
-Input       : struct Proj_Info* Proj - The project structure.
-Output      : struct Proj_Info* Proj - The updated project structure.
-Return      : None.
-******************************************************************************/
-void Main::Alloc_RVM(void)
-{
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
-    {
-        Proc->Captbl->RVM_Capid=this->Proj->RVM->Captbl.size();
-        this->Proj->RVM->Captbl.push_back(std::make_unique<class Cap>(Proc.get(),Proc->Captbl.get()));
-        Alloc_RVM_Pgtbl(Proc, Proc->Pgtbl);
-        Proc->RVM_Capid=this->Proj->RVM->Proc.size();
-        this->Proj->RVM->Proc.push_back(std::make_unique<class Cap>(Proc.get(),Proc.get()));
-
-        for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
-        {
-            Thd->RVM_Capid=this->Proj->RVM->Thd.size();
-            this->Proj->RVM->Thd.push_back(std::make_unique<class Cap>(Proc.get(),Thd.get()));
-        }
-
-        for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
-        {
-            Inv->RVM_Capid=this->Proj->RVM->Inv.size();
-            this->Proj->RVM->Inv.push_back(std::make_unique<class Cap>(Proc.get(),Inv.get()));
-        }
-
-        for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
-        {
-            Recv->RVM_Capid=this->Proj->RVM->Recv.size();
-            this->Proj->RVM->Recv.push_back(std::make_unique<class Cap>(Proc.get(),Recv.get()));
-        }
-
-        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
-        {
-            Vect->RVM_Capid=this->Proj->RVM->Vect.size();
-            this->Proj->RVM->Vect.push_back(std::make_unique<class Cap>(Proc.get(),Vect.get()));
-        }
-    }
-}
-/* End Function:Main::Alloc_RVM **********************************************/
-
-/* Begin Function:Main::Alloc_Macro_Pgtbl *************************************
-Description : Recursively allocate page tables.
-Input       : std::unique_ptr<class Proc>& Proc, std::unique_ptr<class Pgtbl>& Pgtbl.
-Output      : struct Proj_Info* Proj - The updated project structure.
-Return      : None.
-******************************************************************************/
-void Main::Alloc_Macro_Pgtbl(std::unique_ptr<class Proc>& Proc,
-                             std::unique_ptr<class Pgtbl>& Pgtbl)
-{
-    static ptr_t Serial;
-    ptr_t Count;
-
-    if(Pgtbl->Is_Top!=0)
-        Serial=0;
-    
-    Pgtbl->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PGTBL_")+*(Proc->Name)+
-                                                   "_N"+std::to_string(Serial));
-    Proj::To_Upper(Pgtbl->RVM_Macro);
-
-    /* Recursively do allocation */
-    for(Count=0;Count<Pgtbl->Pgdir.size();Count++)
-    {
-        if(Pgtbl->Pgdir[(unsigned int)Count]!=nullptr)
-            Alloc_Macro_Pgtbl(Proc, Pgtbl->Pgdir[(unsigned int)Count]);
-    }
-}
-/* End Function:Main::Alloc_Macro_Pgtbl **************************************/
-
-/* Begin Function:Main::Alloc_Macro *******************************************
-Description : Allocate the capability ID macros. Both the local one and the global
-              one will be allocated.
-              The allocation table is shown below:
--------------------------------------------------------------------------------
-Type            Local                           Global
--------------------------------------------------------------------------------
-Process         -                               RVM_PROC_<PROCNAME>
--------------------------------------------------------------------------------
-Pgtbl           -                               RVM_PGTBL_<PROCNAME>_N#num
--------------------------------------------------------------------------------
-Captbl          -                               RVM_CAPTBL_<PROCNAME>
--------------------------------------------------------------------------------
-Thread          -                               RVM_PROC_<PROCNAME>_THD_<THDNAME>
--------------------------------------------------------------------------------
-Invocation      -                               RVM_PROC_<PROCNAME>_INV_<INVNAME>
--------------------------------------------------------------------------------
-Port            PROC_<PROCNAME>_PORT_<PORTNAME> (Inherit invocation name)
--------------------------------------------------------------------------------
-Receive         RECV_<ENDPNAME>                 RVM_PROC_<PROCNAME>_RECV_<RECVNAME>
--------------------------------------------------------------------------------
-Send            PROC_<PROCNAME>_SEND_<ENDPNAME> (Inherit receive endpoint name)
--------------------------------------------------------------------------------
-Vector          VECT_<VECTNAME>                 RVM_BOOT_VECT_<VECTNAME> (RVM)
-                                                RME_BOOT_VECT_<VECTNAME> (RME)
--------------------------------------------------------------------------------
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Main::Alloc_Macro(void)
-{
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
-    {
-        Proc->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name));
-        Proj::To_Upper(Proc->RVM_Macro);
-        Alloc_Macro_Pgtbl(Proc,Proc->Pgtbl);
-        Proc->Captbl->RVM_Macro=std::make_unique<std::string>(std::string("RVM_CAPTBL_")+*(Proc->Name));
-        Proj::To_Upper(Proc->Captbl->RVM_Macro);
-
-        for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
-        {
-            Thd->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_THD_"+*(Thd->Name));
-            Proj::To_Upper(Thd->RVM_Macro);
-        }
-
-        for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
-        {
-            Inv->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_INV_"+*(Inv->Name));
-            Proj::To_Upper(Inv->RVM_Macro);
-        }
-
-        for(std::unique_ptr<class Port>& Port:Proc->Port)
-        {
-            Port->Loc_Macro=std::make_unique<std::string>(std::string("PORT_")+*(Port->Name));
-            Proj::To_Upper(Port->Loc_Macro);
-        }
-
-        for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
-        {
-            Recv->Loc_Macro=std::make_unique<std::string>(std::string("RECV_")+*(Recv->Name));
-            Proj::To_Upper(Recv->Loc_Macro);
-            Recv->RVM_Macro=std::make_unique<std::string>(std::string("RVM_PROC_")+*(Proc->Name)+"_RECV_"+*(Recv->Name));
-            Proj::To_Upper(Recv->RVM_Macro);
-        }
-
-        for(std::unique_ptr<class Send>& Send:Proc->Send)
-        {
-            Send->Loc_Macro=std::make_unique<std::string>(std::string("SEND_")+*(Send->Name));
-            Proj::To_Upper(Send->Loc_Macro);
-        }
-
-        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
-        {
-            Vect->Loc_Macro=std::make_unique<std::string>(std::string("VECT_")+*(Vect->Name));
-            Proj::To_Upper(Vect->Loc_Macro);
-            Vect->RVM_Macro=std::make_unique<std::string>(std::string("RVM_BOOT_VECT_")+*(Vect->Name));
-            Proj::To_Upper(Vect->RVM_Macro);
-            Vect->RME_Macro=std::make_unique<std::string>(std::string("RME_BOOT_VECT_")+*(Vect->Name));
-            Proj::To_Upper(Vect->RME_Macro);
-        }
-    }
-}
-/* End Function:Main::Alloc_Macro ********************************************/
-
-/* Begin Function:Main::Backprop_RVM ******************************************
+/* Begin Function:Main::Link_Cap **********************************************
 Description : Back propagate the global ID to all the ports and send endpoints,
               which are derived from kernel objects. Also detects if all the port
               and send endpoint names in the system are valid. If any of them includes
@@ -765,7 +483,7 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Main::Backprop_RVM(void)
+void Main::Link_Cap(void)
 {
     class Proc* Proc_Dst;
     class Inv* Inv_Dst;
@@ -855,28 +573,86 @@ void Main::Backprop_RVM(void)
         }
     }
 }
-/* End Function:Main::Backprop_RVM *******************************************/
+/* End Function:Main::Link_Cap ***********************************************/
 
-/* Begin Function:Main::Alloc_Captbl ******************************************
-Description : Allocate capability IDs and macros for all kernel objects.
+/* Begin Function:Main::Alloc_Cap *********************************************
+Description : Allocate the capability ID and macros. Both the local one and
+              the global one will be allocated.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Main::Alloc_Captbl(void)
-{
-    /* First, check whether there are conflicts - this is not case insensitive */
-    Check_Kobj();
-    /* Allocate local project IDs for all entries */
-    Alloc_Loc();
-    /* Allocate global project IDs for kernel object entries */
-    Alloc_RVM();
-    /* Allocate the global and local macros to them */
-    Alloc_Macro();
-    /* Back propagate global entrie number to the ports and send endpoints */
-    Backprop_RVM();
+void Main::Alloc_Cap(void)
+{    
+    try
+    {
+        std::string* Errmsg;
+
+        /* Check processes */
+        Errmsg=Kobj::Check_Kobj<class Proc>(this->Proj->Proc);
+        if(Errmsg!=0)
+            throw std::invalid_argument(std::string("Process: ")+*Errmsg+"\nName is duplicate or invalid.");
+
+        /* Check other kernel objects */
+        for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+            Proc->Check_Kobj();
+    
+        /* Check for duplicate vectors */
+        Errmsg=Vect::Check_Vect(this->Proj);
+        if(Errmsg!=0)
+            throw std::invalid_argument(std::string("Vector endpoint: ")+*Errmsg+"\nName/name is duplicate or invalid.");
+
+        for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+            Proc->Alloc_Loc(this->Plat->Capacity);
+
+        for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+            Proc->Alloc_RVM(this->Proj->RVM);
+
+        for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+            Proc->Alloc_Macro();
+
+        Link_Cap();
+    }
+    catch(std::exception& Exc)
+    {
+        throw std::runtime_error(std::string("Capability allocator:\n")+Exc.what());
+    }
 }
-/* End Function:Main::Alloc_Captbl *******************************************/
+/* End Function:Main::Alloc_Cap ********************************************/
+
+/* Begin Function:Main::Alloc_Obj *********************************************
+Description : Allocate the kernel objects and memory.
+Input       : struct Proj_Info* Proj - The project structure.
+Output      : struct Proj_Info* Proj - The updated project structure.
+Return      : None.
+******************************************************************************/
+void Main::Alloc_Obj(void)
+{
+    try
+    {
+        /* Compute the kernel memory needed, disregarding the initial
+         * capability table size because we don't know its size yet */
+        this->Proj->Kobj_Alloc(this->Plat,0);
+        /* Now recompute to get the real usage */
+        this->Proj->Kobj_Alloc(this->Plat,this->Proj->RVM->Map->Captbl_Size);
+
+        /* Populate RME information */
+        this->Proj->RME->Alloc_Kmem(this->Proj->RVM->Map->After_Kmem_Front, this->Plat->Kmem_Order);
+
+        /* Populate RVM information */
+        this->Proj->RVM->Alloc_Mem(this->Proj->RME->Code_Start+this->Proj->RME->Code_Size,
+                                   this->Proj->RME->Data_Start+this->Proj->RME->Data_Size);
+    
+        /* Populate Process information */
+        for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+            Proc->Alloc_Mem(this->Plat->Word_Bits);
+    }
+    catch(std::exception& Exc)
+    {
+        throw std::runtime_error(std::string("Object allocator:\n")+Exc.what());
+    }
+}
+/* End Function:Main::Alloc_Obj **********************************************/
 }
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -887,25 +663,32 @@ Return      : None.
 using namespace rme_mcu;
 int main(int argc, char* argv[])
 {
-    std::unique_ptr<class Main> Main;
+    try
+    {
+        std::unique_ptr<class Main> Main;
 /* Phase 1: Process command line and do parsing ******************************/
-    /* Process the command line first */
-    Main=std::make_unique<class Main>(argc, argv);
-    Main->Parse();
+        /* Process the command line first */
+        Main=std::make_unique<class Main>(argc, argv);
+        Main->Parse();
 
 /* Phase 2: Allocate page tables *********************************************/
-    Main->Plat->Align_Mem(Main->Proj);
-    Main->Alloc_Mem();
-    Main->Plat->Alloc_Pgtbl(Main->Proj,Main->Chip);
+        Main->Plat->Align_Mem(Main->Proj);
+        Main->Alloc_Mem();
+        Main->Plat->Alloc_Pgtbl(Main->Proj,Main->Chip);
 
 /* Phase 3: Allocate kernel object ID & macros *******************************/
-    Main->Alloc_Captbl();
+        Main->Alloc_Cap();
 
-/* Phase 4: Allocate memory **************************************************/
-    //Main->Alloc_Kmem();
+/* Phase 4: Allocate object memory ********************************************/
+        Main->Alloc_Obj();
 
 /* Phase 5: Produce output ***************************************************/
-    //Main->Output();
+        //Main->Output();
+    }
+    catch(std::exception& Exc)
+    {
+        throw std::runtime_error(std::string("Error:\n")+Exc.what());
+    }
 
     return 0;
 }

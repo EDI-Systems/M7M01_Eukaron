@@ -17,6 +17,7 @@ extern "C"
 #include "string"
 #include "memory"
 #include "vector"
+#include "algorithm"
 
 #define __HDR_DEFS__
 #include "Core/rme_mcu.hpp"
@@ -54,6 +55,30 @@ Return      : None.
     return;
 }
 /* End Function:Kobj::~Kobj **************************************************/
+
+/* Begin Function:Kobj::To_Upper **********************************************
+Description : Convert the string to uppercase.
+Input       : std::unique_ptr<std::string>& Str - The string to convert.
+Output      : std::unique_ptr<std::string>& Str - The converted string.
+Return      : None.
+******************************************************************************/
+void Kobj::To_Upper(std::unique_ptr<std::string>& Str)
+{
+    std::transform(Str->begin(), Str->end(), Str->begin(), std::toupper);
+}
+/* End Function:Kobj::To_Upper ***********************************************/
+
+/* Begin Function:Kobj::To_Lower **********************************************
+Description : Convert the string to lowercase.
+Input       : std::unique_ptr<std::string>& Str - The string to convert.
+Output      : std::unique_ptr<std::string>& Str - The converted string.
+Return      : None.
+******************************************************************************/
+void Kobj::To_Lower(std::unique_ptr<std::string>& Str)
+{
+    std::transform(Str->begin(), Str->end(), Str->begin(), std::tolower);
+}
+/* End Function:Kobj::To_Lower ***********************************************/
 
 /* Begin Function:Kobj::Strcicmp **********************************************
 Description : Compare two strings in a case insensitive way.

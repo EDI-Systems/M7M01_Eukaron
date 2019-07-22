@@ -61,6 +61,9 @@ Return      : None.
             throw std::invalid_argument("Stack size section is missing.");
         if(XML_Get_Hex(Temp,&(this->Stack_Size))<0)
             throw std::invalid_argument("Stack size is not a valid hex integer.");
+        
+        this->Map=std::make_unique<class Inv_Memmap>();
+
     }
     catch(std::exception& Exc)
     {

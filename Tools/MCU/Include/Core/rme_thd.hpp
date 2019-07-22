@@ -38,9 +38,6 @@ public:
     ptr_t Stack_Base;
     /* The size of the stack */
     ptr_t Stack_Size;
-
-    Thd_Memmap(void){};
-    ~Thd_Memmap(void){};
 };
 
 /* Kernel object information */

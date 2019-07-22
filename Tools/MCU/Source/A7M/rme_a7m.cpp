@@ -65,7 +65,8 @@ Input       : struct Proj_Info* Proj - The project structure.
 Output      : struct Proj_Info* Proj - The updated project structure.
 Return      : None.
 ******************************************************************************/
-/* void */ A7M::A7M(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip):Plat(32, 0, 64, 32)
+/* void */ A7M::A7M(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class Chip>& Chip):
+                Plat(A7M_WORD_BITS, A7M_INIT_NUM_ORD, A7M_RAW_THD_SIZE, A7M_RAW_INV_SIZE)
 {
     std::unique_ptr<std::string>* Str;
 
@@ -181,21 +182,21 @@ Return      : None.
 }
 /* End Function:A7M::A7M *****************************************************/
 
-/* Begin Function:A7M::Pgtbl_Size *********************************************
-Description : Compute the page table size for ARMv7-M.
+/* Begin Function:A7M::Raw_Pgtbl_Size *****************************************
+Description : Compute the raw page table size for ARMv7-M.
 Input       : ptr_t Num_Order - The number order.
               ptr_t Is_Top - Whether this is a top-level.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-ptr_t A7M::Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top)
+ptr_t A7M::Raw_Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top)
 {
     if(Is_Top!=0)
-        return POW2(Num_Order);
+        return A7M_RAW_PGTBL_SIZE_TOP(Num_Order);
     else
-        return POW2(Num_Order);
+        return A7M_RAW_PGTBL_SIZE_NOM(Num_Order);
 }
-/* End Function:A7M::Pgtbl_Size **********************************************/
+/* End Function:A7M::Raw_Pgtbl_Size ******************************************/
 
 /* Begin Function:A7M::Align_Block ********************************************
 Description : Align the memory according to Cortex-M platform's requirements.
@@ -291,7 +292,7 @@ ptr_t A7M::Pgtbl_Tot_Ord(std::vector<std::unique_ptr<class Mem>>& List, ptr_t* S
         /* No bigger than 32 is ever possible */
         if(Total_Order>=32)
             break;
-        if(End<=(ALIGN_POW(Start, Total_Order)+POW2(Total_Order)))
+        if(End<=ROUND_UP(Start, Total_Order))
             break;
         Total_Order++;
     }
@@ -304,7 +305,7 @@ ptr_t A7M::Pgtbl_Tot_Ord(std::vector<std::unique_ptr<class Mem>>& List, ptr_t* S
     if(Total_Order==32)
         *Start_Addr=0;
     else
-        *Start_Addr=ALIGN_POW(Start, Total_Order);
+        *Start_Addr=ROUND_DOWN(Start, Total_Order);
 
     return Total_Order;
 }

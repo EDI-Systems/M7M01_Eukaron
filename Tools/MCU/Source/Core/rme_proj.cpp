@@ -59,8 +59,8 @@ namespace rme_mcu
 Description : Constructor for Plat class.
 Input       : ptr_t Word_Bits - The number of bits in a processor word.
               ptr_t Init_Num_Ord - The initial number order of the page table.
-              ptr_t Thd_Size - The thread size.
-              ptr_t Inv_Size - The invocation size.
+              ptr_t Thd_Size - The raw thread size.
+              ptr_t Inv_Size - The raw invocation size.
 Output      : None.
 Return      : None.
 ******************************************************************************/
@@ -69,190 +69,115 @@ Return      : None.
     this->Word_Bits=Word_Bits;
     this->Capacity=POW2(Word_Bits/4-1);
     this->Init_Num_Ord=Init_Num_Ord;
-    this->Thd_Size=Thd_Size;
-    this->Inv_Size=Inv_Size;
+    this->Raw_Thd_Size=Thd_Size;
+    this->Raw_Inv_Size=Inv_Size;
 }
 /* End Function:Plat::Plat ***************************************************/
 
-/* Begin Function:RME::RME ****************************************************
-Description : Constructor for RME class.
-Input       : xml_node_t* Node - The node containing the whole project.
+/* Begin Function:Plat::Captbl_Size *******************************************
+Description : Calculate the platform's capability table size.
+Input       : ptr_t Entry - The number of entries for the capability table.
 Output      : None.
-Return      : None.
+Return      : ptr_t - The size of the capability table, in bytes.
 ******************************************************************************/
-/* void */ RME::RME(xml_node_t* Node)
+ptr_t Plat::Captbl_Size(ptr_t Entry)
 {
-    xml_node_t* Temp;
-    xml_node_t* Trunk;
-    
-    try
-    {
-        /* Code start address */
-        if((XML_Child(Node,"Code_Start",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Code address section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Code_Start))<0)
-            throw std::invalid_argument("Code address is not a valid hex integer.");
-
-        /* Code size */
-        if((XML_Child(Node,"Code_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Code size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Code_Size))<0)
-            throw std::invalid_argument("Code size is not a valid hex integer.");
-
-        /* Data start address */
-        if((XML_Child(Node,"Data_Start",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Data address section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Data_Start))<0)
-            throw std::invalid_argument("Data address is not a valid hex integer.");
-
-        /* Data size */
-        if((XML_Child(Node,"Data_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Data size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Data_Size))<0)
-            throw std::invalid_argument("Data size is not a valid hex integer.");
-
-        /* Stack size */
-        if((XML_Child(Node,"Stack_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Stack size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Stack_Size))<0)
-            throw std::invalid_argument("Stack size is not a valid hex integer.");
-
-        /* Extra kernel memory */
-        if((XML_Child(Node,"Extra_Kmem",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Extra kernel memory section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Extra_Kmem))<0)
-            throw std::invalid_argument("Extra kernel memory is not a valid hex integer.");
-
-        /* Kmem_Order */
-        if((XML_Child(Node,"Kmem_Order",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Kernel memory order section is missing.");
-        if(XML_Get_Uint(Temp,&(this->Kmem_Order))<0)
-            throw std::invalid_argument("Kernel memory order is not a valid unsigned integer.");
-
-        /* Priorities */
-        if((XML_Child(Node,"Kern_Prios",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Priority number section is missing.");
-        if(XML_Get_Uint(Temp,&(this->Kern_Prios))<0)
-            throw std::invalid_argument("Priority number is not a valid unsigned integer.");
-
-        /* Compiler */
-        if((XML_Child(Node,"Compiler",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Complier option section is missing.");
-        this->Comp=std::make_unique<class Comp>(Temp);
-
-        /* Platform */
-        if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Platform option section is missing.");
-        if(XML_Child(Temp,0,&Trunk)<0)
-            throw std::invalid_argument("Platform option section parsing internal error.");
-        while(Trunk!=0)
-        {
-            this->Plat.push_back(std::make_unique<class Raw>(Trunk));
-
-            if(XML_Child(Temp,"",&Trunk)<0)
-                throw std::invalid_argument("Platform option section parsing internal error.");
-        }
-
-        /* Chip */
-        if((XML_Child(Node,"Chip",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Chip option section is missing.");
-        if(XML_Child(Temp,0,&Trunk)<0)
-            throw std::invalid_argument("Chip option section parsing internal error.");
-        while(Trunk!=0)
-        {
-            this->Chip.push_back(std::make_unique<class Raw>(Trunk));
-
-            if(XML_Child(Temp,"",&Trunk)<0)
-                throw std::invalid_argument("Chip option section parsing internal error.");
-        }
-    }
-    catch(std::exception& Exc)
-    {
-        throw std::runtime_error(std::string("RME:\n")+Exc.what());
-    }
+    return ROUND_UP(RAW_CAPTBL_SIZE(this->Word_Bits,Entry), this->Kmem_Order);
 }
-/* End Function:RME::RME *****************************************************/
+/* End Function:Plat::Captbl_Size ********************************************/
 
-/* Begin Function:Cap::Cap ****************************************************
-Description : Constructor for Cap class.
-Input       : class Proc* Proc - The pointer to the process.
-              class Kobj* Kobj - The pointer to the kernel object.
+/* Begin Function:Plat::Captbl_Num ********************************************
+Description : Calculate the number of capability tables needed given the number
+              of capabilities.
+Input       : ptr_t Entry - The total number of entries for the capability tables.
 Output      : None.
-Return      : None.
+Return      : ptr_t - The number of capability tables needed.
 ******************************************************************************/
-/* void */ Cap::Cap(class Proc* Proc, class Kobj* Kobj)
+ptr_t Plat::Captbl_Num(ptr_t Entry)
 {
-    this->Proc=Proc;
-    this->Kobj=Kobj;
+    return (Entry+this->Capacity-1)/this->Capacity;
 }
-/* End Function:Cap::Cap *****************************************************/
+/* End Function:Plat::Captbl_Num *********************************************/
 
-/* Begin Function:RVM::RVM ****************************************************
-Description : Constructor for RVM class.
-Input       : xml_node_t* Node - The node containing the whole project.
+/* Begin Function:Plat::Captbl_Total ******************************************
+Description : Calculate the total size of capability tables needed given the number
+              of capabilities.
+Input       : ptr_t Entry - The number of entries for the capability tables.
 Output      : None.
-Return      : None.
+Return      : ptr_t - The total size size of the capability tables, in bytes.
 ******************************************************************************/
-/* void */ RVM::RVM(xml_node_t* Node)
+ptr_t Plat::Captbl_Total(ptr_t Entry)
 {
-    xml_node_t* Temp;
-    std::unique_ptr<std::string> Str;
-    
-    try
-    {
-        /* Code size */
-        if((XML_Child(Node,"Code_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Code size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Code_Size))<0)
-            throw std::invalid_argument("Code size is not a valid hex integer.");
+    ptr_t Size;
 
-        /* Data size */
-        if((XML_Child(Node,"Data_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Data size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Data_Size))<0)
-            throw std::invalid_argument("Data size is not a valid hex integer.");
+    Size=ROUND_UP(RAW_CAPTBL_SIZE(this->Word_Bits,this->Capacity), this->Kmem_Order);
+    Size*=Entry/this->Capacity;
+    Size+=ROUND_UP(RAW_CAPTBL_SIZE(this->Word_Bits,Entry%this->Capacity), this->Kmem_Order);
 
-        /* Stack size */
-        if((XML_Child(Node,"Stack_Size",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Stack size section is missing.");
-        if(XML_Get_Hex(Temp,&(this->Stack_Size))<0)
-            throw std::invalid_argument("Stack size is not a valid hex integer.");
-
-        /* Extra Captbl */
-        if((XML_Child(Node,"Extra_Captbl",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Extra capability table size section is missing.");
-        if(XML_Get_Uint(Temp,&(this->Extra_Captbl))<0)
-            throw std::invalid_argument("Extra capability table size is not a valid unsigned integer.");
-
-        /* Recovery */
-        if((XML_Child(Node,"Recovery",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Recovery method section is missing.");
-        if(Temp->XML_Val_Len==0)
-            throw std::invalid_argument("Recovery method section is empty.");
-        Str=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
-
-        if(*Str=="Thread")
-            this->Recovery=RECOVERY_THD;
-        else if(*Str=="Process")
-            this->Recovery=RECOVERY_PROC;
-        else if(*Str=="System")
-            this->Recovery=RECOVERY_SYS;
-        else
-            throw std::invalid_argument("Recovery method is malformed.");
-
-        /* Compiler */
-        if((XML_Child(Node,"Compiler",&Temp)<0)||(Temp==0))
-            throw std::invalid_argument("Complier section is missing.");
-        this->Comp=std::make_unique<class Comp>(Temp);
-
-        /* VMM section is not read currently */
-    }
-    catch(std::exception& Exc)
-    {
-        throw std::runtime_error(std::string("RVM:\n")+Exc.what());
-    }
+    return Size;
 }
-/* End Function:RVM::RVM *****************************************************/
+/* End Function:Plat::Captbl_Total *******************************************/
+
+/* Begin Function:Plat::Pgtbl_Size ********************************************
+Description : Calculate the platform's page table size.
+Input       : ptr_t Num_Order - The number order.
+              ptr_t Is_Top - Whether this is a top-level.
+Output      : None.
+Return      : ptr_t - The size of the page table, in bytes.
+******************************************************************************/
+ptr_t Plat::Pgtbl_Size(ptr_t Num_Order, ptr_t Is_Top)
+{
+    return ROUND_UP(this->Raw_Pgtbl_Size(Num_Order, Is_Top), this->Kmem_Order);
+}
+/* End Function:Plat::Pgtbl_Size *********************************************/
+
+/* Begin Function:Plat::Proc_Size *********************************************
+Description : Calculate the platform's process size.
+Input       : None.
+Output      : None.
+Return      : ptr_t - The size of the process, in bytes.
+******************************************************************************/
+ptr_t Plat::Proc_Size(void)
+{
+    return ROUND_UP(RAW_PROC_SIZE(this->Word_Bits), this->Kmem_Order);
+}
+/* End Function:Plat::Proc_Size **********************************************/
+
+/* Begin Function:Plat::Thd_Size **********************************************
+Description : Calculate the platform's thread size.
+Input       : None.
+Output      : None.
+Return      : ptr_t - The size of the thread, in bytes.
+******************************************************************************/
+ptr_t Plat::Thd_Size(void)
+{
+    return ROUND_UP(this->Raw_Thd_Size, this->Kmem_Order);
+}
+/* End Function:Plat::Thd_Size ***********************************************/
+
+/* Begin Function:Plat::Inv_Size **********************************************
+Description : Calculate the platform's invocation size.
+Input       : None.
+Output      : None.
+Return      : ptr_t - The size of the thread, in bytes.
+******************************************************************************/
+ptr_t Plat::Inv_Size(void)
+{
+    return ROUND_UP(this->Raw_Inv_Size, this->Kmem_Order);
+}
+/* End Function:Plat::Inv_Size ***********************************************/
+
+/* Begin Function:Plat::Sig_Size **********************************************
+Description : Calculate the platform's signal endpoint size.
+Input       : None.
+Output      : None.
+Return      : ptr_t - The size of the thread, in bytes.
+******************************************************************************/
+ptr_t Plat::Sig_Size(void)
+{
+    return ROUND_UP(RAW_SIG_SIZE(this->Word_Bits), this->Kmem_Order);
+}
+/* End Function:Plat::Sig_Size ***********************************************/
 
 /* Begin Function:Proj::Proj **************************************************
 Description : Constructor for Proj class.
@@ -285,7 +210,7 @@ Return      : None.
             throw std::invalid_argument("Platform section is empty.");
         this->Plat_Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
         this->Plat_Lower=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
-        To_Lower(this->Plat_Lower);
+        Kobj::To_Lower(this->Plat_Lower);
 
         /* Chip_Class */
         if((XML_Child(Node,"Chip_Class",&Temp)<0)||(Temp==0))
@@ -334,29 +259,127 @@ Return      : None.
 }
 /* End Function:Proj::Proj ***************************************************/
 
-/* Begin Function:Proj::To_Upper **********************************************
-Description : Convert the string to uppercase.
-Input       : std::unique_ptr<std::string>& Str - The string to convert.
-Output      : std::unique_ptr<std::string>& Str - The converted string.
+/* Begin Function:Proj::Kobj_Alloc ********************************************
+Description : Get the size of the kernel memory, and generate the initial states
+              for kernel object creation.
+Input       : std::unique_ptr<class Plat>& Plat - The platform structure.
+              ptr_t Init_Captbl_Size - The initial capability table's size;
+Output      : None.
 Return      : None.
 ******************************************************************************/
-void Proj::To_Upper(std::unique_ptr<std::string>& Str)
+void Proj::Kobj_Alloc(std::unique_ptr<class Plat>& Plat, ptr_t Init_Capsz)
 {
-    std::transform(Str->begin(), Str->end(), Str->begin(), std::toupper);
-}
-/* End Function:Proj::To_Upper ***********************************************/
+    ptr_t Cap_Front;
+    ptr_t Kmem_Front;
 
-/* Begin Function:Proj::To_Lower **********************************************
-Description : Convert the string to lowercase.
-Input       : std::unique_ptr<std::string>& Str - The string to convert.
-Output      : std::unique_ptr<std::string>& Str - The converted string.
-Return      : None.
-******************************************************************************/
-void Proj::To_Lower(std::unique_ptr<std::string>& Str)
-{
-    std::transform(Str->begin(), Str->end(), Str->begin(), std::tolower);
+    /* Compute initial state when creating the vectors */
+    Cap_Front=0;
+    Kmem_Front=0;
+    /* Initial capability table */
+    Cap_Front++;
+    Kmem_Front+=Plat->Captbl_Size(Init_Capsz);
+    /* Initial page table */
+    Cap_Front++;
+    Kmem_Front+=Plat->Pgtbl_Size(Plat->Init_Num_Ord,1);
+    /* Initial RVM process */
+    Cap_Front++;
+    Kmem_Front+=Plat->Proc_Size();
+    /* Initial kcap and kmem */
+    Cap_Front+=2;
+    /* Initial tick timer/interrupt endpoint */
+    Cap_Front+=2;
+    Kmem_Front+=2*Plat->Sig_Size();
+    /* Initial thread */
+    Cap_Front++;
+    Kmem_Front+=Plat->Thd_Size();
+
+    /* Create vectors */
+    this->RME->Map->Vect_Cap_Front=Cap_Front;
+    this->RME->Map->Vect_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing vector endpoints */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Vect.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Vect.size());
+    /* Vector endpoint themselves */
+    Kmem_Front+=this->RVM->Vect.size()*Plat->Sig_Size();
+
+    /* Create RVM */
+    this->RVM->Map->Before_Cap_Front=Cap_Front;
+    this->RVM->Map->Before_Kmem_Front=Kmem_Front;
+    /* Three threads for RVM - now only one will be started */
+    Cap_Front+=3;
+    Kmem_Front+=3*Plat->Thd_Size();
+
+    /* Create capability tables */
+    this->RVM->Map->Captbl_Cap_Front=Cap_Front;
+    this->RVM->Map->Captbl_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing capability tables */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Captbl.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Captbl.size());
+    /* Capability tables themselves */
+    for(std::unique_ptr<class Cap> const& Info:this->RVM->Captbl)
+        Kmem_Front+=Plat->Captbl_Size(static_cast<class Captbl*>(Info->Kobj)->Size);
+
+    /* Create page tables */
+    this->RVM->Map->Pgtbl_Cap_Front=Cap_Front;
+    this->RVM->Map->Pgtbl_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing page tables */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Pgtbl.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Pgtbl.size());
+    /* Page table themselves */
+    for(std::unique_ptr<class Cap> const& Info:this->RVM->Pgtbl)
+    {
+        Kmem_Front+=Plat->Pgtbl_Size(static_cast<class Pgtbl*>(Info->Kobj)->Num_Order,
+                                     static_cast<class Pgtbl*>(Info->Kobj)->Is_Top);
+    }
+
+    /* Create processes */
+    this->RVM->Map->Proc_Cap_Front=Cap_Front;
+    this->RVM->Map->Proc_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing processes */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Proc.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Proc.size());
+    /* Processes themselves */
+    Kmem_Front+=this->RVM->Proc.size()*Plat->Proc_Size();
+
+    /* Create threads */
+    this->RVM->Map->Thd_Cap_Front=Cap_Front;
+    this->RVM->Map->Thd_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing threads */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Thd.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Thd.size());
+    /* Threads themselves */
+    Kmem_Front+=this->RVM->Thd.size()*Plat->Thd_Size();
+
+
+    /* Create invocations */
+    this->RVM->Map->Inv_Cap_Front=Cap_Front;
+    this->RVM->Map->Inv_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing invocations */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Inv.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Inv.size());
+    /* Invocations themselves */
+    Kmem_Front+=this->RVM->Inv.size()*Plat->Inv_Size();
+
+
+    /* Create receive endpoints */
+    this->RVM->Map->Recv_Cap_Front=Cap_Front;
+    this->RVM->Map->Recv_Kmem_Front=Kmem_Front;
+    /* Capability tables for containing receive endpoints */
+    Cap_Front+=Plat->Captbl_Num(this->RVM->Recv.size());
+    Kmem_Front+=Plat->Captbl_Total(this->RVM->Recv.size());
+    /* Receive endpoints themselves */
+    Kmem_Front+=this->RVM->Recv.size()*Plat->Sig_Size();
+
+    /* Final pointer positions */
+    this->RVM->Map->After_Cap_Front=Cap_Front;
+    this->RVM->Map->After_Kmem_Front=Kmem_Front;
+
+    /* Check if we are out of table space */
+    this->RVM->Map->Captbl_Size=this->RVM->Extra_Captbl+this->RVM->Map->After_Cap_Front;
+    if(this->RVM->Map->After_Cap_Front>Plat->Capacity)
+        throw std::runtime_error("RVM capability size too big.");
 }
-/* End Function:Proj::To_Lower ***********************************************/
+/* End Function:Get_Kmem_Size ************************************************/
 }
 /* End Of File ***************************************************************/
 
