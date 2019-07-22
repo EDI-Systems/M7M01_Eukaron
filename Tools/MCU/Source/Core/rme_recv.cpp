@@ -47,7 +47,7 @@ Return      : None.
             throw std::invalid_argument("Name section is missing.");
         if(Temp->XML_Val_Len==0)
             throw std::invalid_argument("Name section is empty.");
-        this->Name=std::make_unique<std::string>(Temp->XML_Tag,(int)Temp->XML_Tag_Len);
+        this->Name=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
     }
     catch(std::exception& Exc)
     {

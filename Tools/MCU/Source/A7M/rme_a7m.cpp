@@ -104,7 +104,7 @@ Return      : None.
             throw std::invalid_argument("Wrong systick value entered.");
 
         /* What is the CPU type? */
-        Str=Raw::Match(Proj->RME->Plat, std::make_unique<std::string>("CPU_Type"));
+        Str=Raw::Match(Chip->Attr, std::make_unique<std::string>("CPU_Type"));
         if(Str==0)
             throw std::invalid_argument("Missing CPU type settings.");
         if((**Str)=="Cortex-M0+")
@@ -119,7 +119,7 @@ Return      : None.
             throw std::invalid_argument("CPU type value is invalid.");
     
         /* What is the FPU type? */
-        Str=Raw::Match(Proj->RME->Plat, std::make_unique<std::string>("FPU_Type"));
+        Str=Raw::Match(Chip->Attr, std::make_unique<std::string>("FPU_Type"));
         if(Str==0)
             throw std::invalid_argument("Missing FPU type settings.");
         if((**Str)=="None")
@@ -145,7 +145,7 @@ Return      : None.
             throw std::invalid_argument("FPU type value is invalid.");
 
         /* What is the endianness? */
-        Str=Raw::Match(Proj->RME->Plat, std::make_unique<std::string>("Endianness"));
+        Str=Raw::Match(Chip->Attr, std::make_unique<std::string>("Endianness"));
         if(Str==0)
             throw std::invalid_argument("Missing endianness settings.");
         if((**Str)=="Little")
@@ -292,7 +292,7 @@ ptr_t A7M::Pgtbl_Tot_Ord(std::vector<std::unique_ptr<class Mem>>& List, ptr_t* S
         /* No bigger than 32 is ever possible */
         if(Total_Order>=32)
             break;
-        if(End<=ROUND_UP(Start, Total_Order))
+        if(End<=(ROUND_DOWN(Start, Total_Order)+POW2(Total_Order)))
             break;
         Total_Order++;
     }
@@ -352,9 +352,10 @@ ptr_t A7M::Pgtbl_Num_Ord(std::vector<std::unique_ptr<class Mem>>& List,
          * we have the largest size order. This will leave us plenty of chances to use huge
          * pages, as this facilitates delegation as well. Number order = 0 is also possible,
          * as this maps in a single huge page. */
-        Mappable=1;
         for(Num_Order=0;Num_Order<=3;Num_Order++)
         {
+            Mappable=1;
+
             for(std::unique_ptr<class Mem>& Mem:List)
             {
                 if((Mem->Start%POW2(Total_Order-Num_Order))!=0)
@@ -396,7 +397,8 @@ ptr_t A7M::Pgtbl_Num_Ord(std::vector<std::unique_ptr<class Mem>>& List,
                 break;
         }
 
-        /* For whatever reason, if it breaks, then the last number order must be good */
+        /* For whatever reason, if it breaks, then the last number order must be good,
+         * and the minimum order is 1 because we at least need to split something */
         if(Num_Order>1)
             Num_Order--;
     }
@@ -552,7 +554,6 @@ std::unique_ptr<class Pgtbl> A7M::Gen_Pgtbl(std::unique_ptr<class Proj>& Proj,
     ptr_t Num_Order;
     ptr_t Size_Order;
     ptr_t Total_Order;
-    static s8_t Buf[16];
     std::unique_ptr<class Pgtbl> Pgtbl;
 
     /* Total order and start address of the page table */
@@ -598,10 +599,8 @@ void A7M::Alloc_Pgtbl(std::unique_ptr<class Proj>& Proj, std::unique_ptr<class C
             /* Add everything to list */
             for(std::unique_ptr<class Mem>& Mem:Proc->Code)
                 List.push_back(std::make_unique<class Mem>(Mem->Start,Mem->Size,Mem->Attr,Mem->Align));
-
             for(std::unique_ptr<class Mem>& Mem:Proc->Data)
                 List.push_back(std::make_unique<class Mem>(Mem->Start,Mem->Size,Mem->Attr,Mem->Align));
-
             for(std::unique_ptr<class Mem>& Mem:Proc->Device)
                 List.push_back(std::make_unique<class Mem>(Mem->Start,Mem->Size,Mem->Attr,Mem->Align));
 

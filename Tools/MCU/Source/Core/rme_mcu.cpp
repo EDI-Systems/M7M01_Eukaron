@@ -60,6 +60,7 @@ extern "C"
 #include "string"
 #include "memory"
 #include "vector"
+#include "iostream"
 #include "iterator"
 #include "stdexcept"
 #include "algorithm"
@@ -202,7 +203,7 @@ void Main::Parse(void)
 
     try
     {
-        this->Fsys=std::make_unique<class Sysfs>(std::make_unique<std::string>("../../../"),
+        this->Fsys=std::make_unique<class Sysfs>(std::make_unique<std::string>("../../../../../"),
                                                  std::make_unique<std::string>(this->Output->c_str()));
         /* Read project */
         Str=this->Fsys->Read_Proj(this->Input);
@@ -252,6 +253,7 @@ void Main::Alloc_Code(void)
 {
     std::vector<std::unique_ptr<class Memmap>> Map;
     std::vector<class Mem*> Auto;
+    ptr_t Attr;
 
     for(std::unique_ptr<class Mem>& Mem:this->Chip->Code)
         Map.push_back(std::make_unique<class Memmap>(Mem));
@@ -263,10 +265,11 @@ void Main::Alloc_Code(void)
     });
 
     /* Now populate the RME & RVM sections - must be continuous */
-    if(Memmap::Fit_Static(Map,this->Proj->RME->Code_Start,this->Proj->RME->Code_Size)!=0)
-        throw std::runtime_error("RME code section is invalid.");
-    if(Memmap::Fit_Static(Map,this->Proj->RME->Code_Start+this->Proj->RME->Code_Size,this->Proj->RVM->Code_Size)!=0)
-        throw std::runtime_error("RVM code section is invalid.");
+    Attr=MEM_READ|MEM_EXECUTE|MEM_STATIC;
+    if(Memmap::Fit_Static(Map,this->Proj->RME->Code_Start,this->Proj->RME->Code_Size,Attr)!=0)
+        throw std::runtime_error("RME code section is invalid, either wrong range or wrong attribute.");
+    if(Memmap::Fit_Static(Map,this->Proj->RME->Code_Start+this->Proj->RME->Code_Size,this->Proj->RVM->Code_Size,Attr)!=0)
+        throw std::runtime_error("RVM code section is invalid, either wrong range or wrong attribute.");
 
     /* Sort all processes's memory in according to their size */
     for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
@@ -278,8 +281,8 @@ void Main::Alloc_Code(void)
                 /* If this memory is not auto memory, we wait to deal with it */
                 if(Mem->Start!=MEM_AUTO)
                 {
-                    if(Memmap::Fit_Static(Map, Mem->Start, Mem->Size)!=0)
-                        throw std::runtime_error("Code section is invalid.");
+                    if(Memmap::Fit_Static(Map, Mem->Start, Mem->Size, Mem->Attr)!=0)
+                        throw std::runtime_error("Code section is invalid, either wrong range or wrong attribute.");
                 }
                 else
                     Auto.push_back(Mem.get());
@@ -300,7 +303,7 @@ void Main::Alloc_Code(void)
     /* Fit whatever that does not have a fixed address */
     for(class Mem*& Mem:Auto)
     {
-        if(Memmap::Fit_Auto(Map, &(Mem->Start), Mem->Size, Mem->Align)!=0)
+        if(Memmap::Fit_Auto(Map, &(Mem->Start), Mem->Size, Mem->Align, Mem->Attr)!=0)
             throw std::runtime_error("Code memory fitter failed.");
     }
 }
@@ -359,6 +362,7 @@ void Main::Alloc_Data(void)
 {
     std::vector<std::unique_ptr<class Memmap>> Map;
     std::vector<class Mem*> Auto;
+    ptr_t Attr;
 
     for(std::unique_ptr<class Mem>& Mem:this->Chip->Data)
         Map.push_back(std::make_unique<class Memmap>(Mem));
@@ -370,10 +374,11 @@ void Main::Alloc_Data(void)
     });
 
     /* Now populate the RME & RVM sections - must be continuous */
-    if(Memmap::Fit_Static(Map,this->Proj->RME->Data_Start,this->Proj->RME->Data_Size)!=0)
-        throw std::runtime_error("RME data section is invalid.");
-    if(Memmap::Fit_Static(Map,this->Proj->RME->Data_Start+this->Proj->RME->Data_Size,this->Proj->RVM->Data_Size)!=0)
-        throw std::runtime_error("RVM data section is invalid.");
+    Attr=MEM_READ|MEM_WRITE|MEM_STATIC;
+    if(Memmap::Fit_Static(Map,this->Proj->RME->Data_Start,this->Proj->RME->Data_Size,Attr)!=0)
+        throw std::runtime_error("RME data section is invalid, either wrong range or wrong attribute.");
+    if(Memmap::Fit_Static(Map,this->Proj->RME->Data_Start+this->Proj->RME->Data_Size,this->Proj->RVM->Data_Size,Attr)!=0)
+        throw std::runtime_error("RVM data section is invalid, either wrong range or wrong attribute.");
 
     /* Sort all processes's memory in according to their size */
     for(std::unique_ptr<class Proc>& Proc:Proj->Proc)
@@ -385,8 +390,8 @@ void Main::Alloc_Data(void)
                 /* If this memory is not auto memory, we wait to deal with it */
                 if(Mem->Start!=MEM_AUTO)
                 {
-                    if(Memmap::Fit_Static(Map, Mem->Start, Mem->Size)!=0)
-                        throw std::runtime_error("Data section is invalid.");
+                    if(Memmap::Fit_Static(Map, Mem->Start, Mem->Size, Mem->Attr)!=0)
+                        throw std::runtime_error("Data section is invalid, either wrong range or wrong attribute.");
                 }
                 else
                     Auto.push_back(Mem.get());
@@ -407,7 +412,7 @@ void Main::Alloc_Data(void)
     /* Fit whatever that does not have a fixed address */
     for(class Mem*& Mem:Auto)
     {
-        if(Memmap::Fit_Auto(Map, &(Mem->Start), Mem->Size, Mem->Align)!=0)
+        if(Memmap::Fit_Auto(Map, &(Mem->Start), Mem->Size, Mem->Align, Mem->Attr)!=0)
             throw std::runtime_error("Data memory fitter failed.");
     }
 }
@@ -437,6 +442,8 @@ void Main::Check_Device(void)
                 {
                     if((Proc_Mem->Start+Proc_Mem->Size)<=(Chip_Mem->Start+Chip_Mem->Size))
                     {
+                        if((Chip_Mem->Attr&Proc_Mem->Attr)!=Proc_Mem->Attr)
+                            throw std::runtime_error(std::string("Process: ")+*(Proc->Name)+"\nDevice memory have wrong attributes.");
                         Found=1;
                         break;
                     }
@@ -548,7 +555,7 @@ void Main::Link_Cap(void)
                 }
             }
             if(Recv_Dst==0)
-                throw std::runtime_error(std::string("Send endpoint:")+*(Send->Name)+"\nInvalid invocation name.");
+                throw std::runtime_error(std::string("Send endpoint:")+*(Send->Name)+"\nInvalid receive endpoint name.");
 
             Send->RVM_Capid=Recv_Dst->RVM_Capid;
             Send->RVM_Macro=std::make_unique<std::string>(*(Recv_Dst->RVM_Macro));
@@ -562,6 +569,9 @@ void Main::Link_Cap(void)
             {
                 if(*(Vect_Chip->Name)==*(Vect->Name))
                 {
+                    if(Vect_Chip->Num!=Vect->Num)
+                        throw std::runtime_error(std::string("Vector endpoint:")+*(Vect->Name)+"\nInvalid vector number.");
+
                     Vect_Dst=Vect_Chip.get();
                     break;
                 }
@@ -683,11 +693,52 @@ int main(int argc, char* argv[])
         Main->Alloc_Obj();
 
 /* Phase 5: Produce output ***************************************************/
-        //Main->Output();
+        Main->Copy_Files();
+        Main->Gen_Files();
+
+        so far so good. this looks much better now.
+        the job of tomorrow is to redesign the generator.
+        the generator have the following components:
+
+        1. generic file copyer - simply does copying. 
+        2. generic file generator - simply generates stuff.
+        3. port specific file copyer - simply copies files in that port.
+        4. port specific file generator - simply generates files for that port.
+        5. toolchain-specific file copyer - simply copies files in that port.
+        6. toolchain-specific file generator - simply generates stuff for that toolchain.
+
+        file copyer can be devided into three categories:
+        RME copyer - copies RME related stuff.
+        RVM copyer - copies RVM related stuff.
+        Process copyer - copies process related stuff.
+
+        for generators, we also have the three sets.
+
+        we also need to process cases where the original file already exists. This is an major
+            issue: what if the user modifies the file?
+
+        ps. multi-core support and VMM support/posix support still pending.
+        need to allocate time to that.
+
+        if we detect the difference is just the memory map, simple - replace the linker scripts.
+        at least make the linker scripts there. 
+        what if we need to add a new thread?
+        maybe we should use a DOM model to process them.
+        that will be too hard for now, maybe. 
+        when the user adds or removes kernel objects, things will change. 
+        and also there will be a lot of mess if this is not dealt with carefully.
+        we may need to do this now - must be done.
+        use a dom model right out of the stuff - but may require us to read the projects!
+        anyway, if we detect projects, we neevr regenerate them.
+        the dom model should be at user desc. - or not?
+
+        projects - do not touch
+        linker scripts - always regenerate
+
     }
     catch(std::exception& Exc)
     {
-        throw std::runtime_error(std::string("Error:\n")+Exc.what());
+        std::cout<<(std::string("Error:\n")+Exc.what());
     }
 
     return 0;

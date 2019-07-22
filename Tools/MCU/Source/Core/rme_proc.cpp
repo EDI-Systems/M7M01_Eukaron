@@ -333,7 +333,7 @@ Return      : None.
     try
     {
         /* Name */
-        if((XML_Child(Node,"Name",&Temp)<0)||(Name==0))
+        if((XML_Child(Node,"Name",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Name section is missing.");
         if(Temp->XML_Val_Len==0)
             throw std::invalid_argument("Name section is empty.");
@@ -376,7 +376,7 @@ Return      : None.
             else
                 throw std::invalid_argument("Memory type is malformed.");
 
-            if(XML_Child(Node,"",&Trunk)<0)
+            if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Memory section parsing internal error.");
         }
 
@@ -391,7 +391,7 @@ Return      : None.
         {
             this->Thd.push_back(std::make_unique<class Thd>(Trunk));
 
-            if(XML_Child(Node,"",&Trunk)<0)
+            if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Thread section parsing internal error.");
         }
 
@@ -476,6 +476,8 @@ Return      : None.
         /* All processes shall have at least one thread */
         if(this->Thd.size()==0)
             throw std::invalid_argument("No thread exists.");
+
+        this->Map=std::make_unique<class Proc_Memmap>();
     }
     catch(std::exception& Exc)
     {

@@ -138,7 +138,7 @@ Return      : None.
         this->Chip_Class=std::make_unique<std::string>(Temp->XML_Val,(int)Temp->XML_Val_Len);
 
         /* Compatible */
-        if((XML_Child(Node,"Platform",&Temp)<0)||(Temp==0))
+        if((XML_Child(Node,"Compatible",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Compatible variant section is missing.");
         if(Temp->XML_Val_Len==0)
             throw std::invalid_argument("Compatible variant section is empty.");
@@ -173,6 +173,15 @@ Return      : None.
         /* Attribute */
         if((XML_Child(Node,"Attribute",&Temp)<0)||(Temp==0))
             throw std::invalid_argument("Attribute section missing.");
+        if(XML_Child(Temp,0,&Trunk)<0)
+            throw std::invalid_argument("Attribute section parsing internal error.");
+        while(Trunk!=0)
+        {
+            this->Attr.push_back(std::make_unique<class Raw>(Trunk));
+
+            if(XML_Child(Temp,"",&Trunk)<0)
+                throw std::invalid_argument("Attribute section parsing internal error.");
+        }
 
         /* Memory */
         if((XML_Child(Node,"Memory",&Temp)<0)||(Temp==0))
@@ -199,7 +208,7 @@ Return      : None.
             else
                 throw std::invalid_argument("Memory type is malformed.");
 
-            if(XML_Child(Node,"",&Trunk)<0)
+            if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Memory section parsing internal error.");
         }
 
@@ -219,7 +228,7 @@ Return      : None.
         {
             this->Option.push_back(std::make_unique<class Option>(Trunk));
 
-            if(XML_Child(Node,"",&Trunk)<0)
+            if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Option section parsing internal error.");
         }
 
@@ -232,7 +241,7 @@ Return      : None.
         {
             this->Vect.push_back(std::make_unique<class Vect>(Trunk));
             
-            if(XML_Child(Node,"",&Trunk)<0)
+            if(XML_Child(Temp,"",&Trunk)<0)
                 throw std::invalid_argument("Vector section parsing internal error.");
         }
     }
