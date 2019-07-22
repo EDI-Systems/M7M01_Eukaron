@@ -234,7 +234,8 @@ void A7M::Align_Block(std::unique_ptr<class Mem>& Mem)
 
 /* Begin Function:A7M::Align_Mem **********************************************
 Description : Align the memory according to the A7M platform's alignment functions.
-              We will only align the memory of the processes.
+              We will only align the memory of the processes, however the RME and
+              RVM memory will also be checked - also stack sizes.
 Input       : std::unique_ptr<class Proj>& Proj - The project information.
 Output      : std::unique_ptr<class Proj>& Proj - The project information,
                                                   with all memory size aligned.
@@ -244,14 +245,47 @@ void A7M::Align_Mem(std::unique_ptr<class Proj>& Proj)
 {
     try
     {
+        /* Check all sensitive memory block allocation */
+        if((Proj->RME->Code_Start%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RME code start address not properly aligned.");
+        if((Proj->RME->Code_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RME code size not properly aligned.");
+        if((Proj->RME->Data_Start%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RME data start address not properly aligned.");
+        if((Proj->RME->Data_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RME data size not properly aligned.");
+        
+        if((Proj->RME->Stack_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RME kernel stack size not properly aligned.");
+
+        if((Proj->RVM->Code_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RVM code size not properly aligned.");
+        if((Proj->RVM->Data_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RVM data size not properly aligned.");
+
+        if((Proj->RVM->Stack_Size%A7M_MEM_ALIGN)!=0)
+            throw std::invalid_argument("RVM user-level library stack size not properly aligned.");
+
         for(std::unique_ptr<class Proc>& Proc:Proj->Proc)
         {
-            for(std::unique_ptr<class Mem>& Mem:Proc->Code)
-                Align_Block(Mem);
-            for(std::unique_ptr<class Mem>& Mem:Proc->Data)
-                Align_Block(Mem);
-            for(std::unique_ptr<class Mem>& Mem:Proc->Device)
-                Align_Block(Mem);
+            try
+            {
+                for(std::unique_ptr<class Mem>& Mem:Proc->Code)
+                    Align_Block(Mem);
+                for(std::unique_ptr<class Mem>& Mem:Proc->Data)
+                    Align_Block(Mem);
+                for(std::unique_ptr<class Mem>& Mem:Proc->Device)
+                    Align_Block(Mem);
+                for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
+                {
+                    if((Thd->Stack_Size%A7M_MEM_ALIGN)!=0)
+                        throw std::invalid_argument(std::string("Thread: ")+*(Thd->Name)+"\nStack size not properly aligned.");
+                }
+            }
+            catch(std::exception& Exc)
+            {
+                throw std::runtime_error(std::string("Process: ")+*(Proc->Name)+"\n"+Exc.what());
+            }
         }
     }
     catch(std::exception& Exc)

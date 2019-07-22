@@ -693,6 +693,7 @@ int main(int argc, char* argv[])
         Main->Alloc_Obj();
 
 /* Phase 5: Produce output ***************************************************/
+        /*
         Main->Copy_Files();
         Main->Gen_Files();
 
@@ -734,7 +735,7 @@ int main(int argc, char* argv[])
 
         projects - do not touch
         linker scripts - always regenerate
-
+        */
     }
     catch(std::exception& Exc)
     {
