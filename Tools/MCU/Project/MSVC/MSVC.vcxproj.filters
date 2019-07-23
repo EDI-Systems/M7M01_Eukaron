@@ -105,19 +105,16 @@
     <ClCompile Include="..\..\Source\Gen\rme_doc.cpp">
       <Filter>Gen\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Gen\rme_genproj.cpp">
-      <Filter>Gen\Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Source\Gen\rme_genrme.cpp">
       <Filter>Gen\Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Gen\rme_genrvm.cpp">
       <Filter>Gen\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\A7M\rme_a7m,_genproj_keil.cpp">
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrme.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj.cpp">
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrvm.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_eclipse.cpp">
@@ -126,14 +123,17 @@
     <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_iar.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_keil.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_makefile.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrme.cpp">
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproc.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrvm.cpp">
-      <Filter>A7M Backend\Source</Filter>
+    <ClCompile Include="..\..\Source\Gen\rme_genproc.cpp">
+      <Filter>Gen\Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -211,14 +211,35 @@
     <ClInclude Include="..\..\Include\Gen\rme_doc.hpp">
       <Filter>Gen\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Gen\rme_genproj.hpp">
-      <Filter>Gen\Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Include\Gen\rme_genrme.hpp">
       <Filter>Gen\Header</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\Gen\rme_genrvm.hpp">
       <Filter>Gen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Gen\rme_genproc.hpp">
+      <Filter>Gen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genproc.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genproj_eclipse.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genproj_iar.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genproj_keil.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genproj_makefile.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genrme.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_genrvm.hpp">
+      <Filter>A7M Backend\Header</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
