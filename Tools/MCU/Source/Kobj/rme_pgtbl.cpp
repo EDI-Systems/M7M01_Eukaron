@@ -13,14 +13,15 @@ Description : The page table class.
 #include "stdexcept"
 
 #define __HDR_DEFS__
-#include "Core/rme_mcu.hpp"
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_pgtbl.hpp"
+#include "Main/rme_mcu.hpp"
+
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_pgtbl.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_pgtbl.hpp"
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_pgtbl.hpp"
 #undef __HDR_CLASSES__
 /* End Includes **************************************************************/
 namespace rme_mcu

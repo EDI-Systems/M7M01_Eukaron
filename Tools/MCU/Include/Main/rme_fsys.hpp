@@ -13,7 +13,8 @@ namespace rme_mcu
 #ifndef __RME_FSYS_HPP_DEFS__
 #define __RME_FSYS_HPP_DEFS__
 /*****************************************************************************/
-
+#define PARA_DOC
+#define PARA_HEADER
 /*****************************************************************************/
 /* __RME_FSYS_HPP_DEFS__ */
 #endif
@@ -56,6 +57,7 @@ public:
     virtual std::unique_ptr<std::string> Read_Chip(std::unique_ptr<std::string>& Path) final override;
 };
 
+/* PBFS-based solution - currently not implemented */
 class Pbfs:public Fsys
 {
 public:

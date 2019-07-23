@@ -18,12 +18,12 @@ extern "C"
 }
 
 #define __HDR_DEFS__
-#include "Core/rme_mcu.hpp"
-#include "Core/rme_raw.hpp"
+#include "Main/rme_mcu.hpp"
+#include "Main/rme_raw.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
-#include "Core/rme_raw.hpp"
+#include "Main/rme_raw.hpp"
 #undef __HDR_CLASSES__
 /* End Includes **************************************************************/
 namespace rme_mcu
