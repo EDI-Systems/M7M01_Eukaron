@@ -86,6 +86,11 @@ public:
     void Alloc_Cap(void);
     void Link_Cap(void);
     void Alloc_Obj(void);
+
+    void Gen_RME(void);
+    void Gen_RVM(void);
+    void Gen_Proc(void);
+    void Gen_Proj(void);
 };
 /*****************************************************************************/
 /* __RME_MCU_HPP_CLASSES__ */
