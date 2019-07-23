@@ -66,45 +66,49 @@ extern "C"
 #include "algorithm"
 
 #define __HDR_DEFS__
-#include "Core/rme_mcu.hpp"
-#include "Core/rme_fsys.hpp"
-#include "Core/rme_chip.hpp"
-#include "Core/rme_comp.hpp"
-#include "Core/rme_raw.hpp"
-#include "Core/rme_mem.hpp"
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_captbl.hpp"
-#include "Core/rme_pgtbl.hpp"
-#include "Core/rme_thd.hpp"
-#include "Core/rme_inv.hpp"
-#include "Core/rme_port.hpp"
-#include "Core/rme_recv.hpp"
-#include "Core/rme_send.hpp"
-#include "Core/rme_vect.hpp"
-#include "Core/rme_proc.hpp"
-#include "Core/rme_proj.hpp"
+#include "Main/rme_mcu.hpp"
+#include "Main/rme_fsys.hpp"
+#include "Main/rme_chip.hpp"
+#include "Main/rme_comp.hpp"
+#include "Main/rme_raw.hpp"
+#include "Main/rme_mem.hpp"
+
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_captbl.hpp"
+#include "Kobj/rme_pgtbl.hpp"
+#include "Kobj/rme_thd.hpp"
+#include "Kobj/rme_inv.hpp"
+#include "Kobj/rme_port.hpp"
+#include "Kobj/rme_recv.hpp"
+#include "Kobj/rme_send.hpp"
+#include "Kobj/rme_vect.hpp"
+#include "Kobj/rme_proc.hpp"
+
+#include "Main/rme_proj.hpp"
 
 #include "A7M/rme_a7m.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
-#include "Core/rme_fsys.hpp"
-#include "Core/rme_chip.hpp"
-#include "Core/rme_comp.hpp"
-#include "Core/rme_raw.hpp"
-#include "Core/rme_mem.hpp"
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_captbl.hpp"
-#include "Core/rme_pgtbl.hpp"
-#include "Core/rme_thd.hpp"
-#include "Core/rme_inv.hpp"
-#include "Core/rme_port.hpp"
-#include "Core/rme_recv.hpp"
-#include "Core/rme_send.hpp"
-#include "Core/rme_vect.hpp"
-#include "Core/rme_proc.hpp"
-#include "Core/rme_proj.hpp"
-#include "Core/rme_mcu.hpp"
+#include "Main/rme_fsys.hpp"
+#include "Main/rme_chip.hpp"
+#include "Main/rme_comp.hpp"
+#include "Main/rme_raw.hpp"
+#include "Main/rme_mem.hpp"
+
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_captbl.hpp"
+#include "Kobj/rme_pgtbl.hpp"
+#include "Kobj/rme_thd.hpp"
+#include "Kobj/rme_inv.hpp"
+#include "Kobj/rme_port.hpp"
+#include "Kobj/rme_recv.hpp"
+#include "Kobj/rme_send.hpp"
+#include "Kobj/rme_vect.hpp"
+#include "Kobj/rme_proc.hpp"
+
+#include "Main/rme_proj.hpp"
+#include "Main/rme_mcu.hpp"
 
 #include "A7M/rme_a7m.hpp"
 #undef __HDR_CLASSES__
@@ -701,8 +705,8 @@ int main(int argc, char* argv[])
         the job of tomorrow is to redesign the generator.
         the generator have the following components:
 
-        1. generic file copyer - simply does copying. 
-        2. generic file generator - simply generates stuff.
+        1. generic file copyer - simply does copying - this is always done. 
+        2. generic file generator - simply generates stuff - this needs dom model.
         3. port specific file copyer - simply copies files in that port.
         4. port specific file generator - simply generates files for that port.
         5. toolchain-specific file copyer - simply copies files in that port.

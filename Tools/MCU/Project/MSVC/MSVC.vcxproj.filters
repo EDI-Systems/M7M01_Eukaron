@@ -5,151 +5,220 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Core">
+    <Filter Include="Main">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Core\Source Files">
+    <Filter Include="Kobj">
+      <UniqueIdentifier>{069700c3-ec54-4da2-ae9c-9e31823c251e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{569e5991-ecd9-4368-888a-1d2d92ecb7b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="A7M Backend\Header">
+      <UniqueIdentifier>{6f3cdf02-c2b2-4178-87ee-4df569fcadbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="A7M Backend\Source">
+      <UniqueIdentifier>{c18d21f7-c10c-4cce-b350-c25ef211572d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Main\Header">
+      <UniqueIdentifier>{178d4fb2-1b8f-40d7-b342-a0a572c55cfc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Main\Source">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Core\Header Files">
-      <UniqueIdentifier>{178d4fb2-1b8f-40d7-b342-a0a572c55cfc}</UniqueIdentifier>
+    <Filter Include="Kobj\Header">
+      <UniqueIdentifier>{98c29cfd-1112-4425-bfd2-5a4a2e48ee7a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Example Resource">
-      <UniqueIdentifier>{569e5991-ecd9-4368-888a-1d2d92ecb7b0}</UniqueIdentifier>
+    <Filter Include="Kobj\Source">
+      <UniqueIdentifier>{6d95f050-331c-4482-a7dc-bdb96c07a26e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="A7M Backend\Header Files">
-      <UniqueIdentifier>{6f3cdf02-c2b2-4178-87ee-4df569fcadbf}</UniqueIdentifier>
+    <Filter Include="Gen">
+      <UniqueIdentifier>{04a9ef68-0ae5-477f-9901-90910470ef07}</UniqueIdentifier>
     </Filter>
-    <Filter Include="A7M Backend\Source Files">
-      <UniqueIdentifier>{c18d21f7-c10c-4cce-b350-c25ef211572d}</UniqueIdentifier>
+    <Filter Include="Gen\Header">
+      <UniqueIdentifier>{8e9069a8-9827-415f-9776-914908e654f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Gen\Source">
+      <UniqueIdentifier>{93bed7f1-915b-42a5-ad98-900c7cab79db}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\..\M5P2_MuMinion\MMinion\Serdes\XML\xml.c">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_captbl.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_chip.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_mcu.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_mem.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_pgtbl.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_proj.cpp">
-      <Filter>Core\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_thd.cpp">
-      <Filter>Core\Source Files</Filter>
+      <Filter>Main\Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\A7M\rme_a7m.cpp">
-      <Filter>A7M Backend\Source Files</Filter>
+      <Filter>A7M Backend\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_inv.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_captbl.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_recv.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_inv.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_send.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_kobj.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_vect.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_pgtbl.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_proc.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_port.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_comp.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_proc.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_port.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_recv.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_raw.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_send.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_fsys.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_thd.cpp">
+      <Filter>Kobj\Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Core\rme_kobj.cpp">
-      <Filter>Core\Source Files</Filter>
+    <ClCompile Include="..\..\Source\Kobj\rme_vect.cpp">
+      <Filter>Kobj\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_chip.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_comp.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_fsys.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_mcu.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_mem.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_proj.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Main\rme_raw.cpp">
+      <Filter>Main\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gen\rme_doc.cpp">
+      <Filter>Gen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gen\rme_genproj.cpp">
+      <Filter>Gen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gen\rme_genrme.cpp">
+      <Filter>Gen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gen\rme_genrvm.cpp">
+      <Filter>Gen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m,_genproj_keil.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_eclipse.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_iar.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genproj_makefile.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrme.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_genrvm.cpp">
+      <Filter>A7M Backend\Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">
-      <Filter>Example Resource</Filter>
+      <Filter>Resource</Filter>
     </Xml>
     <Xml Include="..\..\..\..\MEukaron\Include\Platform\A7M\Chips\STM32F767IG\rme_platform_STM32F767IG.xml">
-      <Filter>Example Resource</Filter>
+      <Filter>Resource</Filter>
     </Xml>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Include\Core\pbfs_conf.h">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_captbl.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_chip.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_mcu.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_mem.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_pgtbl.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_proj.hpp">
-      <Filter>Core\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_thd.hpp">
-      <Filter>Core\Header Files</Filter>
+      <Filter>Main\Header</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\A7M\rme_a7m.hpp">
-      <Filter>A7M Backend\Header Files</Filter>
+      <Filter>A7M Backend\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_proc.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_captbl.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_kobj.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_inv.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_inv.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_kobj.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_recv.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_pgtbl.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_send.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_port.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_vect.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_proc.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_comp.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_recv.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_port.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_send.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_raw.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_thd.hpp">
+      <Filter>Kobj\Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\Core\rme_fsys.hpp">
-      <Filter>Core\Header Files</Filter>
+    <ClInclude Include="..\..\Include\Kobj\rme_vect.hpp">
+      <Filter>Kobj\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_chip.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_comp.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_fsys.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_mcu.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_mem.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_plat.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_proj.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Main\rme_raw.hpp">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Extern\pbfs_conf.h">
+      <Filter>Main\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Gen\rme_doc.hpp">
+      <Filter>Gen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Gen\rme_genproj.hpp">
+      <Filter>Gen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Gen\rme_genrme.hpp">
+      <Filter>Gen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\Gen\rme_genrvm.hpp">
+      <Filter>Gen\Header</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

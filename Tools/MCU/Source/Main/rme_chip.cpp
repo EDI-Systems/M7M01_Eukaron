@@ -18,20 +18,22 @@ extern "C"
 }
 
 #define __HDR_DEFS__
-#include "Core/rme_mcu.hpp"
-#include "Core/rme_mem.hpp"
-#include "Core/rme_raw.hpp"
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_vect.hpp"
-#include "Core/rme_chip.hpp"
+#include "Main/rme_mcu.hpp"
+#include "Main/rme_mem.hpp"
+#include "Main/rme_raw.hpp"
+#include "Main/rme_chip.hpp"
+
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_vect.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
-#include "Core/rme_mem.hpp"
-#include "Core/rme_raw.hpp"
-#include "Core/rme_kobj.hpp"
-#include "Core/rme_vect.hpp"
-#include "Core/rme_chip.hpp"
+#include "Main/rme_mem.hpp"
+#include "Main/rme_raw.hpp"
+#include "Main/rme_chip.hpp"
+
+#include "Kobj/rme_kobj.hpp"
+#include "Kobj/rme_vect.hpp"
 #undef __HDR_CLASSES__
 /* End Includes **************************************************************/
 namespace rme_mcu
