@@ -667,6 +667,25 @@ void Main::Alloc_Obj(void)
     }
 }
 /* End Function:Main::Alloc_Obj **********************************************/
+void Main::Gen_RME(void)
+{
+
+}
+
+void Main::Gen_RVM(void)
+{
+
+}
+
+void Main::Gen_Proc(void)
+{
+
+}
+
+void Main::Gen_Proj(void)
+{
+
+}
 }
 /* Begin Function:main ********************************************************
 Description : The entry of the tool.
@@ -697,7 +716,13 @@ int main(int argc, char* argv[])
         Main->Alloc_Obj();
 
 /* Phase 5: Produce output ***************************************************/
+        Main->Gen_RME();
+        Main->Gen_RVM();
+        Main->Gen_Proc();
+        Main->Gen_Proj();
         /*
+        use this top-down stripping structure. also, be sure to support RISC-V with full power.
+        choose partners with care. try to find if there are any risc-v manufacturers.
         Main->Copy_Files();
         Main->Gen_Files();
 
