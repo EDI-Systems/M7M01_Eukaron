@@ -39,10 +39,12 @@ namespace rme_mcu
 #define ROUND_DOWN(X,POW)                   (((X)>>(POW))<<(POW))
 #define ROUND_UP(X,POW)                     ROUND_DOWN((X)+POW2(POW)-1,POW)
 
-/* The alignment value used when printing macros */
-#define MACRO_ALIGNMENT                     (56)
 /* The code generator author name */
-#define CODE_AUTHOR                         ("The A7M project generator.")
+#define CODE_AUTHOR                         "The RME project generator."
+/* The license for the generator */
+#define CODE_LICENSE                        "LGPL v3+; see COPYING for details."
+/* Generator macro alignment */
+#define MACRO_ALIGN                         (56)
 
 /* Interrupt flag area size (in bytes), fixed across all architectures */
 #define KERNEL_INTF_SIZE                    (1024)

@@ -30,7 +30,38 @@ namespace rme_mcu
 class RVM_User:public Doc
 {
 public:
-    virtual void Read(FILE* File) final override;
+    void Read(FILE* File);
+};
+
+class RVM_Gen
+{
+    void Include(std::unique_ptr<class Para>& Para);
+    
+    void Macro_Vect(std::unique_ptr<class Para>& Para);
+    void Macro_Captbl(std::unique_ptr<class Para>& Para);
+    void Macro_Pgtbl(std::unique_ptr<class Para>& Para);
+    void Macro_Proc(std::unique_ptr<class Para>& Para);
+    void Macro_Thd(std::unique_ptr<class Para>& Para);
+    void Macro_Inv(std::unique_ptr<class Para>& Para);
+    void Macro_Recv(std::unique_ptr<class Para>& Para);
+    
+    void Cons_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl);
+    void Map_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, ptr_t Init_Num_Ord);
+    void Init_Pgtbl(std::unique_ptr<class Doc>& Doc);
+public:
+    class Fsys* Fsys;
+    class Plat* Plat;
+    class Proj* Proj;
+    class Chip* Chip;
+
+    virtual ~RVM_Gen(void){};
+
+    void Folder(void);
+    void Boot_Hdr(void);
+    void Boot_Src(void);
+    void User_Src(void);
+    
+    virtual void Plat_Gen(void)=0;
 };
 /*****************************************************************************/
 /* __RME_GENRVM_HPP_CLASSES__ */
