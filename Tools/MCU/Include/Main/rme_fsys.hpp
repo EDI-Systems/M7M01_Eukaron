@@ -31,11 +31,17 @@ namespace rme_mcu
 class Fsys
 {
 public:
+    std::unique_ptr<std::string> Output;
+
     virtual ~Fsys(void){};
 
-    ret_t Fsys::Dir_Present(std::unique_ptr<std::string>& Path);
-    ret_t Fsys::Dir_Empty(std::unique_ptr<std::string>& Path);
-    void Fsys::Make_Dir(std::unique_ptr<std::string>& Path);
+    ret_t Dir_Present(std::unique_ptr<std::string>& Path);
+    ret_t Dir_Empty(std::unique_ptr<std::string>& Path);
+    void Make_Dir(std::unique_ptr<std::string>& Path);
+    void Make_Dir(const s8_t* Path, ...);
+    void Copy_File(s8_t* Path, ...);
+    FILE* Open_File(std::unique_ptr<std::string>& File);
+    FILE* Open_File(s8_t* Path, ...);
 
     virtual ptr_t File_Size(std::unique_ptr<std::string>& Path)=0;
     virtual void Copy_File(std::unique_ptr<std::string>& File)=0;
@@ -47,7 +53,6 @@ class Sysfs:public Fsys
 {
 public:
     std::unique_ptr<std::string> Root;
-    std::unique_ptr<std::string> Output;
 
     Sysfs(std::unique_ptr<std::string>& Root, std::unique_ptr<std::string>& Output);
 
@@ -62,7 +67,6 @@ class Pbfs:public Fsys
 {
 public:
     struct PBFS_Env PBFS;
-    std::unique_ptr<std::string> Output;
 
     Pbfs(std::unique_ptr<std::string>& PBFS, std::unique_ptr<std::string>& Output);
 

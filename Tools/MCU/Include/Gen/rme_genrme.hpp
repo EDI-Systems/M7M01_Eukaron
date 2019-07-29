@@ -30,7 +30,26 @@ namespace rme_mcu
 class RME_User:public Doc
 {
 public:
-    virtual void Read(FILE* File) final override;
+    void Read(FILE* File);
+};
+
+class RME_Gen
+{
+    void Include(std::unique_ptr<class Para>& Para);
+public:
+    class Fsys* Fsys;
+    class Plat* Plat;
+    class Proj* Proj;
+    class Chip* Chip;
+
+    virtual ~RME_Gen(void){};
+
+    void Folder(void);
+    void Boot_Hdr(void);
+    void Boot_Src(void);
+    void User_Src(void);
+    
+    virtual void Plat_Gen(void)=0;
 };
 /*****************************************************************************/
 /* __RME_GENRME_HPP_CLASSES__ */
