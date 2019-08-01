@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename    : rme_rvmuser.hpp
+Filename    : rme_genrvm.hpp
 Author      : pry
 Date        : 16/07/2019
 Licence     : LGPL v3+; see COPYING for details.
@@ -44,10 +44,20 @@ class RVM_Gen
     void Macro_Thd(std::unique_ptr<class Para>& Para);
     void Macro_Inv(std::unique_ptr<class Para>& Para);
     void Macro_Recv(std::unique_ptr<class Para>& Para);
+
+    void Captbl_Crt(std::unique_ptr<class Doc>& Doc);
+    void Pgtbl_Crt(std::unique_ptr<class Doc>& Doc);
+    void Proc_Crt(std::unique_ptr<class Doc>& Doc);
+    void Thd_Crt(std::unique_ptr<class Doc>& Doc);
+    void Inv_Crt(std::unique_ptr<class Doc>& Doc);
+    void Recv_Crt(std::unique_ptr<class Doc>& Doc);
     
-    void Cons_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl);
-    void Map_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, ptr_t Init_Num_Ord);
-    void Init_Pgtbl(std::unique_ptr<class Doc>& Doc);
+    void Captbl_Init(std::unique_ptr<class Doc>& Doc);
+    void Pgtbl_Cons(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl);
+    void Pgtbl_Map(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, ptr_t Init_Num_Ord);
+    void Pgtbl_Init(std::unique_ptr<class Doc>& Doc);
+    void Thd_Init(std::unique_ptr<class Doc>& Doc);
+    void Inv_Init(std::unique_ptr<class Doc>& Doc);
 public:
     class Fsys* Fsys;
     class Plat* Plat;
@@ -57,6 +67,7 @@ public:
     virtual ~RVM_Gen(void){};
 
     void Folder(void);
+    void Conf_Hdr(void);
     void Boot_Hdr(void);
     void Boot_Src(void);
     void User_Src(void);

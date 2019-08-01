@@ -165,6 +165,52 @@ void RVM_Gen::Folder(void)
 }
 /* End Function:RVM_Gen::Folder **********************************************/
 
+/* Begin Function:RVM_Gen::Conf_Hdr *******************************************
+Description : Crank the platform configuration headers for RVM.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Conf_Hdr(void)
+{
+    FILE* File;
+    s8_t Buf[1024];
+    std::unique_ptr<class Doc> Doc;
+    std::unique_ptr<class Para> Para;
+
+    Doc=std::make_unique<class Doc>();
+    Doc->Csrc_Desc("rvm_platform.h", "The platform selection header.");
+    Para=std::make_unique<class Para>("Doc:Platform Includes");
+    Para->Add("/* Platform Includes *********************************************************/");
+    Para->Add("#include \"Platform/%s/rvm_platform_%s.h\"", this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    Para->Add("/* End Platform Includes *****************************************************/");
+    Doc->Add(std::move(Para));
+    Doc->Csrc_Foot();
+
+    /* Generate rvm_platform.h */
+    File=this->Fsys->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/rvm_platform.h");
+    Doc->Write(File);
+    fclose(File);
+
+    Doc=std::make_unique<class Doc>();
+    sprintf(Buf,"rvm_platform_%s_conf.h", this->Proj->Plat_Lower->c_str());
+    Doc->Csrc_Desc(Buf, "The chip selection header.");
+    Para=std::make_unique<class Para>("Doc:Platform Includes");
+    Para->Add("/* Platform Includes *********************************************************/");
+    Para->Add("#include \"Platform/%s/Chips/%s/rvm_platform_%s.h\"",
+              this->Proj->Plat_Name->c_str(), this->Proj->Chip_Class->c_str(), this->Proj->Chip_Class->c_str());
+    Para->Add("/* End Platform Includes *****************************************************/");
+    Doc->Add(std::move(Para));
+    Doc->Csrc_Foot();
+
+    /* Generate rvm_platform_xxx_conf.h */
+    File=this->Fsys->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s_conf.h",
+                               this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    Doc->Write(File);
+    fclose(File);
+}
+/* End Function:RVM_Gen::Conf_Hdr ********************************************/
+
 /* Begin Function:RVM_Gen::Macro_Vect *****************************************
 Description : Generate the macros for vectors.
 Input       : std::unique_ptr<class Para>& Para - The paragraph to add to.
@@ -487,7 +533,436 @@ void RVM_Gen::Boot_Hdr(void)
 }
 /* End Function:RVM_Gen::Boot_Hdr ********************************************/
 
-/* Begin Function:RVM_Gen::Cons_Pgtbl *****************************************
+/* Begin Function:RVM_Gen::Captbl_Crt *****************************************
+Description : Create the capability tables.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Captbl_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Captbl* Captbl;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Captbl_Crt");
+    
+    /* Capability table creation */
+    Para->Cfunc_Desc("RVM_Boot_Captbl_Crt",
+                     "Create all capability tables at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Captbl_Crt(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr==0x%llX;", this->Proj->RVM->Map->Captbl_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the capability table capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Captbl.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Captbl.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Captbl.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTCAPTBL%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the capability tables themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Captbl)
+    {
+        Captbl=static_cast<class Captbl*>(Info->Kobj);
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CTCAPTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, %lld)==0);",
+                  Captbl->RVM_Capid/Capacity, Captbl->RVM_Capid%Capacity, Captbl->Size);
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));", Captbl->Size);
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Pgtbl_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Captbl_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Captbl_Crt ******************************************/
+
+/* Begin Function:RVM_Gen::Pgtbl_Crt ******************************************
+Description : Create the capability tables.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Pgtbl_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Pgtbl* Pgtbl;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Pgtbl_Crt");
+
+    /* Page table creation */
+    Para->Cfunc_Desc("RVM_Boot_Pgtbl_Crt",
+                     "Create all page tables at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Pgtbl_Crt(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr==0x%llX;", this->Proj->RVM->Map->Pgtbl_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the page tables capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Pgtbl.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Pgtbl.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Pgtbl.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPGTBL%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the page tables themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Pgtbl)
+    {
+        Pgtbl=static_cast<class Pgtbl*>(Info->Kobj);
+
+        Para->Add("    RVM_ASSERT(RVM_Pgtbl_Crt(RVM_BOOT_CTPGTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, 0x%llX, %lld, %lld, %lld)==0);",
+                  Pgtbl->RVM_Capid/Capacity, Pgtbl->RVM_Capid%Capacity,
+                  Pgtbl->Start_Addr,(ptr_t)(Pgtbl->Is_Top!=0),Pgtbl->Size_Order, Pgtbl->Num_Order);
+
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_TOP(%lld));",
+                  this->Plat->Pgtbl_Size(Pgtbl->Num_Order,Pgtbl->Is_Top));
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Proc_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Pgtbl_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Pgtbl_Crt *******************************************/
+
+/* Begin Function:RVM_Gen::Proc_Crt *******************************************
+Description : Create the processes.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Proc_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Proc* Proc;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Proc_Crt");
+
+    /* Process creation */
+    Para->Cfunc_Desc("RVM_Boot_Proc_Crt",
+                     "Create all processes at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Proc_Crt(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Proc_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the process capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Proc.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Proc.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Proc.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPROC%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the processes themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Proc)
+    {
+        Proc=static_cast<class Proc*>(Info->Kobj);
+
+        Para->Add("    RVM_ASSERT(RVM_Proc_Crt(RVM_BOOT_CTPROC%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %s, Cur_Addr)==0);",
+                  Proc->RVM_Capid/Capacity, Proc->RVM_Capid%Capacity, Proc->RVM_Macro->c_str(), Proc->Pgtbl->RVM_Macro->c_str());
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);");
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Thd_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Proc_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Proc_Crt ********************************************/
+
+/* Begin Function:RVM_Gen::Thd_Crt ********************************************
+Description : Create the threads.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Thd_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Thd* Thd;
+    class Proc* Proc;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Thd_Crt");
+
+    /* Thread creation */
+    Para->Cfunc_Desc("RVM_Boot_Thd_Crt",
+                     "Create all threads at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Thd_Init(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Thd_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the thread capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Thd.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Thd.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Thd.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTTHD%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the threads themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Thd)
+    {
+        Thd=static_cast<class Thd*>(Info->Kobj);
+        Proc=Info->Proc;
+
+        Para->Add("    RVM_ASSERT(RVM_Thd_Crt(RVM_BOOT_CTTHD%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %lld, Cur_Addr)==0);",
+                  Thd->RVM_Capid/Capacity, Thd->RVM_Capid%Capacity, Proc->RVM_Macro->c_str(), Thd->Prio);
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_THD_SIZE);");
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Inv_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Thd_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Thd_Crt *********************************************/
+
+/* Begin Function:RVM_Gen::Inv_Crt ********************************************
+Description : Create the invocations.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Inv_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Inv* Inv;
+    class Proc* Proc;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Inv_Crt");
+
+    /* Invocation creation */
+    Para->Cfunc_Desc("RVM_Boot_Inv_Crt",
+                     "Create all invocations at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Inv_Crt(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Inv_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the invocation capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Inv.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Inv.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Inv.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTINV%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the invocations themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Inv)
+    {
+        Inv=static_cast<class Inv*>(Info->Kobj);
+        Proc=Info->Proc;
+        Para->Add("    RVM_ASSERT(RVM_Inv_Crt(RVM_BOOT_CTINV%lld, RVM_BOOT_INIT_KMEM, %lld, %s, Cur_Addr)==0);",
+                  Inv->RVM_Capid/Capacity, Inv->RVM_Capid%Capacity, Proc->RVM_Macro->c_str());
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_INV_SIZE);\n");
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Recv_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Inv_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Inv_Crt *********************************************/
+
+/* Begin Function:RVM_Gen::Recv_Crt *******************************************
+Description : Create the invocations.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Recv_Crt(std::unique_ptr<class Doc>& Doc)
+{
+    class Recv* Recv;
+    ptr_t Obj_Cnt;
+    ptr_t Capacity;
+    ptr_t Captbl_Size;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Recv_Crt");
+    
+    /* Receive endpoint creation */
+    Para->Cfunc_Desc("RVM_Boot_Recv_Crt",
+                     "Create all receive endpoints at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Recv_Crt(void)");
+    Para->Add("{");
+    Para->Add("    rme_ptr_t Cur_Addr;");
+    Para->Add("");
+    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Recv_Kmem_Front);
+    Para->Add("");
+    Para->Add("    /* Create all the receive endpoint capability tables first */");
+    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Recv.size();Obj_Cnt+=Capacity)
+    {
+        if(this->Proj->RVM->Recv.size()>=(Obj_Cnt+1)*Capacity)
+            Captbl_Size=Capacity;
+        else
+            Captbl_Size=this->Proj->RVM->Recv.size()%Capacity;
+
+        Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTRECV%lld, Cur_Addr, %lld)==0);", 
+                  Obj_Cnt/Capacity,Captbl_Size);
+        Para->Add("    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));",Captbl_Size);
+    }
+    Para->Add("");
+    Para->Add("    /* Then the receive endpoints themselves */");
+    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Recv)
+    {
+        Recv=static_cast<class Recv*>(Info->Kobj);
+
+        Para->Add("    RVM_ASSERT(RVM_Sig_Crt(RVM_BOOT_CTRECV%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr)==0);",
+                  Recv->RVM_Capid/Capacity, Recv->RVM_Capid%Capacity);
+        Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_SIG_SIZE);");
+    }
+    Para->Add("");
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->After_Kmem_Front);
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Recv_Crt");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Recv_Crt ********************************************/
+
+/* Begin Function:RVM_Gen::Captbl_Init ****************************************
+Description : Initialize capability tables.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Captbl_Init(std::unique_ptr<class Doc>& Doc)
+{
+    ptr_t Capacity;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Captbl_Init");
+
+    /* Capability table initialization */
+    Para->Cfunc_Desc("RVM_Boot_Captbl_Init",
+                     "Initialize the capability tables of all processes.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Captbl_Init(void)");
+    Para->Add("{");
+    Para->Add("");
+    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    {
+        Para->Add("    /* Initializing captbl for process: %s */", Proc->Name->c_str());
+
+        /* Ports */
+        Para->Add("    /* Ports */");
+        for(std::unique_ptr<class Port>& Port:Proc->Port)
+        {
+            Para->Add("    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTINV%lld, %lld, %s)==0);",
+                      Proc->Captbl->RVM_Macro->c_str(), Port->Loc_Capid, Port->RVM_Capid/Capacity, Port->RVM_Capid%Capacity,
+                      "RME_INV_FLAG_ACT");
+        }
+
+        /* Receive endpoints */
+        Para->Add("    /* Receive endpoints */");
+        for(std::unique_ptr<class Recv>& Recv:Proc->Recv)
+        {
+            Para->Add("    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTRECV%lld, %lld, %s)==0);",
+                      Proc->Captbl->RVM_Macro->c_str(), Recv->Loc_Capid, Recv->RVM_Capid/Capacity, Recv->RVM_Capid%Capacity,
+                      "RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV");
+        }
+
+        /* Send endpoints */
+        Para->Add("    /* Send endpoints */");
+        for(std::unique_ptr<class Send>& Send:Proc->Send)
+        {
+            Para->Add("    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTRECV%lld, %lld, %s)==0);",
+                      Proc->Captbl->RVM_Macro->c_str(), Send->Loc_Capid, Send->RVM_Capid/Capacity, Send->RVM_Capid%Capacity,
+                      "RME_SIG_FLAG_SND");
+        }
+
+        /* Vector endpoints */
+        Para->Add("    /* Vector endpoints */");
+        for(std::unique_ptr<class Vect>& Vect:Proc->Vect)
+        {
+            Para->Add("    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTVECT%lld, %lld, %s)==0);",
+                      Proc->Captbl->RVM_Macro->c_str(), Vect->Loc_Capid, Vect->RVM_Capid/Capacity, Vect->RVM_Capid%Capacity,
+                      "RME_SIG_FLAG_RCV");
+        }
+    }
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Captbl_Init");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Captbl_Init *****************************************/
+
+/* Begin Function:RVM_Gen::Pgtbl_Cons *****************************************
 Description : Construct the page table for RVM. This will produce the desired final
               page table tree, and is recursive.
 Input       : std::unique_ptr<class Para>& Para - The paragraph to add these to.
@@ -495,16 +970,15 @@ Input       : std::unique_ptr<class Para>& Para - The paragraph to add these to.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RVM_Gen::Cons_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl)
+void RVM_Gen::Pgtbl_Cons(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl)
 {
     ptr_t Count;
     class Pgtbl* Child;
-    class Pgtbl_Info* Child;
 
     /* Construct whatever page table to this page table */
     for(Count=0;Count<POW2(Pgtbl->Num_Order);Count++)
     {
-        Child=Pgtbl->Pgdir[Count].get();
+        Child=Pgtbl->Pgdir[(unsigned int)Count].get();
         if(Child==nullptr)
             continue;
         
@@ -512,12 +986,12 @@ void RVM_Gen::Cons_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl)
                   Pgtbl->RVM_Macro->c_str(), Count, Child->RVM_Macro->c_str(), "RVM_PGTBL_ALL_PERM");
 
         /* Recursively call this for all the page tables */
-        Cons_Pgtbl(Para, Child);
+        Pgtbl_Cons(Para, Child);
     }
 }
-/* End Function:RVM_Gen::Cons_Pgtbl ******************************************/
+/* End Function:RVM_Gen::Pgtbl_Cons ******************************************/
 
-/* Begin Function:RVM_Gen::Map_Pgtbl ******************************************
+/* Begin Function:RVM_Gen::Pgtbl_Map ******************************************
 Description : Map pages into a page table. This is not recursive.
 Input       : std::unique_ptr<class Para>& Para - The paragraph to add these to.
               class Pgtbl* Pgtbl - The page table structure.
@@ -525,7 +999,7 @@ Input       : std::unique_ptr<class Para>& Para - The paragraph to add these to.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RVM_Gen::Map_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, ptr_t Init_Size_Ord)
+void RVM_Gen::Pgtbl_Map(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, ptr_t Init_Size_Ord)
 {
     ptr_t Count;
     ptr_t Attr;
@@ -544,7 +1018,7 @@ void RVM_Gen::Map_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, p
     /* Map whatever pages into this page table */
     for(Count=0;Count<Page_Num;Count++)
     {
-        Attr=Pgtbl->Page[Count];
+        Attr=Pgtbl->Page[(unsigned int)Count];
         if(Attr==0)
             continue;
 
@@ -577,19 +1051,18 @@ void RVM_Gen::Map_Pgtbl(std::unique_ptr<class Para>& Para, class Pgtbl* Pgtbl, p
                   Pgtbl->RVM_Macro->c_str(), Count, Flags->c_str(), "RVM_BOOT_PGTBL", Pos_Src, Index);
     }
 }
-/* End Function:RVM_Gen::Map_Pgtbl *******************************************/
+/* End Function:RVM_Gen::Pgtbl_Map *******************************************/
 
-/* Begin Function:RVM_Gen::Init_Pgtbl *****************************************
+/* Begin Function:RVM_Gen::Pgtbl_Init *****************************************
 Description : Initialize page tables.
 Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RVM_Gen::Init_Pgtbl(std::unique_ptr<class Doc>& Doc)
+void RVM_Gen::Pgtbl_Init(std::unique_ptr<class Doc>& Doc)
 {
     class Pgtbl* Pgtbl;
     std::unique_ptr<class Para> Para;
-    std::unique_ptr<std::string> Line;
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
@@ -600,12 +1073,12 @@ void RVM_Gen::Init_Pgtbl(std::unique_ptr<class Doc>& Doc)
                      "Initialize the page tables of all processes.", Input, Output, "None.");
     Para->Add("void RVM_Boot_Pgtbl_Init(void)");
     Para->Add("{");
-
+    Para->Add("");
     /* Do page table construction first */
     for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
     {
         Para->Add("    /* Constructing page tables for process: %s */",Proc->Name->c_str());
-        Cons_Pgtbl(Para,Proc->Pgtbl.get());
+        Pgtbl_Cons(Para,Proc->Pgtbl.get());
         Para->Add("");
     }
     
@@ -614,7 +1087,7 @@ void RVM_Gen::Init_Pgtbl(std::unique_ptr<class Doc>& Doc)
     for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Pgtbl)
     {
         Pgtbl=static_cast<class Pgtbl*>(Info->Kobj);
-        Map_Pgtbl(Para, Pgtbl, this->Plat->Word_Bits-this->Plat->Init_Num_Ord);
+        Pgtbl_Map(Para, Pgtbl, this->Plat->Word_Bits-this->Plat->Init_Num_Ord);
         Para->Add("");
     }
 
@@ -622,7 +1095,94 @@ void RVM_Gen::Init_Pgtbl(std::unique_ptr<class Doc>& Doc)
     Para->Cfunc_Foot("RVM_Boot_Pgtbl_Init");
     Doc->Add(std::move(Para));
 }
-/* End Function:RVM_Gen::Init_Pgtbl ******************************************/
+/* End Function:RVM_Gen::Pgtbl_Init ******************************************/
+
+/* Begin Function:RVM_Gen::Thd_Init *******************************************
+Description : Initialize threads.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Thd_Init(std::unique_ptr<class Doc>& Doc)
+{
+    ptr_t Capacity;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Thd_Init");
+    
+    /* Thread initialization */
+    Para->Cfunc_Desc("RVM_Boot_Thd_Init",
+                     "Initialize the all threads.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Thd_Init(void)");
+    Para->Add("{");
+    Para->Add("    rvm_ptr_t Init_Stack_Addr;");
+    Para->Add("");
+    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    {
+        Para->Add("    /* Initializing thread for process: %s */", Proc->Name->c_str());
+        
+        for(std::unique_ptr<class Thd>& Thd:Proc->Thd)
+        {
+            Para->Add("    RVM_ASSERT(RVM_Thd_Sched_Bind(%s, RVM_INIT_GUARD_THD, RVM_INIT_GUARD_SIG, %s, %lld)==0);",
+                      Thd->RVM_Macro->c_str(), Thd->RVM_Macro->c_str(), Thd->Prio);
+            Para->Add("    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);",
+                      Thd->Map->Stack_Base, Thd->Map->Stack_Size, Thd->Map->Entry_Addr, Proc->Map->Entry_Code_Front);
+            Para->Add("    RVM_ASSERT(RVM_Thd_Exec_Set(%s, 0x%llX, Init_Stack_Addr, 0x%llX)==0);",
+                      Thd->RVM_Macro->c_str(), Thd->Map->Entry_Addr, Thd->Map->Param_Value);
+        }
+    }
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Thd_Init");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Thd_Init ********************************************/
+
+/* Begin Function:RVM_Gen::Inv_Init *******************************************
+Description : Initialize invocations.
+Input       : std::unique_ptr<class Doc>& Doc - The document to add this to.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RVM_Gen::Inv_Init(std::unique_ptr<class Doc>& Doc)
+{
+    ptr_t Capacity;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Capacity=this->Plat->Capacity;
+
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Inv_Init");
+    
+    /* Invocation initialization */
+    Para->Cfunc_Desc("RVM_Boot_Inv_Init",
+                     "Initialize the all invocations.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Inv_Init(void)");
+    Para->Add("{");
+    Para->Add("    rvm_ptr_t Init_Stack_Addr;");
+    Para->Add("");
+    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    {
+        Para->Add("    /* Initializing invocation for process: %s */", Proc->Name->c_str());
+        
+        for(std::unique_ptr<class Inv>& Inv:Proc->Inv)
+        {
+            Para->Add("    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);",
+                      Inv->Map->Stack_Base, Inv->Map->Stack_Size, Inv->Map->Entry_Addr, Proc->Map->Entry_Code_Front);
+            /* We always return directly on fault for MCUs, because RVM does not do fault handling there */
+            Para->Add("    RVM_ASSERT(RVM_Inv_Set(%s, 0x%llX, Init_Stack_Addr, 1)==0);",
+                      Inv->RVM_Macro->c_str(), Inv->Map->Entry_Addr);
+        }
+    }
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Inv_Init");
+    Doc->Add(std::move(Para));
+}
+/* End Function:RVM_Gen::Inv_Init ********************************************/
 
 /* Begin Function:RVM_Gen::Boot_Src *******************************************
 Description : Generate the rvm_boot.c.
@@ -632,391 +1192,100 @@ Return      : None.
 ******************************************************************************/
 void RVM_Gen::Boot_Src(void)
 {
-    s8_t* Buf;
     FILE* File;
-    ptr_t Obj_Cnt;
-    struct RVM_Cap_Info* Info;
-    struct Pgtbl_Info* Pgtbl;
-    struct Proc_Info* Proc;
-    struct Thd_Info* Thd;
-    struct Inv_Info* Inv;
-    struct Port_Info* Port;
-    struct Recv_Info* Recv;
-    struct Send_Info* Send;
-    struct Vect_Info* Vect;
-    ptr_t Cap_Front;
-    ptr_t Capacity;
-    ptr_t Captbl_Size;
+    std::unique_ptr<class Doc> Doc;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
 
-    Buf=Malloc(4096);
+    Doc=std::make_unique<class Doc>();
 
-    /* Generate rvm_boot.c */
-    sprintf(Buf, "%s/M7M2_MuAmmonite/Project/Source/rvm_boot.c", Output_Path);
-    File=fopen(Buf, "wb");
-    if(File==0)
-        EXIT_FAIL("rvm_boot.c open failed.");
-    Write_Src_Desc(File, "rvm_boot.c", "The boot-time initialization file.");
+    Doc->Csrc_Desc("rvm_boot.c", "The boot-time initialization file.");
 
     /* Print all header includes */
-    fprintf(File, "/* Includes ******************************************************************/\n");
-    Print_RVM_Inc(File, Proj);
-    fprintf(File, "#include \"rvm_boot.h\"\n");
-    fprintf(File, "/* End Includes **************************************************************/\n\n");
+    Para=std::make_unique<class Para>("Doc:Includes");
+    Para->Add("/* Includes ******************************************************************/");
+    Include(Para);
+    Para->Add("#include \"rvm_boot.h\"");
+    Para->Add("/* End Includes **************************************************************/");
+    Doc->Add(std::move(Para));
 
-    /* Print all global variables and prototypes */
-    fprintf(File, "/* Private C Function Prototypes *********************************************/\n");
-    fprintf(File, "/* Kernel object creation */\n");
-    fprintf(File, "static void RVM_Boot_Captbl_Crt(void);\n");
-    fprintf(File, "static void RVM_Boot_Pgtbl_Crt(void);\n");
-    fprintf(File, "static void RVM_Boot_Proc_Crt(void);\n");
-    fprintf(File, "static void RVM_Boot_Inv_Crt(void);\n");
-    fprintf(File, "static void RVM_Boot_Recv_Crt(void);\n\n");
-    fprintf(File, "/* Kernel object initialization */\n");
-    fprintf(File, "static void RVM_Boot_Captbl_Init(void);\n");
-    fprintf(File, "static void RVM_Boot_Pgtbl_Init(void);\n");
-    fprintf(File, "static void RVM_Boot_Proc_Init(void);\n");
-    fprintf(File, "static void RVM_Boot_Inv_Init(void);\n");
-    fprintf(File, "static void RVM_Boot_Recv_Init(void);\n");
-    fprintf(File, "/* End Private C Function Prototypes *****************************************/\n\n");
-    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
-    fprintf(File, "void RVM_Boot_Kobj_Crt(void);\n");
-    fprintf(File, "void RVM_Boot_Kobj_Init(void);\n");
-    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+    /* Print all prototypes */
+    Para=std::make_unique<class Para>("Doc:Private C Function Prototypes");
+    Para->Add("/* Private C Function Prototypes *********************************************/");
+    Para->Add("/* Kernel object creation */");
+    Para->Add("static void RVM_Boot_Captbl_Crt(void);");
+    Para->Add("static void RVM_Boot_Pgtbl_Crt(void);");
+    Para->Add("static void RVM_Boot_Proc_Crt(void);");
+    Para->Add("static void RVM_Boot_Inv_Crt(void);");
+    Para->Add("static void RVM_Boot_Recv_Crt(void);");
+    Para->Add("");
+    Para->Add("/* Kernel object initialization */");
+    Para->Add("static void RVM_Boot_Captbl_Init(void);");
+    Para->Add("static void RVM_Boot_Pgtbl_Init(void);");
+    Para->Add("static void RVM_Boot_Proc_Init(void);");
+    Para->Add("static void RVM_Boot_Inv_Init(void);");
+    Para->Add("static void RVM_Boot_Recv_Init(void);");
+    Para->Add("/* End Private C Function Prototypes *****************************************/");
+    Doc->Add(std::move(Para));
+    
+    Para=std::make_unique<class Para>("Doc:Public C Function Prototypes");
+    Para->Add("/* Public C Function Prototypes **********************************************/");
+    Para->Add("void RVM_Boot_Kobj_Crt(void);");
+    Para->Add("void RVM_Boot_Kobj_Init(void);");
+    Para->Add("/* End Public C Function Prototypes ******************************************/");
+    Doc->Add(std::move(Para));
 
-    /* Capability table creation */
-    Write_Func_Desc(File, "RVM_Boot_Captbl_Crt");
-    fprintf(File, "Description : Create all capability tables at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Captbl_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llX;\n\n", Proj->RVM.Map.Captbl_Kmem_Front);
-    fprintf(File, "    /* Create all the capability table capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Captbl_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Captbl_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Captbl_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTCAPTBL%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the capability tables themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Captbl))
-    {
-        Proc=(struct Proc_Info*)(Info->Cap);
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CTCAPTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, %lld)==0);\n",
-                Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity, Proc->Captbl_Front+Proc->Extra_Captbl);
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n", Proc->Captbl_Front+Proc->Extra_Captbl);
-    }
-
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Captbl_Crt");
-
-    /* Page table creation */
-    Write_Func_Desc(File, "RVM_Boot_Pgtbl_Crt");
-    fprintf(File, "Description : Create all page tables at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Pgtbl_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr==0x%llX;\n\n", Proj->RVM.Map.Pgtbl_Kmem_Front);
-    fprintf(File, "    /* Create all the page tables capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Pgtbl_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Pgtbl_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Pgtbl_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPGTBL%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the page tables themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Pgtbl))
-    {
-        Pgtbl=Info->Cap;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Pgtbl_Crt(RVM_BOOT_CTPGTBL%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr, 0x%llX, %lld, %lld, %lld)==0);\n",
-                Proc->Captbl_Cap.RVM_Capid/Capacity, Proc->Captbl_Cap.RVM_Capid%Capacity,
-                Pgtbl->Start_Addr,(ptr_t)(Pgtbl->Is_Top!=0),Pgtbl->Size_Order, Pgtbl->Num_Order);
-
-        if(Pgtbl->Is_Top!=0)
-            fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_TOP(%lld));\n", Pgtbl->Num_Order);
-        else
-            fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_NOM(%lld));\n", Pgtbl->Num_Order);
-    }
-
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Proc_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Pgtbl_Crt");
-
-    /* Process creation */
-    Write_Func_Desc(File, "RVM_Boot_Proc_Crt");
-    fprintf(File, "Description : Create all processes at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Proc_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Proc_Kmem_Front);
-    fprintf(File, "    /* Create all the process capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Proc_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Proc_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Proc_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPROC%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the processes themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Proc))
-    {
-        Proc=(struct Proc_Info*)(Info->Cap);
-        fprintf(File, "    RVM_ASSERT(RVM_Proc_Crt(RVM_BOOT_CTPROC%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %s, Cur_Addr)==0);\n",
-                Proc->Proc_Cap.RVM_Capid/Capacity, Proc->Proc_Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Proc->Pgtbl->Cap.RVM_Macro);
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);\n");
-    }
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Thd_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Proc_Crt");
-
-    /* Thread creation */
-    Write_Func_Desc(File, "RVM_Boot_Thd_Crt");
-    fprintf(File, "Description : Create all threads at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Thd_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Thd_Kmem_Front);
-    fprintf(File, "    /* Create all the thread capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Thd_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Thd_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Thd_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTTHD%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the threads themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Thd))
-    {
-        Thd=(struct Thd_Info*)(Info->Cap);
-        Proc=Info->Proc;
-        fprintf(File, "    RVM_ASSERT(RVM_Thd_Crt(RVM_BOOT_CTTHD%lld, RVM_BOOT_INIT_KMEM, %lld, %s, %lld, Cur_Addr)==0);\n",
-                Thd->Cap.RVM_Capid/Capacity, Thd->Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro, Thd->Priority);
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_THD_SIZE);\n");
-    }
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Inv_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Thd_Crt");
-
-    /* Invocation creation */
-    Write_Func_Desc(File, "RVM_Boot_Inv_Crt");
-    fprintf(File, "Description : Create all invocations at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Inv_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Inv_Kmem_Front);
-    fprintf(File, "    /* Create all the invocation capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Inv_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Inv_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Inv_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTINV%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the invocations themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Inv))
-    {
-        Inv=(struct Inv_Info*)(Info->Cap);
-        Proc=Info->Proc;
-        fprintf(File, "    RVM_ASSERT(RVM_Inv_Crt(RVM_BOOT_CTINV%lld, RVM_BOOT_INIT_KMEM, %lld, %s, Cur_Addr)==0);\n",
-                Inv->Cap.RVM_Capid/Capacity, Inv->Cap.RVM_Capid%Capacity, Proc->Proc_Cap.RVM_Macro);
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_INV_SIZE);\n");
-    }
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.Recv_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Inv_Crt");
-
-    /* Receive endpoint creation */
-    Write_Func_Desc(File, "RVM_Boot_Recv_Crt");
-    fprintf(File, "Description : Create all receive endpoints at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Recv_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rme_ptr_t Cur_Addr;\n\n");
-    fprintf(File, "    Cur_Addr=0x%llX;\n\n", Proj->RVM.Map.Recv_Kmem_Front);
-    fprintf(File, "    /* Create all the receive endpoint capability tables first */\n");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM.Recv_Front;Obj_Cnt+=Capacity)
-    {
-        if(Proj->RVM.Recv_Front>=(Obj_Cnt+1)*Capacity)
-            Captbl_Size=Capacity;
-        else
-            Captbl_Size=Proj->RVM.Recv_Front%Capacity;
-
-        fprintf(File, "    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTRECV%lld, Cur_Addr, %lld)==0);\n", 
-                Obj_Cnt/Capacity,Captbl_Size);
-        fprintf(File, "    Cur_Addr+=RVM_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));\n",Captbl_Size);
-    }
-    fprintf(File, "\n    /* Then the receive endpoints themselves */\n");
-    for(EACH(struct RVM_Cap_Info*,Info,Proj->RVM.Recv))
-    {
-        Recv=(struct Recv_Info*)(Info->Cap);
-        fprintf(File, "    RVM_ASSERT(RVM_Sig_Crt(RVM_BOOT_CTRECV%lld, RVM_BOOT_INIT_KMEM, %lld, Cur_Addr)==0);\n",
-                Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity);
-        fprintf(File, "    Cur_Addr+=RME_KOTBL_ROUND(RVM_SIG_SIZE);\n");
-    }
-    fprintf(File, "\n    RME_ASSERT(Cur_Addr==0x%llX);\n", Proj->RVM.Map.After_Kmem_Front);
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Recv_Crt");
+    /* Kernel object creation */
+    Captbl_Crt(Doc);
+    Pgtbl_Crt(Doc);
+    Proc_Crt(Doc);
+    Thd_Crt(Doc);
+    Inv_Crt(Doc);
+    Recv_Crt(Doc);
 
     /* Main creation function */
-    Write_Func_Desc(File, "RVM_Boot_Kobj_Crt");
-    fprintf(File, "Description : Create all kernel objects at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Kobj_Crt(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    RVM_Boot_Captbl_Crt();\n");
-    fprintf(File, "    RVM_Boot_Pgtbl_Crt();\n");
-    fprintf(File, "    RVM_Boot_Proc_Crt();\n");
-    fprintf(File, "    RVM_Boot_Thd_Crt();\n");
-    fprintf(File, "    RVM_Boot_Inv_Crt();\n");
-    fprintf(File, "    RVM_Boot_Recv_Crt();\n");
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Kobj_Crt");
- 
-    /* Capability table initialization */
-    Write_Func_Desc(File, "RVM_Boot_Captbl_Init");
-    fprintf(File, "Description : Initialize the capability tables of all processes.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Captbl_Init(void)\n");
-    fprintf(File, "{");
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        fprintf(File, "\n    /* Initializing captbl for process: %s */\n", Proc->Name);
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Kobj_Crt");
+    Para->Cfunc_Desc("RVM_Boot_Kobj_Crt",
+                     "Create all kernel objects at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Kobj_Crt(void)");
+    Para->Add("{");
+    Para->Add("    RVM_Boot_Captbl_Crt();");
+    Para->Add("    RVM_Boot_Pgtbl_Crt();");
+    Para->Add("    RVM_Boot_Proc_Crt();");
+    Para->Add("    RVM_Boot_Thd_Crt();");
+    Para->Add("    RVM_Boot_Inv_Crt();");
+    Para->Add("    RVM_Boot_Recv_Crt();");
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Kobj_Crt");
+    Doc->Add(std::move(Para));
 
-        /* Ports */
-        fprintf(File, "    /* Ports */\n");
-        for(EACH(struct Port_Info*,Port,Proc->Port))
-        {
-            fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTINV%lld, %lld, %s)==0);\n",
-                    Proc->Captbl_Cap.RVM_Macro, Port->Cap.Loc_Capid, Port->Cap.RVM_Capid/Capacity, Port->Cap.RVM_Capid%Capacity,
-                    "RME_INV_FLAG_ACT");
-        }
-
-        /* Receive endpoints */
-        fprintf(File, "    /* Receive endpoints */\n");
-        for(EACH(struct Recv_Info*,Recv,Proc->Recv))
-        {
-            fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTRECV%lld, %lld, %s)==0);\n",
-                    Proc->Captbl_Cap.RVM_Macro, Recv->Cap.Loc_Capid, Recv->Cap.RVM_Capid/Capacity, Recv->Cap.RVM_Capid%Capacity,
-                    "RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV");
-        }
-
-        /* Send endpoints */
-        fprintf(File, "    /* Send endpoints */\n");
-        for(EACH(struct Send_Info*,Send,Proc->Send))
-        {
-            fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTRECV%lld, %lld, %s)==0);\n",
-                    Proc->Captbl_Cap.RVM_Macro, Send->Cap.Loc_Capid, Send->Cap.RVM_Capid/Capacity, Send->Cap.RVM_Capid%Capacity,
-                    "RME_SIG_FLAG_SND");
-        }
-
-        /* Vector endpoints */
-        fprintf(File, "    /* Vector endpoints */\n");
-        for(EACH(struct Vect_Info*,Vect,Proc->Vect))
-        {
-            fprintf(File, "    RVM_ASSERT(RVM_Captbl_Add(%s, %lld, RVM_CTVECT%lld, %lld, %s)==0);\n",
-                    Proc->Captbl_Cap.RVM_Macro, Vect->Cap.Loc_Capid, Vect->Cap.RVM_Capid/Capacity, Vect->Cap.RVM_Capid%Capacity,
-                    "RME_SIG_FLAG_RCV");
-        }
-    }
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Captbl_Init");
-
-    /* Thread initialization */
-    Write_Func_Desc(File, "RVM_Boot_Thd_Init");
-    fprintf(File, "Description : Initialize the all threads.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Thd_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rvm_ptr_t Init_Stack_Addr;\n");
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        fprintf(File, "    \n    /* Initializing thread for process: %s */\n", Proc->Name);
-        
-        for(EACH(struct Thd_Info*,Thd,Proc->Thd))
-        {
-            fprintf(File, "    RVM_ASSERT(RVM_Thd_Sched_Bind(%s, RVM_INIT_GUARD_THD, RVM_INIT_GUARD_SIG, %s, %lld)==0);\n",
-                    Thd->Cap.RVM_Macro, Thd->Cap.RVM_Macro, Thd->Priority);
-            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);\n",
-                    Thd->Map.Stack_Base, Thd->Map.Stack_Size, Thd->Map.Entry_Addr, Proc->Map.Entry_Code_Front);
-            fprintf(File, "    RVM_ASSERT(RVM_Thd_Exec_Set(%s, 0x%llX, Init_Stack_Addr, 0x%llX)==0);\n",
-                    Thd->Cap.RVM_Macro, Thd->Map.Entry_Addr, Thd->Map.Param_Value);
-        }
-    }
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Thd_Init");
-
-    /* Invocation initialization */
-    Write_Func_Desc(File, "RVM_Boot_Inv_Init");
-    fprintf(File, "Description : Initialize the all invocations.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Inv_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    rvm_ptr_t Init_Stack_Addr;\n");
-    for(EACH(struct Proc_Info*,Proc,Proj->Proc))
-    {
-        fprintf(File, "\n    /* Initializing invocation for process: %s */\n", Proc->Name);
-        
-        for(EACH(struct Inv_Info*,Inv,Proc->Inv))
-        {
-            fprintf(File, "    Init_Stack_Addr=RVM_Stack_Init(0x%llX, 0x%llX, 0x%llX, 0x%llX);\n",
-                    Inv->Map.Stack_Base, Inv->Map.Stack_Size, Inv->Map.Entry_Addr, Proc->Map.Entry_Code_Front);
-            /* We always return directly on fault for MCUs, because RVM does not do fault handling there */
-            fprintf(File, "    RVM_ASSERT(RVM_Inv_Set(%s, 0x%llX, Init_Stack_Addr, 1)==0);\n",
-                    Inv->Cap.RVM_Macro, Inv->Map.Entry_Addr);
-        }
-    }
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Inv_Init");
-
-    /* Receive endpoint initialization - no need at all */
+    /* Kernel object initialization */
+    Captbl_Init(Doc);
+    Pgtbl_Init(Doc);
+    Thd_Init(Doc);
+    Inv_Init(Doc);
 
     /* Main initialization function */
-    Write_Func_Desc(File, "RVM_Boot_Kobj_Init");
-    fprintf(File, "Description : Initialize all kernel objects at boot-time.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Kobj_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    RVM_Boot_Captbl_Init();\n");
-    fprintf(File, "    RVM_Boot_Pgtbl_Init();\n");
-    fprintf(File, "    RVM_Boot_Thd_Init();\n");
-    fprintf(File, "    RVM_Boot_Inv_Init();\n");
-    fprintf(File, "    RVM_Boot_Recv_Init();\n");
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Kobj_Init");
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Kobj_Init");
+    Para->Cfunc_Desc("RVM_Boot_Kobj_Init",
+                     "Initialize all kernel objects at boot-time.", Input, Output, "None.");
+    Para->Add("void RVM_Boot_Kobj_Init(void)");
+    Para->Add("{");
+    Para->Add("    RVM_Boot_Captbl_Init();");
+    Para->Add("    RVM_Boot_Pgtbl_Init();");
+    Para->Add("    RVM_Boot_Thd_Init();");
+    Para->Add("    RVM_Boot_Inv_Init();");
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Kobj_Init");
+    Doc->Add(std::move(Para));
 
-    /* Close the file */
-    Write_Src_Footer(File);
+    Doc->Csrc_Foot();
+
+    /* Generate rme_boot.c */
+    File=this->Fsys->Open_File("M7M2_MuAmmonite/Project/Source/rvm_boot.c");
+    Doc->Write(File);
     fclose(File);
-    Free(Buf);
 }
 /* End Function:RVM_Gen::Boot_Src ********************************************/
 
@@ -1030,53 +1299,63 @@ Return      : None.
 ******************************************************************************/
 void RVM_Gen::User_Src(void)
 {
-    s8_t* Buf;
     FILE* File;
+    std::unique_ptr<class Doc> Doc;
+    std::unique_ptr<class Para> Para;
+    std::vector<std::unique_ptr<std::string>> Input;
+    std::vector<std::unique_ptr<std::string>> Output;
+
+    Doc=std::make_unique<class Doc>();
 
     /* Create user stubs - pre initialization and post initialization */
-    /* Generate rvm_user.c */
-    sprintf(Buf, "%s/M7M2_MuAmmonite/Project/Source/rvm_user.c", Output_Path);
-    File=fopen(Buf, "wb");
-    if(File==0)
-        EXIT_FAIL("rvm_user.c open failed.");
-    Write_Src_Desc(File, "rvm_user.c", "The user hook file.");
+    Doc->Csrc_Desc("rvm_user.c", "The user hook file.");
 
     /* Print all header includes */
-    fprintf(File, "/* Includes ******************************************************************/\n");
-    Print_RVM_Inc(File, Proj);
-    fprintf(File, "#include \"rvm_boot.h\"\n");
-    fprintf(File, "/* End Includes **************************************************************/\n\n");
+    Para=std::make_unique<class Para>("Doc:Includes");
+    Para->Add("/* Includes ******************************************************************/");
+    Include(Para);
+    Para->Add("#include \"rvm_boot.h\"");
+    Para->Add("/* End Includes **************************************************************/");
+    Doc->Add(std::move(Para));
 
     /* Print all global prototypes */
-    fprintf(File, "/* Public C Function Prototypes **********************************************/\n");
-    fprintf(File, "void RVM_Boot_Pre_Init(void);\n");
-    fprintf(File, "void RVM_Boot_Post_Init(void);\n");
-    fprintf(File, "/* End Public C Function Prototypes ******************************************/\n\n");
+    Para=std::make_unique<class Para>("Doc:Public C Function Prototypes");
+    Para->Add("/* Public C Function Prototypes **********************************************/");
+    Para->Add("void RVM_Boot_Pre_Init(void);");
+    Para->Add("void RVM_Boot_Post_Init(void);");
+    Para->Add("/* End Public C Function Prototypes ******************************************/");
+    Doc->Add(std::move(Para));
 
     /* Preinitialization of hardware */
-    Write_Func_Desc(File, "RVM_Boot_Pre_Init");
-    fprintf(File, "Description : Initialize critical hardware before any kernel object creation takes place.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Pre_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    /* Add code here */\n");
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Pre_Init");
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Pre_Init");
+    Para->Cfunc_Desc("RVM_Boot_Pre_Init",
+                     "Initialize critical hardware before any kernel object creation takes place.",
+                     Input, Output, "None.");
+    Para->Add("void RVM_Boot_Pre_Init(void)");
+    Para->Add("{");
+    Para->Add("    /* Add code here */");
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Pre_Init");
+    Doc->Add(std::move(Para));
 
     /* Postinitialization of hardware */
-    Write_Func_Desc(File, "RVM_Boot_Post_Init");
-    fprintf(File, "Description : Initialize hardware after all kernel object creation took place.\n");
-    Write_Func_None(File);
-    fprintf(File, "void RVM_Boot_Post_Init(void)\n");
-    fprintf(File, "{\n");
-    fprintf(File, "    /* Add code here */\n");
-    fprintf(File, "}\n");
-    Write_Func_Footer(File, "RVM_Boot_Post_Init");
+    Para=std::make_unique<class Para>("Func:RVM_Boot_Post_Init");
+    Para->Cfunc_Desc("RVM_Boot_Post_Init",
+                     "Initialize hardware after all kernel object creation took place.",
+                     Input, Output, "None.");
+    Para->Add("void RVM_Boot_Post_Init(void)");
+    Para->Add("{");
+    Para->Add("    /* Add code here */");
+    Para->Add("}");
+    Para->Cfunc_Foot("RVM_Boot_Post_Init");
+    Doc->Add(std::move(Para));
 
-    /* Close the file */
-    Write_Src_Footer(File);
+    Doc->Csrc_Foot();
+    
+    /* Generate rvm_user.c */
+    File=this->Fsys->Open_File("M7M2_MuAmmonite/Project/Source/rvm_user.c");
+    Doc->Write(File);
     fclose(File);
-    Free(Buf);
 }
 /* End Function:RVM_Gen::User_Src ********************************************/
 }
