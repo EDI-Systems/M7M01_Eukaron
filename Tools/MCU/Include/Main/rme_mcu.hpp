@@ -80,6 +80,10 @@ public:
     std::unique_ptr<class Proj> Proj;
     std::unique_ptr<class Chip> Chip;
     std::unique_ptr<class Plat> Plat;
+
+    std::unique_ptr<class RME_Gen> RME_Gen;
+    std::unique_ptr<class RVM_Gen> RVM_Gen;
+    std::unique_ptr<class Proc_Gen> Proc_Gen;
     
     Main(int argc, char* argv[]);
 

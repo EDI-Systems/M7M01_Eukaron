@@ -166,6 +166,52 @@ void RME_Gen::Folder(void)
 }
 /* End Function:RME_Gen::Folder **********************************************/
 
+/* Begin Function:RME_Gen::Conf_Hdr *******************************************
+Description : Crank the platform configuration headers for RME.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void RME_Gen::Conf_Hdr(void)
+{
+    FILE* File;
+    s8_t Buf[1024];
+    std::unique_ptr<class Doc> Doc;
+    std::unique_ptr<class Para> Para;
+
+    Doc=std::make_unique<class Doc>();
+    Doc->Csrc_Desc("rme_platform.h", "The platform selection header.");
+    Para=std::make_unique<class Para>("Doc:Platform Includes");
+    Para->Add("/* Platform Includes *********************************************************/");
+    Para->Add("#include \"Platform/%s/rme_platform_%s.h\"", this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    Para->Add("/* End Platform Includes *****************************************************/");
+    Doc->Add(std::move(Para));
+    Doc->Csrc_Foot();
+
+    /* Generate rme_platform.h */
+    File=this->Fsys->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/rme_platform.h");
+    Doc->Write(File);
+    fclose(File);
+
+    Doc=std::make_unique<class Doc>();
+    sprintf(Buf,"rme_platform_%s_conf.h", this->Proj->Plat_Lower->c_str());
+    Doc->Csrc_Desc(Buf, "The chip selection header.");
+    Para=std::make_unique<class Para>("Doc:Platform Includes");
+    Para->Add("/* Platform Includes *********************************************************/");
+    Para->Add("#include \"Platform/%s/Chips/%s/rme_platform_%s.h\"",
+              this->Proj->Plat_Name->c_str(), this->Proj->Chip_Class->c_str(), this->Proj->Chip_Class->c_str());
+    Para->Add("/* End Platform Includes *****************************************************/");
+    Doc->Add(std::move(Para));
+    Doc->Csrc_Foot();
+
+    /* Generate rme_platform_xxx_conf.h */
+    File=this->Fsys->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h",
+                               this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    Doc->Write(File);
+    fclose(File);
+}
+/* End Function:RME_Gen::Conf_Hdr ********************************************/
+
 /* Begin Function:RME_Gen::Boot_Hdr *******************************************
 Description : Generate the rme_boot.h. These files are mainly
               responsible for setting up interrupt endpoints.

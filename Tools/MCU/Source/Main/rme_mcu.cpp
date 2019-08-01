@@ -86,7 +86,11 @@ extern "C"
 
 #include "Main/rme_proj.hpp"
 
-#include "A7M/rme_a7m.hpp"
+#include "Gen/rme_doc.hpp"
+#include "Gen/rme_genrme.hpp"
+#include "Gen/rme_genrvm.hpp"
+#include "Gen/rme_genproc.hpp"
+#include "Gen/rme_genproj.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
@@ -110,8 +114,14 @@ extern "C"
 #include "Main/rme_proj.hpp"
 #include "Main/rme_mcu.hpp"
 
-#include "A7M/rme_a7m.hpp"
+#include "Gen/rme_doc.hpp"
+#include "Gen/rme_genrme.hpp"
+#include "Gen/rme_genrvm.hpp"
+#include "Gen/rme_genproc.hpp"
+#include "Gen/rme_genproj.hpp"
 #undef __HDR_CLASSES__
+
+#include "A7M/rme_a7m_mcu.hpp"
 /* End Includes **************************************************************/
 namespace rme_mcu
 {
@@ -236,9 +246,38 @@ void Main::Parse(void)
             throw std::runtime_error("The specific chip designated in project XML not found in chip XML.");
 
         if(*(this->Chip->Plat)=="A7M")
+        {
             this->Plat=std::make_unique<class A7M>(this->Proj,this->Chip);
+            this->RME_Gen=std::make_unique<class A7M_RME_Gen>();
+            this->RVM_Gen=std::make_unique<class A7M_RVM_Gen>();
+            this->Proc_Gen=std::make_unique<class A7M_Proc_Gen>();
+            this->Proj_Gen=std::make_unique<class A7M_Proj_Gen>();
+        }
+        else
+            throw std::runtime_error("The specific platform is currently not supported.");
 
         this->Plat->Kmem_Order=this->Proj->RME->Kmem_Order;
+
+        /* Generator objects */
+        this->RME_Gen->Fsys=this->Fsys.get();
+        this->RME_Gen->Plat=this->Plat.get();
+        this->RME_Gen->Proj=this->Proj.get();
+        this->RME_Gen->Chip=this->Chip.get();
+
+        this->RVM_Gen->Fsys=this->Fsys.get();
+        this->RVM_Gen->Plat=this->Plat.get();
+        this->RVM_Gen->Proj=this->Proj.get();
+        this->RVM_Gen->Chip=this->Chip.get();
+
+        this->Proc_Gen->Fsys=this->Fsys.get();
+        this->Proc_Gen->Plat=this->Plat.get();
+        this->Proc_Gen->Proj=this->Proj.get();
+        this->Proc_Gen->Chip=this->Chip.get();
+
+        this->Proj_Gen->Fsys=this->Fsys.get();
+        this->Proj_Gen->Plat=this->Plat.get();
+        this->Proj_Gen->Proj=this->Proj.get();
+        this->Proj_Gen->Chip=this->Chip.get();
     }
     catch(std::exception& Exc)
     {
@@ -669,7 +708,7 @@ void Main::Alloc_Obj(void)
 /* End Function:Main::Alloc_Obj **********************************************/
 void Main::Gen_RME(void)
 {
-
+    this->RME_Gen->
 }
 
 void Main::Gen_RVM(void)
