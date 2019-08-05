@@ -36,6 +36,7 @@ extern "C"
 #endif
 }
 
+#include "list"
 #include "string"
 #include "memory"
 #include "vector"
@@ -117,14 +118,14 @@ extern "C" ptr_t Strlen(s8_t* Str)
 /* End Function:Strlen *******************************************************/
 namespace rme_mcu
 {
-/* Begin Function:Fsys::Dir_Present *******************************************
+/* Begin Function:Dstfs::Dir_Present ******************************************
 Description : Figure out whether the directory is present. This always goes to 
               the output directory.
 Input       : std::unique_ptr<std::string>& Path - The path to the directory.
 Output      : None.
 Return      : ret_t - 0 for present, -1 for non-present.
 ******************************************************************************/
-ret_t Fsys::Dir_Present(std::unique_ptr<std::string>& Path)
+ret_t Dstfs::Dir_Present(std::unique_ptr<std::string>& Path)
 {
     std::unique_ptr<std::string> Str;
 
@@ -149,9 +150,9 @@ ret_t Fsys::Dir_Present(std::unique_ptr<std::string>& Path)
         return -1;
 #endif
 }
-/* End Function:Fsys::Dir_Present ********************************************/
+/* End Function:Dstfs::Dir_Present *******************************************/
 
-/* Begin Function:Fsys::Dir_Empty *********************************************
+/* Begin Function:Dstfs::Dir_Empty ********************************************
 Description : Figure out whether the directory is empty. When using this function,
               the directory must be present. This always goes to the output
               directory.
@@ -159,7 +160,7 @@ Input       : std::unique_ptr<std::string>& Path - The path to the directory.
 Output      : None.
 Return      : ret_t - 0 for empty, -1 for non-empty.
 ******************************************************************************/
-ret_t Fsys::Dir_Empty(std::unique_ptr<std::string>& Path)
+ret_t Dstfs::Dir_Empty(std::unique_ptr<std::string>& Path)
 {
     std::unique_ptr<std::string> Str;
 
@@ -197,16 +198,16 @@ ret_t Fsys::Dir_Empty(std::unique_ptr<std::string>& Path)
     return 0;
 #endif
 }
-/* End Function:Fsys::Dir_Empty **********************************************/
+/* End Function:Dstfs::Dir_Empty *********************************************/
 
-/* Begin Function:Fsys::Make_Dir **********************************************
+/* Begin Function:Dstfs::Make_Dir *********************************************
 Description : Create a directory if it does not exist. This always goes to the
               output directory.
 Input       : std::unique_ptr<std::string>& Path - The path to the directory.
 Output      : None.
 Return      : ret_t - 0 for successful, -1 for failure.
 ******************************************************************************/
-void Fsys::Make_Dir(std::unique_ptr<std::string>& Path)
+void Dstfs::Make_Dir(std::unique_ptr<std::string>& Path)
 {
     std::unique_ptr<std::string> Str;
 
@@ -225,16 +226,16 @@ void Fsys::Make_Dir(std::unique_ptr<std::string>& Path)
 
     throw std::runtime_error("Folder creation failed.");
 }
-/* End Function:Fsys::Make_Dir ***********************************************/
+/* End Function:Dstfs::Make_Dir **********************************************/
 
-/* Begin Function:Fsys::Make_Dir **********************************************
+/* Begin Function:Dstfs::Make_Dir *********************************************
 Description : Create a directory if it does not exist. This always goes to the
               output directory.
 Input       : const s8_t* Path - The path to the directory.
 Output      : None.
 Return      : ret_t - 0 for successful, -1 for failure.
 ******************************************************************************/
-void Fsys::Make_Dir(const s8_t* Path, ...)
+void Dstfs::Make_Dir(const s8_t* Path, ...)
 {
     s8_t Buf[1024];
     va_list Args;
@@ -245,37 +246,16 @@ void Fsys::Make_Dir(const s8_t* Path, ...)
 
     return Make_Dir(std::make_unique<std::string>(Buf));
 }
-/* End Function:Fsys::Make_Dir ***********************************************/
+/* End Function:Dstfs::Make_Dir **********************************************/
 
-/* Begin Function:Fsys::Copy_File *********************************************
-Description : Copy a file from some position to another position. This function
-              only need a path input, and will automatically copy stuff to the
-              correct location.
-Input       : s8_t* Path - The path to the file.
-Output      : None.
-Return      : ret_t - 0 for successful, -1 for failure.
-******************************************************************************/
-void Fsys::Copy_File(s8_t* Path, ...)
-{
-    s8_t Buf[1024];
-    va_list Args;
-
-    va_start(Args, Path);
-    vsprintf(Buf, Path, Args);
-    va_end(Args);
-
-    return Copy_File(std::make_unique<std::string>(Buf));
-}
-/* End Function:Fsys::Copy_File **********************************************/
-
-/* Begin Function:Fsys::Open_File *********************************************
+/* Begin Function:Srcfs::Open_File ********************************************
 Description : Open a file and return descriptor. This always goes to the output
               directory.
 Input       : std::unique_ptr<std::string>& File - The path to the file.
 Output      : None.
 Return      : FILE* - The handle to the opened file.
 ******************************************************************************/
-FILE* Fsys::Open_File(std::unique_ptr<std::string>& File)
+FILE* Dstfs::Open_File(std::unique_ptr<std::string>& File)
 {
     FILE* Desc;
     std::unique_ptr<std::string> Str;
@@ -287,16 +267,16 @@ FILE* Fsys::Open_File(std::unique_ptr<std::string>& File)
 
     return Desc;
 }
-/* End Function:Fsys::Open_File **********************************************/
+/* End Function:Dstfs::Open_File *********************************************/
 
-/* Begin Function:Fsys::Open_File *********************************************
+/* Begin Function:Dstfs::Open_File ********************************************
 Description : Open a file and return descriptor. This always goes to the output
               directory.
 Input       : s8_t* File - The path to the file.
 Output      : None.
 Return      : FILE* - The handle to the opened file.
 ******************************************************************************/
-FILE* Fsys::Open_File(s8_t* Path, ...)
+FILE* Dstfs::Open_File(s8_t* Path, ...)
 {
     s8_t Buf[1024];
     va_list Args;
@@ -307,7 +287,96 @@ FILE* Fsys::Open_File(s8_t* Path, ...)
 
     return Open_File(std::make_unique<std::string>(Buf));
 }
-/* End Function:Fsys::Open_File **********************************************/
+/* End Function:Dstfs::Open_File *********************************************/
+
+/* Begin Function:Dstfs::Read_File ********************************************
+Description : Read a text file to line-based buffer.
+Input       : std::unique_ptr<std::string>& Path - The path to the file.
+Output      : None.
+Return      : std::unique_ptr<std::vector<std::unique_ptr<std::string>>> - The file returned.
+******************************************************************************/
+std::unique_ptr<std::list<std::unique_ptr<std::string>>> Dstfs::Read_File(std::unique_ptr<std::string>& Path)
+{
+    FILE* File;
+    char Buf[512];
+    ptr_t Len;
+
+    std::unique_ptr<std::list<std::unique_ptr<std::string>>> List;
+    std::unique_ptr<std::string> Str;
+
+    try
+    {
+        List=std::make_unique<std::list<std::unique_ptr<std::string>>>();
+        Str=std::make_unique<std::string>(*(this->Output)+*Path);
+
+        /* Read using text mode */
+        File=fopen((*Str).c_str(), "r");
+        if(File==0)
+            throw std::runtime_error("Read text file:\nCannot read file.");
+
+        while(feof(File)==0)
+        {
+            fgets(Buf,512,File);
+            Len=strlen(Buf);
+
+            if(Buf[Len-1]=='\n')
+                Buf[Len-1]=0;
+
+            List->push_back(std::make_unique<std::string>(Buf));
+        }
+
+        fclose(File);
+        return List;
+    }
+    catch(std::exception& Exc)
+    {
+        if(File!=0)
+            fclose(File);
+        throw std::runtime_error(std::string("Destination file storage:\n")+Exc.what());
+        return nullptr;
+    }
+}
+/* End Function:Dstfs::Read_File *********************************************/
+
+/* Begin Function:Srcfs::Copy_File ********************************************
+Description : Copy a file from some position to another position. This function
+              only need a path input, and will automatically copy stuff to the
+              correct location.
+Input       : s8_t* Path - The path to the file.
+Output      : None.
+Return      : ret_t - 0 for successful, -1 for failure.
+******************************************************************************/
+void Srcfs::Copy_File(s8_t* Path, ...)
+{
+    s8_t Buf[1024];
+    va_list Args;
+
+    va_start(Args, Path);
+    vsprintf(Buf, Path, Args);
+    va_end(Args);
+
+    return Copy_File(std::make_unique<std::string>(Buf));
+}
+/* End Function:Srcfs::Copy_File *********************************************/
+
+/* Begin Function:Srcfs::Read_File ********************************************
+Description : Read a text file to line-based buffer.
+Input       : s8_t* Path - The path to the file.
+Output      : None.
+Return      : std::unique_ptr<std::vector<std::unique_ptr<std::string>>> - The file returned.
+******************************************************************************/
+std::unique_ptr<std::list<std::unique_ptr<std::string>>> Srcfs::Read_File(s8_t* Path, ...)
+{    
+    s8_t Buf[1024];
+    va_list Args;
+
+    va_start(Args, Path);
+    vsprintf(Buf, Path, Args);
+    va_end(Args);
+
+    return Read_File(std::make_unique<std::string>(Buf));
+}
+/* End Function:Srcfs::Read_File *********************************************/
 
 /* Begin Function:Sysfs::Sysfs ************************************************
 Description : Constructor for Sysfs class.
@@ -490,6 +559,55 @@ std::unique_ptr<std::string> Sysfs::Read_Chip(std::unique_ptr<std::string>& Path
     }
 }
 /* End Function:Sysfs::Read_Chip *********************************************/
+
+/* Begin Function:Sysfs::Read_File ********************************************
+Description : Read a text file to line-based buffer.
+Input       : std::unique_ptr<std::string>& Path - The path to the file.
+Output      : None.
+Return      : std::unique_ptr<std::vector<std::unique_ptr<std::string>>> - The file returned.
+******************************************************************************/
+std::unique_ptr<std::list<std::unique_ptr<std::string>>> Sysfs::Read_File(std::unique_ptr<std::string>& Path)
+{
+    FILE* File;
+    char Buf[512];
+    ptr_t Len;
+
+    std::unique_ptr<std::list<std::unique_ptr<std::string>>> List;
+    std::unique_ptr<std::string> Str;
+
+    try
+    {
+        List=std::make_unique<std::list<std::unique_ptr<std::string>>>();
+        Str=std::make_unique<std::string>(*(this->Root)+*Path);
+
+        /* Read using text mode */
+        File=fopen((*Str).c_str(), "r");
+        if(File==0)
+            throw std::runtime_error("Read text file:\nCannot read file.");
+
+        while(feof(File)==0)
+        {
+            fgets(Buf,512,File);
+            Len=strlen(Buf);
+
+            if(Buf[Len-1]=='\n')
+                Buf[Len-1]=0;
+
+            List->push_back(std::make_unique<std::string>(Buf));
+        }
+
+        fclose(File);
+        return List;
+    }
+    catch(std::exception& Exc)
+    {
+        if(File!=0)
+            fclose(File);
+        throw std::runtime_error(std::string("System file storage:\n")+Exc.what());
+        return nullptr;
+    }
+}
+/* End Function:Sysfs::Read_File *********************************************/
 }
 /* End Of File ***************************************************************/
 

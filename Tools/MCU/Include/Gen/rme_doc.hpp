@@ -13,7 +13,9 @@ namespace rme_mcu
 #ifndef __RME_DOC_HPP_DEFS__
 #define __RME_DOC_HPP_DEFS__
 /*****************************************************************************/
-
+#define DOCTYPE_CSRC            (0)
+#define DOCTYPE_CHDR            (1)
+#define DOCTYPE_OTHER           (2)
 /*****************************************************************************/
 /* __RME_DOC_HPP_DEFS__ */
 #endif
@@ -29,6 +31,8 @@ namespace rme_mcu
 /* Paragraph */
 class Para
 {
+    std::string* Cdef_Find(std::unique_ptr<std::string>& Macro);
+
 public:
     std::unique_ptr<std::string> Name;
     std::list<std::unique_ptr<std::string>> Line;
@@ -62,6 +66,8 @@ class Doc
 {
 public:
     std::list<std::unique_ptr<class Para>> Para;
+
+    Doc(std::unique_ptr<std::list<std::unique_ptr<std::string>>> File, ptr_t Type);
 
     void Add(std::unique_ptr<class Para> Para);
     std::list<std::unique_ptr<class Para>>::iterator Doc::Find(std::unique_ptr<std::string>& Name);

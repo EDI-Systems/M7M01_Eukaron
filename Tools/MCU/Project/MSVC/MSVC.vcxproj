@@ -76,6 +76,8 @@
     <ClCompile Include="..\..\Source\A7M\rme_a7m_ide_makefile.cpp" />
     <ClCompile Include="..\..\Source\A7M\rme_a7m_genrme.cpp" />
     <ClCompile Include="..\..\Source\A7M\rme_a7m_genrvm.cpp" />
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_tc_armc5.cpp" />
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_tc_gcc.cpp" />
     <ClCompile Include="..\..\Source\Gen\rme_doc.cpp" />
     <ClCompile Include="..\..\Source\Gen\rme_genproc.cpp" />
     <ClCompile Include="..\..\Source\Gen\rme_genproj.cpp" />
@@ -113,6 +115,8 @@
     <ClInclude Include="..\..\Include\A7M\rme_a7m_genrme.hpp" />
     <ClInclude Include="..\..\Include\A7M\rme_a7m_genrvm.hpp" />
     <ClInclude Include="..\..\Include\A7M\rme_a7m_mcu.hpp" />
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_tc_armc5.hpp" />
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_tc_gcc.hpp" />
     <ClInclude Include="..\..\Include\Core\pbfs_conf.h" />
     <ClInclude Include="..\..\Include\Extern\pbfs_conf.h" />
     <ClInclude Include="..\..\Include\Gen\rme_doc.hpp" />

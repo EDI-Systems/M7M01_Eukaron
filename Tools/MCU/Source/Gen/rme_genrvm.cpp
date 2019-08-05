@@ -131,36 +131,36 @@ Return      : None.
 void RVM_Gen::Folder(void)
 {
     /* RME directory */
-    this->Fsys->Make_Dir("M7M2_MuAmmonite");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/Documents");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Init");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Documents");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Init");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",
                          this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str());
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Init");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/Project");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/Project/Source");
-    this->Fsys->Make_Dir("M7M2_MuAmmonite/Project/Include");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Init");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform/%s",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Source");
+    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Include");
 
     /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
-    this->Fsys->Copy_File("M7M2_MuAmmonite/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf");
-    this->Fsys->Copy_File("M7M2_MuAmmonite/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf");
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf");
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf");
     /* Currently the VMM and Posix is disabled, thus only the init is copied. */
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Init/rvm_init.c");
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/rvm.h");
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Init/rvm_init.c");
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/rvm.h");
     /* The toolchain specific one will be created when we are playing with toolchains */
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",
                           this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h");
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h");
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",
                           this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Fsys->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",
+    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",
                           this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str(),this->Chip->Chip_Class->c_str());
 }
 /* End Function:RVM_Gen::Folder **********************************************/
@@ -188,7 +188,7 @@ void RVM_Gen::Conf_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rvm_platform.h */
-    File=this->Fsys->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/rvm_platform.h");
+    File=this->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/rvm_platform.h");
     Doc->Write(File);
     fclose(File);
 
@@ -204,7 +204,7 @@ void RVM_Gen::Conf_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rvm_platform_xxx_conf.h */
-    File=this->Fsys->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s_conf.h",
+    File=this->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s_conf.h",
                                this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
     Doc->Write(File);
     fclose(File);
@@ -527,7 +527,7 @@ void RVM_Gen::Boot_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.h */
-    File=this->Fsys->Open_File("M7M2_MuAmmonite/Project/Include/rvm_boot.h");
+    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Include/rvm_boot.h");
     Doc->Write(File);
     fclose(File);
 }
@@ -1283,7 +1283,7 @@ void RVM_Gen::Boot_Src(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.c */
-    File=this->Fsys->Open_File("M7M2_MuAmmonite/Project/Source/rvm_boot.c");
+    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_boot.c");
     Doc->Write(File);
     fclose(File);
 }
@@ -1353,7 +1353,7 @@ void RVM_Gen::User_Src(void)
     Doc->Csrc_Foot();
     
     /* Generate rvm_user.c */
-    File=this->Fsys->Open_File("M7M2_MuAmmonite/Project/Source/rvm_user.c");
+    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_user.c");
     Doc->Write(File);
     fclose(File);
 }

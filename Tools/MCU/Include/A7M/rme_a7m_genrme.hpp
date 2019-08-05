@@ -28,6 +28,10 @@ namespace rme_mcu
 /*****************************************************************************/
 class A7M_RME_Gen:public RME_Gen
 {
+    void Chip_Hdr(void);
+    void Ld_Script(void);
+    void IDE_Proj(void);
+
 public:
     virtual void Plat_Gen(void) final override;
 };

@@ -76,7 +76,8 @@ public:
     std::unique_ptr<std::string> Output;
     std::unique_ptr<std::string> Format;
 
-    std::unique_ptr<class Fsys> Fsys;
+    std::unique_ptr<class Srcfs> Srcfs;
+    std::unique_ptr<class Dstfs> Dstfs;
     std::unique_ptr<class Proj> Proj;
     std::unique_ptr<class Chip> Chip;
     std::unique_ptr<class Plat> Plat;
