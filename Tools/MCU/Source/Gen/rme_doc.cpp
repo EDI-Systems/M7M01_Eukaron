@@ -238,6 +238,31 @@ void Para::Cfunc_Foot(const s8_t* Name)
 }
 /* End Function:Para::Cfunc_Foot *********************************************/
 
+/* Begin Function:Para::Cdef_Find *********************************************
+Description : Search for a define macro in a file. This only searches for
+              canonical macros, which are in the #define XXX form. The space
+              between the XXX and "#define" must be one.
+Input       : std::unique_ptr<std::string>& Macro - The macro.
+Output      : None.
+Return      : None.
+******************************************************************************/
+std::string* Para::Cdef_Find(std::unique_ptr<std::string>& Macro)
+{
+    std::unique_ptr<std::string> Compare;
+
+
+    Compare=std::make_unique<std::string>("#define "+*Macro);
+
+    for(std::unique_ptr<std::string>& Str:this->Line)
+    {
+        if(Str->find(*Compare)!=std::string::npos)
+            return Str.get();
+    }
+
+    return nullptr;
+}
+/* End Function:Para::Cdef_Find **********************************************/
+
 /* Begin Function:Para::Cdef **************************************************
 Description : Make a define statement in the file. The define statement can have
               three parts, which will be converted to uppercase and concatenated
@@ -251,12 +276,18 @@ void Para::Cdef(std::unique_ptr<std::string>& Macro, std::unique_ptr<std::string
 {
     s8_t Format[32];
     s8_t Buf[256];
+    std::string* Line;
 
     /* Print to file */
     sprintf(Format, "#define %%-%ds    (%%s)\n", MACRO_ALIGN-4-8);
     sprintf(Buf, Format, Macro->c_str(), Value->c_str());
 
-    this->Add(std::make_unique<std::string>(Buf));
+    /* See if this already exists */
+    Line=Cdef_Find(Macro);
+    if(Line!=nullptr)
+        *Line=Buf;
+    else
+        this->Add(std::make_unique<std::string>(Buf));
 }
 /* End Function:Para::Cdef ***************************************************/
 
@@ -274,12 +305,18 @@ void Para::Cdef(std::unique_ptr<std::string>& Macro, ret_t Value)
 {
     s8_t Format[32];
     s8_t Buf[256];
+    std::string* Line;
 
     /* Print to file */
     sprintf(Format, "#define %%-%lds    (%%lld)\n", MACRO_ALIGN-4-8);
     sprintf(Buf, Format, Macro->c_str(), Value);
 
-    this->Add(std::make_unique<std::string>(Buf));
+    /* See if this already exists */
+    Line=Cdef_Find(Macro);
+    if(Line!=nullptr)
+        *Line=Buf;
+    else
+        this->Add(std::make_unique<std::string>(Buf));
 }
 /* End Function:Para::Cdef ***************************************************/
 
@@ -287,6 +324,8 @@ void Para::Cdef(std::unique_ptr<std::string>& Macro, ret_t Value)
 Description : Make a define statement in the file. The define statement can have
               three parts, which will be converted to uppercase and concatenated
               together.
+              This function will see if the define macro is there at all. If it is
+              already there, then that line will be modified.
               The value here is a hex integer.
 Input       : std::unique_ptr<std::string>& Macro - The macro.
               ptr_t Value - The value of the macro.
@@ -297,14 +336,101 @@ void Para::Cdef(std::unique_ptr<std::string>& Macro, ptr_t Value)
 {
     s8_t Format[32];
     s8_t Buf[256];
+    std::string* Line;
 
     /* Print to file */
     sprintf(Format, "#define %%-%lds    (0x%%llX)\n", MACRO_ALIGN-4-8);
     sprintf(Buf, Format, Macro->c_str(), Value);
 
-    this->Add(std::make_unique<std::string>(Buf));
+    /* See if this already exists */
+    Line=Cdef_Find(Macro);
+    if(Line!=nullptr)
+        *Line=Buf;
+    else
+        this->Add(std::make_unique<std::string>(Buf));
 }
 /* End Function:Para::Cdef ***************************************************/
+
+/* Begin Function:Doc::Doc ****************************************************
+Description : Constructor for the Doc class. This parser only parse the functions
+              from C source.
+Input       : std::unique_ptr<std::list<std::unique_ptr<std::string>>> File - The whole file.
+              ptr_t Type - The type of the file, either C source, C header or something else.
+Output      : None.
+Return      : None.
+******************************************************************************/
+/* void */ Doc::Doc(std::unique_ptr<std::list<std::unique_ptr<std::string>>> File, ptr_t Type)
+{
+    std::unique_ptr<std::string> Str;
+    std::unique_ptr<class Para> Para;
+    ptr_t Start;
+    ptr_t End;
+
+    Para=nullptr;
+    if(Type==DOCTYPE_CSRC)
+    {
+        /* Parse C source file */
+        while(File->size()!=0)
+        {
+            /* Extract lines from the file */
+            Str=std::move(File->front());
+            File->pop_front();
+            
+            if(Para==nullptr)
+            {
+                if(Str->find("Begin Function:")!=std::string::npos)
+                {
+                    Start=Str->find(":");
+                    End=Str->find(" ",(unsigned int)Start);
+
+                    if(End==std::string::npos)
+                        throw std::runtime_error("C source parsing:\nFile malformed.");
+
+                    Para=std::make_unique<class Para>(Str->substr((unsigned int)Start,(unsigned int)(End-Start)).c_str());
+                    Para->Add(std::move(Str));
+                }
+            }
+            else
+            {
+                Para->Add(std::move(Str));
+
+                if(Str->find("End Function:")!=std::string::npos)
+                {
+                    Start=Str->find(":");
+                    End=Str->find(" ",(unsigned int)Start);
+
+                    if(End==std::string::npos)
+                        throw std::runtime_error("C source parsing:\nFile malformed.");
+
+                    if(Str->substr((unsigned int)Start,(unsigned int)(End-Start))!=*(Para->Name))
+                        throw std::runtime_error("C source parsing:\nInvalid function comment block.");
+
+                    this->Add(std::move(Para));
+                    Para=nullptr;
+                }
+            }
+        }
+
+        if(Para!=nullptr)
+            throw std::runtime_error("C source parsing:\nFile malformed.");
+    }
+    else
+    {
+        /* Fill the whole thing into a single paragraph */
+        Para=std::make_unique<class Para>("Content");
+
+        while(File->size()!=0)
+        {
+            /* Extract lines from the file */
+            Str=std::move(File->front());
+            File->pop_front();
+            Para->Add(std::move(Str));
+        }
+        
+        this->Add(std::move(Para));
+    }
+}
+/* End Function:Doc::Doc *****************************************************/
 
 /* Begin Function:Doc::Add ****************************************************
 Description : Add a single paragraph to a document.

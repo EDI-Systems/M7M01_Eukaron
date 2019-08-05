@@ -37,7 +37,8 @@ class RME_Gen
 {
     void Include(std::unique_ptr<class Para>& Para);
 public:
-    class Fsys* Fsys;
+    class Srcfs* Srcfs;
+    class Dstfs* Dstfs;
     class Plat* Plat;
     class Proj* Proj;
     class Chip* Chip;

@@ -132,37 +132,35 @@ Return      : None.
 void RME_Gen::Folder(void)
 {
     /* RME directory */
-    this->Fsys->Make_Dir("M7M1_MuEukaron");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/Documents");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Kernel");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s",
+    this->Dstfs->Make_Dir("M7M1_MuEukaron");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/Documents");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Kernel");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s",
                          this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str());
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Kernel");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Platform");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/MEukaron/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Fsys->Make_Dir("M7M1_MuEukaron/Project");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/Project/Source");
-    this->Fsys->Make_Dir("M7M1_MuEukaron/Project/Include");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Kernel");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Platform");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/MEukaron/Platform/%s",this->Proj->Plat_Name->c_str());
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/Project");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/Project/Source");
+    this->Dstfs->Make_Dir("M7M1_MuEukaron/Project/Include");
     
     /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
-    this->Fsys->Copy_File("M7M1_MuEukaron/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf");
-    this->Fsys->Copy_File("M7M1_MuEukaron/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf");
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c");
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Include/rme.h");
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h");
+    this->Srcfs->Copy_File("M7M1_MuEukaron/Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf");
+    this->Srcfs->Copy_File("M7M1_MuEukaron/Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf");
+    this->Srcfs->Copy_File("M7M1_MuEukaron/MEukaron/Kernel/rme_kernel.c");
+    this->Srcfs->Copy_File("M7M1_MuEukaron/MEukaron/Include/rme.h");
+    this->Srcfs->Copy_File("M7M1_MuEukaron/MEukaron/Include/Kernel/rme_kernel.h");
 
     /* The toolchain specific assembly be created when we are playing with toolchains */
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Platform/%s/rme_platform_%s.c",
+    this->Srcfs->Copy_File("M7M1_MuEukaron/MEukaron/Platform/%s/rme_platform_%s.c",
                           this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s.h",
+    this->Srcfs->Copy_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s.h",
                           this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Fsys->Copy_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",
-                          this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str(),this->Chip->Chip_Class->c_str());
 }
 /* End Function:RME_Gen::Folder **********************************************/
 
@@ -189,7 +187,7 @@ void RME_Gen::Conf_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_platform.h */
-    File=this->Fsys->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/rme_platform.h");
+    File=this->Dstfs->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/rme_platform.h");
     Doc->Write(File);
     fclose(File);
 
@@ -205,7 +203,7 @@ void RME_Gen::Conf_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_platform_xxx_conf.h */
-    File=this->Fsys->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h",
+    File=this->Dstfs->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/rme_platform_%s_conf.h",
                                this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
     Doc->Write(File);
     fclose(File);
@@ -265,7 +263,7 @@ void RME_Gen::Boot_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.h */
-    File=this->Fsys->Open_File("M7M1_MuEukaron/Project/Include/rme_boot.h");
+    File=this->Dstfs->Open_File("M7M1_MuEukaron/Project/Include/rme_boot.h");
     Doc->Write(File);
     fclose(File);
 }
@@ -417,7 +415,7 @@ void RME_Gen::Boot_Src(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.c */
-    File=this->Fsys->Open_File("M7M1_MuEukaron/Project/Source/rme_boot.c");
+    File=this->Dstfs->Open_File("M7M1_MuEukaron/Project/Source/rme_boot.c");
     Doc->Write(File);
     fclose(File);
 }
@@ -520,7 +518,7 @@ void RME_Gen::User_Src(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_user.c */
-    File=this->Fsys->Open_File(std::make_unique<std::string>("M7M1_MuEukaron/Project/Source/rme_user.c"));
+    File=this->Dstfs->Open_File(std::make_unique<std::string>("M7M1_MuEukaron/Project/Source/rme_user.c"));
     Doc->Write(File);
     fclose(File);
 }

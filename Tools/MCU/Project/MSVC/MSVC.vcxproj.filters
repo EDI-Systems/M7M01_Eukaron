@@ -138,6 +138,12 @@
     <ClCompile Include="..\..\Source\A7M\rme_a7m_ide_makefile.cpp">
       <Filter>A7M Backend\Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_tc_armc5.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\A7M\rme_a7m_tc_gcc.cpp">
+      <Filter>A7M Backend\Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Example\XML\user.xml">
@@ -248,6 +254,12 @@
       <Filter>A7M Backend\Header</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\A7M\rme_a7m_ide_makefile.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_tc_armc5.hpp">
+      <Filter>A7M Backend\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\A7M\rme_a7m_tc_gcc.hpp">
       <Filter>A7M Backend\Header</Filter>
     </ClInclude>
   </ItemGroup>

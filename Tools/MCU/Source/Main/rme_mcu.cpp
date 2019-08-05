@@ -217,10 +217,12 @@ void Main::Parse(void)
 
     try
     {
-        this->Fsys=std::make_unique<class Sysfs>(std::make_unique<std::string>("../../../../../"),
-                                                 std::make_unique<std::string>(this->Output->c_str()));
+        this->Dstfs=std::make_unique<class Dstfs>(std::make_unique<std::string>(this->Output->c_str()));
+
+        this->Srcfs=std::make_unique<class Sysfs>(std::make_unique<std::string>("../../../../../"),
+                                                  std::make_unique<std::string>(this->Output->c_str()));
         /* Read project */
-        Str=this->Fsys->Read_Proj(this->Input);
+        Str=this->Srcfs->Read_Proj(this->Input);
         if(XML_Parse(&Node,(xml_s8_t*)(Str->c_str()))<0)
             throw std::runtime_error("Project XML parsing failed.");
         this->Proj=std::make_unique<class Proj>(Node);
@@ -230,7 +232,7 @@ void Main::Parse(void)
         /* Read chip */
         Str=std::make_unique<std::string>("M7M1_MuEukaron/MEukaron/Include/Platform/");
         *Str+=*(this->Proj->Plat_Name)+"/Chips/"+*(this->Proj->Chip_Class)+"/rme_platform_"+*(this->Proj->Chip_Class)+".xml";
-        Str=this->Fsys->Read_Chip(Str);
+        Str=this->Srcfs->Read_Chip(Str);
         if(XML_Parse(&Node,(xml_s8_t*)(Str->c_str()))<0)
             throw std::runtime_error("Chip XML parsing failed.");
         this->Chip=std::make_unique<class Chip>(Node);
@@ -259,22 +261,26 @@ void Main::Parse(void)
         this->Plat->Kmem_Order=this->Proj->RME->Kmem_Order;
 
         /* Generator objects */
-        this->RME_Gen->Fsys=this->Fsys.get();
+        this->RME_Gen->Srcfs=this->Srcfs.get();
+        this->RME_Gen->Dstfs=this->Dstfs.get();
         this->RME_Gen->Plat=this->Plat.get();
         this->RME_Gen->Proj=this->Proj.get();
         this->RME_Gen->Chip=this->Chip.get();
 
-        this->RVM_Gen->Fsys=this->Fsys.get();
+        this->RVM_Gen->Srcfs=this->Srcfs.get();
+        this->RVM_Gen->Dstfs=this->Dstfs.get();
         this->RVM_Gen->Plat=this->Plat.get();
         this->RVM_Gen->Proj=this->Proj.get();
         this->RVM_Gen->Chip=this->Chip.get();
 
-        this->Proc_Gen->Fsys=this->Fsys.get();
+        this->Proc_Gen->Srcfs=this->Srcfs.get();
+        this->Proc_Gen->Dstfs=this->Dstfs.get();
         this->Proc_Gen->Plat=this->Plat.get();
         this->Proc_Gen->Proj=this->Proj.get();
         this->Proc_Gen->Chip=this->Chip.get();
-
-        this->Proj_Gen->Fsys=this->Fsys.get();
+        
+        this->Proj_Gen->Srcfs=this->Srcfs.get();
+        this->Proj_Gen->Dstfs=this->Dstfs.get();
         this->Proj_Gen->Plat=this->Plat.get();
         this->Proj_Gen->Proj=this->Proj.get();
         this->Proj_Gen->Chip=this->Chip.get();

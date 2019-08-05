@@ -27,29 +27,41 @@ namespace rme_mcu
 #ifndef __RME_FSYS_HPP_CLASSES__
 #define __RME_FSYS_HPP_CLASSES__
 /*****************************************************************************/
-/* Filesystem operations */
-class Fsys
+/* Destination file system */
+class Dstfs
 {
-public:
     std::unique_ptr<std::string> Output;
-
-    virtual ~Fsys(void){};
-
+public:
     ret_t Dir_Present(std::unique_ptr<std::string>& Path);
     ret_t Dir_Empty(std::unique_ptr<std::string>& Path);
     void Make_Dir(std::unique_ptr<std::string>& Path);
     void Make_Dir(const s8_t* Path, ...);
-    void Copy_File(s8_t* Path, ...);
     FILE* Open_File(std::unique_ptr<std::string>& File);
     FILE* Open_File(s8_t* Path, ...);
+    std::unique_ptr<std::list<std::unique_ptr<std::string>>> Read_File(std::unique_ptr<std::string>& Path);
+};
+
+/* Source file system */
+class Srcfs
+{
+public:
+    /* This will be used by the copy file functionality */
+    std::unique_ptr<std::string> Output;
+
+    virtual ~Srcfs(void){};
+
+    void Copy_File(s8_t* Path, ...);
+    std::unique_ptr<std::list<std::unique_ptr<std::string>>> Read_File(s8_t* Path, ...);
 
     virtual ptr_t File_Size(std::unique_ptr<std::string>& Path)=0;
     virtual void Copy_File(std::unique_ptr<std::string>& File)=0;
+
     virtual std::unique_ptr<std::string> Read_Proj(std::unique_ptr<std::string>& Path)=0;
     virtual std::unique_ptr<std::string> Read_Chip(std::unique_ptr<std::string>& Path)=0;
+    virtual std::unique_ptr<std::list<std::unique_ptr<std::string>>> Read_File(std::unique_ptr<std::string>& Path)=0;
 };
 
-class Sysfs:public Fsys
+class Sysfs:public Srcfs
 {
 public:
     std::unique_ptr<std::string> Root;
@@ -58,12 +70,14 @@ public:
 
     virtual ptr_t File_Size(std::unique_ptr<std::string>& Path) final override;
     virtual void Copy_File(std::unique_ptr<std::string>& File) final override;
+
     virtual std::unique_ptr<std::string> Read_Proj(std::unique_ptr<std::string>& Path) final override;
     virtual std::unique_ptr<std::string> Read_Chip(std::unique_ptr<std::string>& Path) final override;
+    virtual std::unique_ptr<std::list<std::unique_ptr<std::string>>> Read_File(std::unique_ptr<std::string>& Path) final override;
 };
 
 /* PBFS-based solution - currently not implemented */
-class Pbfs:public Fsys
+class Pbfs:public Srcfs
 {
 public:
     struct PBFS_Env PBFS;
@@ -74,6 +88,7 @@ public:
     virtual void Copy_File(std::unique_ptr<std::string>& File) final override;
     virtual std::unique_ptr<std::string> Read_Proj(std::unique_ptr<std::string>& Path) final override;
     virtual std::unique_ptr<std::string> Read_Chip(std::unique_ptr<std::string>& Path) final override;
+    virtual std::unique_ptr<std::list<std::unique_ptr<std::string>>> Read_File(std::unique_ptr<std::string>& Path) final override;
 };
 /*****************************************************************************/
 /* __RME_FSYS_HPP_CLASSES__ */
