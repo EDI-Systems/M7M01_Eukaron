@@ -31,7 +31,7 @@ namespace rme_mcu
 /* Paragraph */
 class Para
 {
-    std::string* Cdef_Find(std::unique_ptr<std::string>& Macro);
+    std::string* Cdef_Find(s8_t* Macro);
 
 public:
     std::unique_ptr<std::string> Name;
@@ -56,8 +56,11 @@ public:
     void Cfunc_Foot(std::unique_ptr<std::string>& Name);
     void Cfunc_Foot(const s8_t* Name);
     
+    void Cdef(s8_t* Macro, s8_t* Value);
     void Cdef(std::unique_ptr<std::string>& Macro, std::unique_ptr<std::string>& Value);
+    void Cdef(s8_t* Macro, ret_t Value);
     void Cdef(std::unique_ptr<std::string>& Macro, ret_t Value);
+    void Cdef(s8_t* Macro, ptr_t Value);
     void Cdef(std::unique_ptr<std::string>& Macro, ptr_t Value);
 };
 
@@ -67,6 +70,7 @@ class Doc
 public:
     std::list<std::unique_ptr<class Para>> Para;
 
+    Doc(void){};
     Doc(std::unique_ptr<std::list<std::unique_ptr<std::string>>> File, ptr_t Type);
 
     void Add(std::unique_ptr<class Para> Para);

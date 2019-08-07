@@ -59,11 +59,7 @@ class RVM_Gen
     void Thd_Init(std::unique_ptr<class Doc>& Doc);
     void Inv_Init(std::unique_ptr<class Doc>& Doc);
 public:
-    class Srcfs* Srcfs;
-    class Dstfs* Dstfs;
-    class Plat* Plat;
-    class Proj* Proj;
-    class Chip* Chip;
+    class Main* Main;
 
     virtual ~RVM_Gen(void){};
 

@@ -98,7 +98,7 @@ void RVM_Gen::Include(std::unique_ptr<class Para>& Para)
     /* Print includes */
     Para->Add("#define __HDR_DEFS__");
     Para->Add("#include \"Platform/%s/rvm_platform_%s.h\"",
-              this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+              this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Plat_Lower->c_str());
     Para->Add("#include \"Init/rvm_syssvc.h\"");
     Para->Add("#include \"Init/rvm_init.h\"");
     Para->Add("#undef __HDR_DEFS__");
@@ -106,7 +106,7 @@ void RVM_Gen::Include(std::unique_ptr<class Para>& Para)
 
     Para->Add("#define __HDR_STRUCTS__");
     Para->Add("#include \"Platform/%s/rme_platform_%s.h\"",
-              this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+              this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Plat_Lower->c_str());
     Para->Add("#include \"Init/rvm_syssvc.h\"");
     Para->Add("#include \"Init/rvm_init.h\"");
     Para->Add("#undef __HDR_STRUCTS__");
@@ -114,7 +114,7 @@ void RVM_Gen::Include(std::unique_ptr<class Para>& Para)
 
     Para->Add("#define __HDR_PUBLIC_MEMBERS__");
     Para->Add("#include \"Platform/%s/rme_platform_%s.h\"",
-              this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+              this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Plat_Lower->c_str());
     Para->Add("#include \"Init/rvm_syssvc.h\"");
     Para->Add("#include \"Init/rvm_init.h\"");
     Para->Add("#undef __HDR_PUBLIC_MEMBERS__");
@@ -131,37 +131,39 @@ Return      : None.
 void RVM_Gen::Folder(void)
 {
     /* RME directory */
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Documents");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Init");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",this->Proj->Plat_Name->c_str());
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",
-                         this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str());
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Init");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform/%s",this->Proj->Plat_Name->c_str());
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Source");
-    this->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Include");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/Documents");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Init");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s",this->Main->Proj->Plat_Name->c_str());
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips",this->Main->Proj->Plat_Name->c_str());
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s",
+                                this->Main->Proj->Plat_Name->c_str(),this->Main->Chip->Chip_Class->c_str());
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Init");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/MAmmonite/Platform/%s",this->Main->Proj->Plat_Name->c_str());
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/Project");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Source");
+    this->Main->Dstfs->Make_Dir("M7M2_MuAmmonite/Project/Include");
 
     /* Copy kernel file, kernel header, platform file, platform header, and chip headers */
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf");
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf");
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/EN_M7M2_RT-Runtime-User-Manual.pdf");
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/Documents/CN_M7M2_RT-Runtime-User-Manual.pdf");
     /* Currently the VMM and Posix is disabled, thus only the init is copied. */
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Init/rvm_init.c");
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/rvm.h");
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Init/rvm_init.c");
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/rvm.h");
     /* The toolchain specific one will be created when we are playing with toolchains */
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",
-                          this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h");
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",
-                          this->Proj->Plat_Name->c_str(),this->Proj->Plat_Lower->c_str());
-    this->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",
-                          this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str(),this->Chip->Chip_Class->c_str());
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Platform/%s/rvm_platform_%s.c",
+                                 this->Main->Proj->Plat_Name->c_str(),this->Main->Proj->Plat_Lower->c_str());
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Init/rvm_init.h");
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s.h",
+                                 this->Main->Proj->Plat_Name->c_str(),this->Main->Proj->Plat_Lower->c_str());
+    this->Main->Srcfs->Copy_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/Chips/%s/rvm_platform_%s.h",
+                                 this->Main->Proj->Plat_Name->c_str(),
+                                 this->Main->Chip->Chip_Class->c_str(),
+                                 this->Main->Chip->Chip_Class->c_str());
 }
 /* End Function:RVM_Gen::Folder **********************************************/
 
@@ -182,30 +184,30 @@ void RVM_Gen::Conf_Hdr(void)
     Doc->Csrc_Desc("rvm_platform.h", "The platform selection header.");
     Para=std::make_unique<class Para>("Doc:Platform Includes");
     Para->Add("/* Platform Includes *********************************************************/");
-    Para->Add("#include \"Platform/%s/rvm_platform_%s.h\"", this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    Para->Add("#include \"Platform/%s/rvm_platform_%s.h\"", this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Plat_Lower->c_str());
     Para->Add("/* End Platform Includes *****************************************************/");
     Doc->Add(std::move(Para));
     Doc->Csrc_Foot();
 
     /* Generate rvm_platform.h */
-    File=this->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/rvm_platform.h");
+    File=this->Main->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/rvm_platform.h");
     Doc->Write(File);
     fclose(File);
 
     Doc=std::make_unique<class Doc>();
-    sprintf(Buf,"rvm_platform_%s_conf.h", this->Proj->Plat_Lower->c_str());
+    sprintf(Buf,"rvm_platform_%s_conf.h", this->Main->Proj->Plat_Lower->c_str());
     Doc->Csrc_Desc(Buf, "The chip selection header.");
     Para=std::make_unique<class Para>("Doc:Platform Includes");
     Para->Add("/* Platform Includes *********************************************************/");
     Para->Add("#include \"Platform/%s/Chips/%s/rvm_platform_%s.h\"",
-              this->Proj->Plat_Name->c_str(), this->Proj->Chip_Class->c_str(), this->Proj->Chip_Class->c_str());
+              this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Chip_Class->c_str(), this->Main->Proj->Chip_Class->c_str());
     Para->Add("/* End Platform Includes *****************************************************/");
     Doc->Add(std::move(Para));
     Doc->Csrc_Foot();
 
     /* Generate rvm_platform_xxx_conf.h */
-    File=this->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s_conf.h",
-                               this->Proj->Plat_Name->c_str(), this->Proj->Plat_Lower->c_str());
+    File=this->Main->Dstfs->Open_File("M7M2_MuAmmonite/MAmmonite/Include/Platform/%s/rvm_platform_%s_conf.h",
+                               this->Main->Proj->Plat_Name->c_str(), this->Main->Proj->Plat_Lower->c_str());
     Doc->Write(File);
     fclose(File);
 }
@@ -225,21 +227,21 @@ void RVM_Gen::Macro_Vect(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Vect* Vect;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Vector capability tables & Vectors */
     Para->Add("/* Vector endpoint capability tables */");
-    Cap_Front=this->Proj->RME->Map->Vect_Cap_Front;
-    Capacity=this->Plat->Capacity;
+    Cap_Front=this->Main->Proj->RME->Map->Vect_Cap_Front;
+    Capacity=this->Main->Plat->Capacity;
     Para->Add("/* Vector capability table capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Vect.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Vect.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTVECT%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Vectors */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Vect)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Vect)
     {
         Vect=static_cast<class Vect*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTVECT%lld,%lld)", 
@@ -247,7 +249,7 @@ void RVM_Gen::Macro_Vect(std::unique_ptr<class Para>& Para)
         Para->Cdef(Vect->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=this->Proj->RVM->Map->Before_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Before_Cap_Front)
         throw std::runtime_error("Vector:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Vect ******************************************/
@@ -266,19 +268,19 @@ void RVM_Gen::Macro_Captbl(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Captbl* Captbl;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Captbl capability tables & Captbls */
-    Cap_Front=this->Proj->RVM->Map->Captbl_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Captbl_Cap_Front;
     Para->Add("/* Process capability table capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM->Captbl.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Captbl.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTCAPTBL%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Process capability tables */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Captbl)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Captbl)
     {
         Captbl=static_cast<class Captbl*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTCAPTBL%lld,%lld)", 
@@ -286,7 +288,7 @@ void RVM_Gen::Macro_Captbl(std::unique_ptr<class Para>& Para)
         Para->Cdef(Captbl->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=this->Proj->RVM->Map->Pgtbl_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Pgtbl_Cap_Front)
         throw std::runtime_error("Capability table:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Captbl ****************************************/
@@ -305,19 +307,19 @@ void RVM_Gen::Macro_Pgtbl(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Pgtbl* Pgtbl;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Pgtbl capability tables & Pgtbls */
-    Cap_Front=this->Proj->RVM->Map->Pgtbl_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Pgtbl_Cap_Front;
     Para->Add("/* Process page table capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM->Pgtbl.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Pgtbl.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTPGTBL%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Process page tables */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Pgtbl)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Pgtbl)
     {
         Pgtbl=static_cast<class Pgtbl*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTPGTBL%lld,%lld)", 
@@ -325,7 +327,7 @@ void RVM_Gen::Macro_Pgtbl(std::unique_ptr<class Para>& Para)
         Para->Cdef(Pgtbl->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=this->Proj->RVM->Map->Proc_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Proc_Cap_Front)
         throw std::runtime_error("Page table:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Pgtbl *****************************************/
@@ -344,19 +346,19 @@ void RVM_Gen::Macro_Proc(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Proc* Proc;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Process capability tables & Processes */
-    Cap_Front=this->Proj->RVM->Map->Proc_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Proc_Cap_Front;
     Para->Add("/* Process capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Proc.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Proc.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTPROC%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Processes */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Proc)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Proc)
     {
         Proc=static_cast<class Proc*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTPROC%lld,%lld)",
@@ -364,7 +366,7 @@ void RVM_Gen::Macro_Proc(std::unique_ptr<class Para>& Para)
         Para->Cdef(Proc->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=this->Proj->RVM->Map->Thd_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Thd_Cap_Front)
         throw std::runtime_error("Process:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Proc ******************************************/
@@ -383,19 +385,19 @@ void RVM_Gen::Macro_Thd(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Thd* Thd;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Thread capability tables & Threads */
-    Cap_Front=this->Proj->RVM->Map->Thd_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Thd_Cap_Front;
     Para->Add("/* Thread capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Thd.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Thd.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTTHD%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Threads */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Thd)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Thd)
     {
         Thd=static_cast<class Thd*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTTHD%lld,%lld)",
@@ -403,7 +405,7 @@ void RVM_Gen::Macro_Thd(std::unique_ptr<class Para>& Para)
         Para->Cdef(Thd->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=Proj->RVM->Map->Inv_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Inv_Cap_Front)
         throw std::runtime_error("Thread:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Thd *******************************************/
@@ -422,19 +424,19 @@ void RVM_Gen::Macro_Inv(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Inv* Inv;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Invocation capability tables & Invocations */
-    Cap_Front=this->Proj->RVM->Map->Inv_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Inv_Cap_Front;
     Para->Add("/* Invocation capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM->Inv.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Inv.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTINV%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Invocations */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Inv)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Inv)
     {
         Inv=static_cast<class Inv*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTINV%lld,%lld)",
@@ -442,7 +444,7 @@ void RVM_Gen::Macro_Inv(std::unique_ptr<class Para>& Para)
         Para->Cdef(Inv->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=Proj->RVM->Map->Recv_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->Recv_Cap_Front)
         throw std::runtime_error("Invocation:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Inv *******************************************/
@@ -461,19 +463,19 @@ void RVM_Gen::Macro_Recv(std::unique_ptr<class Para>& Para)
     ptr_t Capacity;
     class Recv* Recv;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     /* Receive endpoint capability tables & Receive endpoints */
-    Cap_Front=this->Proj->RVM->Map->Recv_Cap_Front;
+    Cap_Front=this->Main->Proj->RVM->Map->Recv_Cap_Front;
     Para->Add("/* Receive endpoint capability tables */");
-    for(Obj_Cnt=0;Obj_Cnt<Proj->RVM->Recv.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Recv.size();Obj_Cnt+=Capacity)
     {
         sprintf(Buf, "RVM_BOOT_CTRECV%lld",Obj_Cnt/Capacity);
         Para->Cdef(std::make_unique<std::string>(Buf), Cap_Front++);
     }
     Para->Add("");
     Para->Add("/* Receive endpoints */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Recv)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Recv)
     {
         Recv=static_cast<class Recv*>(Info->Kobj);
         sprintf(Buf, "RVM_CAPID(RVM_BOOT_CTRECV%lld,%lld)",
@@ -481,7 +483,7 @@ void RVM_Gen::Macro_Recv(std::unique_ptr<class Para>& Para)
         Para->Cdef(Recv->RVM_Macro, std::make_unique<std::string>(Buf));
     }
     Para->Add("");
-    if(Cap_Front!=Proj->RVM->Map->After_Cap_Front)
+    if(Cap_Front!=this->Main->Proj->RVM->Map->After_Cap_Front)
         throw std::runtime_error("Receive endpoint:\nInternal capability table computation failure.");
 }
 /* End Function:RVM_Gen::Macro_Recv ******************************************/
@@ -515,11 +517,11 @@ void RVM_Gen::Boot_Hdr(void)
     /* Extra capability table frontier */
     Para->Add("/* Capability table frontier */");
     Para->Cdef(std::make_unique<std::string>("RVM_BOOT_CAP_FRONTIER"),
-               (ret_t)(this->Proj->RVM->Map->After_Cap_Front));
+               (ret_t)(this->Main->Proj->RVM->Map->After_Cap_Front));
     /* Extra kernel memory frontier */
     Para->Add("/* Kernel memory frontier */");
     Para->Cdef(std::make_unique<std::string>("RVM_BOOT_KMEM_FRONTIER"),
-               this->Proj->RVM->Map->After_Kmem_Front);
+               this->Main->Proj->RVM->Map->After_Kmem_Front);
 
     /* Finish file generation */
     Para->Add("/* End Defines ***************************************************************/");
@@ -527,7 +529,7 @@ void RVM_Gen::Boot_Hdr(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.h */
-    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Include/rvm_boot.h");
+    File=this->Main->Dstfs->Open_File("M7M2_MuAmmonite/Project/Include/rvm_boot.h");
     Doc->Write(File);
     fclose(File);
 }
@@ -549,7 +551,7 @@ void RVM_Gen::Captbl_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Captbl_Crt");
     
@@ -560,15 +562,15 @@ void RVM_Gen::Captbl_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr==0x%llX;", this->Proj->RVM->Map->Captbl_Kmem_Front);
+    Para->Add("    Cur_Addr==0x%llX;", this->Main->Proj->RVM->Map->Captbl_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the capability table capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Captbl.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Captbl.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Captbl.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Captbl.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Captbl.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Captbl.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTCAPTBL%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -576,7 +578,7 @@ void RVM_Gen::Captbl_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the capability tables themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Captbl)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Captbl)
     {
         Captbl=static_cast<class Captbl*>(Info->Kobj);
 
@@ -585,7 +587,7 @@ void RVM_Gen::Captbl_Crt(std::unique_ptr<class Doc>& Doc)
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_CAPTBL_SIZE(%lld));", Captbl->Size);
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Pgtbl_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->Pgtbl_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Captbl_Crt");
     Doc->Add(std::move(Para));
@@ -608,7 +610,7 @@ void RVM_Gen::Pgtbl_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Pgtbl_Crt");
 
@@ -619,15 +621,15 @@ void RVM_Gen::Pgtbl_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr==0x%llX;", this->Proj->RVM->Map->Pgtbl_Kmem_Front);
+    Para->Add("    Cur_Addr==0x%llX;", this->Main->Proj->RVM->Map->Pgtbl_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the page tables capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Pgtbl.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Pgtbl.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Pgtbl.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Pgtbl.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Pgtbl.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Pgtbl.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPGTBL%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -635,7 +637,7 @@ void RVM_Gen::Pgtbl_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the page tables themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Pgtbl)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Pgtbl)
     {
         Pgtbl=static_cast<class Pgtbl*>(Info->Kobj);
 
@@ -644,10 +646,10 @@ void RVM_Gen::Pgtbl_Crt(std::unique_ptr<class Doc>& Doc)
                   Pgtbl->Start_Addr,(ptr_t)(Pgtbl->Is_Top!=0),Pgtbl->Size_Order, Pgtbl->Num_Order);
 
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_PGTBL_SIZE_TOP(%lld));",
-                  this->Plat->Pgtbl_Size(Pgtbl->Num_Order,Pgtbl->Is_Top));
+                  this->Main->Plat->Pgtbl_Size(Pgtbl->Num_Order,Pgtbl->Is_Top));
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Proc_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->Proc_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Pgtbl_Crt");
     Doc->Add(std::move(Para));
@@ -670,7 +672,7 @@ void RVM_Gen::Proc_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Proc_Crt");
 
@@ -681,15 +683,15 @@ void RVM_Gen::Proc_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Proc_Kmem_Front);
+    Para->Add("    Cur_Addr=0x%llX;", this->Main->Proj->RVM->Map->Proc_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the process capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Proc.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Proc.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Proc.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Proc.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Proc.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Proc.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTPROC%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -697,7 +699,7 @@ void RVM_Gen::Proc_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the processes themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Proc)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Proc)
     {
         Proc=static_cast<class Proc*>(Info->Kobj);
 
@@ -706,7 +708,7 @@ void RVM_Gen::Proc_Crt(std::unique_ptr<class Doc>& Doc)
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_PROC_SIZE);");
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Thd_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->Thd_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Proc_Crt");
     Doc->Add(std::move(Para));
@@ -730,7 +732,7 @@ void RVM_Gen::Thd_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Thd_Crt");
 
@@ -741,15 +743,15 @@ void RVM_Gen::Thd_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Thd_Kmem_Front);
+    Para->Add("    Cur_Addr=0x%llX;", this->Main->Proj->RVM->Map->Thd_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the thread capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Thd.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Thd.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Thd.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Thd.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Thd.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Thd.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTTHD%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -757,7 +759,7 @@ void RVM_Gen::Thd_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the threads themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Thd)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Thd)
     {
         Thd=static_cast<class Thd*>(Info->Kobj);
         Proc=Info->Proc;
@@ -767,7 +769,7 @@ void RVM_Gen::Thd_Crt(std::unique_ptr<class Doc>& Doc)
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_THD_SIZE);");
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Inv_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->Inv_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Thd_Crt");
     Doc->Add(std::move(Para));
@@ -791,7 +793,7 @@ void RVM_Gen::Inv_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Inv_Crt");
 
@@ -802,15 +804,15 @@ void RVM_Gen::Inv_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Inv_Kmem_Front);
+    Para->Add("    Cur_Addr=0x%llX;", this->Main->Proj->RVM->Map->Inv_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the invocation capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Inv.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Inv.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Inv.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Inv.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Inv.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Inv.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTINV%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -818,7 +820,7 @@ void RVM_Gen::Inv_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the invocations themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Inv)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Inv)
     {
         Inv=static_cast<class Inv*>(Info->Kobj);
         Proc=Info->Proc;
@@ -827,7 +829,7 @@ void RVM_Gen::Inv_Crt(std::unique_ptr<class Doc>& Doc)
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_INV_SIZE);\n");
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->Recv_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->Recv_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Inv_Crt");
     Doc->Add(std::move(Para));
@@ -850,7 +852,7 @@ void RVM_Gen::Recv_Crt(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Recv_Crt");
     
@@ -861,15 +863,15 @@ void RVM_Gen::Recv_Crt(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rme_ptr_t Cur_Addr;");
     Para->Add("");
-    Para->Add("    Cur_Addr=0x%llX;", this->Proj->RVM->Map->Recv_Kmem_Front);
+    Para->Add("    Cur_Addr=0x%llX;", this->Main->Proj->RVM->Map->Recv_Kmem_Front);
     Para->Add("");
     Para->Add("    /* Create all the receive endpoint capability tables first */");
-    for(Obj_Cnt=0;Obj_Cnt<this->Proj->RVM->Recv.size();Obj_Cnt+=Capacity)
+    for(Obj_Cnt=0;Obj_Cnt<this->Main->Proj->RVM->Recv.size();Obj_Cnt+=Capacity)
     {
-        if(this->Proj->RVM->Recv.size()>=(Obj_Cnt+1)*Capacity)
+        if(this->Main->Proj->RVM->Recv.size()>=(Obj_Cnt+1)*Capacity)
             Captbl_Size=Capacity;
         else
-            Captbl_Size=this->Proj->RVM->Recv.size()%Capacity;
+            Captbl_Size=this->Main->Proj->RVM->Recv.size()%Capacity;
 
         Para->Add("    RVM_ASSERT(RVM_Captbl_Crt(RVM_BOOT_CAPTBL, RVM_BOOT_INIT_KMEM, RVM_BOOT_CTRECV%lld, Cur_Addr, %lld)==0);", 
                   Obj_Cnt/Capacity,Captbl_Size);
@@ -877,7 +879,7 @@ void RVM_Gen::Recv_Crt(std::unique_ptr<class Doc>& Doc)
     }
     Para->Add("");
     Para->Add("    /* Then the receive endpoints themselves */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Recv)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Recv)
     {
         Recv=static_cast<class Recv*>(Info->Kobj);
 
@@ -886,7 +888,7 @@ void RVM_Gen::Recv_Crt(std::unique_ptr<class Doc>& Doc)
         Para->Add("    Cur_Addr+=RME_KOTBL_ROUND(RVM_SIG_SIZE);");
     }
     Para->Add("");
-    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Proj->RVM->Map->After_Kmem_Front);
+    Para->Add("    RME_ASSERT(Cur_Addr==0x%llX);", this->Main->Proj->RVM->Map->After_Kmem_Front);
     Para->Add("}");
     Para->Cfunc_Foot("RVM_Boot_Recv_Crt");
     Doc->Add(std::move(Para));
@@ -906,7 +908,7 @@ void RVM_Gen::Captbl_Init(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Captbl_Init");
 
@@ -916,7 +918,7 @@ void RVM_Gen::Captbl_Init(std::unique_ptr<class Doc>& Doc)
     Para->Add("void RVM_Boot_Captbl_Init(void)");
     Para->Add("{");
     Para->Add("");
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    for(std::unique_ptr<class Proc>& Proc:this->Main->Proj->Proc)
     {
         Para->Add("    /* Initializing captbl for process: %s */", Proc->Name->c_str());
 
@@ -1075,7 +1077,7 @@ void RVM_Gen::Pgtbl_Init(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("");
     /* Do page table construction first */
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    for(std::unique_ptr<class Proc>& Proc:this->Main->Proj->Proc)
     {
         Para->Add("    /* Constructing page tables for process: %s */",Proc->Name->c_str());
         Pgtbl_Cons(Para,Proc->Pgtbl.get());
@@ -1084,10 +1086,10 @@ void RVM_Gen::Pgtbl_Init(std::unique_ptr<class Doc>& Doc)
     
     /* Then do the mapping for all page tables */
     Para->Add("    /* Mapping pages into page tables */");
-    for(std::unique_ptr<class Cap>& Info:this->Proj->RVM->Pgtbl)
+    for(std::unique_ptr<class Cap>& Info:this->Main->Proj->RVM->Pgtbl)
     {
         Pgtbl=static_cast<class Pgtbl*>(Info->Kobj);
-        Pgtbl_Map(Para, Pgtbl, this->Plat->Word_Bits-this->Plat->Init_Num_Ord);
+        Pgtbl_Map(Para, Pgtbl, this->Main->Plat->Word_Bits-this->Main->Plat->Init_Num_Ord);
         Para->Add("");
     }
 
@@ -1110,7 +1112,7 @@ void RVM_Gen::Thd_Init(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Thd_Init");
     
@@ -1121,7 +1123,7 @@ void RVM_Gen::Thd_Init(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rvm_ptr_t Init_Stack_Addr;");
     Para->Add("");
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    for(std::unique_ptr<class Proc>& Proc:this->Main->Proj->Proc)
     {
         Para->Add("    /* Initializing thread for process: %s */", Proc->Name->c_str());
         
@@ -1154,7 +1156,7 @@ void RVM_Gen::Inv_Init(std::unique_ptr<class Doc>& Doc)
     std::vector<std::unique_ptr<std::string>> Input;
     std::vector<std::unique_ptr<std::string>> Output;
 
-    Capacity=this->Plat->Capacity;
+    Capacity=this->Main->Plat->Capacity;
 
     Para=std::make_unique<class Para>("Func:RVM_Boot_Inv_Init");
     
@@ -1165,7 +1167,7 @@ void RVM_Gen::Inv_Init(std::unique_ptr<class Doc>& Doc)
     Para->Add("{");
     Para->Add("    rvm_ptr_t Init_Stack_Addr;");
     Para->Add("");
-    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    for(std::unique_ptr<class Proc>& Proc:this->Main->Proj->Proc)
     {
         Para->Add("    /* Initializing invocation for process: %s */", Proc->Name->c_str());
         
@@ -1283,7 +1285,7 @@ void RVM_Gen::Boot_Src(void)
     Doc->Csrc_Foot();
 
     /* Generate rme_boot.c */
-    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_boot.c");
+    File=this->Main->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_boot.c");
     Doc->Write(File);
     fclose(File);
 }
@@ -1353,7 +1355,7 @@ void RVM_Gen::User_Src(void)
     Doc->Csrc_Foot();
     
     /* Generate rvm_user.c */
-    File=this->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_user.c");
+    File=this->Main->Dstfs->Open_File("M7M2_MuAmmonite/Project/Source/rvm_user.c");
     Doc->Write(File);
     fclose(File);
 }

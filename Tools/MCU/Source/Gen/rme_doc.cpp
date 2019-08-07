@@ -242,16 +242,16 @@ void Para::Cfunc_Foot(const s8_t* Name)
 Description : Search for a define macro in a file. This only searches for
               canonical macros, which are in the #define XXX form. The space
               between the XXX and "#define" must be one.
-Input       : std::unique_ptr<std::string>& Macro - The macro.
+Input       : s8_t* Macro - The macro.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-std::string* Para::Cdef_Find(std::unique_ptr<std::string>& Macro)
+std::string* Para::Cdef_Find(s8_t* Macro)
 {
     std::unique_ptr<std::string> Compare;
 
 
-    Compare=std::make_unique<std::string>("#define "+*Macro);
+    Compare=std::make_unique<std::string>(std::string("#define ")+*Macro);
 
     for(std::unique_ptr<std::string>& Str:this->Line)
     {
@@ -267,12 +267,12 @@ std::string* Para::Cdef_Find(std::unique_ptr<std::string>& Macro)
 Description : Make a define statement in the file. The define statement can have
               three parts, which will be converted to uppercase and concatenated
               together. The value here is a string.
-Input       : std::unique_ptr<std::string>& Macro - The macro.
-              std::unique_ptr<std::string>& Value - The value of the macro.
+Input       : s8_t* Macro - The macro.
+              s8_t* Value - The value of the macro.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void Para::Cdef(std::unique_ptr<std::string>& Macro, std::unique_ptr<std::string>& Value)
+void Para::Cdef(s8_t* Macro, s8_t* Value)
 {
     s8_t Format[32];
     s8_t Buf[256];
@@ -280,7 +280,51 @@ void Para::Cdef(std::unique_ptr<std::string>& Macro, std::unique_ptr<std::string
 
     /* Print to file */
     sprintf(Format, "#define %%-%ds    (%%s)\n", MACRO_ALIGN-4-8);
-    sprintf(Buf, Format, Macro->c_str(), Value->c_str());
+    sprintf(Buf, Format, Macro, Value);
+
+    /* See if this already exists */
+    Line=Cdef_Find(Macro);
+    if(Line!=nullptr)
+        *Line=Buf;
+    else
+        this->Add(std::make_unique<std::string>(Buf));
+}
+/* End Function:Para::Cdef ***************************************************/
+
+/* Begin Function:Para::Cdef **************************************************
+Description : Make a define statement in the file. The define statement can have
+              three parts, which will be converted to uppercase and concatenated
+              together. The value here is a string.
+Input       : std::unique_ptr<std::string>& Macro - The macro.
+              std::unique_ptr<std::string>& Value - The value of the macro.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Para::Cdef(std::unique_ptr<std::string>& Macro, std::unique_ptr<std::string>& Value)
+{
+    Cdef((s8_t*)(Macro->c_str()),(s8_t*)(Value->c_str()));
+}
+/* End Function:Para::Cdef ***************************************************/
+
+/* Begin Function:Para::Cdef **************************************************
+Description : Make a define statement in the file. The define statement can have
+              three parts, which will be converted to uppercase and concatenated
+              together.
+              The value here is a integer.
+Input       : s8_t* Macro - The macro.
+              ret_t Value - The value of the macro.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Para::Cdef(s8_t* Macro, ret_t Value)
+{
+    s8_t Format[32];
+    s8_t Buf[256];
+    std::string* Line;
+
+    /* Print to file */
+    sprintf(Format, "#define %%-%lds    (%%lld)\n", MACRO_ALIGN-4-8);
+    sprintf(Buf, Format, Macro, Value);
 
     /* See if this already exists */
     Line=Cdef_Find(Macro);
@@ -303,13 +347,31 @@ Return      : None.
 ******************************************************************************/
 void Para::Cdef(std::unique_ptr<std::string>& Macro, ret_t Value)
 {
+    Cdef((s8_t*)(Macro->c_str()),Value);
+}
+/* End Function:Para::Cdef ***************************************************/
+
+/* Begin Function:Para::Cdef **************************************************
+Description : Make a define statement in the file. The define statement can have
+              three parts, which will be converted to uppercase and concatenated
+              together.
+              This function will see if the define macro is there at all. If it is
+              already there, then that line will be modified.
+              The value here is a hex integer.
+Input       : s8_t* Macro - The macro.
+              ptr_t Value - The value of the macro.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void Para::Cdef(s8_t* Macro, ptr_t Value)
+{
     s8_t Format[32];
     s8_t Buf[256];
     std::string* Line;
 
     /* Print to file */
-    sprintf(Format, "#define %%-%lds    (%%lld)\n", MACRO_ALIGN-4-8);
-    sprintf(Buf, Format, Macro->c_str(), Value);
+    sprintf(Format, "#define %%-%lds    (0x%%llX)\n", MACRO_ALIGN-4-8);
+    sprintf(Buf, Format, Macro, Value);
 
     /* See if this already exists */
     Line=Cdef_Find(Macro);
@@ -334,20 +396,7 @@ Return      : None.
 ******************************************************************************/
 void Para::Cdef(std::unique_ptr<std::string>& Macro, ptr_t Value)
 {
-    s8_t Format[32];
-    s8_t Buf[256];
-    std::string* Line;
-
-    /* Print to file */
-    sprintf(Format, "#define %%-%lds    (0x%%llX)\n", MACRO_ALIGN-4-8);
-    sprintf(Buf, Format, Macro->c_str(), Value);
-
-    /* See if this already exists */
-    Line=Cdef_Find(Macro);
-    if(Line!=nullptr)
-        *Line=Buf;
-    else
-        this->Add(std::make_unique<std::string>(Buf));
+    Cdef((s8_t*)(Macro->c_str()),Value);
 }
 /* End Function:Para::Cdef ***************************************************/
 
