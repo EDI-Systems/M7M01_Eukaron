@@ -53,6 +53,7 @@ extern "C"
 #include "A7M/rme_a7m_ide_eclipse.hpp"
 #include "A7M/rme_a7m_ide_makefile.hpp"
 #include "A7M/rme_a7m_genrme.hpp"
+#include "A7M/rme_a7m.hpp"
 #undef __HDR_DEFS__
 
 #define __HDR_CLASSES__
@@ -85,6 +86,7 @@ extern "C"
 #include "A7M/rme_a7m_ide_eclipse.hpp"
 #include "A7M/rme_a7m_ide_makefile.hpp"
 #include "A7M/rme_a7m_genrme.hpp"
+#include "A7M/rme_a7m.hpp"
 #undef __HDR_CLASSES__
 /* End Includes **************************************************************/
 namespace rme_mcu
@@ -97,89 +99,143 @@ Return      : None.
 ******************************************************************************/
 void A7M_RME_Gen::Chip_Hdr(void)
 {
-    std::unique_ptr<std::list<std::unique_ptr<std::string>>> File;
-    std::unique_ptr<class Doc> Doc;
+    FILE* File;
+    class A7M* A7M;
     class Para* Para;
+    std::unique_ptr<class Doc> Doc;
+    std::unique_ptr<std::list<std::unique_ptr<std::string>>> Content;
 
     /* Read the header file */
-    File=this->Srcfs->Read_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",
-                                this->Proj->Plat_Name->c_str(),this->Chip->Chip_Class->c_str(),this->Chip->Chip_Class->c_str());
-    Doc=std::make_unique<class Doc>(File,DOCTYPE_CHDR);
+    Content=this->Main->Srcfs->Read_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",
+                                         this->Main->Proj->Plat_Name->c_str(),
+                                         this->Main->Chip->Chip_Class->c_str(),
+                                         this->Main->Chip->Chip_Class->c_str());
+    Doc=std::make_unique<class Doc>(std::move(Content),DOCTYPE_CHDR);
     Para=Doc->Para.front().get();
 
-    /* Set the macros in this header file - what cdefs are there? */
-    Para->Cdef();
-
+    /* General settings */
     /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START                       0x20003000
-/* The size of the kernel object virtual memory */
-#define RME_KMEM_SIZE                           0xD000
-/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_START                        0x20020000
-/* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_SIZE                            0x60000
-/* Kernel stack address - we have 4kB stack */
-#define RME_KMEM_STACK_ADDR                     0x20000FF0
-/* The maximum number of preemption priority levels in the system.
- * This parameter must be divisible by the word length - 32 is usually sufficient */
-#define RME_MAX_PREEMPT_PRIO                    32
+    Para->Cdef("RME_KMEM_VA_START",this->Main->Proj->RME->Map->Kmem_Base);
+    /* The size of the kernel object virtual memory */
+    Para->Cdef("RME_KMEM_SIZE",this->Main->Proj->RME->Map->Kmem_Size);
+    /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
+    Para->Cdef("RME_HYP_VA_START",0ULL);
+    /* The size of the hypervisor reserved virtual memory */
+    Para->Cdef("RME_HYP_SIZE",0ULL);
+    /* Kernel stack address */
+    Para->Cdef("RME_KMEM_STACK_ADDR",this->Main->Proj->RME->Map->Stack_Base+this->Main->Proj->RME->Map->Stack_Size-16);
+    /* The maximum number of preemption priority levels in the system.
+     * This parameter must be divisible by the word length - 32 is usually sufficient */
+    Para->Cdef("RME_MAX_PREEMPT_PRIO",(ret_t)(this->Main->Proj->RME->Kern_Prios));
+    /* The granularity of kernel memory allocation, in bytes */
+    Para->Cdef("RME_KMEM_SLOT_ORDER",(ret_t)(this->Main->Proj->RME->Kmem_Order));
 
-/* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_A7M_INT_FLAG_ADDR                   0x20010000
-/* Initial kernel object frontier limit */
-#define RME_A7M_KMEM_BOOT_FRONTIER              0x20003400
-/* Init process's first thread's entry point address */
-#define RME_A7M_INIT_ENTRY                      0x08010001
-/* Init process's first thread's stack address */
-#define RME_A7M_INIT_STACK                      0x2001FFF0
-/* What is the NVIC priority grouping? */
-#define RME_A7M_NVIC_GROUPING                   RME_A7M_NVIC_GROUPING_P2S6
-/* What is the Systick value? - 10ms per tick*/
-#define RME_A7M_SYSTICK_VAL                     2160000
+    /* Cortex-M related settings */
+    /* Shared interrupt flag region address */
+    Para->Cdef("RME_A7M_INT_FLAG_ADDR",this->Main->Proj->RME->Map->Intf_Base);
+    /* Initial kernel object frontier limit */
+    Para->Cdef("RME_A7M_KMEM_BOOT_FRONTIER",this->Main->Proj->RVM->Map->Before_Kmem_Front);
+    /* Init process's first thread's entry point address */
+    Para->Cdef("RME_A7M_INIT_ENTRY",this->Main->Proj->RVM->Map->Code_Base|0x01);
+    /* Init process's first thread's stack address */
+    Para->Cdef("RME_A7M_INIT_STACK",
+               (this->Main->Proj->RVM->Map->Guard_Stack_Base+this->Main->Proj->RVM->Map->Guard_Stack_Size-16)&0xFFFFFFF0ULL);
+    /* What is the NVIC priority grouping? */
+    A7M=static_cast<class A7M*>(this->Main->Plat.get());
+    switch(A7M->NVIC_Grouping)
+    {
+        case A7M_NVIC_P0S8:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P0S8");break;
+        case A7M_NVIC_P1S7:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P1S7");break;
+        case A7M_NVIC_P2S6:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P2S6");break;
+        case A7M_NVIC_P3S5:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P3S5");break;
+        case A7M_NVIC_P4S4:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P4S4");break;
+        case A7M_NVIC_P5S3:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P5S3");break;
+        case A7M_NVIC_P6S2:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P6S2");break;
+        case A7M_NVIC_P7S1:Para->Cdef("RME_A7M_NVIC_GROUPING","RME_A7M_NVIC_GROUPING_P7S1");break;
+        default:throw std::runtime_error("A7M:\nInternal NVIC grouping error.");break;
+    }
+    /* What is the Systick value? - 10ms per tick*/
+    Para->Cdef("RME_A7M_SYSTICK_VAL",(ret_t)(A7M->Systick_Val));
 
-/* Fixed *********************************************************************/
-/* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER                     4
-/* Number of MPU regions available */
-#define RME_A7M_MPU_REGIONS                     8
-/* What is the FPU type? */
-#define RME_A7M_FPU_TYPE                        RME_A7M_FPV5_DP
+    /* Fixed settings - we will refill these with database values */
+    /* Number of MPU regions available */
+    Para->Cdef("RME_A7M_MPU_REGIONS",(ret_t)(this->Main->Chip->Regions));
+    /* What is the FPU type? */
+    switch(A7M->FPU_Type)
+    {
+        case A7M_FPU_NONE:Para->Cdef("RME_A7M_FPU_TYPE","RME_A7M_FPU_NONE");break;
+        case A7M_FPU_FPV4:Para->Cdef("RME_A7M_FPU_TYPE","RME_A7M_FPU_FPV4");break;
+        case A7M_FPU_FPV5_SP:Para->Cdef("RME_A7M_FPU_TYPE","RME_A7M_FPU_FPV5_SP");break;
+        case A7M_FPU_FPV5_DP:Para->Cdef("RME_A7M_FPU_TYPE","RME_A7M_FPU_FPV5_DP");break;
+        default:throw std::runtime_error("A7M:\nInternal FPU type error.");break;
+    }
     
     /* After we finish all these, we go back and populate the re-read file functionality */
-
+    File=this->Main->Dstfs->Open_File("M7M1_MuEukaron/MEukaron/Include/Platform/%s/Chips/%s/rme_platform_%s.h",
+                                      this->Main->Proj->Plat_Name->c_str(),
+                                      this->Main->Chip->Chip_Class->c_str(),
+                                      this->Main->Chip->Chip_Class->c_str());
+    Doc->Write(File);
+    fclose(File);
 }
 /* End Function:A7M_RME_Gen::Chip_Hdr ****************************************/
 
-/* Begin Function:A7M_RME_Gen::Ld_Script **************************************
+/* Begin Function:A7M_RME_Gen::Asm ********************************************
+Description : Generate the assembly file for RME. This is toolchain-dependent.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_RME_Gen::Asm(void)
+{
+    if(*(this->Main->Format)=="keil")
+        A7M_TC_Armc5::RME_Asm(this->Main);
+    else if(*(this->Main->Format)=="eclipse")
+        A7M_TC_Gcc::RME_Asm(this->Main);
+    else if(*(this->Main->Format)=="makefile")
+        A7M_TC_Gcc::RME_Asm(this->Main);
+    else
+        throw std::runtime_error("A7M:\nThis output format is not supported.");
+}
+/* End Function:A7M_RME_Gen::Asm *********************************************/
+
+/* Begin Function:A7M_RME_Gen::Lds ********************************************
 Description : Generate the linker script for RME. This is toolchain-dependent.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_RME_Gen::Ld_Script(void)
+void A7M_RME_Gen::Lds(void)
 {
-    /*
-    Prepare general ld generation...
-    what IDE are we using? call that IDE's ld generation..
-
-    if gcc, generate gcc's ld; else we generate keil's ld.
-    */
+    if(*(this->Main->Format)=="keil")
+        A7M_TC_Armc5::RME_Lds(this->Main);
+    else if(*(this->Main->Format)=="eclipse")
+        A7M_TC_Gcc::RME_Lds(this->Main);
+    else if(*(this->Main->Format)=="makefile")
+        A7M_TC_Gcc::RME_Lds(this->Main);
+    else
+        throw std::runtime_error("A7M:\nThis output format is not supported.");
 }
-/* End Function:A7M_RME_Gen::Ld_Script ****************************************/
+/* End Function:A7M_RME_Gen::Lds *********************************************/
 
-/* Begin Function:A7M_RME_Gen::IDE_Proj ****************************************
+/* Begin Function:A7M_RME_Gen::Proj *******************************************
 Description : Generate the chip header for RME. This is toolchain-dependent.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void A7M_RME_Gen::IDE_Proj(void)
+void A7M_RME_Gen::Proj(void)
 {
-    /*
-    Prepare general project generation...
-    */
+    if(*(this->Main->Format)=="keil")
+        A7M_IDE_Keil::RME_Proj(this->Main);
+    else if(*(this->Main->Format)=="eclipse")
+        A7M_IDE_Eclipse::RME_Proj(this->Main);
+    else if(*(this->Main->Format)=="makefile")
+        A7M_IDE_Makefile::RME_Proj(this->Main);
+    else
+        throw std::runtime_error("A7M:\nThis output format is not supported.");
 }
-/* End Function:A7M_RME_Gen::IDE_Proj ****************************************/
+/* End Function:A7M_RME_Gen::Proj ********************************************/
 
 /* Begin Function:A7M_RME_Gen::Plat_Gen ***************************************
 Description : Generate platform-related portion of the RME project.
@@ -192,8 +248,9 @@ Return      : None.
 void A7M_RME_Gen::Plat_Gen(void)
 {
     Chip_Hdr();
-    Ld_Script();
-    IDE_Proj();
+    Asm();
+    Lds();
+    Proj();
 }
 /* End Function:A7M_RME_Gen::Plat_Gen ****************************************/
 }
