@@ -27,17 +27,7 @@ Description : The project folder generation class.
 /* End Includes **************************************************************/
 namespace rme_mcu
 {
-/* Begin Function:Proc_User::Read ********************************************
-Description : Read the proc_user.c file, which contains all the user modifiable functions.
-Input       : FILE* File - The file to read from.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void Proc_User::Read(FILE* File)
-{
-    /* Currently left empty - should construct the proc_user.c document tree */
-}
-/* End Function:Proc_User::Read **********************************************/
+
 }
 /* End Of File ***************************************************************/
 

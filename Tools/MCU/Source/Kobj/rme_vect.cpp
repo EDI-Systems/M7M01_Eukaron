@@ -7,6 +7,7 @@ Description : The vector endpoint class.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
+#include "list"
 #include "string"
 #include "memory"
 #include "vector"

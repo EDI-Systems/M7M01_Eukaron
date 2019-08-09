@@ -182,7 +182,7 @@ void A7M_IDE_Keil::Proj(class Main* Main,
     Para->Add("          <Cpu>IRAM(0x08000000,0x10000) IROM(0x20000000,0x10000) CPUTYPE(\"%s\") %s CLOCK(12000000) %s</Cpu>",
               CPU_Type.c_str(), FPU_Type.c_str(), Endianness.c_str());
     Para->Add("          <OutputDirectory>.\\Objects\\</OutputDirectory>");
-    Para->Add("          <OutputName>%s</OutputName>\n", Target);
+    Para->Add("          <OutputName>%s</OutputName>", Target->c_str());
     Para->Add("          <CreateExecutable>1</CreateExecutable>");
     Para->Add("          <CreateHexFile>1</CreateHexFile>");
     Para->Add("          <DebugInformation>1</DebugInformation>");
@@ -302,7 +302,7 @@ void A7M_IDE_Keil::Proj(class Main* Main,
     Para->Add("      <Groups>");
     /* Print all files. We only have two groups in all cases. */
     Para->Add("        <Group>");
-    Para->Add("          <GroupName>%s</GroupName>", Target);
+    Para->Add("          <GroupName>%s</GroupName>", Target->c_str());
     Para->Add("          <Files>");
     for(std::unique_ptr<std::string>& Source:*Src)
     {
@@ -348,66 +348,99 @@ Return      : None.
 ******************************************************************************/
 void A7M_IDE_Keil::RME_Proj(class Main* Main)
 {
-    /* Project specific */
-    FILE* Keil;
-    s8_t* Proj_Path;
-    s8_t* Target;
-    ptr_t Opt;
-    ptr_t Timeopt;
-    /* Include path and project file buffer - we never exceed 8 */
-    s8_t* Includes[8];
-    ptr_t Include_Num;
-    s8_t* Paths[8];
-    s8_t* Files[8];
-    ptr_t File_Num;
+    class A7M* A7M;
+    std::unique_ptr<std::string> Filename;
+    std::unique_ptr<std::string> Target;
+    std::unique_ptr<std::string> Sct;
+    std::unique_ptr<std::vector<std::unique_ptr<std::string>>> Inc;
+    std::unique_ptr<std::vector<std::unique_ptr<std::string>>> Src;
 
-    /* Allocate project path buffer */
-    Proj_Path=Malloc(4096);
-    if(Proj_Path==0)
-        EXIT_FAIL("Project path allocation failed");
+    /* Filename */
+    Filename=std::make_unique<std::string>("M7M1_MuEukaron/Project/");
+    *Filename+=*(Main->Proj->Name)+"_RME.uvprojx";
 
-    /* Generate the RME keil project first */
-    sprintf(Proj_Path, "%s/M7M1_MuEukaron/Project/%s_RME.uvprojx", Output_Path, Proj->Name);
-    Keil=fopen(Proj_Path, "wb");
+    /* Target name */
+    Target=std::make_unique<std::string>("RME");
+    
+    /* Scatter file */
+    Sct=std::make_unique<std::string>("../MEukaron/Include/Platform/A7M/Chips/");
+    *Sct+=*(Main->Proj->Chip_Class)+"/rme_platform_"+*(Main->Proj->Chip_Class)+".sct";
 
     /* Allocate the include list */
-    Includes[0]=".";
-    Includes[1]="./Source";
-    Includes[2]="./Include";
-    Includes[3]="../MEukaron/Include";
-    Include_Num=4;
+    Inc=std::make_unique<std::vector<std::unique_ptr<std::string>>>();
+    Inc->push_back(std::make_unique<std::string>("./Source"));
+    Inc->push_back(std::make_unique<std::string>("./Include"));
+    Inc->push_back(std::make_unique<std::string>("../MEukaron/Include"));
+
     /* Allocate the file list */
-    Paths[0]="./Source";
-    Files[0]="rme_boot.c";
-    Paths[1]="./Source";
-    Files[1]="rme_user.c";
-    Paths[2]="../MEukaron/Kernel";
-    Files[2]="rme_kernel.c";
-    Paths[3]="../MEukaron/Platform/A7M";
-    Files[3]="rme_platform_a7m.c";
+    Src=std::make_unique<std::vector<std::unique_ptr<std::string>>>();
+    Src->push_back(std::make_unique<std::string>("./Source/rme_boot.c"));
+    Src->push_back(std::make_unique<std::string>("./Source/rme_user.c"));
+    Src->push_back(std::make_unique<std::string>("../MEukaron/Kernel/rme_kernel.c"));
+    Src->push_back(std::make_unique<std::string>("../MEukaron/Platform/A7M/rme_platform_a7m.c"));
+    
+    A7M=static_cast<class A7M*>(Main->Plat.get());
     if(A7M->CPU_Type==A7M_CPU_CM0P)
-    {
-        Paths[4]="../MEukaron/Platform/A7M";
-        Files[4]="rme_platform_a7m0p_asm.s";
-    }
+        Src->push_back(std::make_unique<std::string>("../MEukaron/Platform/A7M/rme_platform_a7m0p_asm.s"));
     else
-    {
-        Paths[4]="../MEukaron/Platform/A7M";
-        Files[4]="rme_platform_a7m_asm.s";
-    }
-    File_Num=5;
-    /* Generate whatever files that are keil specific */
-    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
-    /* Actually generate the project */
-    A7M_Gen_Keil_Proj(Keil, Target, Device, Vendor, CPU_Type, FPU_Type, Endianness,
-                      Timeopt, Opt,
-                      Includes, Include_Num,
-                      Paths, Files, File_Num);
-    fclose(Keil);
-    /* Project files needs to be generated as well */
-    A7M_Gen_Keil_RME(Proj, Chip, A7M, RME_Path, Output_Path);
+        Src->push_back(std::make_unique<std::string>("../MEukaron/Platform/A7M/rme_platform_a7m_asm.s"));
+   
+    Proj(Main,
+         Filename, Main->Proj->RME->Comp->Opt,  Main->Proj->RME->Comp->Prio,
+         Target, Sct, Inc, Src);
 }
 /* End Function:A7M_IDE_Keil::RME_Proj ***************************************/
+
+/* Begin Function:A7M_IDE_Keil::RVM_Proj **************************************
+Description : Generate the RVM keil project for ARMv7-M.
+Input       : class Main* Main - The main structure.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void A7M_IDE_Keil::RVM_Proj(class Main* Main)
+{
+    class A7M* A7M;
+    std::unique_ptr<std::string> Filename;
+    std::unique_ptr<std::string> Target;
+    std::unique_ptr<std::string> Sct;
+    std::unique_ptr<std::vector<std::unique_ptr<std::string>>> Inc;
+    std::unique_ptr<std::vector<std::unique_ptr<std::string>>> Src;
+
+    /* Filename */
+    Filename=std::make_unique<std::string>("M7M2_MuEukaron/Project/");
+    *Filename+=*(Main->Proj->Name)+"_RVM.uvprojx";
+
+    /* Target name */
+    Target=std::make_unique<std::string>("RVM");
+    
+    /* Scatter file */
+    Sct=std::make_unique<std::string>("../MAmmonite/Include/Platform/A7M/Chips/");
+    *Sct+=*(Main->Proj->Chip_Class)+"/rvm_platform_"+*(Main->Proj->Chip_Class)+".sct";
+
+    /* Allocate the include list */
+    Inc=std::make_unique<std::vector<std::unique_ptr<std::string>>>();
+    Inc->push_back(std::make_unique<std::string>("./Source"));
+    Inc->push_back(std::make_unique<std::string>("./Include"));
+    Inc->push_back(std::make_unique<std::string>("../MAmmonite/Include"));
+
+    /* Allocate the file list */
+    Src=std::make_unique<std::vector<std::unique_ptr<std::string>>>();
+    Src->push_back(std::make_unique<std::string>("./Source/rvm_boot.c"));
+    Src->push_back(std::make_unique<std::string>("./Source/rvm_user.c"));
+    Src->push_back(std::make_unique<std::string>("../MAmmonite/Init/rvm_init.c"));
+    Src->push_back(std::make_unique<std::string>("../MAmmonite/Platform/A7M/rvm_platform_a7m.c"));
+    
+    A7M=static_cast<class A7M*>(Main->Plat.get());
+    if(A7M->CPU_Type==A7M_CPU_CM0P)
+        Src->push_back(std::make_unique<std::string>("../MAmmonite/Platform/A7M/rvm_platform_a7m0p_asm.s"));
+    else
+        Src->push_back(std::make_unique<std::string>("../MAmmonite/Platform/A7M/rvm_platform_a7m_asm.s"));
+   
+    Proj(Main,
+         Filename, Main->Proj->RME->Comp->Opt,  Main->Proj->RME->Comp->Prio,
+         Target, Sct, Inc, Src);
+}
+/* End Function:A7M_IDE_Keil::RVM_Proj ***************************************/
 }
 /* End Of File ***************************************************************/
 

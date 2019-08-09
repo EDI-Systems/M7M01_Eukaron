@@ -85,6 +85,7 @@ public:
     std::unique_ptr<class RME_Gen> RME_Gen;
     std::unique_ptr<class RVM_Gen> RVM_Gen;
     std::unique_ptr<class Proc_Gen> Proc_Gen;
+    std::unique_ptr<class Proj_Gen> Proj_Gen;
     
     Main(int argc, char* argv[]);
 

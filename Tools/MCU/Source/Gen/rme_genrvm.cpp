@@ -75,18 +75,6 @@ extern "C"
 /* End Includes **************************************************************/
 namespace rme_mcu
 {
-/* Begin Function:RVM_User::Read **********************************************
-Description : Read the rvm_user.c file, which contains all the user modifiable functions.
-Input       : FILE* File - The file to read from.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void RVM_User::Read(FILE* File)
-{
-    /* Currently left empty - should construct the rvm_user.c document tree */
-}
-/* End Function:RVM_User::Read ***********************************************/
-
 /* Begin Function:RVM_Gen::Include ********************************************
 Description : Generate the RVM-related include section.
 Input       : std::unique_ptr<class Para>& Para - The paragraph to add these to.

@@ -32,6 +32,8 @@ class Dstfs
 {
     std::unique_ptr<std::string> Output;
 public:
+    Dstfs(std::unique_ptr<std::string>& Path);
+
     ret_t Dir_Present(std::unique_ptr<std::string>& Path);
     ret_t Dir_Empty(std::unique_ptr<std::string>& Path);
     void Make_Dir(std::unique_ptr<std::string>& Path);
