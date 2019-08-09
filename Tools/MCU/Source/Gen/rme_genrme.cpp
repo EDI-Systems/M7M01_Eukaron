@@ -75,19 +75,7 @@ extern "C"
 /* End Includes **************************************************************/
 namespace rme_mcu
 {
-/* Begin Function:RME_User::Read **********************************************
-Description : Read the rme_user.c file, which contains all the user modifiable functions.
-Input       : FILE* File - The file to read from.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void RME_User::Read(FILE* File)
-{
-    /* Currently left empty - should construct the rme_user.c document tree */
-}
-/* End Function:RME_User::Read ***********************************************/
-
-/* Begin Function:RME_Gen::Folder *********************************************
+/* Begin Function:RME_Gen::Include ********************************************
 Description : Insert the include files into the paragraph. 
               This is used only on the rme_boot.c and the rme_user.c.
 Input       : None.
@@ -121,7 +109,7 @@ void RME_Gen::Include(std::unique_ptr<class Para>& Para)
     Para->Add("#undef __HDR_PUBLIC_MEMBERS__");
     Para->Add("");
 }
-/* End Function:RME_Gen::Folder **********************************************/
+/* End Function:RME_Gen::Include *********************************************/
 
 /* Begin Function:RME_Gen::Folder *********************************************
 Description : Setup the generic folder contents for RME.

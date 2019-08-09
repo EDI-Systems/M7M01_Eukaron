@@ -26,11 +26,18 @@ namespace rme_mcu
 #ifndef __RME_GENPROC_HPP_CLASSES__
 #define __RME_GENPROC_HPP_CLASSES__
 /*****************************************************************************/
-/* Process user changeable file */
-class Proc_User:public Doc
+class Proc_Gen
 {
 public:
-    void Read(FILE* File);
+    class Main* Main;
+
+    virtual ~Proc_Gen(void){};
+
+    void Folder(class Proc* Proc);
+    void Proc_Hdr(class Proc* Proc);
+    void Proc_Src(class Proc* Proc);
+    
+    virtual void Plat_Gen(class Proc* Proc)=0;
 };
 /*****************************************************************************/
 /* __RME_GENPROC_HPP_CLASSES__ */

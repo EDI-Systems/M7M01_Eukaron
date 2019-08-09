@@ -118,6 +118,18 @@ extern "C" ptr_t Strlen(s8_t* Str)
 /* End Function:Strlen *******************************************************/
 namespace rme_mcu
 {
+/* Begin Function:Dstfs::Dstfs ***********************************************
+Description : The constructor for the Dstfs class.
+Input       : std::unique_ptr<std::string>& Path - The path to the directory.
+Output      : None.
+Return      : None.
+******************************************************************************/
+/* void */ Dstfs::Dstfs(std::unique_ptr<std::string>& Path)
+{
+    this->Output=std::make_unique<std::string>(*Path);
+}
+/* End Function:Dstfs::Dstfs *************************************************/
+
 /* Begin Function:Dstfs::Dir_Present ******************************************
 Description : Figure out whether the directory is present. This always goes to 
               the output directory.

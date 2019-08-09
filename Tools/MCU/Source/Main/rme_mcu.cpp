@@ -57,6 +57,7 @@ extern "C"
 #include "pbfs.h"
 }
 
+#include "list"
 #include "string"
 #include "memory"
 #include "vector"
@@ -261,29 +262,10 @@ void Main::Parse(void)
         this->Plat->Kmem_Order=this->Proj->RME->Kmem_Order;
 
         /* Generator objects */
-        this->RME_Gen->Srcfs=this->Srcfs.get();
-        this->RME_Gen->Dstfs=this->Dstfs.get();
-        this->RME_Gen->Plat=this->Plat.get();
-        this->RME_Gen->Proj=this->Proj.get();
-        this->RME_Gen->Chip=this->Chip.get();
-
-        this->RVM_Gen->Srcfs=this->Srcfs.get();
-        this->RVM_Gen->Dstfs=this->Dstfs.get();
-        this->RVM_Gen->Plat=this->Plat.get();
-        this->RVM_Gen->Proj=this->Proj.get();
-        this->RVM_Gen->Chip=this->Chip.get();
-
-        this->Proc_Gen->Srcfs=this->Srcfs.get();
-        this->Proc_Gen->Dstfs=this->Dstfs.get();
-        this->Proc_Gen->Plat=this->Plat.get();
-        this->Proc_Gen->Proj=this->Proj.get();
-        this->Proc_Gen->Chip=this->Chip.get();
-        
-        this->Proj_Gen->Srcfs=this->Srcfs.get();
-        this->Proj_Gen->Dstfs=this->Dstfs.get();
-        this->Proj_Gen->Plat=this->Plat.get();
-        this->Proj_Gen->Proj=this->Proj.get();
-        this->Proj_Gen->Chip=this->Chip.get();
+        this->RME_Gen->Main=this;
+        this->RVM_Gen->Main=this;
+        this->Proc_Gen->Main=this;
+        this->Proj_Gen->Main=this;
     }
     catch(std::exception& Exc)
     {
@@ -712,19 +694,43 @@ void Main::Alloc_Obj(void)
     }
 }
 /* End Function:Main::Alloc_Obj **********************************************/
+
+/* Begin Function:Main::Gen_RME ***********************************************
+Description : Generate the RME project.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
 void Main::Gen_RME(void)
 {
-    this->RME_Gen->
+    this->RME_Gen->Folder();
+    this->RME_Gen->Conf_Hdr();
+    this->RME_Gen->Boot_Hdr();
+    this->RME_Gen->Boot_Src();
+    this->RME_Gen->User_Src();
+    this->RME_Gen->Plat_Gen();
 }
+/* End Function:Main::Gen_RME ************************************************/
 
 void Main::Gen_RVM(void)
 {
-
+    this->RVM_Gen->Folder();
+    this->RVM_Gen->Conf_Hdr();
+    this->RVM_Gen->Boot_Hdr();
+    this->RVM_Gen->Boot_Src();
+    this->RVM_Gen->User_Src();
+    this->RVM_Gen->Plat_Gen();
 }
 
 void Main::Gen_Proc(void)
 {
-
+    for(std::unique_ptr<class Proc>& Proc:this->Proj->Proc)
+    {
+        this->Proc_Gen->Folder(Proc.get());
+        this->Proc_Gen->Proc_Hdr(Proc.get());
+        this->Proc_Gen->Proc_Src(Proc.get());
+        this->Proc_Gen->Plat_Gen(Proc.get());
+    }
 }
 
 void Main::Gen_Proj(void)

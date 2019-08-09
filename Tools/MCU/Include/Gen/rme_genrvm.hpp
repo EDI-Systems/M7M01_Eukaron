@@ -26,13 +26,6 @@ namespace rme_mcu
 #ifndef __RME_GENRVM_HPP_CLASSES__
 #define __RME_GENRVM_HPP_CLASSES__
 /*****************************************************************************/
-/* RVM user changeable file */
-class RVM_User:public Doc
-{
-public:
-    void Read(FILE* File);
-};
-
 class RVM_Gen
 {
     void Include(std::unique_ptr<class Para>& Para);
