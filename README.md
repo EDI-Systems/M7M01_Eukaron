@@ -26,7 +26,7 @@
 &ensp;&ensp;&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
 
 &ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
-This software is now placed into **public domain**: all rights reserved by the author are now granted to all entities under all applicable laws.
+This software is an official work of EDI, and thus belongs to the **public domain**. All copyrights reserved by EDI are granted to all entities under all applicable laws to the maximum extent.
 
 &ensp;&ensp;&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
 
