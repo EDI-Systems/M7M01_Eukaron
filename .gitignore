@@ -73,8 +73,3 @@ Project/**/.jxbrowser-data/**
 Project/**/.metadata/**
 Project/**/.tempFiles/**
 Project/**/.jxbrowser-data/**
-
-# MSVC specific
-**/Debug/*
-**/Release/*
-**/.vs/*
