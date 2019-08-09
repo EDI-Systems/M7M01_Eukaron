@@ -31,21 +31,12 @@ Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
 /* Includes ******************************************************************/
 #define __HDR_DEFS__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_kotbl.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
 #include "Platform/X64/rme_platform_x64.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
 #include "Platform/X64/rme_platform_x64.h"
-#include "Kernel/rme_captbl.h"
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_siginv.h"
 #undef __HDR_STRUCTS__
 
 /* Private include */
@@ -53,11 +44,6 @@ Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
 
 #define __HDR_PUBLIC_MEMBERS__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_kotbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
