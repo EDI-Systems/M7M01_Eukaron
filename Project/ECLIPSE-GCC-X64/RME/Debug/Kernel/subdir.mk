@@ -10,7 +10,6 @@ OBJS += \
 ./Kernel/rme_kernel.o
 
 C_DEPS += \
-./Kernel/rme_captbl.d
 ./Kernel/rme_kernel.d
 
 
