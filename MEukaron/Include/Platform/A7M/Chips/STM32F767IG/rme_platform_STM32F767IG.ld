@@ -2,7 +2,7 @@
 Filename    : rme_platform_STM32F767IG.ld
 Author      : pry
 Date        : 24/06/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The scatter file for Cortex-M7 layout. This file is intended 
               to be used with STM32F767IGT6, and the GNU toolchain.
               ROM: 0x08000000 0x00100000

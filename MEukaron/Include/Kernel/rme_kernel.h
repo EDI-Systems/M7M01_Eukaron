@@ -2,7 +2,7 @@
 Filename    : rme_kernel.h
 Author      : pry
 Date        : 08/04/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The header of kernel system call path.
 ******************************************************************************/
 

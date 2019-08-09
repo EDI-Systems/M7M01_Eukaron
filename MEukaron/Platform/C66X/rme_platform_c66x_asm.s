@@ -2,6 +2,7 @@
 ;Filename    : platform_c66x.s
 ;Author      : pry
 ;Date        : 19/01/2017
+;License     : The Unlicense; see LICENSE for details.
 ;Description : The C66X assembly support of the RME RTOS.
 ;*****************************************************************************/
 
