@@ -2,7 +2,7 @@
 Filename    : benchmark.c
 Author      : pry
 Date        : 04/09/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The benchmark file for RME.
 ******************************************************************************/
 

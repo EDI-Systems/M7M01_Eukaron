@@ -2,7 +2,7 @@
 Filename    : rme_platform_a7m.h
 Author      : pry
 Date        : 01/04/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The header of "rme_platform_a7m.c".
 ******************************************************************************/
 

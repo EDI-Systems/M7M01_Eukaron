@@ -2,7 +2,7 @@
 Filename    : rme_kernel.c
 Author      : pry
 Date        : 23/03/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The system call processing path, debugging primitives and kernel
               capability implementation for the RME system.
               

@@ -2,7 +2,7 @@
 Filename    : platform_x64.c
 Author      : pry
 Date        : 01/04/2017
-Licence     : LGPL v3+; see COPYING for details.
+Licence     : The Unlicense; see LICENSE for details.
 Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
               TODO list:
               1. Fix all the system call/int gates, make sure that they cannot cause DOS.
