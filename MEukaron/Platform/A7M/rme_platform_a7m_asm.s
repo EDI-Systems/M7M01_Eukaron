@@ -47,6 +47,8 @@ __heap_limit
     EXPORT              __RME_Disable_Int
     ;Enable all interrupts
     EXPORT              __RME_Enable_Int
+    ;A full barrier
+    EXPORT              __RME_A7M_Barrier
     ;Wait until interrupts happen
     EXPORT              __RME_A7M_Wait_Int
     ;Get the MSB in a word
@@ -61,11 +63,13 @@ __heap_limit
     EXPORT              ___RME_A7M_Thd_Cop_Restore
     ;The MPU setup routine
     EXPORT              ___RME_A7M_MPU_Set
+    ;A full barrier
+    EXPORT              __RME_A7M_Barrier
 ;/* End Exports **************************************************************/
 
 ;/* Begin Imports ************************************************************/
-    ;What keil and CMSIS provided. Have to call these.
-    IMPORT              SystemInit
+    ;Preinitialization routine.
+    IMPORT              __RME_A7M_Low_Level_Preinit
     IMPORT              __main
     ;The kernel entry of RME. This will be defined in C language.
     IMPORT              RME_Kmain
@@ -388,12 +392,12 @@ __user_initial_stackheap
 
 ;/* Begin Handlers ***********************************************************/
 Reset_Handler           PROC
-     LDR                R0, =SystemInit
+     LDR                R0, =__RME_A7M_Low_Level_Preinit
      BLX                R0
      LDR                R0, =__main
      BX                 R0
      ENDP
-                     
+
 Default_Handler         PROC
 
      EXPORT             IRQ0_Handler        [WEAK]  ; 240 External Interrupts
@@ -966,6 +970,19 @@ __RME_Enable_Int
     CPSIE               I 
     BX                  LR
 ;/* End Function:__RME_Enable_Int ********************************************/
+
+;/* Begin Function:__RME_A7M_Barrier ******************************************
+;Description : A full data/instruction barrier.
+;Input       : None.
+;Output      : None.    
+;Return      : None.
+;*****************************************************************************/
+__RME_A7M_Barrier
+    ;Enable all interrupts.
+    DSB                 SY
+    ISB                 SY
+    BX                  LR
+;/* End Function:__RME_A7M_Barrier *******************************************/
 
 ;/* Begin Function:__RME_A7M_Wait_Int *****************************************
 ;Description : Wait until a new interrupt comes, to save power.

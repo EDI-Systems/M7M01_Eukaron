@@ -89,7 +89,7 @@ Description : The header of kernel system call path.
 #define RME_PRINTK_S(STR)               RME_Print_String((rme_s8_t*)(STR))
 
 /* Shutdown debugging */
-#define RME_ASSERT_CORRECT
+/* #define RME_ASSERT_CORRECT */
 /* Default assert macro - used only when internal development option is on */
 #ifndef RME_ASSERT_CORRECT
 #define RME_ASSERT(X) \
@@ -900,7 +900,7 @@ static rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgt
 static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
 static struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local);
-static rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                               struct RME_Thd_Struct* Curr_Thd, 
                               struct RME_Thd_Struct* Next_Thd);
@@ -1037,8 +1037,8 @@ __EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t 
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
+__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Sig_Struct* Sig);
 __EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local);
-__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                        rme_cid_t Cap_Sig, rme_ptr_t Vaddr);
