@@ -279,6 +279,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_SIZE_1Z               (70)
 
 /* Generic page table entry number definitions */
+#define RME_PGTBL_NUM_1                 (0)
 #define RME_PGTBL_NUM_2                 (1)
 #define RME_PGTBL_NUM_4                 (2)
 #define RME_PGTBL_NUM_8                 (3)

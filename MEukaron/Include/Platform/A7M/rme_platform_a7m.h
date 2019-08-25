@@ -125,8 +125,84 @@ typedef rme_s32_t rme_ret_t;
 /* End System macros *********************************************************/
 
 /* Cortex-M specific macros **************************************************/
+/* Registers *****************************************************************/
+#define RME_A7M_REG(X)                  (*((volatile rme_ptr_t*)(X)))
+#define RME_A7M_REGB(X)                 (*((volatile rme_u8_t*)(X)))
+    
+#define RME_A7M_SCB_ICALLU              RME_A7M_REG(0xE000ED00+0x250)
+
+#define RME_A7M_SCB_CCR                 RME_A7M_REG(0xE000ED00+0x014)
+#define RME_A7M_SCB_CCR_IC              (1U<<17)
+#define RME_A7M_SCB_CCR_DC              (1U<<16)
+
+#define RME_A7M_SCB_CSSELR              RME_A7M_REG(0xE000ED00+0x084)
+
+#define RME_A7M_SCB_CCSIDR              RME_A7M_REG(0xE000ED00+0x080)
+#define RME_A7M_SCB_CCSIDR_WAYS(X)      (((X)&0x1FF8)>>3)
+#define RME_A7M_SCB_CCSIDR_SETS(X)      (((X)&0x0FFFE000)>>13)
+
+#define RME_A7M_SCB_CPACR               RME_A7M_REG(0xE000ED00+0x088)
+
+#define RME_A7M_SCB_VTOR                RME_A7M_REG(0xE000ED00+0x008)
+
+#define RME_A7M_SCB_DCISW               RME_A7M_REG(0xE000ED00+0x260)
+#define RME_A7M_SCB_DCISW_INV(SET,WAY)  (((SET)<<5)|((WAY)<<30))
+
+#define RME_A7M_SCB_SHCSR               RME_A7M_REG(0xE000ED00+0x024)
+#define RME_A7M_SCB_SHCSR_MEMFAULTENA   (1U<<16)
+#define RME_A7M_SCB_SHCSR_BUSFAULTENA   (1U<<17)
+#define RME_A7M_SCB_SHCSR_USGFAULTENA   (1U<<18)
+
+#define RME_A7M_SCB_HFSR                RME_A7M_REG(0xE000ED2C)
+#define RME_A7M_SCB_CFSR                RME_A7M_REG(0xE000ED28)
+#define RME_A7M_SCB_MMFAR               RME_A7M_REG(0xE000ED34)
+#define RME_A7M_SCB_ICSR                RME_A7M_REG(0xE000ED04)
+
+#define RME_A7M_ITM_TCR                 RME_A7M_REG(0xE0000000+0xE80)
+#define RME_A7M_ITM_TCR_ITMENA          (1U<<0)
+
+#define RME_A7M_ITM_TER                 RME_A7M_REG(0xE0000000+0xE00)
+#define RME_A7M_ITM_PORT(X)             RME_A7M_REG(0xE0000000+((X)<<2))
+
+#define RME_A7M_MPU_CTRL                RME_A7M_REG(0xE000ED90+0x004)
+#define RME_A7M_MPU_CTRL_PRIVDEF        (1U<<2)
+#define RME_A7M_MPU_CTRL_ENABLE         (1U<<0)
+
+#define RME_A7M_SCB_AIRCR               RME_A7M_REG(0xE000ED90+0x00C)
+#define RME_A7M_NVIC_GROUPING_P7S1      0
+#define RME_A7M_NVIC_GROUPING_P6S2      1
+#define RME_A7M_NVIC_GROUPING_P5S3      2
+#define RME_A7M_NVIC_GROUPING_P4S4      3
+#define RME_A7M_NVIC_GROUPING_P3S5      4
+#define RME_A7M_NVIC_GROUPING_P2S6      5
+#define RME_A7M_NVIC_GROUPING_P1S7      6
+#define RME_A7M_NVIC_GROUPING_P0S8      7
+
+#define RME_A7M_SCB_SHPR(X)             RME_A7M_REGB(0xE000ED00+0x018+(X))
+#define RME_A7M_NVIC_IP(X)              RME_A7M_REGB(0xE000E000+0x0100+0x300+(X))
+#define RME_A7M_NVIC_ISE(X)             RME_A7M_REG(0xE000E100+(X)*4)
+#define RME_A7M_NVIC_ICE(X)             RME_A7M_REG(0XE000E180+(X)*4)
+
+#define RME_A7M_IRQN_NONMASKABLEINT     -14
+#define RME_A7M_IRQN_MEMORYMANAGEMENT   -12
+#define RME_A7M_IRQN_BUSFAULT           -11
+#define RME_A7M_IRQN_USAGEFAULT         -10
+#define RME_A7M_IRQN_SVCALL             -5
+#define RME_A7M_IRQN_DEBUGMONITOR       -4
+#define RME_A7M_IRQN_PENDSV             -2
+#define RME_A7M_IRQN_SYSTICK            -1
+
+#define RME_A7M_SYSTICK_CTRL            RME_A7M_REG(0xE000E000UL+0x0010UL+0x000)
+#define RME_A7M_SYSTICK_LOAD            RME_A7M_REG(0xE000E000UL+0x0010UL+0x004)
+#define RME_A7M_SYSTICK_VALREG          RME_A7M_REG(0xE000E000UL+0x0010UL+0x008)
+#define RME_A7M_SYSTICK_CALIB           RME_A7M_REG(0xE000E000UL+0x0010UL+0x00C)
+
+#define RME_A7M_SYSTICK_CTRL_CLKSOURCE  (1U<<2)
+#define RME_A7M_SYSTICK_CTRL_TICKINT    (1U<<1)
+#define RME_A7M_SYSTICK_CTRL_ENABLE     (1U<<0)
+
 /* Generic *******************************************************************/
-/* Cortex-M (ARMv8) EXC_RETURN values */
+/* Cortex-M (ARMv7) EXC_RETURN values */
 #define RME_A7M_EXC_RET_BASE            (0xFFFFFF80)
 /* Whether we are returning to secure stack. 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_SECURE_STACK    (1<<6)
@@ -147,21 +223,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_FPU_FPV5_DP             (3)
 
 /* Handler *******************************************************************/
-/* Some useful SCB definitions */
-#define RME_A7M_SHCSR_USGFAULTENA       (1<<18)
-#define RME_A7M_SHCSR_BUSFAULTENA       (1<<17)
-#define RME_A7M_SHCSR_MEMFAULTENA       (1<<16)
-/* MPU definitions */
-#define RME_A7M_MPU_PRIVDEF             0x00000004
-/* NVIC definitions */
-#define RME_A7M_NVIC_GROUPING_P7S1      0
-#define RME_A7M_NVIC_GROUPING_P6S2      1
-#define RME_A7M_NVIC_GROUPING_P5S3      2
-#define RME_A7M_NVIC_GROUPING_P4S4      3
-#define RME_A7M_NVIC_GROUPING_P3S5      4
-#define RME_A7M_NVIC_GROUPING_P2S6      5
-#define RME_A7M_NVIC_GROUPING_P1S7      6
-#define RME_A7M_NVIC_GROUPING_P0S8      7
 /* Fault definitions */
 /* The NMI is active */
 #define RME_A7M_ICSR_NMIPENDSET         (((rme_ptr_t)1)<<31)
@@ -397,8 +458,9 @@ struct __RME_A7M_Pgtbl_Meta
 /* MPU metadata structure */
 struct __RME_A7M_MPU_Data
 {
-    /* [31:16] Static [15:0] Present */
-    rme_ptr_t State;
+    /* Bitmap showing whether these are static or not */
+    rme_ptr_t Static;
+    /* The MPU data itself. For ARMv7-M, the number of regions shall not exceed 32 */
     struct __RME_A7M_MPU_Entry Data[RME_A7M_MPU_REGIONS];
 };
 /*****************************************************************************/
@@ -431,12 +493,14 @@ struct __RME_A7M_MPU_Data
 
 /* Private C Function Prototypes *********************************************/ 
 /* Page Table ****************************************************************/
-static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, rme_ptr_t Entry_Size_Order);
+static rme_ptr_t __RME_A7M_Rand(void);
+static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
+                                           rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
                                         rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
                                       rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
-                                      rme_ptr_t MPU_RASR, rme_ptr_t Static_Flag);
+                                      rme_ptr_t MPU_RASR, rme_ptr_t Static);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
 /*****************************************************************************/
 #define __EXTERN__
@@ -461,6 +525,7 @@ __EXTERN__ struct RME_CPU_Local RME_A7M_Local;
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
 EXTERN void __RME_Enable_Int(void);
+EXTERN void __RME_A7M_Barrier(void);
 EXTERN void __RME_A7M_Wait_Int(void);
 /* MSB counting */
 EXTERN rme_ptr_t __RME_A7M_MSB_Get(rme_ptr_t Val);
@@ -468,6 +533,11 @@ EXTERN rme_ptr_t __RME_A7M_MSB_Get(rme_ptr_t Val);
 __EXTERN__ rme_ptr_t __RME_A7M_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
 __EXTERN__ rme_ptr_t __RME_A7M_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_A7M_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__EXTERN__ void __RME_A7M_Enable_Cache(void);
+__EXTERN__ void __RME_A7M_ITM_Putchar(char Char);
+__EXTERN__ void __RME_A7M_NVIC_Enable_IRQ(rme_ptr_t IRQ);
+__EXTERN__ void __RME_A7M_NVIC_Disable_IRQ(rme_ptr_t IRQ);
+__EXTERN__ void __RME_A7M_NVIC_Set_Prio(rme_ret_t IRQ, rme_ptr_t Prio);
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Getting CPUID */
@@ -484,6 +554,7 @@ __EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr
 
 /* Initialization ************************************************************/
 EXTERN void _RME_Kmain(rme_ptr_t Stack);
+__EXTERN__ void __RME_A7M_Low_Level_Preinit(void);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);

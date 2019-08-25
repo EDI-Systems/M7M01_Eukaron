@@ -588,12 +588,12 @@ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
             /* Delete it from runqueue */
             _RME_Run_Del(CPU_Local->Cur_Thd);
             /* Send a scheduler notification to its parent */
-            _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
         }
     }
 
     /* Send to the system ticker receive endpoint. This endpoint is per-core */
-    _RME_Kern_Snd(Reg, CPU_Local->Tick_Sig);
+    _RME_Kern_Snd(CPU_Local->Tick_Sig);
 
     /* All kernel send complete, now pick the highest priority thread to run */
     _RME_Kern_High(Reg, CPU_Local);
@@ -2295,7 +2295,7 @@ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
         (CPU_Local->Cur_Thd)->Sched.State=RME_THD_FAULT;
         _RME_Run_Del(CPU_Local->Cur_Thd);
         /* Send a scheduler notification to its parent */
-        _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+        _RME_Run_Notif(CPU_Local->Cur_Thd);
     	/* All kernel send complete, now pick the highest priority thread to run */
     	_RME_Kern_High(Reg,CPU_Local);
     }
@@ -2390,12 +2390,14 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
 /* Begin Function:_RME_Run_Notif **********************************************
 Description : Send a notification to the thread's parent, to notify that this 
               thread is currently out of time, or have a fault.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
-              struct RME_Thd_Struct* Thd - The thread to send notification for.
+              This function includes kernel send, so we need to call _RME_Kern_High
+              after this. The only exception being the _RME_Thd_Swt system call, in
+              which we use a more optimized routine.
+Input       : struct RME_Thd_Struct* Thd - The thread to send notification for.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd)
+rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
 {
     /* See if there is already a notification. If yes, do not do the send again */
     if(Thd->Sched.Notif.Next==&(Thd->Sched.Notif))
@@ -2407,7 +2409,7 @@ rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd)
 
     /* If this guy have an endpoint, send to it */
     if(Thd->Sched.Sched_Sig!=0)
-    	_RME_Kern_Snd(Reg,Thd->Sched.Sched_Sig);
+    	_RME_Kern_Snd(Thd->Sched.Sched_Sig);
 
     return 0;
 }
@@ -3624,7 +3626,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
         }
 
         /* Notify the parent about this */
-        _RME_Run_Notif(Reg, Thd_Src_Struct);
+        _RME_Run_Notif(Thd_Src_Struct);
     }
 
     /* Now save the system call return value to the caller stack - how much time the destination have now */
@@ -3704,8 +3706,10 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             _RME_Run_Del(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
-            /* Notify the parent about this */
-            _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+            /* Notify the parent about this. This function includes kernel send as well, but
+             * we don't need to call _RME_Kern_High after this because we are using optimized
+             * logic for this context switch. For all other cases, _RME_Kern_High must be called. */
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
             /* See if the next thread is on the same priority level with the designated thread.
              * because we have sent a notification, we are not sure about this now. Additionally,
              * if the next thread is the current thread, we are forced to switch to someone else,
@@ -3726,7 +3730,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
-            _RME_Run_Notif(Reg, CPU_Local->Cur_Thd);
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
         }
         else
         {
@@ -3976,19 +3980,14 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local)
 Description : Try to send a signal to an endpoint from kernel. This is intended to
               be called in the interrupt routines in the kernel, and this is not a
               system call.
-Input       : struct RME_Reg_Struct* Reg - The register set.
-              struct RME_Sig_Struct* Sig - The signal structure.
+Input       : struct RME_Sig_Struct* Sig - The signal structure.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_Struct)
+rme_ret_t _RME_Kern_Snd(struct RME_Sig_Struct* Sig_Struct)
 {
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Unblock;
-    
-    /* Cannot send to a pure user endpoint in the kernel */
-    if(Sig_Struct->Refcnt==0)
-        return RME_ERR_SIV_CONFLICT;
     
     /* See if we can receive on that endpoint - if someone blocks, we must
      * wait for it to unblock before we can proceed */
