@@ -921,10 +921,10 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
     
     switch(Num_Order)
     {
-        case RME_PGTBL_NUM_1:Flag=0xFF;break;
-        case RME_PGTBL_NUM_2:Flag=0x0F;break;
-        case RME_PGTBL_NUM_4:Flag=0x03;break;
-        case RME_PGTBL_NUM_8:Flag=0x01;break;
+        case RME_PGTBL_NUM_1:Flag=0xFFU;break;
+        case RME_PGTBL_NUM_2:Flag=0x0FU;break;
+        case RME_PGTBL_NUM_4:Flag=0x03U;break;
+        case RME_PGTBL_NUM_8:Flag=0x01U;break;
         default:RME_ASSERT(0);break;
     }
     

@@ -120,7 +120,28 @@ do \
 } \
 while(0)
 #endif
-    
+
+/* Coverage testing marker */
+/* #define RME_COVERAGE */
+/* Test marker macro */
+#ifdef RME_COVERAGE
+#define RME_COVERAGE_LINES          (8192)
+#define RME_COVERAGE_MARKER() \
+do \
+{ \
+    RME_Coverage[__LINE__]++; \
+    RME_Coverage[0]=RME_Coverage[__LINE__]; \
+} \
+while(0)
+#else
+#define RME_COVERAGE_MARKER() \
+do \
+{ \
+    \
+} \
+while(0)
+#endif
+
 /* Kernel Object Table *******************************************************/
 /* Bitmap reference error */
 #define RME_ERR_KOT_BMP             (-1)
