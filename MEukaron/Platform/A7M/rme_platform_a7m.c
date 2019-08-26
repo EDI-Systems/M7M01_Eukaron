@@ -553,17 +553,18 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr=RME_KMEM_VA_START;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,18)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(18));
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_A7M_BOOT_CAPTBL_SIZE)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_A7M_BOOT_CAPTBL_SIZE));
     
-//    /* Create the page table for the init process, and map in the page alloted for it */
-//    /* The top-level page table - covers 4G address range */
-//    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-//               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0);
-//    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_1));
-//    /* Other memory regions will be directly added, because we do not protect them in the init process */
-//    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
-    
+#if(RME_GEN_ENABLE==RME_TRUE)
+    /* Create the page table for the init process, and map in the page alloted for it */
+    /* The top-level page table - covers 4G address range */
+    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
+               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_1));
+    /* Other memory regions will be directly added, because we do not protect them in the init process */
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
+#else
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
@@ -578,7 +579,8 @@ rme_ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000, 5, RME_PGTBL_ALL_PERM)==0);
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000, 6, RME_PGTBL_ALL_PERM)==0);
     RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000, 7, RME_PGTBL_ALL_PERM)==0);
-    
+#endif
+
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Proc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC, 
                                   RME_BOOT_CAPTBL, RME_BOOT_PGTBL, Cur_Addr)==0);
@@ -962,7 +964,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
         case RME_PGTBL_NUM_2:Flag=0x0FU;break;
         case RME_PGTBL_NUM_4:Flag=0x03U;break;
         case RME_PGTBL_NUM_8:Flag=0x01U;break;
-        default:RME_ASSERT(0);break;
+        default:RME_ASSERT(0);
     }
     
     for(Count=0;Count<RME_POW2(Num_Order);Count++)

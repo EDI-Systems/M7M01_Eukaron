@@ -25,6 +25,11 @@ Description: The configuration file for STM32F767IG.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                    32
 
+#if(RME_GEN_ENABLE==RME_TRUE)
+#define RME_A7M_BOOT_CAPTBL_SIZE                18
+#else
+#define RME_A7M_BOOT_CAPTBL_SIZE                18
+#endif
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_A7M_INT_FLAG_ADDR                   0x20010000
 /* Initial kernel object frontier limit */
