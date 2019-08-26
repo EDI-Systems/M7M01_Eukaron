@@ -3,7 +3,8 @@ Filename    : rme_kernel.h
 Author      : pry
 Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of kernel system call path.
+Description : The header of the kernel. Whitebox testing of all branches encapsulated
+              in macros are inspected manually carefully.
 ******************************************************************************/
 
 /* Defines *******************************************************************/

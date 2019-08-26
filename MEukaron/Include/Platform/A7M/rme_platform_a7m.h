@@ -290,8 +290,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_BOOT_INIT_KMEM              5
 /* The initial timer endpoint */
 #define RME_BOOT_INIT_TIMER             6
-/* The initial default endpoint for all other interrupts */
-#define RME_BOOT_INIT_INT               7
+/* The initial default endpoint for all other vectors */
+#define RME_BOOT_INIT_VECT               7
 
 /* Booting capability layout */
 #define RME_A7M_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
