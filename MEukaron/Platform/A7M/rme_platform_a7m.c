@@ -221,6 +221,7 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     rme_ptr_t Cur_CFSR;
     rme_ptr_t Cur_MMFAR;
     rme_ptr_t Flags;
+    rme_ptr_t* Stack;
     struct RME_Proc_Struct* Proc;
     struct RME_Inv_Struct* Inv_Top;
     struct __RME_A7M_Pgtbl_Meta* Meta;
@@ -243,17 +244,16 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     
     /* We cannot recover from the following: */
     if(Cur_CFSR&
-         (RME_A7M_UFSR_DIVBYZERO||      /* Division by zero errors */
-          RME_A7M_UFSR_UNALIGNED||      /* Unaligned access errors */
-          RME_A7M_UFSR_NOCP||           /* Unpresenting coprocessor errors */
-          RME_A7M_UFSR_INVPC||          /* Invalid PC from return load errors */
-          RME_A7M_UFSR_INVSTATE||       /* Invalid EPSR state errors */
-          RME_A7M_UFSR_UNDEFINSTR||     /* Undefined instruction errors */
-          RME_A7M_BFSR_UNSTKERR||       /* Bus unstacking errors */ 
-          RME_A7M_BFSR_PRECISERR||      /* Precise bus data errors */
-          RME_A7M_BFSR_IBUSERR||        /* Bus instruction errors */
-          RME_A7M_MFSR_MUNSTKERR||      /* MPU unstacking errors */
-          RME_A7M_MFSR_IACCVIOL)!=0)    /* MPU instruction access errors */
+       (RME_A7M_UFSR_DIVBYZERO||      /* Division by zero errors */
+        RME_A7M_UFSR_UNALIGNED||      /* Unaligned access errors */
+        RME_A7M_UFSR_NOCP||           /* Unpresenting coprocessor errors */
+        RME_A7M_UFSR_INVPC||          /* Invalid PC from return load errors */
+        RME_A7M_UFSR_INVSTATE||       /* Invalid EPSR state errors */
+        RME_A7M_UFSR_UNDEFINSTR||     /* Undefined instruction errors */
+        RME_A7M_BFSR_UNSTKERR||       /* Bus unstacking errors */ 
+        RME_A7M_BFSR_PRECISERR||      /* Precise bus data errors */
+        RME_A7M_BFSR_IBUSERR||        /* Bus instruction errors */
+        RME_A7M_MFSR_MUNSTKERR)!=0)   /* MPU unstacking errors */
     {
         
         __RME_Thd_Fatal(Reg);
@@ -280,6 +280,43 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
             /* Try to update the dynamic page */
             if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
                 __RME_Thd_Fatal(Reg);
+        }
+    }
+    /* This is an instruction access violation. We need to know where that instruction is.
+     * This requires access of an user-level page, due to the fact that the fault address
+     * is stored on the fault stack. */ 
+    else if((Cur_CFSR&RME_A7M_MFSR_IACCVIOL)!=0)
+    {
+        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
+        if(Inv_Top==0)
+            Proc=(RME_A7M_Local.Cur_Thd)->Sched.Proc;
+        else
+            Proc=Inv_Top->Proc;
+        
+        Stack=(rme_ptr_t*)(Reg->SP);
+        
+        /* Stack[6] is where the PC is before the fault */
+        if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6]), (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+            __RME_Thd_Fatal(Reg);
+        else
+        {
+            /* The SP address is actually accessible. Find the actual instruction address then */
+            if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6], (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+                __RME_Thd_Fatal(Reg);
+            {
+                /* This must be a dynamic page */
+                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
+                
+                /* This page does not allow execution */
+                if((Flags&RME_PGTBL_EXECUTE)==0)
+                    __RME_Thd_Fatal(Reg);
+                else
+                {
+                    /* Try to update the dynamic page */
+                    if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
+                        __RME_Thd_Fatal(Reg);
+                }
+            }
         }
     }
     /* Drop anything else. Imprecise bus faults, stacking errors, because they cannot be attributed
@@ -564,7 +601,7 @@ rme_ptr_t __RME_Boot(void)
     
     /* Create the initial kernel endpoint for all other interrupts */
     RME_A7M_Local.Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_INT, Cur_Addr)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
     /* Clean up the region for interrupts */
