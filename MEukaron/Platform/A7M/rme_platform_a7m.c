@@ -548,7 +548,7 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    /* volatile rme_ptr_t Size; */
+    volatile rme_ptr_t Size;
     
     Cur_Addr=RME_KMEM_VA_START;
     
@@ -615,24 +615,35 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
     /* Print the size of some kernel objects, only used in debugging */
-    /* Size=RME_INV_SIZE/sizeof(rme_ptr_t);
-    Size=RME_SIG_SIZE/sizeof(rme_ptr_t);
-    Size=RME_THD_SIZE/sizeof(rme_ptr_t);
-    Size=RME_PROC_SIZE/sizeof(rme_ptr_t); */
-
+    Size=RME_CAPTBL_SIZE(1);
+    Size=RME_PGTBL_SIZE_TOP(0)-sizeof(rme_ptr_t);
+    Size=RME_PGTBL_SIZE_NOM(0)-sizeof(rme_ptr_t);
+    Size=RME_INV_SIZE;
+    Size=RME_SIG_SIZE;
+    Size=RME_THD_SIZE;
+    Size=RME_PROC_SIZE;
+    
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_GEN_ENABLE==RME_TRUE)
-    extern void RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
-    RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_INT+1, Cur_Addr);
+    extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
+    Cur_Addr=RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_VECT+1, Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
+#if(RME_GEN_ENABLE==RME_TRUE)
+    RME_ASSERT(Cur_Addr==RME_A7M_KMEM_BOOT_FRONTIER);
+#else
     RME_ASSERT(Cur_Addr<RME_A7M_KMEM_BOOT_FRONTIER);
+#endif
+
     /* Enable the MPU & interrupt */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_A7M_Local.Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
     __RME_Enable_Int();
+    
     /* Boot into the init thread */
     __RME_Enter_User_Mode(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0);
+    
+    /* Dummy return, never reaches here */
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
