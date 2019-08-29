@@ -341,9 +341,9 @@ typedef rme_s32_t rme_ret_t;
 /* MPU definitions */
 /* Extract address for/from MPU */
 #define RME_A7M_MPU_ADDR(X)             ((X)&0xFFFFFFE0)
-/* Get info from MPU */
-#define RME_A7M_MPU_SZORD(X)            ((((X)&0x3F)>>1)-2)
-/* Write info to MPU */
+/* Get info from MPU - X is the region's size order, not a subregion */
+#define RME_A7M_MPU_SZORD(X)            ((((X)&0x3F)>>1)+1)
+/* Write info to MPU - X is the region's size order, not a subregion */
 #define RME_A7M_MPU_VALID               (1<<4)
 #define RME_A7M_MPU_SRDCLR              (0x0000FF00)
 #define RME_A7M_MPU_XN                  (1<<28)
@@ -351,7 +351,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MPU_RW                  (3<<24)
 #define RME_A7M_MPU_CACHEABLE           (1<<17)
 #define RME_A7M_MPU_BUFFERABLE          (1<<16)
-#define RME_A7M_MPU_REGIONSIZE(X)       ((X+2)<<1)
+#define RME_A7M_MPU_REGIONSIZE(X)       ((X-1)<<1)
 #define RME_A7M_MPU_SZENABLE            (1)
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_DEFS__ */
@@ -497,9 +497,9 @@ static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
                                            rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order);
+                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
+                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                       rme_ptr_t MPU_RASR, rme_ptr_t Static);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
 /*****************************************************************************/

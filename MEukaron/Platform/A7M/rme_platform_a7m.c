@@ -1006,7 +1006,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
     if((Flags&RME_PGTBL_BUFFERABLE)!=0)
         RASR|=RME_A7M_MPU_BUFFERABLE;
     /* What is the region size? */
-    RASR|=RME_A7M_MPU_REGIONSIZE(Size_Order);
+    RASR|=RME_A7M_MPU_REGIONSIZE(Size_Order+Num_Order);
     
     return RASR;
 }
@@ -1018,11 +1018,12 @@ Description : Clear the MPU setting of this directory. If it exists, clear it;
 Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
               rme_ptr_t Start_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
+              rme_ptr_t Num_Order - The number order of the page directory.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                 rme_ptr_t Start_Addr, rme_ptr_t Size_Order)
+                                 rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     rme_ptr_t Count;
     
@@ -1032,7 +1033,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU,
         {
             /* We got one MPU region valid here */
             if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Start_Addr)&&
-               (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==Size_Order))
+               (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==(Size_Order+Num_Order)))
             {
                 /* Clean it up and return */
                 Top_MPU->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
@@ -1056,13 +1057,14 @@ Description : Add or update the MPU entry in the top-level MPU table. We guarant
 Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
               rme_ptr_t Start_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
+              rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t MPU_RASR - The RASR register content, if set.
               rme_ptr_t Static - The flag denoting if this entry is static.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
-                               rme_ptr_t Start_Addr, rme_ptr_t Size_Order,
+                               rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                rme_ptr_t MPU_RASR, rme_ptr_t Static)
 {
     rme_ptr_t Count;
@@ -1089,7 +1091,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
             }
             /* We got one MPU region valid here */
             if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Start_Addr)&&
-               (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==Size_Order))
+               (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==(Size_Order+Num_Order)))
             {
                 /* Update the RASR - all flag changes except static are reflected here */
                 Top_MPU->Data[Count].MPU_RASR=MPU_RASR;
@@ -1187,7 +1189,8 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         /* Clear the metadata - this function will never fail */
         ___RME_Pgtbl_MPU_Clear(Top_MPU,
                                RME_A7M_PGTBL_START(Meta->Start_Addr),
-                               RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                               RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
+                               RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
     }
     else
     {
@@ -1200,7 +1203,8 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
             /* All pages are unmapped. Clear this from the MPU data */
             ___RME_Pgtbl_MPU_Clear(Top_MPU,
                                    RME_A7M_PGTBL_START(Meta->Start_Addr),
-                                   RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                                   RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
+                                   RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
         }
         else
         {
@@ -1208,6 +1212,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
             if(___RME_Pgtbl_MPU_Add(Top_MPU,
                                     RME_A7M_PGTBL_START(Meta->Start_Addr),
                                     RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
+                                    RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order),
                                     MPU_RASR,Meta->Page_Flags&RME_PGTBL_STATIC)!=0)
                 return RME_ERR_PGT_OPFAIL;
         }

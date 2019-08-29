@@ -428,14 +428,14 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
-                                          RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
-                                          RME_PARAM_Q1(Param[0]) /* rme_cid_t Cap_Pgtbl */,
-                                          Param[1]               /* rme_ptr_t Raddr */,
-                                          Param[2]               /* rme_ptr_t Start_Addr */,
-                                          RME_PARAM_PT(Param[2]) /* rme_ptr_t Top_Flag */,
-                                          RME_PARAM_Q0(Param[0]) /* rme_ptr_t Size_Order */,
-                                          RME_PARAM_PC(Svc)      /* rme_ptr_t Num_Order */);
+            Retval=_RME_Pgtbl_Crt(Captbl, Capid                     /* rme_cid_t Cap_Captbl */,
+                                          RME_PARAM_D1(Param[0])    /* rme_cid_t Cap_Kmem */,
+                                          RME_PARAM_Q1(Param[0])    /* rme_cid_t Cap_Pgtbl */,
+                                          Param[1]                  /* rme_ptr_t Raddr */,
+                                          Param[2]&(RME_ALLBITS<<1) /* rme_ptr_t Start_Addr */,
+                                          RME_PARAM_PT(Param[2])    /* rme_ptr_t Top_Flag */,
+                                          RME_PARAM_Q0(Param[0])    /* rme_ptr_t Size_Order */,
+                                          RME_PARAM_PC(Svc)         /* rme_ptr_t Num_Order */);
             break;
         }
         case RME_SVC_PGTBL_DEL:
@@ -1772,6 +1772,18 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     {
         RME_COVERAGE_MARKER();
     }
+    
+    /* Check if the start address is properly aligned to the total order of the page table */
+    if((Start_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
@@ -1880,8 +1892,9 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==RME_TRUE)
-    /* The start mapping address in the parent */
+    /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
+    rme_ptr_t Parend_End_Addr;
 #endif
     
     /* Get the capability slots */
@@ -1932,12 +1945,22 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>
-       (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    
+    /* If this is zero, then we are sure that overflow won't happen because start
+     * address is always aligned to the total order of the child page table */
+    if(Parend_End_Addr!=0)
     {
-        RME_COVERAGE_MARKER();
-        
-        return RME_ERR_PGT_ADDR;
+        if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
     {
@@ -2103,6 +2126,18 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
 
     /* Check if these parameters are feasible */
     if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
+    /* Check if the start address is properly aligned to the total order of the page table */
+    if((Start_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
     {
         RME_COVERAGE_MARKER();
 
@@ -2302,6 +2337,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Paddr_Src;
     rme_ptr_t Flags_Src;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Src_Page_Size;
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Dst,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Dst,Type_Ref);
@@ -2335,6 +2371,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
     }
+    
     /* See if the position indices are out of range */
     if(((Pos_Dst>>RME_PGTBL_NUMORD(Pgtbl_Dst->Size_Num_Order))!=0)||
        ((Pos_Src>>RME_PGTBL_NUMORD(Pgtbl_Src->Size_Num_Order))!=0))
@@ -2347,18 +2384,27 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
     }
+    
     /* See if the source subposition index is out of range */
-    if(RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order))<=
-       (Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)))
+    Src_Page_Size=RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order));
+    if(Src_Page_Size!=0)
     {
-        RME_COVERAGE_MARKER();
+        if(Src_Page_Size<=(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)))
+        {
+            RME_COVERAGE_MARKER();
 
-        return RME_ERR_PGT_ADDR;
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
     {
         RME_COVERAGE_MARKER();
     }
+
     /* Get the physical address and RME standard flags of that source page */
     if(__RME_Pgtbl_Lookup(Pgtbl_Src, Pos_Src, &Paddr_Src, &Flags_Src)!=0)
     {
@@ -2500,8 +2546,9 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==RME_TRUE)
-    /* The start mapping address in the parent */
+    /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
+    rme_ptr_t Parend_End_Addr;
 #endif
     rme_ptr_t Type_Ref;
     
@@ -2552,6 +2599,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
     }
+    
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
                     RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
@@ -2565,12 +2613,23 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
     }
-    if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>
-       (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
+    
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    
+    /* If this is zero, then we are sure that overflow won't happen because start
+     * address is always aligned to the total order of the child page table */
+    if(Parend_End_Addr!=0)
     {
-        RME_COVERAGE_MARKER();
+        if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        {
+            RME_COVERAGE_MARKER();
 
-        return RME_ERR_PGT_ADDR;
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
     {
