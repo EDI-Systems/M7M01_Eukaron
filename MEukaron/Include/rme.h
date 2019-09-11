@@ -435,6 +435,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KERN_INT_GLOBAL_MOD         (0xF101)
 /* Trigger a local interrupt */
 #define RME_KERN_INT_LOCAL_TRIG         (0xF102)
+/* Trigger a local event */
+#define RME_KERN_EVT_LOCAL_TRIG         (0xF103)
 /* Cache operations **********************************************************/
 /* Enable cache */
 #define RME_KERN_CACHE_ENABLE           (0xF200)
