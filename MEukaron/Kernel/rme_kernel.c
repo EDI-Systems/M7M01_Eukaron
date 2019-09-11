@@ -3306,7 +3306,7 @@ rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd)
     __RME_List_Del(Thd->Sched.Run.Prev,Thd->Sched.Run.Next);
     /* __RME_List_Crt(&(Thd->Sched.Run)); */
     
-    /* See if there are any thread on this peiority level. If no, clear the bit */
+    /* See if there are any thread on this priority level. If no, clear the bit */
     if((CPU_Local->Run).List[Prio].Next==&((CPU_Local->Run).List[Prio]))
     {
         RME_COVERAGE_MARKER();

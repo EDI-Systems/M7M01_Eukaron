@@ -40,7 +40,7 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_INIT_STACK                              (0x2001FFF0)
 /* What is the NVIC priority grouping? */
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
-/* What is the Systick value? - 10ms per tick*/
+/* What is the Systick value? */
 #define RME_A7M_SYSTICK_VAL                             (2160000)
 /* What are the PLL values? */
 #define RME_A7M_PLLM                                    (25)
