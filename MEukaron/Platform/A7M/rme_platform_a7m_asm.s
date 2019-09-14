@@ -80,7 +80,7 @@ __heap_limit
     ;The memory management fault handler of RME. This will be defined in C language.
     IMPORT              __RME_A7M_Fault_Handler
     ;The generic interrupt handler for all other vectors.
-    IMPORT              __RME_A7M_Generic_Handler
+    IMPORT              __RME_A7M_Vect_Handler
 ;/* End Imports **************************************************************/
 
 ;/* Begin Vector Table *******************************************************/
@@ -936,7 +936,7 @@ IRQ239_Handler
     MRS                 R1,xPSR             ; Pass in the interrupt number
     UBFX                R1,R1,#0,#9         ; Extract the interrupt number bitfield
     SUB                 R1,#16              ; The IRQ0's starting number is 16. we subtract it here
-    BL                  __RME_A7M_Generic_Handler
+    BL                  __RME_A7M_Vect_Handler
     
     POP                 {R0}
     MSR                 PSP,R0

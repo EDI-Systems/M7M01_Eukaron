@@ -202,20 +202,12 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_SYSTICK_CTRL_ENABLE     (1U<<0)
 
 /* Generic *******************************************************************/
-/* Cortex-M (ARMv7) EXC_RETURN values */
-#define RME_A7M_EXC_RET_BASE            (0xFFFFFF80)
-/* Whether we are returning to secure stack. 1 means yes, 0 means no */
-#define RME_A7M_EXC_RET_SECURE_STACK    (1<<6)
-/* Whether the callee registers are automatically pushed to user stack. 1 means yes, 0 means no */
-#define RME_A7M_EXC_RET_CALLEE_SAVE     (1<<5)
+/* ARMv7-M EXC_RETURN bits */
+#define RME_A7M_EXC_RET_INIT            (0xFFFFFFFD)
 /* Whether the stack frame is standard(contains no FPU data). 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_STD_FRAME       (1<<4)
 /* Are we returning to user mode? 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_RET_USER        (1<<3)
-/* Are we returning to PSP? 1 means yes, 0 means no */
-#define RME_A7M_EXC_RET_RET_PSP         (1<<2)
-/* Is this interrupt taken to a secured domain? 1 means yes, 0 means no */
-#define RME_A7M_EXC_INT_SECURE_DOMAIN   (1<<0)
 /* FPU type definitions */
 #define RME_A7M_FPU_NONE                (0)
 #define RME_A7M_FPU_VFPV4               (1)
@@ -240,7 +232,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_UFSR_NOCP               (1<<19)
 /* Invalid vector return LR or PC value */
 #define RME_A7M_UFSR_INVPC              (1<<18)
-/* Invalid IT instruction or related instructions */
+/* Attempt to enter an invalid instruction set (ARM) state */
 #define RME_A7M_UFSR_INVSTATE           (1<<17)
 /* Invalid IT instruction or related instructions */
 #define RME_A7M_UFSR_UNDEFINSTR         (1<<16)
@@ -254,13 +246,12 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_BFSR_UNSTKERR           (1<<11)
 /* Imprecise data access error has occurred */
 #define RME_A7M_BFSR_IMPRECISERR        (1<<10)
-/* A precise data access error has occurred, and the processor 
- * has written the faulting address to the BFAR */
+/* Precise data access error has occurred, BFAR updated */
 #define RME_A7M_BFSR_PRECISERR          (1<<9)
 /* A bus fault on an instruction prefetch has occurred. The 
  * fault is signaled only if the instruction is issued */
 #define RME_A7M_BFSR_IBUSERR            (1<<8)
-/* The Memory Mnagement Fault Address Register have valid contents */
+/* The Memory Management Fault Address Register have valid contents */
 #define RME_A7M_MFSR_MMARVALID          (1<<7)
 /* A MemManage fault occurred during FP lazy state preservation */
 #define RME_A7M_MFSR_MLSPERR            (1<<5)
@@ -353,6 +344,66 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MPU_BUFFERABLE          (1<<16)
 #define RME_A7M_MPU_REGIONSIZE(X)       ((X-1)<<1)
 #define RME_A7M_MPU_SZENABLE            (1)
+
+/* Events ********************************************************************/
+/* The fixed maximum number */
+#define RME_A7M_MAX_EVTS                (1024)
+
+/* Platform-specific kernel function macros **********************************/
+/* Register read/write */
+#define RME_KERN_DEBUG_REG_MOD_SP_READ          (0)
+#define RME_KERN_DEBUG_REG_MOD_SP_WRITE         (1)
+#define RME_KERN_DEBUG_REG_MOD_R4_READ          (2)
+#define RME_KERN_DEBUG_REG_MOD_R4_WRITE         (3)
+#define RME_KERN_DEBUG_REG_MOD_R5_READ          (4)
+#define RME_KERN_DEBUG_REG_MOD_R5_WRITE         (5)
+#define RME_KERN_DEBUG_REG_MOD_R6_READ          (6)
+#define RME_KERN_DEBUG_REG_MOD_R6_WRITE         (7)
+#define RME_KERN_DEBUG_REG_MOD_R7_READ          (8)
+#define RME_KERN_DEBUG_REG_MOD_R7_WRITE         (9)
+#define RME_KERN_DEBUG_REG_MOD_R8_READ          (10)
+#define RME_KERN_DEBUG_REG_MOD_R8_WRITE         (11)
+#define RME_KERN_DEBUG_REG_MOD_R9_READ          (12)
+#define RME_KERN_DEBUG_REG_MOD_R9_WRITE         (13)
+#define RME_KERN_DEBUG_REG_MOD_R10_READ         (14)
+#define RME_KERN_DEBUG_REG_MOD_R10_WRITE        (15)
+#define RME_KERN_DEBUG_REG_MOD_R11_READ         (16)
+#define RME_KERN_DEBUG_REG_MOD_R11_WRITE        (17)
+#define RME_KERN_DEBUG_REG_MOD_LR_READ          (18)
+#define RME_KERN_DEBUG_REG_MOD_LR_WRITE         (19)
+/* FPU register read/write */
+#define RME_KERN_DEBUG_REG_MOD_S16_READ         (20)
+#define RME_KERN_DEBUG_REG_MOD_S16_WRITE        (21)
+#define RME_KERN_DEBUG_REG_MOD_S17_READ         (22)
+#define RME_KERN_DEBUG_REG_MOD_S17_WRITE        (23)
+#define RME_KERN_DEBUG_REG_MOD_S18_READ         (24)
+#define RME_KERN_DEBUG_REG_MOD_S18_WRITE        (25)
+#define RME_KERN_DEBUG_REG_MOD_S19_READ         (26)
+#define RME_KERN_DEBUG_REG_MOD_S19_WRITE        (27)
+#define RME_KERN_DEBUG_REG_MOD_S20_READ         (28)
+#define RME_KERN_DEBUG_REG_MOD_S20_WRITE        (29)
+#define RME_KERN_DEBUG_REG_MOD_S21_READ         (30)
+#define RME_KERN_DEBUG_REG_MOD_S21_WRITE        (31)
+#define RME_KERN_DEBUG_REG_MOD_S22_READ         (32)
+#define RME_KERN_DEBUG_REG_MOD_S22_WRITE        (33)
+#define RME_KERN_DEBUG_REG_MOD_S23_READ         (34)
+#define RME_KERN_DEBUG_REG_MOD_S23_WRITE        (35)
+#define RME_KERN_DEBUG_REG_MOD_S24_READ         (36)
+#define RME_KERN_DEBUG_REG_MOD_S24_WRITE        (37)
+#define RME_KERN_DEBUG_REG_MOD_S25_READ         (38)
+#define RME_KERN_DEBUG_REG_MOD_S25_WRITE        (39)
+#define RME_KERN_DEBUG_REG_MOD_S26_READ         (40)
+#define RME_KERN_DEBUG_REG_MOD_S26_WRITE        (41)
+#define RME_KERN_DEBUG_REG_MOD_S27_READ         (42)
+#define RME_KERN_DEBUG_REG_MOD_S27_WRITE        (43)
+#define RME_KERN_DEBUG_REG_MOD_S28_READ         (44)
+#define RME_KERN_DEBUG_REG_MOD_S28_WRITE        (45)
+#define RME_KERN_DEBUG_REG_MOD_S29_READ         (46)
+#define RME_KERN_DEBUG_REG_MOD_S29_WRITE        (47)
+#define RME_KERN_DEBUG_REG_MOD_S30_READ         (48)
+#define RME_KERN_DEBUG_REG_MOD_S30_WRITE        (49)
+#define RME_KERN_DEBUG_REG_MOD_S31_READ         (50)
+#define RME_KERN_DEBUG_REG_MOD_S31_WRITE        (51)
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_DEFS__ */
 #endif
@@ -380,7 +431,7 @@ struct __RME_A7M_Flag_Set
 };
 
 /* Interrupt flag pair structure */
-struct __RME_A7M_Flags
+struct __RME_A7M_Phys_Flags
 {
     struct __RME_A7M_Flag_Set Set0;
     struct __RME_A7M_Flag_Set Set1;
@@ -491,7 +542,9 @@ struct __RME_A7M_MPU_Data
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
-/* Private C Function Prototypes *********************************************/ 
+/* Private C Function Prototypes *********************************************/
+/* Vector Flags **************************************************************/
+static void __RME_A7M_Set_Flag(rme_ptr_t Flagset, rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
@@ -547,10 +600,10 @@ __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 /* Fault handler */
 __EXTERN__ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_A7M_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
+__EXTERN__ void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num);
 /* Kernel function handler */
-__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
-                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+__EXTERN__ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                                             rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 
 /* Initialization ************************************************************/
 EXTERN void _RME_Kmain(rme_ptr_t Stack);

@@ -594,6 +594,8 @@ while(0)
                                                             ((THD)->Inv_Stack.Next)))
 
 /* Kernel Function ***********************************************************/
+/* Driver layer error reporting macro */
+#define RME_ERR_KERN_OPFAIL             (-1)
 /* Kernel function capability flag arrangement
 * 32-bit systems: Maximum kernel function number 2^16
 * [31        High Limit        16] [15        Low Limit        0]
@@ -736,6 +738,8 @@ struct RME_Thd_Sched
     rme_ptr_t Slices;
     /* What is the current state of the thread? */
     rme_ptr_t State;
+    /* What is the reason for the fault that killed the thread? */
+    rme_ptr_t Fault;
     /* How many children refered to it as the scheduler thread? */
     rme_ptr_t Refcnt;
     /* What's the priority of the thread? */
@@ -842,8 +846,8 @@ struct RME_CPU_Local
     struct RME_Thd_Struct* Cur_Thd;
     /* The tick timer signal endpoint */
     struct RME_Sig_Struct* Tick_Sig;
-    /* The interrupt signal endpoint */
-    struct RME_Sig_Struct* Int_Sig;
+    /* The vector signal endpoint */
+    struct RME_Sig_Struct* Vect_Sig;
     /* The runqueue and bitmap */
     struct RME_Run_Struct Run;
 };
@@ -945,7 +949,7 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
                                      struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd, rme_ptr_t Prio);
 static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
                                      struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
-static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                                     rme_cid_t Cap_Thd_Dst, rme_cid_t Cap_Thd_Src, rme_ptr_t Time);
 static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
@@ -1049,7 +1053,7 @@ __EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
 /* Initialize per-CPU data structures */
 __EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID);
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs);                              
+__EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs, rme_ptr_t Fault);                              
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                                         rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr);

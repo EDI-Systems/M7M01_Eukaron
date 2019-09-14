@@ -573,7 +573,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Rcv(Captbl, Param[0] /* rme_cid_t Cap_Thd */);
+            Retval=_RME_Thd_Sched_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
+                                              Param[0] /* rme_cid_t Cap_Thd */);
             break;
         }
         /* Signal */
@@ -3148,7 +3149,7 @@ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID)
     
     CPU_Local->CPUID=CPUID;
     CPU_Local->Cur_Thd=0;
-    CPU_Local->Int_Sig=0;
+    CPU_Local->Vect_Sig=0;
     CPU_Local->Tick_Sig=0;
     
     /* Initialize the run-queue and bitmap */
@@ -3224,10 +3225,11 @@ Description : The fatal fault handler of RME. This handler will be called by the
               that all these exceptions be dropped rather than handled; or there will be
               integrity and availability compromises.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              rme_ptr_t Fault - The reason of this fault.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
+rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg, rme_ptr_t Fault)
 {
     struct RME_CPU_Local* CPU_Local;
     
@@ -3242,7 +3244,9 @@ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
         RME_ASSERT((CPU_Local->Cur_Thd)->Sched.Slices!=RME_THD_INIT_TIME);
         /* Deprive it of all its timeslices */
         (CPU_Local->Cur_Thd)->Sched.Slices=0;
+        /* Set the fault flag and reason of the fault */
         (CPU_Local->Cur_Thd)->Sched.State=RME_THD_FAULT;
+        (CPU_Local->Cur_Thd)->Sched.Fault=Fault;
         _RME_Run_Del(CPU_Local->Cur_Thd);
         /* Send a scheduler notification to its parent */
         _RME_Run_Notif(CPU_Local->Cur_Thd);
@@ -4580,19 +4584,9 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_FREE);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    CPU_Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local==RME_THD_UNBINDED)
-    {
-        RME_COVERAGE_MARKER();
-
-        return RME_ERR_PTH_INVSTATE;
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-    }
-    
-    if(Thd_Struct->Sched.CPU_Local!=RME_CPU_LOCAL())
+    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
     {
         RME_COVERAGE_MARKER();
 
@@ -4681,7 +4675,6 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     /* Delete all slices on it */
     Thd_Struct->Sched.Slices=0;
     
-    CPU_Local=RME_CPU_LOCAL();
     /* See if this thread is the current thread. If yes, then there will be a context switch */
     if(CPU_Local->Cur_Thd==Thd_Struct)
     {
@@ -4707,15 +4700,18 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
 Description : Try to receive a notification from the scheduler queue. This
               can only be called from the same core the thread is on.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+              struct RME_Reg_Struct* Reg - The current thread's register set.
               rme_cid_t Cap_Thd - The capability to the scheduler thread. We are going
-                                  to get timeout notifications for the threads that
-                                  it is responsible for scheduling. This capability must
-                                  point to the calling thread itself, or the receiving
-                                  is simply not allowed. 2-Level.
-Output      : None.
+                                  to get timeout or fault notifications for the threads
+                                  that it is responsible for scheduling. This capability
+                                  must point to a thread on the same core. 2-Level.
+Output      : struct RME_Reg_Struct* Reg - The current thread's register set, 
+                                           with the architecture-specific reason of the
+                                           fault populated to the invocation return value
+                                           position of it.
 Return      : rme_ret_t - If successful, the thread ID; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd)
+rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -4763,7 +4759,9 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd)
     if(Thd_Child->Sched.State==RME_THD_FAULT)
     {
         RME_COVERAGE_MARKER();
-
+        /* Set the reason of that fault to the invocation return value register */
+        __RME_Set_Inv_Retval(Reg,Thd_Child->Sched.Fault);
+        /* Return the TID with the fault flag set */
         return Thd_Child->Sched.TID|RME_THD_FAULT_FLAG;
     }
     else
@@ -6322,14 +6320,14 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_ptr_t Func_ID - The function ID to invoke.
               rme_ptr_t Sub_ID - The subfunction ID to invoke.
               rme_ptr_t Param1 - The first parameter.
-              rme_ptr_t Param2 - The second parameter
+              rme_ptr_t Param2 - The second parameter.
 Output      : None.
 Return      : rme_ret_t - If the call is successful, it will return whatever the 
                           function returned(It is expected that these functions shall
                           never return an negative value); else error code. If the 
-                          kernel function ever causes a context switch, it is responsible
-                          for setting the return value. On failure, a context switch 
-                          in the kernel function is banned.
+                          kernel function ever succeeds, it is responsible for setting
+                          the return value. On failure, a context switch shall never
+                          happen.
 ******************************************************************************/
 rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                         rme_cid_t Cap_Kern, rme_ptr_t Func_ID, rme_ptr_t Sub_ID,
@@ -6355,7 +6353,7 @@ rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Re
     }
 
     /* Return whatever the function returns */
-    return __RME_Kern_Func_Handler(Reg,Func_ID,Sub_ID,Param1,Param2);
+    return __RME_Kern_Func_Handler(Captbl,Reg,Func_ID,Sub_ID,Param1,Param2);
 }
 /* End Function:_RME_Kern_Act ************************************************/
 
