@@ -30,8 +30,10 @@ Description: The configuration file for STM32F767IG.
 #else
 #define RME_A7M_BOOT_CAPTBL_SIZE                        (18)
 #endif
-/* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_A7M_INT_FLAG_ADDR                           (0x20010000)
+/* Shared vector flag region address - always 512B memory for ARMv7-M */
+#define RME_A7M_VECT_FLAG_ADDR                          (0x2000FC00)
+/* Shared interrupt flag region address - always 512B memory for ARMv7-M */
+#define RME_A7M_EVT_FLAG_ADDR                           (0x2000FE00)
 /* Initial kernel object frontier limit */
 #define RME_A7M_KMEM_BOOT_FRONTIER                      (0x20003400)
 /* Init process's first thread's entry point address */
@@ -379,15 +381,6 @@ do \
     RME_A7M_USART1_CR3=0x00; \
     RME_A7M_USART1_BRR=0x3AA; \
     RME_A7M_USART1_CR1|=RME_A7M_USART1_CR1_UE; \
-} \
-while(0)
-    
-/* This is for hooking some real-time stuff in immediate interrupt handlers */
-#define RME_A7M_VECT_HOOK(INT_NUM) \
-do \
-{ \
-    if((INT_NUM)==30) \
-        RME_A7M_TIM4_SR=~RME_A7M_TIM_FLAG_UPDATE; \
 } \
 while(0)
 

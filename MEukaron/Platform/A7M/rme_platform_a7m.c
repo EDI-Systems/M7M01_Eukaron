@@ -243,20 +243,20 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
         RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_DEBUGEVT)!=0);
     
     /* We cannot recover from the following: */
-    if(Cur_CFSR&
-       (RME_A7M_UFSR_DIVBYZERO||      /* Division by zero errors */
-        RME_A7M_UFSR_UNALIGNED||      /* Unaligned access errors */
-        RME_A7M_UFSR_NOCP||           /* Unpresenting coprocessor errors */
-        RME_A7M_UFSR_INVPC||          /* Invalid PC from return load errors */
-        RME_A7M_UFSR_INVSTATE||       /* Invalid EPSR state errors */
-        RME_A7M_UFSR_UNDEFINSTR||     /* Undefined instruction errors */
-        RME_A7M_BFSR_UNSTKERR||       /* Bus unstacking errors */ 
-        RME_A7M_BFSR_PRECISERR||      /* Precise bus data errors */
-        RME_A7M_BFSR_IBUSERR||        /* Bus instruction errors */
-        RME_A7M_MFSR_MUNSTKERR)!=0)   /* MPU unstacking errors */
+    if((Cur_CFSR&
+        (RME_A7M_UFSR_DIVBYZERO|        /* Division by zero errors */
+         RME_A7M_UFSR_UNALIGNED|        /* Unaligned access errors */
+         RME_A7M_UFSR_NOCP|             /* Unpresenting coprocessor errors */
+         RME_A7M_UFSR_INVPC|            /* Invalid PC from return load errors */
+         RME_A7M_UFSR_INVSTATE|         /* Invalid EPSR state errors */
+         RME_A7M_UFSR_UNDEFINSTR|       /* Undefined instruction errors */
+         RME_A7M_BFSR_UNSTKERR|         /* Bus unstacking errors */ 
+         RME_A7M_BFSR_PRECISERR|        /* Precise bus data errors */
+         RME_A7M_BFSR_IBUSERR|          /* Bus instruction errors */
+         RME_A7M_MFSR_MUNSTKERR))!=0)   /* MPU unstacking errors */
     {
         
-        __RME_Thd_Fatal(Reg);
+        __RME_Thd_Fatal(Reg, Cur_CFSR);
     }
     /* Attempt recovery from memory management fault by MPU region swapping */
     else if((Cur_CFSR&RME_A7M_MFSR_MMARVALID)!=0)
@@ -272,14 +272,14 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
             Proc=Inv_Top->Proc;
         
         if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
-            __RME_Thd_Fatal(Reg);
+            __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
             RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
             /* Try to update the dynamic page */
             if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
-                __RME_Thd_Fatal(Reg);
+                __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
         }
     }
     /* This is an instruction access violation. We need to know where that instruction is.
@@ -297,31 +297,32 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
         
         /* Stack[6] is where the PC is before the fault */
         if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6]), (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
-            __RME_Thd_Fatal(Reg);
+            __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
             if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6], (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
-                __RME_Thd_Fatal(Reg);
+                __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
+            else
             {
                 /* This must be a dynamic page */
                 RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
                 
                 /* This page does not allow execution */
                 if((Flags&RME_PGTBL_EXECUTE)==0)
-                    __RME_Thd_Fatal(Reg);
+                    __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
                 else
                 {
                     /* Try to update the dynamic page */
                     if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
-                        __RME_Thd_Fatal(Reg);
+                        __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
                 }
             }
         }
     }
     /* Drop anything else. Imprecise bus faults, stacking errors, because they cannot be attributed
      * correctly (The unstacking errors are attributable). Imprecise bus faults can happen over context
-     * boundaries, while the stacking errors may happen with the old thread but be arrributed to the new.
+     * boundaries, while the stacking errors may happen with the old thread but be attributed to the new.
      * If we incorrectly handle and attribute these, a malicious thread can trigger these spurious
      * asynchronous bus faults and stacking errors in the hope that they might be attributed to some other
      * thread. This compromises integrity and availability of other threads. Still, even if they go
@@ -346,86 +347,194 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_A7M_Fault_Handler **************************************/
 
-/* Begin Function:__RME_A7M_Generic_Handler ***********************************
-Description : The generic interrupt handler of RME for Cortex-M.
+/* Begin Function:__RME_A7M_Set_Flag ******************************************
+Description : Set a generic flag in a flag set. Works for both vectors and events
+              for ARMv7-M.
+Input       : rme_ptr_t Flagset - The address of the flagset.
+              rme_ptr_t Pos - The position in the flagset to set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_Set_Flag(rme_ptr_t Flagset, rme_ptr_t Pos)
+{
+    struct __RME_A7M_Flag_Set* Flags;
+    
+    /* Choose a data structure that is not locked at the moment */
+    if(((struct __RME_A7M_Phys_Flags*)Flagset)->Set0.Lock==0)
+        Flags=&(((struct __RME_A7M_Phys_Flags*)Flagset)->Set0);
+    else
+        Flags=&(((struct __RME_A7M_Phys_Flags*)Flagset)->Set1);
+    
+    /* Set the flags for this interrupt source */
+    Flags->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
+    Flags->Flags[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1));
+}
+/* End Function:__RME_A7M_Set_Flag *******************************************/
+
+/* Begin Function:__RME_A7M_Vect_Handler **************************************
+Description : The generic interrupt handler of RME for ARMv7-M.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
-              rme_ptr_t Int_Num - The interrupt number.
+              rme_ptr_t Vect_Num - The vector number. For ARMv7-M, this is in accordance
+                                   with the ARMv7-M architecture reference manual.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
+void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 {
-    struct __RME_A7M_Flag_Set* Flags;
 
-#ifdef RME_A7M_VECT_HOOK
+#if(RME_GEN_ENABLE==RME_TRUE)
     /* Do in-kernel processing first */
-    RME_A7M_VECT_HOOK(Int_Num);
+    extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
+    /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
+     * this due to some reason), we skip the flag marshalling & sending process */
+    if(RME_Boot_Vect_Handler(Vect_Num)!=0)
+        return ;
 #endif
     
-    /* Choose a data structure that is not locked at the moment */
-    if(((struct __RME_A7M_Flags*)RME_A7M_INT_FLAG_ADDR)->Set0.Lock==0)
-        Flags=&(((struct __RME_A7M_Flags*)RME_A7M_INT_FLAG_ADDR)->Set0);
-    else
-        Flags=&(((struct __RME_A7M_Flags*)RME_A7M_INT_FLAG_ADDR)->Set1);
+    __RME_A7M_Set_Flag(RME_A7M_VECT_FLAG_ADDR, Vect_Num);
     
-    /* Set the flags for this interrupt source */
-    Flags->Group|=(((rme_ptr_t)1)<<(Int_Num>>RME_WORD_ORDER));
-    Flags->Flags[Int_Num>>RME_WORD_ORDER]|=(((rme_ptr_t)1)<<(Int_Num&RME_MASK_END(RME_WORD_ORDER-1)));
-    _RME_Kern_Snd(RME_A7M_Local.Int_Sig);
+    _RME_Kern_Snd(RME_A7M_Local.Vect_Sig);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A7M_Local);
 }
-/* End Function:__RME_A7M_Generic_Handler ************************************/
+/* End Function:__RME_A7M_Vect_Handler ***************************************/
+
+/* Begin Function:__RME_A7M_Debug_Reg_Mod *************************************
+Description : Debug register modification implementation for ARMv7-M.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              struct RME_Reg_Struct* Reg - The current register set.
+              rme_cid_t Cap_Thd - The capability to the thread to consult.
+              rme_ptr_t Operation - The operation, e.g. which register to read or write.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : rme_ret_t - If successful, 0; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
+                                  rme_cid_t Cap_Thd, rme_ptr_t Operation)
+{
+    struct RME_Cap_Thd* Thd_Op;
+    struct RME_Thd_Struct* Thd_Struct;
+    /* These are used to free the thread */
+    struct RME_CPU_Local* CPU_Local;
+    rme_ptr_t Type_Ref;
+    
+    /* Get the capability slot */
+    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_THD,struct RME_Cap_Thd*,Thd_Op,Type_Ref);
+    
+    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    CPU_Local=RME_CPU_LOCAL();
+    Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
+    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+        return RME_ERR_PTH_INVSTATE;
+    
+    switch(Operation)
+    {
+        /* Register read/write */
+        case RME_KERN_DEBUG_REG_MOD_SP_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.SP;break;
+        case RME_KERN_DEBUG_REG_MOD_SP_WRITE:Thd_Struct->Cur_Reg->Reg.SP=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R4_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R4;break;
+        case RME_KERN_DEBUG_REG_MOD_R4_WRITE:Thd_Struct->Cur_Reg->Reg.R4=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R5_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R5;break;
+        case RME_KERN_DEBUG_REG_MOD_R5_WRITE:Thd_Struct->Cur_Reg->Reg.R5=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R6_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R6_WRITE:Thd_Struct->Cur_Reg->Reg.R6=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R7_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R7;break;
+        case RME_KERN_DEBUG_REG_MOD_R7_WRITE:Thd_Struct->Cur_Reg->Reg.R7=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R8_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R8;break;
+        case RME_KERN_DEBUG_REG_MOD_R8_WRITE:Thd_Struct->Cur_Reg->Reg.R8=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R9_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R9;break;
+        case RME_KERN_DEBUG_REG_MOD_R9_WRITE:Thd_Struct->Cur_Reg->Reg.R9=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R10_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R10;break;
+        case RME_KERN_DEBUG_REG_MOD_R10_WRITE:Thd_Struct->Cur_Reg->Reg.R10=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_R11_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R11;break;
+        case RME_KERN_DEBUG_REG_MOD_R11_WRITE:Thd_Struct->Cur_Reg->Reg.R11=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_LR_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.LR;break;
+        /* case RME_KERN_DEBUG_REG_MOD_LR_WRITE: LR write is not allowed, may cause arbitrary kernel execution */
+        /* FPU register read/write */
+        case RME_KERN_DEBUG_REG_MOD_S16_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S16;break;
+        case RME_KERN_DEBUG_REG_MOD_S16_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S16=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S17_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S17;break;
+        case RME_KERN_DEBUG_REG_MOD_S17_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S17=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S18_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S18;break;
+        case RME_KERN_DEBUG_REG_MOD_S18_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S18=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S19_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S19;break;
+        case RME_KERN_DEBUG_REG_MOD_S19_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S19=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S20_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S20;break;
+        case RME_KERN_DEBUG_REG_MOD_S20_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S20=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S21_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S21;break;
+        case RME_KERN_DEBUG_REG_MOD_S21_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S21=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S22_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S22;break;
+        case RME_KERN_DEBUG_REG_MOD_S22_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S22=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S23_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S23;break;
+        case RME_KERN_DEBUG_REG_MOD_S23_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S23=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S24_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S24;break;
+        case RME_KERN_DEBUG_REG_MOD_S24_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S24=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S25_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S25;break;
+        case RME_KERN_DEBUG_REG_MOD_S25_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S25=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S26_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S26;break;
+        case RME_KERN_DEBUG_REG_MOD_S26_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S26=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S27_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S27;break;
+        case RME_KERN_DEBUG_REG_MOD_S27_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S27=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S28_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S28;break;
+        case RME_KERN_DEBUG_REG_MOD_S28_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S28=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S29_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S29;break;
+        case RME_KERN_DEBUG_REG_MOD_S29_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S29=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S30_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S30;break;
+        case RME_KERN_DEBUG_REG_MOD_S30_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S30=Reg->R6;break;
+        case RME_KERN_DEBUG_REG_MOD_S31_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S31;break;
+        case RME_KERN_DEBUG_REG_MOD_S31_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S31=Reg->R6;break;
+        default:return RME_ERR_KERN_OPFAIL;
+    }
+    
+    __RME_Set_Syscall_Retval(Reg, 0);
+    return 0;
+}
+/* End Function:__RME_A7M_Debug_Reg_Mod **************************************/
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The subfunction ID.
               rme_ptr_t Param1 - The first parameter.
               rme_ptr_t Param2 - The second parameter.
 Output      : None.
-Return      : rme_ptr_t - The value that the function returned.
+Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                                  rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
-    /* It must be interrupt-related operations */
-    if(Func_ID<240)
+    /* Currently we only implement sends */
+    switch(Func_ID)
     {
-        if(Param1==RME_A7M_INT_OP)
+        case RME_KERN_EVT_LOCAL_TRIG:
         {
-            if(Param2==RME_A7M_INT_ENABLE)
-            {
-                __RME_A7M_NVIC_Disable_IRQ(Func_ID);
-                /* When the IRQ is newly enabled, we set its priority to as low as the rest as always */
-                __RME_A7M_NVIC_Set_Prio(Func_ID, 0xFF);
-                __RME_A7M_NVIC_Enable_IRQ(Func_ID);
-            }
-            else
-                __RME_A7M_NVIC_Disable_IRQ(Func_ID);
+            if(Sub_ID!=0)
+                return RME_ERR_KERN_OPFAIL;
+            
+            if(Param1>=RME_A7M_MAX_EVTS)
+                return RME_ERR_KERN_OPFAIL;
+            
+            __RME_A7M_Set_Flag(RME_A7M_EVT_FLAG_ADDR, 0);
+            
+            if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0)
+                return RME_ERR_KERN_OPFAIL;
             
             __RME_Set_Syscall_Retval(Reg,0);
+            
+            _RME_Kern_High(Reg, &RME_A7M_Local);
+            
             return 0;
         }
-        else if(Param1==RME_A7M_INT_PRIO)
+        case RME_KERN_DEBUG_REG_MOD:
         {
-            /* Only changing the subpriority is allowed. main priority is as low as the rest */
-            __RME_A7M_NVIC_Set_Prio(Func_ID,((0xFF<<(RME_A7M_NVIC_GROUPING+1))|Param2)&0xFF);
-            __RME_Set_Syscall_Retval(Reg,0);
-            return 0;
+            return __RME_A7M_Debug_Reg_Mod(Captbl, Reg, Sub_ID, Param1);
         }
-    }
-    else if(Func_ID==240)
-    {
-        /* Wait for interrupt to happen */
-        __RME_A7M_Wait_Int();
-        __RME_Set_Syscall_Retval(Reg,0);
-        return 0;
+        default:break;
     }
     
     /* If it gets here, we must have failed */
-    return RME_ERR_PGT_OPFAIL;
+    return RME_ERR_KERN_OPFAIL;
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
 
@@ -602,12 +711,14 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_A7M_Local.Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
+    RME_A7M_Local.Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT, Cur_Addr)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     
-    /* Clean up the region for interrupts */
-    _RME_Clear((void*)RME_A7M_INT_FLAG_ADDR,sizeof(struct __RME_A7M_Flags));
+    /* Clean up the region for vectors and events */
+    RME_ASSERT(sizeof(struct __RME_A7M_Phys_Flags)<=512);
+    _RME_Clear((void*)RME_A7M_VECT_FLAG_ADDR,sizeof(struct __RME_A7M_Phys_Flags));
+    _RME_Clear((void*)RME_A7M_EVT_FLAG_ADDR,sizeof(struct __RME_A7M_Phys_Flags));
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
@@ -691,7 +802,7 @@ Return      : None.
 void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg)
 {
     /* Set the LR to a value indicating that we have never used FPU in this new task */
-    Reg->LR=0xFFFFFFFD;
+    Reg->LR=RME_A7M_EXC_RET_INIT;
     /* The entry point needs to have the last bit set to avoid ARM mode */
     Reg->R4=Entry|0x01;
     /* Put something in the SP later */
