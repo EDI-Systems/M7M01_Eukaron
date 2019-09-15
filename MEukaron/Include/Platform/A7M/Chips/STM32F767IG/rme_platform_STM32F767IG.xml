@@ -13,23 +13,29 @@
     </Attribute>
     <Memory>
         <M1>
-            <Start>0x08000000</Start>
+            <Base>0x08000000</Base>
             <Size>0x00100000</Size>
             <Type>Code</Type>
             <Attribute>RXBCS</Attribute>
         </M1>
         <M2>
-            <Start>0x20000000</Start>
+            <Base>0x20000000</Base>
             <Size>0x00080000</Size>
             <Type>Data</Type>
             <Attribute>RWXBCS</Attribute>
         </M2>
         <M3>
-            <Start>0x40000000</Start>
-            <Size>0xC0000000</Size>
+            <Base>0x40000000</Base>
+            <Size>0x20000000</Size>
             <Type>Device</Type>
             <Attribute>RWS</Attribute>
         </M3>
+        <M4>
+            <Base>0xE0000000</Base>
+            <Size>0x20000000</Size>
+            <Type>Device</Type>
+            <Attribute>RWS</Attribute>
+        </M4>
     </Memory>
     <Option>
         <O1>

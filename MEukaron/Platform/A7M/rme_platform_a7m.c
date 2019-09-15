@@ -388,7 +388,7 @@ void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
      * this due to some reason), we skip the flag marshalling & sending process */
     if(RME_Boot_Vect_Handler(Vect_Num)!=0)
-        return ;
+        return;
 #endif
     
     __RME_A7M_Set_Flag(RME_A7M_VECT_FLAG_ADDR, Vect_Num);
@@ -983,7 +983,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
     
     /* Initialize the causal metadata */
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Start_Addr=Pgtbl_Op->Start_Addr;
+    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Base_Addr=Pgtbl_Op->Base_Addr;
     ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Toplevel=0;
     ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Size_Num_Order=Pgtbl_Op->Size_Num_Order;
     ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0;
@@ -991,7 +991,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
      * environments, if it is top-level, we need to add kernel pages as well */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
     {
         ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0;
         
@@ -1016,7 +1016,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
 /* Begin Function:__RME_Pgtbl_Check *******************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
-Input       : rme_ptr_t Start_Addr - The start mapping address.
+Input       : rme_ptr_t Base_Addr - The start mapping address.
               rme_ptr_t Top_Flag - The top-level flag,
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
@@ -1024,7 +1024,7 @@ Input       : rme_ptr_t Start_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
+rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, 
                             rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     if(Num_Order>RME_PGTBL_NUM_256)
@@ -1127,14 +1127,14 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
 Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
-              rme_ptr_t Start_Addr - The start mapping address of the directory.
+              rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                 rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
+                                 rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     rme_ptr_t Count;
     
@@ -1143,7 +1143,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU,
         if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0)
         {
             /* We got one MPU region valid here */
-            if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Start_Addr)&&
+            if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Base_Addr)&&
                (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==(Size_Order+Num_Order)))
             {
                 /* Clean it up and return */
@@ -1166,7 +1166,7 @@ Description : Add or update the MPU entry in the top-level MPU table. We guarant
               This is due to the fact that ARM have LDRD and STRD, which can require
               two regions to function correctly.
 Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
-              rme_ptr_t Start_Addr - The start mapping address of the directory.
+              rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t MPU_RASR - The RASR register content, if set.
@@ -1175,7 +1175,7 @@ Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
-                               rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
+                               rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                rme_ptr_t MPU_RASR, rme_ptr_t Static)
 {
     rme_ptr_t Count;
@@ -1201,7 +1201,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
                 Dynamic_Cnt++;
             }
             /* We got one MPU region valid here */
-            if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Start_Addr)&&
+            if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Base_Addr)&&
                (RME_A7M_MPU_SZORD(Top_MPU->Data[Count].MPU_RASR)==(Size_Order+Num_Order)))
             {
                 /* Update the RASR - all flag changes except static are reflected here */
@@ -1250,7 +1250,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
         Count=Dynamic[__RME_A7M_Rand()%Dynamic_Cnt];
     
     /* Put the data to this slot */
-    Top_MPU->Data[Count].MPU_RBAR=RME_A7M_MPU_ADDR(Start_Addr)|RME_A7M_MPU_VALID|Count;
+    Top_MPU->Data[Count].MPU_RBAR=RME_A7M_MPU_ADDR(Base_Addr)|RME_A7M_MPU_VALID|Count;
     Top_MPU->Data[Count].MPU_RASR=MPU_RASR;
     /* STATIC or not is reflected in the state */
     if(Static!=0)
@@ -1286,7 +1286,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         Top_MPU=(struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgtbl_Meta));
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
     }
-    else if(((Meta->Start_Addr)&RME_PGTBL_TOP)!=0)
+    else if(((Meta->Base_Addr)&RME_PGTBL_TOP)!=0)
     {
         /* We don't have a top-level, but we are the top-level */
         Top_MPU=(struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgtbl_Meta));
@@ -1299,7 +1299,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
     {
         /* Clear the metadata - this function will never fail */
         ___RME_Pgtbl_MPU_Clear(Top_MPU,
-                               RME_A7M_PGTBL_START(Meta->Start_Addr),
+                               RME_A7M_PGTBL_START(Meta->Base_Addr),
                                RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
                                RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
     }
@@ -1313,7 +1313,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         {
             /* All pages are unmapped. Clear this from the MPU data */
             ___RME_Pgtbl_MPU_Clear(Top_MPU,
-                                   RME_A7M_PGTBL_START(Meta->Start_Addr),
+                                   RME_A7M_PGTBL_START(Meta->Base_Addr),
                                    RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
                                    RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
         }
@@ -1321,7 +1321,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         {
             /* At least one of the pages are there. Map it */
             if(___RME_Pgtbl_MPU_Add(Top_MPU,
-                                    RME_A7M_PGTBL_START(Meta->Start_Addr),
+                                    RME_A7M_PGTBL_START(Meta->Base_Addr),
                                     RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
                                     RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order),
                                     MPU_RASR,Meta->Page_Flags&RME_PGTBL_STATIC)!=0)
@@ -1383,7 +1383,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
     Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
@@ -1407,7 +1407,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
                RME_ROUND_DOWN(Paddr,RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order));
    
     /* If we are the top level or we have a top level, and we have static pages mapped in, do MPU updates */
-    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0))
+    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0))
     {
         if((Flags&RME_PGTBL_STATIC)!=0)
         {
@@ -1449,7 +1449,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
@@ -1462,7 +1462,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     Temp=Table[Pos];
     Table[Pos]=0;
     /* If we are top-level or we have a top-level, do MPU updates */
-    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0))
+    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
         if(___RME_Pgtbl_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
@@ -1500,7 +1500,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     /* Is the child a designated top level directory? If it is, we do not allow 
      * constructions. In Cortex-M, we only allow the designated top-level to be
      * the actual top-level. */
-    if(((Pgtbl_Child->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Child->Base_Addr)&RME_PGTBL_TOP)!=0)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the metadata */
@@ -1508,7 +1508,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     Child_Meta=RME_CAP_GETOBJ(Pgtbl_Child,struct __RME_A7M_Pgtbl_Meta*);
     
     /* The parent table must have or be a top-directory */
-    if((Parent_Meta->Toplevel==0)&&(((Parent_Meta->Start_Addr)&RME_PGTBL_TOP)==0))
+    if((Parent_Meta->Toplevel==0)&&(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)==0))
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if the child already mapped somewhere, or have grandchild directories */
@@ -1516,7 +1516,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
         return RME_ERR_PGT_OPFAIL;
     
     /* Where is the entry slot? */
-    if(((Parent_Meta->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)!=0)
         Parent_Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
         Parent_Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
@@ -1568,7 +1568,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     Dst_Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Dst_Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Dst_Meta);
@@ -1615,7 +1615,7 @@ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if this is the top-level page table. Get the table */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
         Table=RME_A7M_PGTBL_TBL_TOP(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
     else
         Table=RME_A7M_PGTBL_TBL_NOM(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
@@ -1660,7 +1660,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
     rme_ptr_t Pos;
     
     /* Check if this is the top-level page table */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)==0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the table and start lookup */
@@ -1671,10 +1671,10 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_A7M_PGTBL_START(Meta->Start_Addr))
+        if(Vaddr<RME_A7M_PGTBL_START(Meta->Base_Addr))
             return RME_ERR_PGT_OPFAIL;
         /* Calculate where is the entry */
-        Pos=(Vaddr-RME_A7M_PGTBL_START(Meta->Start_Addr))>>RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
+        Pos=(Vaddr-RME_A7M_PGTBL_START(Meta->Base_Addr))>>RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
         /* See if the entry is overrange */
         if((Pos>>RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order))!=0)
             return RME_ERR_PGT_OPFAIL;
@@ -1687,9 +1687,9 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
             if(Pgtbl!=0)
                 *Pgtbl=(rme_ptr_t)Meta;
             if(Map_Vaddr!=0)
-                *Map_Vaddr=RME_A7M_PGTBL_START(Meta->Start_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                *Map_Vaddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
             if(Paddr!=0)
-                *Paddr=RME_A7M_PGTBL_START(Meta->Start_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                *Paddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
             if(Size_Order!=0)
                 *Size_Order=RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
             if(Num_Order!=0)

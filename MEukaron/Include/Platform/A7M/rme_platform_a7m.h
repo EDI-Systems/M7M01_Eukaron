@@ -496,7 +496,7 @@ struct __RME_A7M_Pgtbl_Meta
     /* The MPU setting is always in the top level. This is a pointer to the top level */
     rme_ptr_t Toplevel;
     /* The start mapping address of this page table */
-    rme_ptr_t Start_Addr;
+    rme_ptr_t Base_Addr;
     /* The size/num order of this level */
     rme_ptr_t Size_Num_Order;
     /* The child directory/page number in this level */
@@ -550,9 +550,9 @@ static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
                                            rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                        rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
+                                        rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                      rme_ptr_t Start_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
+                                      rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                       rme_ptr_t MPU_RASR, rme_ptr_t Static);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
 /*****************************************************************************/
@@ -636,7 +636,7 @@ __EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retva
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
 /* Checking */
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, 
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, 
                                        rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
 /* Setting the page table */

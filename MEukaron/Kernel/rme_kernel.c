@@ -432,7 +432,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                           RME_PARAM_D1(Param[0])    /* rme_cid_t Cap_Kmem */,
                                           RME_PARAM_Q1(Param[0])    /* rme_cid_t Cap_Pgtbl */,
                                           Param[1]                  /* rme_ptr_t Raddr */,
-                                          Param[2]&(RME_ALLBITS<<1) /* rme_ptr_t Start_Addr */,
+                                          Param[2]&(RME_ALLBITS<<1) /* rme_ptr_t Base_Addr */,
                                           RME_PARAM_PT(Param[2])    /* rme_ptr_t Top_Flag */,
                                           RME_PARAM_Q0(Param[0])    /* rme_ptr_t Size_Order */,
                                           RME_PARAM_PC(Svc)         /* rme_ptr_t Num_Order */);
@@ -1726,8 +1726,8 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
               rme_ptr_t Vaddr - The virtual address to store the page table kernel object.
-              rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
-                                     This address must be aligned to the total size of the table.
+              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
+                                    This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
                                    map all the kernel page directories into this one.
               rme_ptr_t Size_Order - The size order of the page table. The size refers to
@@ -1737,7 +1737,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                              rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Start_Addr,
+                              rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
                               rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     struct RME_Cap_Captbl* Captbl_Op;
@@ -1763,7 +1763,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
     {
         RME_COVERAGE_MARKER();
         
@@ -1774,8 +1774,8 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
         RME_COVERAGE_MARKER();
     }
     
-    /* Check if the start address is properly aligned to the total order of the page table */
-    if((Start_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
+    /* Check if the base address is properly aligned to the total order of the page table */
+    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
     {
         RME_COVERAGE_MARKER();
 
@@ -1831,7 +1831,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|
                           RME_PGTBL_FLAG_ADD_SRC|
                           RME_PGTBL_FLAG_PROC_CRT;
-    Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
+    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
     /* We start initialization of the page table, and we also add all kernel pages
@@ -1934,8 +1934,8 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
-    if(Pgtbl_Child->Start_Addr<Parent_Map_Addr)
+                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
+    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
     {
         RME_COVERAGE_MARKER();
         
@@ -1952,7 +1952,7 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
      * address is always aligned to the total order of the child page table */
     if(Parend_End_Addr!=0)
     {
-        if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
         {
             RME_COVERAGE_MARKER();
 
@@ -2018,7 +2018,7 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl
 
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if we force identical mapping */
-    if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Start_Addr)))
+    if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Base_Addr)))
     {
         RME_COVERAGE_MARKER();
         
@@ -2073,8 +2073,8 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
               rme_ptr_t Raddr - The relative virtual address to store the page table kernel object.
-              rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
-                                     This address must be aligned to the total size of the table.
+              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
+                                    This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
                                    map all the kernel page directories into this one.
               rme_ptr_t Size_Order - The size order of the page table. The size refers to
@@ -2085,7 +2085,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                          rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
-                         rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
+                         rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
@@ -2126,7 +2126,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     }
 
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
     {
         RME_COVERAGE_MARKER();
 
@@ -2138,7 +2138,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     }
 
     /* Check if the start address is properly aligned to the total order of the page table */
-    if((Start_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
+    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
     {
         RME_COVERAGE_MARKER();
 
@@ -2194,7 +2194,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                           RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM|
                           RME_PGTBL_FLAG_CON_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES|
                           RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT;
-    Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
+    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
     /* We start initialization of the page table, and we also add all kernel pages
@@ -2286,7 +2286,7 @@ rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rm
     
     /* Remember these two variables for deletion */
     Object=RME_CAP_GETOBJ(Pgtbl_Del,rme_ptr_t);
-    if(((Pgtbl_Del->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Del->Base_Addr)&RME_PGTBL_TOP)!=0)
     {
         RME_COVERAGE_MARKER();
 
@@ -2423,7 +2423,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if we force identical mapping. No need to check granularity here */
     if(Paddr_Dst!=((Pos_Dst<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order))+
-                   RME_PGTBL_START(Pgtbl_Dst->Start_Addr)))
+                   RME_PGTBL_START(Pgtbl_Dst->Base_Addr)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2603,8 +2603,8 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
-    if(Pgtbl_Child->Start_Addr<Parent_Map_Addr)
+                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
+    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
     {
         RME_COVERAGE_MARKER();
 
@@ -2621,7 +2621,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
      * address is always aligned to the total order of the child page table */
     if(Parend_End_Addr!=0)
     {
-        if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
         {
             RME_COVERAGE_MARKER();
 
