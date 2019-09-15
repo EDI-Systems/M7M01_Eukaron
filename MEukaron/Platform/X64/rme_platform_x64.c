@@ -1807,16 +1807,17 @@ void write_string( int colour, const char *string, rme_ptr_t pos)
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The sub function ID.
               rme_ptr_t Param1 - The first parameter.
               rme_ptr_t Param2 - The second parameter.
 Output      : None.
-Return      : rme_ptr_t - The value that the function returned.
+Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                                  rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
     /* Now always call the HALT */
     char String[16];
