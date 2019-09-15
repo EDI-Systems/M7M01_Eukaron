@@ -663,8 +663,8 @@ struct RME_Cap_Pgtbl
     struct RME_Cap_Head Head;
     /* The entry size/number order */
     rme_ptr_t Size_Num_Order;
-    /* The start address of this page table */
-    rme_ptr_t Start_Addr;
+    /* The base address of this page table */
+    rme_ptr_t Base_Addr;
     /* We will not place the page table parent/child counter and extra information
      * like ASID here, because we consider that as a inherent part of page table.
      * Because page tables are required to be aligned to some address, thus we 
@@ -910,7 +910,7 @@ static rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Ca
 /* Page table system calls */
 static rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                 rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
-                                rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
+                                rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,  rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
 static rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl, 
                                 rme_cid_t Cap_Pgtbl_Dst, rme_ptr_t Pos_Dst, rme_ptr_t Flags_Dst,
@@ -1025,7 +1025,7 @@ __EXTERN__ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid
 /* Page Table ****************************************************************/
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                         rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Start_Addr,
+                                         rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
                                          rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
                                          rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos,
