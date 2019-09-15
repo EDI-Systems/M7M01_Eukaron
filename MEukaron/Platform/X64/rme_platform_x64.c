@@ -1371,7 +1371,7 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
      * check to see if they are there. */
     RME_ASSERT(CPU_Local->Cur_Thd!=0);
     RME_ASSERT(CPU_Local->Tick_Sig!=0);
-    RME_ASSERT(CPU_Local->Int_Sig!=0);
+    RME_ASSERT(CPU_Local->Vect_Sig!=0);
 
     /* Change page tables */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
@@ -1539,7 +1539,7 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
+    	CPU_Local->Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
         Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     }
