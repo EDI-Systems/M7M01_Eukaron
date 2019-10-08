@@ -1,5 +1,5 @@
 ;******************************************************************************
-;Filename    : platform_STM32F405RG.sct
+;Filename    : rme_platform_STM32F405RG.sct
 ;Author      : pry
 ;Date        : 24/06/2017
 ;Licence     : The Unlicense; see LICENSE for details.
@@ -43,8 +43,8 @@ KERNEL 0x08000000 0x00010000
     ; Kernel stack segment - 4kB
     KERNEL_STACK 0x10000000 0x00001000
     {
-        platform_a7m.o                 (HEAP)
-        platform_a7m.o                 (STACK)
+        rme_platform_a7m.o                 (HEAP)
+        rme_platform_a7m.o                 (STACK)
     }
     
     ; Initial kernel data segment - 4kB 
@@ -62,7 +62,7 @@ KERNEL 0x08000000 0x00010000
     ; The data section of the processes - The rest of the memory
     PROC_DATA 0x10008000 0x00008000
     {
-        benchmark.o                    (+RW +ZI)
+
     }
 }
 ; End Segment:KERNEL **********************************************************
@@ -77,10 +77,25 @@ INIT 0x08010000 0x00010000
     ; Init process code segment - 64kB
     INIT_CODE 0x08010000 0x00010000
     {
-        benchmark.o                    (+RO)
+        M7M2_Init.o                    (+RO)
     }
 }
 ; End Segment:INIT ************************************************************
+
+; Begin Segment:PROC **********************************************************
+; Description : The .text segment of the processes. All processes needs to be placed
+; here; If you don't want to convert them to C and compile to a whole image, flash
+; them to this address.
+; *****************************************************************************
+PROC 0x08020000 0x000C0000
+{
+    ; Init process code segment - 64kB
+    PROC_CODE 0x08020000 0x000C0000
+    {
+        PROC*.o                         (+RO)
+    }
+}
+; End Segment:PROC ************************************************************
 
 ; End Of File *****************************************************************
 

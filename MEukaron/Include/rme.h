@@ -460,14 +460,16 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Modify physical memory configuration */
 #define RME_KERN_HPNP_PMEM_MOD          (0xF302)
 /* Hot plug and pull operations **********************************************/
+/* Put CPU into idle sleep mode */
+#define RME_KERN_IDLE_SLEEP             (0xF400)
 /* Modify voltage configuration */
-#define RME_KERN_VOLTAGE_MOD            (0xF400)
+#define RME_KERN_VOLTAGE_MOD            (0xF401)
 /* Modify frequency configuration */
-#define RME_KERN_FREQ_MOD               (0xF401)
+#define RME_KERN_FREQ_MOD               (0xF402)
 /* Modify power state */
-#define RME_KERN_POWER_MOD              (0xF402)
+#define RME_KERN_POWER_MOD              (0xF403)
 /* Modify safety lock state */
-#define RME_KERN_SAFETY_MOD             (0xF403)
+#define RME_KERN_SAFETY_MOD             (0xF404)
 /* Performance monitoring operations *****************************************/
 /* Query or modify CPU function configuration */
 #define RME_KERN_PERF_CPU_FUNC          (0xF500)

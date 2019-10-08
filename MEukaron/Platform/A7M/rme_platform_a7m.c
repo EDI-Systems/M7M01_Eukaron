@@ -381,7 +381,6 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 {
-
 #if(RME_GEN_ENABLE==RME_TRUE)
     /* Do in-kernel processing first */
     extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
@@ -504,9 +503,21 @@ Return      : rme_ret_t - The value that the function returned.
 rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                                   rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
+#if(RME_GEN_ENABLE==RME_TRUE)
+    rme_ret_t Retval;
+#endif
+
     /* Currently we only implement sends */
     switch(Func_ID)
     {
+        case RME_KERN_IDLE_SLEEP:
+        {
+            __RME_A7M_Wait_Int();
+            
+            __RME_Set_Syscall_Retval(Reg,0);
+            
+            return 0;
+        }
         case RME_KERN_EVT_LOCAL_TRIG:
         {
             if(Sub_ID!=0)
@@ -530,11 +541,26 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         {
             return __RME_A7M_Debug_Reg_Mod(Captbl, Reg, Sub_ID, Param1);
         }
-        default:break;
+        default:
+        {
+#if(RME_GEN_ENABLE==RME_TRUE)
+            extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+            Retval=RME_User_Kern_Func_Handler(Func_ID, Sub_ID, Param1, Param2);
+            
+            if(Retval>=0)
+                __RME_Set_Syscall_Retval(Reg,0);
+            
+            return Retval;
+#else
+            break;
+#endif
+        }
     }
-    
+
+#if(RME_GEN_ENABLE!=RME_TRUE)
     /* If it gets here, we must have failed */
     return RME_ERR_KERN_OPFAIL;
+#endif
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
 
@@ -589,6 +615,11 @@ Return      : None.
 void __RME_A7M_Low_Level_Preinit(void)
 {
     RME_A7M_LOW_LEVEL_PREINIT();
+
+#if(RME_GEN_ENABLE==RME_TRUE)
+		extern void RME_Boot_Pre_Init(void);
+	  RME_Boot_Pre_Init();
+#endif
 }
 /* End Function:__RME_A7M_Low_Level_Preinit **********************************/
 
@@ -603,7 +634,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     rme_ptr_t Temp;
     
     RME_A7M_LOW_LEVEL_INIT();
-    
+
     /* Enable the MPU */
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
     RME_A7M_SCB_SHCSR&=~RME_A7M_SCB_SHCSR_MEMFAULTENA;
@@ -643,6 +674,11 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* We do not need to turn off lazy stacking, because even if a fault occurs,
      * it will get dropped by our handler deliberately and will not cause wrong
      * attribution. They can be alternatively disabled as well if you wish */
+		 
+#if(RME_GEN_ENABLE==RME_TRUE)
+		extern void RME_Boot_Post_Init(void);
+	  RME_Boot_Post_Init();
+#endif
     
     return 0;
 }
