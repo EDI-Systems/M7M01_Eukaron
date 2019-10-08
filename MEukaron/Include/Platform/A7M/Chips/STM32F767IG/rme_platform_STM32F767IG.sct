@@ -77,21 +77,20 @@ INIT 0x08010000 0x00010000
 }
 ; End Segment:INIT ************************************************************
 
-; Begin Segment:VM ************************************************************
-; Description : The .text segment of the virtual machines. All virtual machines
-; needs to be placed here; If you don't want to convert them to C and compile to
-; a whole image, flash them to this address.
+; Begin Segment:PROC **********************************************************
+; Description : The .text segment of the processes. All processes needs to be placed
+; here; If you don't want to convert them to C and compile to a whole image, flash
+; them to this address.
 ; *****************************************************************************
-VM 0x08020000 0x000C0000
+PROC 0x08020000 0x000C0000
 {
     ; Init process code segment - 64kB
-    VM_CODE 0x08020000 0x000C0000
+    PROC_CODE 0x08020000 0x000C0000
     {
-        VM*.o                         (+RO)
-        rtthread.o                    (+RO)
+        PROC*.o                         (+RO)
     }
 }
-; End Segment:VM **************************************************************
+; End Segment:PROC ************************************************************
 
 ; End Of File *****************************************************************
 

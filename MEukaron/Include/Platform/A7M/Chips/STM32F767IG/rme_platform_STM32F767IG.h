@@ -15,7 +15,7 @@ Description: The configuration file for STM32F767IG.
 #define RME_KMEM_VA_START                               (0x20003000)
 /* The size of the kernel object virtual memory */
 #define RME_KMEM_SIZE                                   (0xD000)
-/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
+/* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
 #define RME_HYP_VA_START                                (0x20020000)
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                                    (0x60000)
@@ -24,7 +24,7 @@ Description: The configuration file for STM32F767IG.
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                            (32)
-
+/* Size of capability table */
 #if(RME_GEN_ENABLE==RME_TRUE)
 #define RME_A7M_BOOT_CAPTBL_SIZE                        (18)
 #else
@@ -58,14 +58,6 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_MPU_REGIONS                             (8)
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV5_DP)
-
-/* Kernel functions standard to Cortex-M, interrupt management and power */
-#define RME_A7M_KERN_INT(X)                             (X)
-#define RME_A7M_INT_OP                                  (0)
-#define RME_A7M_INT_ENABLE                              (1)
-#define RME_A7M_INT_DISABLE                             (0)
-#define RME_A7M_INT_PRIO                                (1)
-#define RME_A7M_KERN_PWR                                (240)
 
 /* Interrupt *****************************************************************/
 #define  WWDG_IRQHandler                                IRQ0_Handler        /* Window WatchDog */                                       
@@ -290,6 +282,7 @@ Description: The configuration file for STM32F767IG.
 
 #define RME_A7M_USART1_CR1_UE                           (1U<<0)
 
+/* Preinitialization of critical hardware */
 #define RME_A7M_LOW_LEVEL_PREINIT() \
 do \
 { \

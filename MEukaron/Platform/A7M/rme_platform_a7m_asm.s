@@ -991,8 +991,8 @@ __RME_A7M_Barrier
 ;Return      : None.
 ;*****************************************************************************/
 __RME_A7M_Wait_Int
-    ;Wait for interrupt.
-    WFI 
+    ;Wait for interrupt or events.
+    WFE
     BX                  LR
 ;/* End Function:__RME_A7M_Wait_Int ******************************************/
 
