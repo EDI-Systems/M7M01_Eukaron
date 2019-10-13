@@ -2,10 +2,10 @@
 ;Filename    : rme_platform_a7m_asm.s
 ;Author      : pry
 ;Date        : 19/01/2017
-;Description : The Cortex-M assembly support of the RME RTOS.
+;Description : The ARMv7-M assembly support of the RME RTOS.
 ;*****************************************************************************/
 
-;/* The ARM Cortex-M3/4/7 Architecture ****************************************
+;/* The ARMv7-M Architecture **************************************************
 ;R0-R7:General purpose registers that are accessible. 
 ;R8-R12:general purpose registers that can only be reached by 32-bit instructions.
 ;R13:SP/SP_process/SP_main    Stack pointer
@@ -26,7 +26,7 @@ Stack_Size              EQU 0x00000400
 Stack_Mem               SPACE Stack_Size
 __initial_sp
 
-Heap_Size               EQU 0x00000200
+Heap_Size               EQU 0x00000000
     AREA                HEAP, NOINIT, READWRITE, ALIGN=3
 __heap_base
 Heap_Mem                SPACE Heap_Size

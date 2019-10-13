@@ -45,11 +45,11 @@ Description: The configuration file for STM32F767IG.
 /* What is the Systick value? */
 #define RME_A7M_SYSTICK_VAL                             (2160000)
 /* What are the PLL values? */
-#define RME_A7M_PLLM                                    (25)
-#define RME_A7M_PLLN                                    (432)
-#define RME_A7M_PLLP                                    (2)
-#define RME_A7M_PLLQ                                    (9)
-#define RME_A7M_PLLR                                    (0)
+#define RME_A7M_STM32F767IG_PLLM                        (25)
+#define RME_A7M_STM32F767IG_PLLN                        (432)
+#define RME_A7M_STM32F767IG_PLLP                        (2)
+#define RME_A7M_STM32F767IG_PLLQ                        (9)
+#define RME_A7M_STM32F767IG_PLLR                        (0)
 
 /* Fixed *********************************************************************/
 /* The granularity of kernel memory allocation, in bytes */
@@ -59,7 +59,7 @@ Description: The configuration file for STM32F767IG.
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV5_DP)
 
-/* Interrupt *****************************************************************/
+/* Interrupts ****************************************************************/
 #define  WWDG_IRQHandler                                IRQ0_Handler        /* Window WatchDog */                                       
 #define  PVD_IRQHandler                                 IRQ1_Handler        /* PVD through EXTI Line detection */
 #define  TAMP_STAMP_IRQHandler                          IRQ2_Handler        /* Tamper and TimeStamps through the EXTI line */
@@ -181,7 +181,7 @@ Description: The configuration file for STM32F767IG.
 #define  JPEG_IRQHandler                                IRQ108_Handler      /* JPEG */
 #define  MDIOS_IRQHandler                               IRQ109_Handler      /* MDIOS */
 
-/* Initialization registers */
+/* Initialization registers **************************************************/
 #define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40000000+0x00020000+0x3800+0x40)
 #define RME_A7M_RCC_APB1ENR_PWREN                       (1U<<28)
 
@@ -327,11 +327,11 @@ do \
     __RME_A7M_Barrier(); \
     while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_PLLRDY)!=0); \
     RME_A7M_RCC_PLLCFGR=RME_A7M_RCC_PLLCFGR_SOURCE_HSE| \
-                        RME_A7M_RCC_PLLCFGR_PLLM(RME_A7M_PLLM)| \
-                        RME_A7M_RCC_PLLCFGR_PLLN(RME_A7M_PLLN)| \
-                        RME_A7M_RCC_PLLCFGR_PLLP(RME_A7M_PLLP)| \
-                        RME_A7M_RCC_PLLCFGR_PLLQ(RME_A7M_PLLQ)| \
-                        RME_A7M_RCC_PLLCFGR_PLLR(RME_A7M_PLLR); \
+                        RME_A7M_RCC_PLLCFGR_PLLM(RME_A7M_STM32F767IG_PLLM)| \
+                        RME_A7M_RCC_PLLCFGR_PLLN(RME_A7M_STM32F767IG_PLLN)| \
+                        RME_A7M_RCC_PLLCFGR_PLLP(RME_A7M_STM32F767IG_PLLP)| \
+                        RME_A7M_RCC_PLLCFGR_PLLQ(RME_A7M_STM32F767IG_PLLQ)| \
+                        RME_A7M_RCC_PLLCFGR_PLLR(RME_A7M_STM32F767IG_PLLR); \
     __RME_A7M_Barrier(); \
     RME_A7M_RCC_CR|=RME_A7M_RCC_CR_PLLON; \
     __RME_A7M_Barrier(); \
