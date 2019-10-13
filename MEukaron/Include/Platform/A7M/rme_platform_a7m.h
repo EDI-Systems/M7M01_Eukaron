@@ -210,7 +210,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_EXC_RET_RET_USER        (1<<3)
 /* FPU type definitions */
 #define RME_A7M_FPU_NONE                (0)
-#define RME_A7M_FPU_VFPV4               (1)
+#define RME_A7M_FPU_FPV4                (1)
 #define RME_A7M_FPU_FPV5_SP             (2)
 #define RME_A7M_FPU_FPV5_DP             (3)
 

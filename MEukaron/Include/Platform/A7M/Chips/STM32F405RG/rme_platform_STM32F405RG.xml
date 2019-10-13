@@ -45,35 +45,29 @@
     </Memory>
     <Option>
         <O0>
-            <Name>XTAL</Name>
-            <Type>Range</Type>
-            <Macro>RME_A7M_STM32F405RG_XTAL</Macro>
-            <Range>8,25</Range>
-        </O0>
-        <O1>
             <Name>PLLM</Name>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F405RG_PLLM</Macro>
             <Range>2,63</Range>
-        </O1>
-        <O2>
+        </O0>
+        <O1>
             <Name>PLLN</Name>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F405RG_PLLN</Macro>
             <Range>50,432</Range>
-        </O2>
-        <O3>
+        </O1>
+        <O2>
             <Name>PLLP</Name>
             <Type>Select</Type>
             <Macro>RME_A7M_STM32F405RG_PLLP</Macro>
             <Range>2,4,6,8</Range>
-        </O3>
-        <O4>
+        </O2>
+        <O3>
             <Name>PLLQ</Name>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F405RG_PLLQ</Macro>
             <Range>2,15</Range>
-        </O4>
+        </O3>
     </Option>
     <Vector>
         <V0>
