@@ -151,18 +151,11 @@ Description: The configuration file for STM32F405RG.
 #define FPU_IRQHandler                                  IRQ81_Handler       /* FPU global */
 
 /* Initialization registers **************************************************/
-#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40000000+0x00020000+0x3800+0x40)
+#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840)
 #define RME_A7M_RCC_APB1ENR_PWREN                       (1U<<28)
 
-#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40000000+0x7000+0x00)
+#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40007000)
 #define RME_A7M_PWR_CR1_VOS_SCALE1                      (1U<<14)
-
-//#define RME_A7M_PWR_CR1_ODEN                            (1U<<16)
-//#define RME_A7M_PWR_CR1_ODSWEN                          (1U<<17)
-
-#define RME_A7M_PWR_CSR1                                RME_A7M_REG(0x40000000+0x7000+0x04)
-#define RME_A7M_PWR_CSR1_ODRDY                          (1U<<16)
-#define RME_A7M_PWR_CSR1_ODSWRDY                        (1U<<17)
 
 #define RME_A7M_RCC_CR                                  RME_A7M_REG(0x40023800)
 #define RME_A7M_RCC_CR_HSEON                            (1U<<16)
@@ -200,25 +193,25 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_RCC_CFGR_HCLK_DIV8                      (0x06U)
 #define RME_A7M_RCC_CFGR_HCLK_DIV16                     (0x07U)
 
-#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000000+0x0800+0x10)
+#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000810)
 #define RME_A7M_TIM_FLAG_UPDATE                         (1U<<0)
 
-#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023800+0x30)
+#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023830)
 #define RME_A7M_RCC_AHB1ENR_GPIOBEN                     (1U<<1)
 
-#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023800+0x44)
+#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023844)
 #define RME_A7M_RCC_APB2ENR_USART1EN                    (1U<<4)
 
-#define RME_A7M_GPIOB_MODER                             RME_A7M_REG(0x40020000+0x400+0x00)
-#define RME_A7M_GPIOB_OTYPER                            RME_A7M_REG(0x40020000+0x400+0x04)
-#define RME_A7M_GPIOB_OSPEEDR                           RME_A7M_REG(0x40020000+0x400+0x08)
-#define RME_A7M_GPIOB_PUPDR                             RME_A7M_REG(0x40020000+0x400+0x0C)
-#define RME_A7M_GPIOB_IDR                               RME_A7M_REG(0x40020000+0x400+0x10)
-#define RME_A7M_GPIOB_ODR                               RME_A7M_REG(0x40020000+0x400+0x14)
-#define RME_A7M_GPIOB_BSRR                              RME_A7M_REG(0x40020000+0x400+0x18)
-#define RME_A7M_GPIOB_LCKR                              RME_A7M_REG(0x40020000+0x400+0x1C)
-#define RME_A7M_GPIOB_AFR0                              RME_A7M_REG(0x40020000+0x400+0x20)
-#define RME_A7M_GPIOB_AFR1                              RME_A7M_REG(0x40020000+0x400+0x24)
+#define RME_A7M_GPIOB_MODER                             RME_A7M_REG(0x40020400)
+#define RME_A7M_GPIOB_OTYPER                            RME_A7M_REG(0x40020404)
+#define RME_A7M_GPIOB_OSPEEDR                           RME_A7M_REG(0x40020408)
+#define RME_A7M_GPIOB_PUPDR                             RME_A7M_REG(0x4002040C)
+#define RME_A7M_GPIOB_IDR                               RME_A7M_REG(0x40020410)
+#define RME_A7M_GPIOB_ODR                               RME_A7M_REG(0x40020414)
+#define RME_A7M_GPIOB_BSRR                              RME_A7M_REG(0x40020418)
+#define RME_A7M_GPIOB_LCKR                              RME_A7M_REG(0x4002041C)
+#define RME_A7M_GPIOB_AFR0                              RME_A7M_REG(0x40020420)
+#define RME_A7M_GPIOB_AFR1                              RME_A7M_REG(0x40020424)
 
 #define RME_A7M_GPIO_MODE_INPUT                         (0U)
 #define RME_A7M_GPIO_MODE_OUTPUT                        (1U)
@@ -246,13 +239,13 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_GPIOB_AF0(AF,PIN)                       RME_A7M_GPIOB_AFR0=(RME_A7M_GPIOB_AFR0&~(0x0F<<((PIN)*4)))|((AF)<<((PIN)*4))
 #define RME_A7M_GPIOB_AF1(AF,PIN)                       RME_A7M_GPIOB_AFR1=(RME_A7M_GPIOB_AFR1&~(0x0F<<((PIN-8)*4)))|((AF)<<((PIN-8)*4))
 
-#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x40011000+0x0C)
-#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011000+0x10)
-#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011000+0x14)
-#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x40011000+0x08)
-#define RME_A7M_USART1_DR                               RME_A7M_REG(0x40011000+0x04)
+#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x4001100C)
+#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011010)
+#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011014)
+#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x40011008)
+#define RME_A7M_USART1_DR                               RME_A7M_REG(0x40011004)
 
-#define RME_A7M_USART1_CR1_UE                           (1U<<0)
+#define RME_A7M_USART1_CR1_UE                           (1U<<13)
 
 /* Preinitialization of critical hardware */
 #define RME_A7M_LOW_LEVEL_PREINIT() \
@@ -320,21 +313,20 @@ do \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
     \
     /* Enable USART 1 for user-level operations */ \
-    /* Clock enabling */ \
-    RME_A7M_RCC_AHB1ENR|=RME_A7M_RCC_AHB1ENR_GPIOBEN; \
-    RME_A7M_RCC_APB2ENR|=RME_A7M_RCC_APB2ENR_USART1EN; \
-    \
     /* UART IO initialization */ \
+    RME_A7M_RCC_AHB1ENR|=RME_A7M_RCC_AHB1ENR_GPIOBEN; \
     RME_A7M_GPIOB_MODE(RME_A7M_GPIO_MODE_ALTERNATE,6); \
     RME_A7M_GPIOB_OTYPE(RME_A7M_GPIO_OTYPE_PUSHPULL,6); \
     RME_A7M_GPIOB_OSPEED(RME_A7M_GPIO_OSPEED_HIGH,6); \
     RME_A7M_GPIOB_PUPD(RME_A7M_GPIO_PUPD_PULLUP,6); \
     RME_A7M_GPIOB_AF0(RME_A7M_GPIO_AF7_USART1,6); \
+    \
     /* UART initialization */ \
+    RME_A7M_RCC_APB2ENR|=RME_A7M_RCC_APB2ENR_USART1EN; \
     RME_A7M_USART1_CR1=0x0000008; \
     RME_A7M_USART1_CR2=0x00; \
     RME_A7M_USART1_CR3=0x00; \
-    RME_A7M_USART1_BRR=0x3AA; \
+    RME_A7M_USART1_BRR=0x2D9; \
     RME_A7M_USART1_CR1|=RME_A7M_USART1_CR1_UE; \
 } \
 while(0)

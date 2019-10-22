@@ -182,14 +182,14 @@ Description: The configuration file for STM32F767IG.
 #define  MDIOS_IRQHandler                               IRQ109_Handler      /* MDIOS */
 
 /* Initialization registers **************************************************/
-#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40000000+0x00020000+0x3800+0x40)
+#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840)
 #define RME_A7M_RCC_APB1ENR_PWREN                       (1U<<28)
 
-#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40000000+0x7000+0x00)
+#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40007000)
 #define RME_A7M_PWR_CR1_VOS_SCALE1                      (3U<<14)
 #define RME_A7M_PWR_CR1_ODEN                            (1U<<16)
 #define RME_A7M_PWR_CR1_ODSWEN                          (1U<<17)
-#define RME_A7M_PWR_CSR1                                RME_A7M_REG(0x40000000+0x7000+0x04)
+#define RME_A7M_PWR_CSR1                                RME_A7M_REG(0x40007004)
 #define RME_A7M_PWR_CSR1_ODRDY                          (1U<<16)
 #define RME_A7M_PWR_CSR1_ODSWRDY                        (1U<<17)
 
@@ -228,25 +228,25 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_RCC_CFGR_HCLK_DIV8                      (0x06U)
 #define RME_A7M_RCC_CFGR_HCLK_DIV16                     (0x07U)
 
-#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000000+0x0800+0x10)
+#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000810)
 #define RME_A7M_TIM_FLAG_UPDATE                         (1U<<0)
 
-#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023800+0x30)
+#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023830)
 #define RME_A7M_RCC_AHB1ENR_GPIOAEN                     (1U<<0)
 
-#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023800+0x44)
+#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023844)
 #define RME_A7M_RCC_APB2ENR_USART1EN                    (1U<<4)
 
-#define RME_A7M_GPIOA_MODER                             RME_A7M_REG(0x40020000+0x00)
-#define RME_A7M_GPIOA_OTYPER                            RME_A7M_REG(0x40020000+0x04)
-#define RME_A7M_GPIOA_OSPEEDR                           RME_A7M_REG(0x40020000+0x08)
-#define RME_A7M_GPIOA_PUPDR                             RME_A7M_REG(0x40020000+0x0C)
-#define RME_A7M_GPIOA_IDR                               RME_A7M_REG(0x40020000+0x10)
-#define RME_A7M_GPIOA_ODR                               RME_A7M_REG(0x40020000+0x14)
-#define RME_A7M_GPIOA_BSRR                              RME_A7M_REG(0x40020000+0x18)
-#define RME_A7M_GPIOA_LCKR                              RME_A7M_REG(0x40020000+0x1C)
-#define RME_A7M_GPIOA_AFR0                              RME_A7M_REG(0x40020000+0x20)
-#define RME_A7M_GPIOA_AFR1                              RME_A7M_REG(0x40020000+0x24)
+#define RME_A7M_GPIOA_MODER                             RME_A7M_REG(0x40020000)
+#define RME_A7M_GPIOA_OTYPER                            RME_A7M_REG(0x40020004)
+#define RME_A7M_GPIOA_OSPEEDR                           RME_A7M_REG(0x40020008)
+#define RME_A7M_GPIOA_PUPDR                             RME_A7M_REG(0x4002000C)
+#define RME_A7M_GPIOA_IDR                               RME_A7M_REG(0x40020010)
+#define RME_A7M_GPIOA_ODR                               RME_A7M_REG(0x40020014)
+#define RME_A7M_GPIOA_BSRR                              RME_A7M_REG(0x40020018)
+#define RME_A7M_GPIOA_LCKR                              RME_A7M_REG(0x4002001C)
+#define RME_A7M_GPIOA_AFR0                              RME_A7M_REG(0x40020020)
+#define RME_A7M_GPIOA_AFR1                              RME_A7M_REG(0x40020024)
 
 #define RME_A7M_GPIO_MODE_INPUT                         (0U)
 #define RME_A7M_GPIO_MODE_OUTPUT                        (1U)
@@ -274,11 +274,11 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_GPIOA_AF0(AF,PIN)                       RME_A7M_GPIOA_AFR0=(RME_A7M_GPIOA_AFR0&~(0x0F<<((PIN)*4)))|((AF)<<((PIN)*4))
 #define RME_A7M_GPIOA_AF1(AF,PIN)                       RME_A7M_GPIOA_AFR1=(RME_A7M_GPIOA_AFR1&~(0x0F<<((PIN-8)*4)))|((AF)<<((PIN-8)*4))
 
-#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x40011000+0x00)
-#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011000+0x04)
-#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011000+0x08)
-#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x40011000+0x0C)
-#define RME_A7M_USART1_TDR                              RME_A7M_REG(0x40011000+0x28)
+#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x40011000)
+#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011004)
+#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011008)
+#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x4001100C)
+#define RME_A7M_USART1_TDR                              RME_A7M_REG(0x40011028)
 
 #define RME_A7M_USART1_CR1_UE                           (1U<<0)
 
