@@ -129,26 +129,26 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_REG(X)                  (*((volatile rme_ptr_t*)(X)))
 #define RME_A7M_REGB(X)                 (*((volatile rme_u8_t*)(X)))
     
-#define RME_A7M_SCB_ICALLU              RME_A7M_REG(0xE000ED00+0x250)
+#define RME_A7M_SCB_ICALLU              RME_A7M_REG(0xE000EF50)
 
-#define RME_A7M_SCB_CCR                 RME_A7M_REG(0xE000ED00+0x014)
+#define RME_A7M_SCB_CCR                 RME_A7M_REG(0xE000ED14)
 #define RME_A7M_SCB_CCR_IC              (1U<<17)
 #define RME_A7M_SCB_CCR_DC              (1U<<16)
 
-#define RME_A7M_SCB_CSSELR              RME_A7M_REG(0xE000ED00+0x084)
+#define RME_A7M_SCB_CSSELR              RME_A7M_REG(0xE000ED84)
 
-#define RME_A7M_SCB_CCSIDR              RME_A7M_REG(0xE000ED00+0x080)
+#define RME_A7M_SCB_CCSIDR              RME_A7M_REG(0xE000ED80)
 #define RME_A7M_SCB_CCSIDR_WAYS(X)      (((X)&0x1FF8)>>3)
 #define RME_A7M_SCB_CCSIDR_SETS(X)      (((X)&0x0FFFE000)>>13)
 
-#define RME_A7M_SCB_CPACR               RME_A7M_REG(0xE000ED00+0x088)
+#define RME_A7M_SCB_CPACR               RME_A7M_REG(0xE000ED88)
 
-#define RME_A7M_SCB_VTOR                RME_A7M_REG(0xE000ED00+0x008)
+#define RME_A7M_SCB_VTOR                RME_A7M_REG(0xE000ED08)
 
-#define RME_A7M_SCB_DCISW               RME_A7M_REG(0xE000ED00+0x260)
+#define RME_A7M_SCB_DCISW               RME_A7M_REG(0xE000EF60)
 #define RME_A7M_SCB_DCISW_INV(SET,WAY)  (((SET)<<5)|((WAY)<<30))
 
-#define RME_A7M_SCB_SHCSR               RME_A7M_REG(0xE000ED00+0x024)
+#define RME_A7M_SCB_SHCSR               RME_A7M_REG(0xE000ED24)
 #define RME_A7M_SCB_SHCSR_MEMFAULTENA   (1U<<16)
 #define RME_A7M_SCB_SHCSR_BUSFAULTENA   (1U<<17)
 #define RME_A7M_SCB_SHCSR_USGFAULTENA   (1U<<18)
@@ -158,17 +158,17 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_SCB_MMFAR               RME_A7M_REG(0xE000ED34)
 #define RME_A7M_SCB_ICSR                RME_A7M_REG(0xE000ED04)
 
-#define RME_A7M_ITM_TCR                 RME_A7M_REG(0xE0000000+0xE80)
+#define RME_A7M_ITM_TCR                 RME_A7M_REG(0xE0000E80)
 #define RME_A7M_ITM_TCR_ITMENA          (1U<<0)
 
-#define RME_A7M_ITM_TER                 RME_A7M_REG(0xE0000000+0xE00)
+#define RME_A7M_ITM_TER                 RME_A7M_REG(0xE0000E00)
 #define RME_A7M_ITM_PORT(X)             RME_A7M_REG(0xE0000000+((X)<<2))
 
-#define RME_A7M_MPU_CTRL                RME_A7M_REG(0xE000ED90+0x004)
+#define RME_A7M_MPU_CTRL                RME_A7M_REG(0xE000ED94)
 #define RME_A7M_MPU_CTRL_PRIVDEF        (1U<<2)
 #define RME_A7M_MPU_CTRL_ENABLE         (1U<<0)
 
-#define RME_A7M_SCB_AIRCR               RME_A7M_REG(0xE000ED90+0x00C)
+#define RME_A7M_SCB_AIRCR               RME_A7M_REG(0xE000ED9C)
 #define RME_A7M_NVIC_GROUPING_P7S1      0
 #define RME_A7M_NVIC_GROUPING_P6S2      1
 #define RME_A7M_NVIC_GROUPING_P5S3      2
@@ -178,8 +178,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_NVIC_GROUPING_P1S7      6
 #define RME_A7M_NVIC_GROUPING_P0S8      7
 
-#define RME_A7M_SCB_SHPR(X)             RME_A7M_REGB(0xE000ED00+0x018+(X))
-#define RME_A7M_NVIC_IP(X)              RME_A7M_REGB(0xE000E000+0x0100+0x300+(X))
+#define RME_A7M_SCB_SHPR(X)             RME_A7M_REGB(0xE000ED18+(X))
+#define RME_A7M_NVIC_IP(X)              RME_A7M_REGB(0xE000E400+(X))
 #define RME_A7M_NVIC_ISE(X)             RME_A7M_REG(0xE000E100+(X)*4)
 #define RME_A7M_NVIC_ICE(X)             RME_A7M_REG(0XE000E180+(X)*4)
 
@@ -192,10 +192,10 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_IRQN_PENDSV             -2
 #define RME_A7M_IRQN_SYSTICK            -1
 
-#define RME_A7M_SYSTICK_CTRL            RME_A7M_REG(0xE000E000UL+0x0010UL+0x000)
-#define RME_A7M_SYSTICK_LOAD            RME_A7M_REG(0xE000E000UL+0x0010UL+0x004)
-#define RME_A7M_SYSTICK_VALREG          RME_A7M_REG(0xE000E000UL+0x0010UL+0x008)
-#define RME_A7M_SYSTICK_CALIB           RME_A7M_REG(0xE000E000UL+0x0010UL+0x00C)
+#define RME_A7M_SYSTICK_CTRL            RME_A7M_REG(0xE000E010)
+#define RME_A7M_SYSTICK_LOAD            RME_A7M_REG(0xE000E014)
+#define RME_A7M_SYSTICK_VALREG          RME_A7M_REG(0xE000E018)
+#define RME_A7M_SYSTICK_CALIB           RME_A7M_REG(0xE000E01C)
 
 #define RME_A7M_SYSTICK_CTRL_CLKSOURCE  (1U<<2)
 #define RME_A7M_SYSTICK_CTRL_TICKINT    (1U<<1)

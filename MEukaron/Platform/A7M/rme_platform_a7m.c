@@ -617,8 +617,8 @@ void __RME_A7M_Low_Level_Preinit(void)
     RME_A7M_LOW_LEVEL_PREINIT();
 
 #if(RME_GEN_ENABLE==RME_TRUE)
-		extern void RME_Boot_Pre_Init(void);
-	  RME_Boot_Pre_Init();
+    extern void RME_Boot_Pre_Init(void);
+    RME_Boot_Pre_Init();
 #endif
 }
 /* End Function:__RME_A7M_Low_Level_Preinit **********************************/
@@ -639,11 +639,10 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
     RME_A7M_SCB_SHCSR&=~RME_A7M_SCB_SHCSR_MEMFAULTENA;
     RME_A7M_MPU_CTRL=RME_A7M_MPU_CTRL_PRIVDEF|RME_A7M_MPU_CTRL_ENABLE;
-    RME_A7M_SCB_SHCSR|=RME_A7M_SCB_SHCSR_MEMFAULTENA;
     
     /* Enable all fault handlers */
-    RME_A7M_SCB_SHCSR|=RME_A7M_SCB_SHCSR_USGFAULTENA| \
-                       RME_A7M_SCB_SHCSR_BUSFAULTENA| \
+    RME_A7M_SCB_SHCSR|=RME_A7M_SCB_SHCSR_USGFAULTENA|
+                       RME_A7M_SCB_SHCSR_BUSFAULTENA|
                        RME_A7M_SCB_SHCSR_MEMFAULTENA;
     
     /* Set priority grouping */
@@ -667,8 +666,8 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Configure and turn on the systick */
     RME_A7M_SYSTICK_LOAD=RME_A7M_SYSTICK_VAL-1;
     RME_A7M_SYSTICK_VALREG=0;
-    RME_A7M_SYSTICK_CTRL=RME_A7M_SYSTICK_CTRL_CLKSOURCE| \
-                         RME_A7M_SYSTICK_CTRL_TICKINT| \
+    RME_A7M_SYSTICK_CTRL=RME_A7M_SYSTICK_CTRL_CLKSOURCE|
+                         RME_A7M_SYSTICK_CTRL_TICKINT|
                          RME_A7M_SYSTICK_CTRL_ENABLE;
                  
     /* We do not need to turn off lazy stacking, because even if a fault occurs,
@@ -676,8 +675,8 @@ rme_ptr_t __RME_Low_Level_Init(void)
      * attribution. They can be alternatively disabled as well if you wish */
 		 
 #if(RME_GEN_ENABLE==RME_TRUE)
-		extern void RME_Boot_Post_Init(void);
-	  RME_Boot_Post_Init();
+	extern void RME_Boot_Post_Init(void);
+    RME_Boot_Post_Init();
 #endif
     
     return 0;
@@ -1564,8 +1563,13 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     /* The address must be aligned to a word */
     Parent_Table[Pos]=RME_A7M_PGTBL_PRESENT|RME_A7M_PGTBL_PGD_ADDR((rme_ptr_t)Child_Meta);
     
-    /* Log the entry into the destination */
-    Child_Meta->Toplevel=(rme_ptr_t)Parent_Meta;
+    /* Log the entry into the destination - if the parent is a top-level, then the top-level
+     * is the parent; if the parent have a top-level, then the top-level is the parent's top-level */
+    if(Parent_Meta->Toplevel==0)
+        Child_Meta->Toplevel=(rme_ptr_t)Parent_Meta;
+    else
+        Child_Meta->Toplevel=Parent_Meta->Toplevel;
+
     RME_A7M_PGTBL_INC_DIRNUM(Parent_Meta->Dir_Page_Count);
     
     /* Update MPU settings if there are static pages mapped into the source. If there

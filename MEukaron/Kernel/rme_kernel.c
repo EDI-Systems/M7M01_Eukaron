@@ -452,10 +452,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             
             Retval=_RME_Pgtbl_Add(Captbl, RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Pgtbl_Dst */,
                                           RME_PARAM_D0(Param[0]) /* rme_ptr_t Pos_Dst */,
-                                          RME_PARAM_D1(Param[2]) /* rme_ptr_t Flags_Dst */,
+                                          Capid                  /* rme_ptr_t Flags_Dst */,
                                           RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Pgtbl_Src */,
                                           RME_PARAM_D0(Param[1]) /* rme_ptr_t Pos_Src */,
-                                          RME_PARAM_D0(Param[2]) /* rme_ptr_t Index */);
+                                          Param[2]               /* rme_ptr_t Index */);
             break;
         }
         case RME_SVC_PGTBL_REM:
