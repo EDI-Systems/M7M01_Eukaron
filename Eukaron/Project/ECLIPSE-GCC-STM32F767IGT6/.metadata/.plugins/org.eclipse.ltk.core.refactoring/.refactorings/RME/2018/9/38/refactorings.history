@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;RME/Platform/rme_platform_cmx_asm_gcc.s&apos; to &apos;rme_platform_cmx_asm_gcc.S&apos;" description="Rename resource &apos;rme_platform_cmx_asm_gcc.s&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Platform/rme_platform_cmx_asm_gcc.s" name="rme_platform_cmx_asm_gcc.S" stamp="1537570973895" updateReferences="true"/>
+</session>

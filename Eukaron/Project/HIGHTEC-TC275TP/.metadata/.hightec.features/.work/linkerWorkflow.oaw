@@ -1,0 +1,95 @@
+<workflow>
+	
+	<component id="xmiParser"
+		class="org.eclipse.xtend.typesystem.emf.XmiReader">
+   <!-- <property file="/Users/HighTec/Development/workspaces/hightec_plugins/com.rt.hightec.modeling.linker.generator/resourcen/workflow.properties"/>  -->
+		<modelFile value="${modelFile}"/>
+		<metaModelPackage value="LinkerModel.LinkerModelPackage"/>
+		<outputSlot value="model"/>
+		<firstElementOnly value="true"/>
+	</component>
+	
+	<!-- <component id="xmiParser"
+		class="org.openarchitectureware.emf.XmiReader">
+		<property file='workflow.properties'/>
+		<modelFile value="${modelFile2}"/>
+		<metaModelPackage value="memorydescription.MemorydescriptionPackage"/>
+		<outputSlot value="model2"/>
+		<firstElementOnly value="true"/>
+	</component> 
+	 
+	<component
+		class="org.openarchitectureware.check.CheckComponent">
+		<metaModel id="mm3"
+			class="org.openarchitectureware.type.emf.EmfMetaModel">
+			<metaModelPackage value="memorydescription.MemorydescriptionPackage"/>
+		</metaModel>
+		<checkFile value="com::rt::hightec::modeling::hardware::model::memvalidation::MemModelValidation"/>
+		<emfAllChildrenSlot value="model.MemoryRegionDescription"/>
+		<emfAllChildrenSlot value="model2"/>
+	</component> 
+	
+	
+	<component
+		class="org.eclipse.xtend.check.CheckComponent">
+		<metaModel id="mm1"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="abstractmodel.AbstractmodelPackage"/>
+		</metaModel>
+			<metaModel id="mm3"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="memorydescription.MemorydescriptionPackage"/>
+		</metaModel>
+		<metaModel id="mm2"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="LinkerModel.LinkerModelPackage"/>
+		</metaModel>
+		<checkFile value="com::rt::hightec::modeling::linker::generator::validation::Rules"/>
+		<emfAllChildrenSlot value="model"/>
+		
+	</component>
+	
+	<component
+		class="org.eclipse.xtend.check.CheckComponent">
+		<metaModel id="mm3"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="memorydescription.MemorydescriptionPackage"/>
+		</metaModel>
+		<metaModel id="mm1"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="abstractmodel.AbstractmodelPackage"/>
+		</metaModel>
+		<metaModel id="mm2"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="LinkerModel.LinkerModelPackage"/>
+		</metaModel>
+		<checkFile value="com::rt::hightec::modeling::hardware::model::memvalidation::MemModelValidation"/>
+		<emfAllChildrenSlot value="model.MemoryRegionDescription"/>
+	</component> 
+	  -->
+	
+	
+	<component id="generator_source"
+		class="org.eclipse.xpand2.Generator">
+		<fileEncoding value="UTF-8"/>
+		<prSrcPaths value="${srcGenPath}"/>
+		<prDefaultExcludes value="true"/>
+		<prExcludes value="*.c, *.h, *.cpp"/>
+		<metaModel id="mm1"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="abstractmodel.AbstractmodelPackage"/>
+		</metaModel>
+			<metaModel id="mm3"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="memorydescription.MemorydescriptionPackage"/>
+		</metaModel>
+		<metaModel id="mm2"
+			class="org.eclipse.xtend.typesystem.emf.EmfMetaModel">
+			<metaModelPackage value="LinkerModel.LinkerModelPackage"/>
+		</metaModel>
+		<expand value="com::rt::hightec::modeling::linker::core::model::template::Root::Root FOR model"/>
+		
+		<outlet path="${srcGenPath}"/>
+	</component>
+	
+</workflow>

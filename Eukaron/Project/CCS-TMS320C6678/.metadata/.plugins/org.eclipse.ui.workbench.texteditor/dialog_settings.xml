@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item value="false" key="isRegEx"/>
+		<item value="XMC" key="selection"/>
+		<item value="true" key="casesensitive"/>
+		<item value="false" key="incremental"/>
+		<item value="true" key="wrap"/>
+		<item value="false" key="wholeword"/>
+		<list key="findhistory">
+			<item value="XMP"/>
+			<item value="RME_C66X_MMU_XMP"/>
+			<item value="__RME_C66X_Kern_SP"/>
+			<item value="RME_C66X_Kern_SP"/>
+			<item value="RME_CPUID"/>
+			<item value="ptr_t"/>
+			<item value="ret_t"/>
+			<item value="cnt_t"/>
+		</list>
+		<list key="replacehistory">
+			<item value="XMC"/>
+			<item value="RME_C66X_XMP_XMP"/>
+			<item value="rme_ptr_t"/>
+			<item value="rme_ret_t"/>
+			<item value="rme_cnt_t"/>
+			<item value="__RME_PLATFORM_C66X"/>
+			<item value="C66X"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item value="300" key="DIALOG_WIDTH"/>
+		<item value="1|Microsoft YaHei UI|9.0|0|WINDOWS|1|-12|0|0|0|400|0|0|0|1|0|0|0|0|Microsoft YaHei UI" key="DIALOG_FONT_NAME"/>
+		<item value="391" key="DIALOG_HEIGHT"/>
+		<item value="1282" key="DIALOG_X_ORIGIN"/>
+		<item value="262" key="DIALOG_Y_ORIGIN"/>
+	</section>
+</section>

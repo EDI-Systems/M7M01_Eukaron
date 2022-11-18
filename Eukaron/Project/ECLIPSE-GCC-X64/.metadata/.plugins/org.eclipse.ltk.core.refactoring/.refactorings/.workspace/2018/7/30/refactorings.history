@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete 6 resources" deleteContents="false" description="Delete 6 resources" element1="/RME/Kernel/captbl.c" element2="/RME/Kernel/kernel.c" element3="/RME/Kernel/kotbl.c" element4="/RME/Kernel/pgtbl.c" element5="/RME/Kernel/prcthd.c" element6="/RME/Kernel/siginv.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="6" stamp="1532541589179"/>&#x0A;<refactoring comment="Delete 2 resources" deleteContents="false" description="Delete 2 resources" element1="/RME/Platform/platform_x64_asm.S" element2="/RME/Platform/platform_x64.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="2" stamp="1532541608134"/>
+</session>

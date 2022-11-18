@@ -1,0 +1,4 @@
+CODEGEN_VERSION=8.2.2
+ISA_FAMILY=C6000
+ProjectCreationSettingsSelector.EXPANDED_AREA=CCS.TEMPLATES
+eclipse.preferences.version=1

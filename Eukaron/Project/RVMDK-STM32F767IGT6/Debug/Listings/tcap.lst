@@ -1,0 +1,24 @@
+L 1 "..\..\MEukaron\Kernel\tcap.c"
+N/*
+NCurrently linker script hand coded. This is acceptable, but may not be so good if we are to load multiple modules. Additionally, the macro separation is not clear either.
+Nhow to handle this stuff remains unclear. There are many microcontrollers. porting will be so fucking bad if we are to hand-code all the macros like that.
+Ncurrently what we do is for the 405, but who knows later on what we will use.
+N
+NWe can generate the scripts for each microcontroller. If yes, how?
+N
+Nwe have the code base, and let the external applications decide what to do.
+Nthe config file will be provided by external applications. 
+N
+Nfor different acchitectures, the init module and memmgr module's behavior will be different. find a way to abatract them.
+NIt's best that the image of the kernel will be a standalone, in this way we can isolate all these sucks.
+N
+Nbut when the kernel wants to boot the first process.... we need some way to notify the kernel where the init is, or we need to load it from disk, or over network, or something.
+N
+Neasy way: don't let the kernel remember that. create a table header in the init process's image. This image header is architecture specific and needs to be applied to all architectures.
+N{
+N    Exec_Addr - Execute from where to initialize the init component? We jump to this later on.
+N    Stack_Addr - Where is our initial stack?
+N    Entry_Addr - Execute from where to enter the threads in the component? - This is shown to the initial kernel stub for process creation.
+N}
+NStart_Add
+N*/
