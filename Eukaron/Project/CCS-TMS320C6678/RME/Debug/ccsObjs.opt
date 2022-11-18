@@ -1,1 +1,0 @@
-"./Kernel/rme_captbl.obj" "./Kernel/rme_kernel.obj" "./Kernel/rme_kotbl.obj" "./Kernel/rme_pgtbl.obj" "./Kernel/rme_prcthd.obj" "./Kernel/rme_siginv.obj" "./Platform/rme_platform_c66x.obj" "./Platform/rme_platform_c66x_asm.obj" "F:/Code_Library/MCU/Mutatus/M7M1_MuEukaron/MEukaron/Include/Platform/C66X/Chips/TMS320C6678/rme_platform_TMS320C6678.cmd" -llibc.a 

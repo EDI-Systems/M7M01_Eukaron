@@ -1,6 +1,0 @@
--c --cpu Cortex-M7.fp.dp -D__MICROLIB -g -O3 -Otime --apcs=interwork --split_sections --enum_is_int --signed_chars -I ..\..\..\..\Library\STM32F7xx_HAL_Driver\Inc -I ..\..\..\..\Library\STM32F7xx_HAL_Driver\Core -I ..\..\MEukaron\Include -I ..\..\..\..\Library\STM32F7xx_HAL_Driver\Inc\Conf
--IF:\Code_Library\MCU\32-Bit_MCU\STM32\M7M1_MuEukaron\Project\RVMDK\RTE
--IC:\Program_Files\Keil_v5\ARM\PACK\Keil\STM32F7xx_DFP\2.7.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include
--IC:\Program_Files\Keil_v5\ARM\CMSIS\Include
--D__UVISION_VERSION="521" -DSTM32F767xx -DSTM32F767xx -DUSE_HAL_DRIVER
--o .\debug\output\stm32f7xx_hal.o --omf_browse .\debug\output\stm32f7xx_hal.crf --depend .\debug\output\stm32f7xx_hal.d --feedback ".\Debug\Output\RME.fed" "..\..\..\..\Library\STM32F7xx_HAL_Driver\Src\stm32f7xx_hal.c"
