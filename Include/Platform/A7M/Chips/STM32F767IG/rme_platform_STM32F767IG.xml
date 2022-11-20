@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
+    <Platform>A7M</Platform>
     <Class>STM32F767IG</Class>
     <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
     <Vendor>STMicroelectronics</Vendor>
-    <Platform>A7M</Platform>
-    <Cores>1</Cores>
-    <Regions>8</Regions>
+    <Region>8</Region>
+    <Iregion>0</Iregion>
+    <Dregion>0</Dregion>
     <Attribute>
-        <CPU_Type>Cortex-M7</CPU_Type>
-        <FPU_Type>Double</FPU_Type>
+        <CPU>Cortex-M7</CPU>
+        <FPU>Double</FPU>
         <Endianness>Little</Endianness>
     </Attribute>
     <Memory>
@@ -37,43 +38,43 @@
             <Attribute>RWS</Attribute>
         </M3>
     </Memory>
-    <Option>
-        <O0>
+    <Config>
+        <C0>
             <Name>XTAL</Name>
             <Display>#STM32F7_XTAL</Display>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F767IG_XTAL</Macro>
             <Range>4,26</Range>
-        </O0>
-        <O1>
+        </C0>
+        <C1>
             <Name>PLLM</Name>
             <Display>#STM32F7_PLLM</Display>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F767IG_PLLM</Macro>
             <Range>2,63</Range>
-        </O1>
-        <O2>
+        </C1>
+        <C2>
             <Name>PLLN</Name>
             <Display>#STM32F7_PLLN</Display>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F767IG_PLLN</Macro>
             <Range>50,432</Range>
-        </O2>
-        <O3>
+        </C2>
+        <C3>
             <Name>PLLP</Name>
             <Display>#STM32F7_PLLP</Display>
             <Type>Select</Type>
             <Macro>RME_A7M_STM32F767IG_PLLP</Macro>
             <Range>2,4,6,8</Range>
-        </O3>
-        <O4>
+        </C3>
+        <C4>
             <Name>PLLQ</Name>
             <Display>#STM32F7_PLLQ</Display>
             <Type>Range</Type>
             <Macro>RME_A7M_STM32F767IG_PLLQ</Macro>
             <Range>2,15</Range>
-        </O4>
-    </Option>
+        </C4>
+    </Config>
     <Vector>
         <V0>
             <Name>WWDG</Name>
@@ -156,7 +157,6 @@
             <Name>CAN1_TX</Name>
             <Number>19</Number>
         </V19>
-
         <V20>
             <Name>CAN1_RX0</Name>
             <Number>20</Number>
