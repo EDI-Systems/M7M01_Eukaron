@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename    : rme_platform_XC7Z020.h
+Filename    : rme_platform_xc7z020.h
 Author      : pry
 Date        : 24/06/2017
 Licence     : LGPL v3+; see COPYING for details.

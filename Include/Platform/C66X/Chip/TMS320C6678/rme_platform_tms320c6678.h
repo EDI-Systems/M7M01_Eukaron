@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename   : platform_TMS320C6678.h
+Filename   : platform_tms320c6678.h
 Author     : pry
 Date       : 24/06/2017
 Licence    : The Unlicense; see LICENSE for details.

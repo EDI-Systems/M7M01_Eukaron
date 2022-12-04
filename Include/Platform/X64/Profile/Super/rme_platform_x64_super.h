@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename   : platform_X64_SUPER.h
+Filename   : platform_x64_super.h
 Author     : pry
 Date       : 24/06/2017
 Licence    : The Unlicense; see LICENSE for details.

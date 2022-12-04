@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename   : rme_platform_STM32F767IG.h
+Filename   : rme_platform_stm32f767ig.h
 Author     : pry
 Date       : 24/06/2017
 Licence    : The Unlicense; see LICENSE for details.
@@ -9,7 +9,7 @@ Description: The configuration file for STM32F767IG.
 /* Defines *******************************************************************/
 /* Generator *****************************************************************/
 /* Are we using the generator in the first place? */
-#define RME_GEN_ENABLE                                  RME_FALSE
+#define RME_RVM_GEN_ENABLE                              RME_FALSE
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
 #define RME_KMEM_VA_START                               (0x20003000)
@@ -20,15 +20,16 @@ Description: The configuration file for STM32F767IG.
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                                    (0x60000)
 /* Kernel stack address - we have 4kB stack */
-#define RME_KMEM_STACK_ADDR                             (0x20000FF0)
+#define RME_KMEM_STACK_BASE                             (0x20000FF0)
+#define RME_KMEM_STACK_SIZE                             (0x1000)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                            (32)
 /* Size of capability table */
 #if(RME_GEN_ENABLE==RME_TRUE)
-#define RME_A7M_BOOT_CAPTBL_SIZE                        (18)
+#define RME_BOOT_CAPTBL_SIZE                            (18)
 #else
-#define RME_A7M_BOOT_CAPTBL_SIZE                        (18)
+#define RME_BOOT_CAPTBL_SIZE                            (18)
 #endif
 /* Shared vector flag region address - always 512B memory for ARMv7-M */
 #define RME_A7M_VECT_FLAG_ADDR                          (0x2000FC00)

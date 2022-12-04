@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename   : rme_platform_STM32F405RG.h
+Filename   : rme_platform_stm32f405rg.h
 Author     : pry
 Date       : 24/06/2017
 Licence    : The Unlicense; see LICENSE for details.
