@@ -96,7 +96,7 @@ typedef rme_s32_t rme_ret_t;
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                  5
 /* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                   (RME_TRUE)
+#define RME_VA_EQU_PA                   (1U)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
 /* Captbl size limit - not restricted */
@@ -272,7 +272,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_EXC_RET_RET_USER        (1<<3)
 /* FPU type definitions */
 #define RME_A7M_FPU_NONE                (0)
-#define RME_A7M_FPU_FPV4                (1)
+#define RME_A7M_FPU_FPV4_SP             (1)
 #define RME_A7M_FPU_FPV5_SP             (2)
 #define RME_A7M_FPU_FPV5_DP             (3)
 
@@ -346,7 +346,7 @@ typedef rme_s32_t rme_ret_t;
 /* The initial default endpoint for all other vectors */
 #define RME_BOOT_INIT_VECT              7
 /* Booting capability layout */
-#define RME_A7M_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
+#define RME_A7M_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_BASE))
 
 /* Page Table ****************************************************************/
 /* For ARMv7-M:

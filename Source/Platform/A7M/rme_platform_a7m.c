@@ -55,7 +55,7 @@ Return      : int - Dummy value, this function never returns.
 int main(void)
 {
     /* The main function of the kernel - we will start our kernel boot here */
-    _RME_Kmain(RME_KMEM_STACK_ADDR);
+    _RME_Kmain(RME_KSTK_VA_BASE+RME_KSTK_VA_SIZE-16U);
     return 0;
 }
 /* End Function:main *********************************************************/
@@ -94,12 +94,12 @@ Return      : rme_ptr_t - The value before the addition.
 ******************************************************************************/
 rme_ptr_t __RME_A7M_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
 {
-    rme_ptr_t Old;
+    rme_cnt_t Old;
     
-    Old=*Ptr;
-    *Ptr=Old+Addend;
+    Old=(rme_cnt_t)(*Ptr);
+    *Ptr=(rme_ptr_t)(Old+Addend);
     
-    return Old;
+    return (rme_ptr_t)Old;
 }
 /* End Function:__RME_A7M_Fetch_Add ******************************************/
 
@@ -321,7 +321,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 {
-#if(RME_GEN_ENABLE==RME_TRUE)
+#if(RME_RVM_GEN_ENABLE==1U)
     /* Do in-kernel processing first */
     extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
@@ -366,9 +366,9 @@ rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl,
     
     switch(Type)
     {
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_FLAGS:return Flags;
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_SIZEORDER:return Size_Order;
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_NUMORDER:return Num_Order;
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_FLAGS: return (rme_ret_t)Flags;
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
         default:break;
     }
     
@@ -416,7 +416,7 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_pt
             if(Param>0xFF)
                 return RME_ERR_KERN_OPFAIL;
             
-            RME_A7M_NVIC_IPR(Int_Num)=Param;
+            RME_A7M_NVIC_IPR(Int_Num)=(rme_u8_t)Param;
             return 0;
         }
         default:break;
@@ -1204,7 +1204,7 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         case RME_KERN_PGTBL_LINE_CLR:   {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_PGTBL_ASID_SET:   {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_PGTBL_TLB_LOCK:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PGTBL_ENTRY_MOD:  {Retval=__RME_A7M_Pgtbl_Entry_Mod(Captbl, Sub_ID, Param1, Param2);break;}
+        case RME_KERN_PGTBL_ENTRY_MOD:  {Retval=__RME_A7M_Pgtbl_Entry_Mod(Captbl, (rme_cid_t)Sub_ID, Param1, Param2);break;}
 /* Interrupt controller operations *******************************************/
         case RME_KERN_INT_LOCAL_MOD:    {Retval=__RME_A7M_Int_Local_Mod(Sub_ID, Param1, Param2);break;}
         case RME_KERN_INT_GLOBAL_MOD:   {return RME_ERR_KERN_OPFAIL;}
@@ -1254,16 +1254,16 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         case RME_KERN_ECLV_ACT:         {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_ECLV_RET:         {return RME_ERR_KERN_OPFAIL;}
 /* Debugging operations ******************************************************/
-        case RME_KERN_DEBUG_PRINT:      {__RME_Putchar(Sub_ID);Retval=0;break;}
-        case RME_KERN_DEBUG_REG_MOD:    {Retval=__RME_A7M_Debug_Reg_Mod(Captbl, Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KERN_DEBUG_INV_MOD:    {Retval=__RME_A7M_Debug_Inv_Mod(Captbl, Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_DEBUG_PRINT:      {__RME_Putchar((rme_s8_t)Sub_ID);Retval=0;break;}
+        case RME_KERN_DEBUG_REG_MOD:    {Retval=__RME_A7M_Debug_Reg_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_DEBUG_INV_MOD:    {Retval=__RME_A7M_Debug_Inv_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
         case RME_KERN_DEBUG_MODE_MOD:   {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_DEBUG_IBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_DEBUG_DBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
 /* User-defined operations ***************************************************/
         default:
         {
-#if(RME_GEN_ENABLE==RME_TRUE)
+#if(RME_RVM_GEN_ENABLE==1U)
             extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
             Retval=RME_User_Kern_Func_Handler(Func_ID, Sub_ID, Param1, Param2);
 #else
@@ -1287,12 +1287,14 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+#if(RME_RVM_GEN_ENABLE==1U)
+    extern void RME_Boot_Pre_Init(void);
+#endif
 void __RME_A7M_Low_Level_Preinit(void)
 {
     RME_A7M_LOW_LEVEL_PREINIT();
-
-#if(RME_GEN_ENABLE==RME_TRUE)
-    extern void RME_Boot_Pre_Init(void);
+    
+#if(RME_RVM_GEN_ENABLE==1U)
     RME_Boot_Pre_Init();
 #endif
 }
@@ -1309,7 +1311,7 @@ Return      : None.
 void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc, rme_ptr_t Prio)
 {
     RME_ASSERT(Exc<0);
-    RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0xFU)-4U)=Prio;
+    RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0xFU)-4U)=(rme_u8_t)Prio;
 }
 /* End Function:__RME_A7M_NVIC_Set_Exc_Prio **********************************/
 
@@ -1360,6 +1362,9 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
+#if(RME_RVM_GEN_ENABLE==1U)
+	extern void RME_Boot_Post_Init(void);
+#endif
 rme_ptr_t __RME_Low_Level_Init(void)
 {
     rme_ptr_t Temp;
@@ -1424,8 +1429,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Turn on FPU access from unpriviledged software - CP10&11 full access */
     RME_A7M_SCB_CPACR|=((3U<<(10*2))|(3U<<(11*2)));
 		 
-#if(RME_GEN_ENABLE==RME_TRUE)
-	extern void RME_Boot_Post_Init(void);
+#if(RME_RVM_GEN_ENABLE==1U)
     RME_Boot_Post_Init();
 #endif
     
@@ -1439,18 +1443,21 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
+#if(RME_RVM_GEN_ENABLE==1U)
+    extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
+#endif
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    volatile rme_ptr_t Size;
+    /* volatile rme_ptr_t Size; */
     
-    Cur_Addr=RME_KMEM_VA_START;
+    Cur_Addr=RME_KMEM_VA_BASE;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_A7M_BOOT_CAPTBL_SIZE)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_A7M_BOOT_CAPTBL_SIZE));
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_BOOT_CAPTBL_SIZE));
     
-#if(RME_GEN_ENABLE==RME_TRUE)
+#if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
@@ -1484,8 +1491,8 @@ rme_ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Kmem_Boot_Crt(RME_A7M_CPT, 
                                   RME_BOOT_CAPTBL, 
                                   RME_BOOT_INIT_KMEM,
-                                  RME_KMEM_VA_START,
-                                  RME_KMEM_VA_START+RME_KMEM_SIZE-1,
+                                  RME_KMEM_VA_BASE,
+                                  RME_KMEM_VA_BASE+RME_KMEM_VA_SIZE-1,
                                   RME_KMEM_FLAG_ALL)==0);
     
     /* Create the initial kernel endpoint for timer ticks */
@@ -1506,21 +1513,20 @@ rme_ptr_t __RME_Boot(void)
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
-    /* Print the size of some kernel objects, only used in debugging */
+    /* Print the size of some kernel objects, only used in debugging 
     Size=RME_CAPTBL_SIZE(1);
     Size=RME_PGTBL_SIZE_TOP(0)-sizeof(rme_ptr_t);
     Size=RME_PGTBL_SIZE_NOM(0)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    Size=RME_THD_SIZE;
+    Size=RME_THD_SIZE; */
     
     /* If generator is enabled for this project, generate what is required by the generator */
-#if(RME_GEN_ENABLE==RME_TRUE)
-    extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
+#if(RME_RVM_GEN_ENABLE==1U)
     Cur_Addr=RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_VECT+1, Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
-#if(RME_GEN_ENABLE==RME_TRUE)
+#if(RME_RVM_GEN_ENABLE==1U)
     RME_ASSERT(Cur_Addr==RME_A7M_KMEM_BOOT_FRONTIER);
 #else
     RME_ASSERT(Cur_Addr<RME_A7M_KMEM_BOOT_FRONTIER);
@@ -1546,7 +1552,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7M_Reboot(void)
 {
-#if(RME_GEN_ENABLE==RME_TRUE)
+#if(RME_RVM_GEN_ENABLE==1U)
     extern void RME_Reboot_Failsafe(void);
     RME_Reboot_Failsafe();
 #endif
@@ -1773,7 +1779,7 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
     rme_ptr_t* Ptr;
     
     /* Get the actual table */
@@ -1975,7 +1981,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
                                rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                rme_ptr_t MPU_RASR, rme_ptr_t Static)
 {
-    rme_ptr_t Count;
+    rme_u8_t Count;
     /* The number of empty slots available */
     rme_ptr_t Empty_Cnt;
     /* The empty slots */

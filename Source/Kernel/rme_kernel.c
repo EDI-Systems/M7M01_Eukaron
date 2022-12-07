@@ -274,9 +274,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     {
         RME_COVERAGE_MARKER();
         
-        Retval=_RME_Inv_Ret(Reg      /* struct RME_Reg_Struct* Reg */,
-                            Param[0] /* rme_ptr_t Retval */,
-                            0        /* rme_ptr_t Fault_Flag */);
+        Retval=_RME_Inv_Ret(Reg,                                                    /* struct RME_Reg_Struct* Reg */
+                            Param[0],                                               /* rme_ptr_t Retval */
+                            0);                                                     /* rme_ptr_t Fault_Flag */
         RME_SWITCH_RETURN(Reg,Retval);
     }
     else
@@ -306,9 +306,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     {
         RME_COVERAGE_MARKER();
         
-        Retval=_RME_Inv_Act(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                    Param[0] /* rme_cid_t Cap_Inv */,
-                                    Param[1] /* rme_ptr_t Param */);
+        Retval=_RME_Inv_Act(Captbl, Reg,                                            /* struct RME_Reg_Struct* Reg */
+                                    (rme_cid_t)Param[0],                            /* rme_cid_t Cap_Inv */
+                                    Param[1]);                                      /* rme_ptr_t Param */
         RME_SWITCH_RETURN(Reg,Retval);
     }
     else
@@ -329,8 +329,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Snd(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                        Param[0] /* rme_cid_t Cap_Sig */);
+            Retval=_RME_Sig_Snd(Captbl, Reg,                                        /* struct RME_Reg_Struct* Reg */
+                                        (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Receive from a signal endpoint */
@@ -338,9 +338,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                        Param[0] /* rme_cid_t Cap_Sig */,
-                                        Param[1] /* rme_ptr_t Option */);
+            Retval=_RME_Sig_Rcv(Captbl, Reg,                                        /* struct RME_Reg_Struct* Reg */
+                                        (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Sig */
+                                        Param[1]);                                  /* rme_ptr_t Option */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Call kernel functions */
@@ -348,12 +348,12 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Kern_Act(Captbl, Reg                    /* struct RME_Reg_Struct* Reg */,
-                                         Capid                  /* rme_cid_t Cap_Kern */,
-                                         RME_PARAM_D0(Param[0]) /* rme_ptr_t Func_ID */,
-                                         RME_PARAM_D1(Param[0]) /* rme_ptr_t Sub_ID */,
-                                         Param[1]               /* rme_ptr_t Param1 */,
-                                         Param[2]               /* rme_ptr_t Param2 */);
+            Retval=_RME_Kern_Act(Captbl, Reg,                                       /* struct RME_Reg_Struct* Reg */
+                                         (rme_cid_t)Capid,                          /* rme_cid_t Cap_Kern */
+                                         RME_PARAM_D0(Param[0]),                    /* rme_ptr_t Func_ID */
+                                         RME_PARAM_D1(Param[0]),                    /* rme_ptr_t Sub_ID */
+                                         Param[1],                                  /* rme_ptr_t Param1 */
+                                         Param[2]);                                 /* rme_ptr_t Param2 */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Changing thread priority */
@@ -361,9 +361,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Prio(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                               Param[0] /* rme_cid_t Cap_Thd */,
-                                               Param[1] /* rme_ptr_t Prio */);
+            Retval=_RME_Thd_Sched_Prio(Captbl, Reg,                                 /* struct RME_Reg_Struct* Reg */
+                                               (rme_cid_t)Param[0],                 /* rme_cid_t Cap_Thd */
+                                               Param[1]);                           /* rme_ptr_t Prio */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Free a thread from some core */
@@ -371,8 +371,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Free(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                               Param[0] /* rme_cid_t Cap_Thd */);
+            Retval=_RME_Thd_Sched_Free(Captbl, Reg,                                 /* struct RME_Reg_Struct* Reg */
+                                               (rme_cid_t)Param[0]);                /* rme_cid_t Cap_Thd */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Transfer time to a thread */
@@ -380,10 +380,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Time_Xfer(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                              Param[0] /* rme_cid_t Cap_Thd_Dst */,
-                                              Param[1] /* rme_cid_t Cap_Thd_Src */, 
-                                              Param[2] /* rme_ptr_t Time */);
+            Retval=_RME_Thd_Time_Xfer(Captbl, Reg,                                  /* struct RME_Reg_Struct* Reg */
+                                              (rme_cid_t)Param[0],                  /* rme_cid_t Cap_Thd_Dst */
+                                              (rme_cid_t)Param[1],                  /* rme_cid_t Cap_Thd_Src */
+                                              Param[2]);                            /* rme_ptr_t Time */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Switch to another thread */
@@ -391,9 +391,9 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Swt(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                        Param[0] /* rme_cid_t Cap_Thd */,
-                                        Param[1] /* rme_ptr_t Full_Yield */);
+            Retval=_RME_Thd_Swt(Captbl, Reg,                                        /* struct RME_Reg_Struct* Reg */
+                                        (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Thd */
+                                        Param[1]);                                  /* rme_ptr_t Full_Yield */
             RME_SWITCH_RETURN(Reg, Retval);
         }
         default:
@@ -410,47 +410,47 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_CAPTBL_CRT:
         {
             RME_COVERAGE_MARKER();
-            Retval=_RME_Captbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl_Crt */,
-                                           RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
-                                           RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Crt */,
-                                           Param[1]               /* rme_ptr_t Raddr */,
-                                           Param[2]               /* rme_ptr_t Entry_Num */);
+            Retval=_RME_Captbl_Crt(Captbl, (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Crt */
+                                           (rme_cid_t)RME_PARAM_D1(Param[0]),       /* rme_cid_t Cap_Kmem */
+                                           (rme_cid_t)RME_PARAM_D0(Param[0]),       /* rme_cid_t Cap_Crt */
+                                           Param[1],                                /* rme_ptr_t Raddr */
+                                           Param[2]);                               /* rme_ptr_t Entry_Num */
             break;
         }
         case RME_SVC_CAPTBL_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl_Del */,
-                                           Param[0] /* rme_cid_t Cap_Captbl */);
+            Retval=_RME_Captbl_Del(Captbl, (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Del */
+                                           (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Captbl */
             break;
         }
         case RME_SVC_CAPTBL_FRZ:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Frz(Captbl, Capid    /* rme_cid_t Cap_Captbl_Frz */,
-                                           Param[0] /* rme_cid_t Cap_Frz */);
+            Retval=_RME_Captbl_Frz(Captbl, (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Frz */
+                                           (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Frz */
             break;
         }
         case RME_SVC_CAPTBL_ADD:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Add(Captbl, RME_PARAM_D1(Param[0])  /* rme_cid_t Cap_Captbl_Dst */,
-                                           RME_PARAM_D0(Param[0])  /* rme_cid_t Cap_Dst */,
-                                           RME_PARAM_D1(Param[1])  /* rme_cid_t Cap_Captbl_Src */,
-                                           RME_PARAM_D0(Param[1])  /* rme_cid_t Cap_Src */,
-                                           Param[2]                /* rme_ptr_t Flags */,
-                                           RME_PARAM_KM(Svc,Capid) /* rme_ptr_t Ext_Flags */);
+            Retval=_RME_Captbl_Add(Captbl, (rme_cid_t)RME_PARAM_D1(Param[0]),       /* rme_cid_t Cap_Captbl_Dst */
+                                           (rme_cid_t)RME_PARAM_D0(Param[0]),       /* rme_cid_t Cap_Dst */
+                                           (rme_cid_t)RME_PARAM_D1(Param[1]),       /* rme_cid_t Cap_Captbl_Src */
+                                           (rme_cid_t)RME_PARAM_D0(Param[1]),       /* rme_cid_t Cap_Src */
+                                           Param[2],                                /* rme_ptr_t Flags */
+                                           RME_PARAM_KM(Svc,Capid));                /* rme_ptr_t Ext_Flags */
             break;
         }
         case RME_SVC_CAPTBL_REM:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Rem(Captbl, Capid    /* rme_cid_t Cap_Captbl_Rem */,
-                                           Param[0] /* rme_cid_t Cap_Rem */);
+            Retval=_RME_Captbl_Rem(Captbl, (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Rem */
+                                           (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Rem */
             break;
         }
         /* Page table */
@@ -458,94 +458,94 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Crt(Captbl, Capid                     /* rme_cid_t Cap_Captbl */,
-                                          RME_PARAM_D1(Param[0])    /* rme_cid_t Cap_Kmem */,
-                                          RME_PARAM_Q1(Param[0])    /* rme_cid_t Cap_Pgtbl */,
-                                          Param[1]                  /* rme_ptr_t Raddr */,
-                                          Param[2]&(RME_ALLBITS<<1) /* rme_ptr_t Base_Addr */,
-                                          RME_PARAM_PT(Param[2])    /* rme_ptr_t Top_Flag */,
-                                          RME_PARAM_Q0(Param[0])    /* rme_ptr_t Size_Order */,
-                                          RME_PARAM_PC(Svc)         /* rme_ptr_t Num_Order */);
+            Retval=_RME_Pgtbl_Crt(Captbl, (rme_cid_t)Capid,                         /* rme_cid_t Cap_Captbl */
+                                          (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Kmem */
+                                          (rme_cid_t)RME_PARAM_Q1(Param[0]),        /* rme_cid_t Cap_Pgtbl */
+                                          Param[1],                                 /* rme_ptr_t Raddr */
+                                          Param[2]&(RME_ALLBITS<<1),                /* rme_ptr_t Base_Addr */
+                                          RME_PARAM_PT(Param[2]),                   /* rme_ptr_t Top_Flag */
+                                          RME_PARAM_Q0(Param[0]),                   /* rme_ptr_t Size_Order */
+                                          RME_PARAM_PC(Svc));                       /* rme_ptr_t Num_Order */
             break;
         }
         case RME_SVC_PGTBL_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                          Param[0] /* rme_cid_t Cap_Pgtbl */);
+            Retval=_RME_Pgtbl_Del(Captbl, (rme_cid_t)Capid,                         /* rme_cid_t Cap_Captbl */
+                                          (rme_cid_t)Param[0]);                     /* rme_cid_t Cap_Pgtbl */
             break;
         }
         case RME_SVC_PGTBL_ADD:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Add(Captbl, RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Pgtbl_Dst */,
-                                          RME_PARAM_D0(Param[0]) /* rme_ptr_t Pos_Dst */,
-                                          Capid                  /* rme_ptr_t Flags_Dst */,
-                                          RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Pgtbl_Src */,
-                                          RME_PARAM_D0(Param[1]) /* rme_ptr_t Pos_Src */,
-                                          Param[2]               /* rme_ptr_t Index */);
+            Retval=_RME_Pgtbl_Add(Captbl, (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgtbl_Dst */
+                                          RME_PARAM_D0(Param[0]),                   /* rme_ptr_t Pos_Dst */
+                                          Capid,                                    /* rme_ptr_t Flags_Dst */
+                                          (rme_cid_t)RME_PARAM_D1(Param[1]),        /* rme_cid_t Cap_Pgtbl_Src */
+                                          RME_PARAM_D0(Param[1]),                   /* rme_ptr_t Pos_Src */
+                                          Param[2]);                                /* rme_ptr_t Index */
             break;
         }
         case RME_SVC_PGTBL_REM:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Rem(Captbl, Param[0] /* rme_cid_t Cap_Pgtbl */,
-                                          Param[1] /* rme_ptr_t Pos */);
+            Retval=_RME_Pgtbl_Rem(Captbl, (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgtbl */
+                                          Param[1]);                                /* rme_ptr_t Pos */
             break;
         }
         case RME_SVC_PGTBL_CON:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Con(Captbl, RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Pgtbl_Parent */,
-                                          Param[1]               /* rme_ptr_t Pos */,
-                                          RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Pgtbl_Child */,
-                                          Param[2]               /* rme_ptr_t Flags_Child */);
+            Retval=_RME_Pgtbl_Con(Captbl, (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgtbl_Parent */
+                                          Param[1],                                 /* rme_ptr_t Pos */
+                                          (rme_cid_t)RME_PARAM_D0(Param[0]),        /* rme_cid_t Cap_Pgtbl_Child */
+                                          Param[2]);                                /* rme_ptr_t Flags_Child */
             break;
         }
         case RME_SVC_PGTBL_DES:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Des(Captbl, Param[0] /* rme_cid_t Cap_Pgtbl_Parent */,
-                                          Param[1] /* rme_ptr_t Pos */,
-                                          Param[2] /* rme_cid_t Cap_Pgtbl_Child */);
+            Retval=_RME_Pgtbl_Des(Captbl, (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgtbl_Parent */
+                                          Param[1],                                 /* rme_ptr_t Pos */
+                                          (rme_cid_t)Param[2]);                     /* rme_cid_t Cap_Pgtbl_Child */
             break;
         }
         /* Process */
         case RME_SVC_PROC_CRT:
         {
-            Retval=_RME_Proc_Crt(Captbl, Capid    /* rme_cid_t Cap_Captbl_Crt */,
-                                         Param[0] /* rme_cid_t Cap_Proc */,
-                                         Param[1] /* rme_cid_t Cap_Captbl */,
-                                         Param[2] /* rme_cid_t Cap_Pgtbl */);
+            Retval=_RME_Proc_Crt(Captbl, (rme_cid_t)Capid,                          /* rme_cid_t Cap_Captbl_Crt */
+                                         (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
+                                         (rme_cid_t)Param[1],                       /* rme_cid_t Cap_Captbl */
+                                         (rme_cid_t)Param[2]);                      /* rme_cid_t Cap_Pgtbl */
             break;
         }
         case RME_SVC_PROC_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                         Param[0] /* rme_cid_t Cap_Proc */);
+            Retval=_RME_Proc_Del(Captbl, (rme_cid_t)Capid,                          /* rme_cid_t Cap_Captbl */
+                                         (rme_cid_t)Param[0]);                      /* rme_cid_t Cap_Proc */
             break;
         }
         case RME_SVC_PROC_CPT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Cpt(Captbl, Param[0] /* rme_cid_t Cap_Proc */,
-                                         Param[1] /* rme_cid_t Cap_Captbl */);
+            Retval=_RME_Proc_Cpt(Captbl, (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
+                                         (rme_cid_t)Param[1]);                      /* rme_cid_t Cap_Captbl */
             break;
         }
         case RME_SVC_PROC_PGT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Pgt(Captbl, Param[0] /* rme_cid_t Cap_Proc */,
-                                         Param[1] /* rme_cid_t Cap_Pgtbl */);
+            Retval=_RME_Proc_Pgt(Captbl, (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
+                                         (rme_cid_t)Param[1]);                      /* rme_cid_t Cap_Pgtbl */
             break;
         }
         /* Thread */
@@ -553,57 +553,57 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
-                                        RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
-                                        RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Thd */,
-                                        RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Proc */,
-                                        RME_PARAM_D0(Param[1]) /* rme_ptr_t Max_Prio */,
-                                        Param[2]               /* rme_ptr_t Raddr */);
+            Retval=_RME_Thd_Crt(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kmem */
+                                        (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Thd */
+                                        (rme_cid_t)RME_PARAM_D1(Param[1]),          /* rme_cid_t Cap_Proc */
+                                        RME_PARAM_D0(Param[1]),                     /* rme_ptr_t Max_Prio */
+                                        Param[2]);                                  /* rme_ptr_t Raddr */
             break;
         }
         case RME_SVC_THD_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                        Param[0] /* rme_cid_t Cap_Thd */);
+            Retval=_RME_Thd_Del(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Thd */
             break;
         }
         case RME_SVC_THD_EXEC_SET:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Exec_Set(Captbl, Capid    /* rme_cid_t Cap_Thd */,
-                                             Param[0] /* rme_ptr_t Entry */,
-                                             Param[1] /* rme_ptr_t Stack */,
-                                             Param[2] /* rme_ptr_t Param */);
+            Retval=_RME_Thd_Exec_Set(Captbl, (rme_cid_t)Capid,                      /* rme_cid_t Cap_Thd */
+                                             Param[0],                              /* rme_ptr_t Entry */
+                                             Param[1],                              /* rme_ptr_t Stack */
+                                             Param[2]);                             /* rme_ptr_t Param */
             break;
         }
         case RME_SVC_THD_HYP_SET:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Hyp_Set(Captbl, Param[0] /* rme_cid_t Cap_Thd */,
-                                            Param[1] /* rme_ptr_t Kaddr */);
+            Retval=_RME_Thd_Hyp_Set(Captbl, (rme_cid_t)Param[0],                    /* rme_cid_t Cap_Thd */
+                                            Param[1]);                              /* rme_ptr_t Kaddr */
             break;
         }
         case RME_SVC_THD_SCHED_BIND:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Bind(Captbl, Capid                  /* rme_cid_t Cap_Thd */,
-                                               RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Thd_Sched */,
-                                               RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Sig */,
-                                               Param[1]               /* rme_tid_t TID */,
-                                               Param[2]               /* rme_ptr_t Prio */);
+            Retval=_RME_Thd_Sched_Bind(Captbl, (rme_cid_t)Capid,                    /* rme_cid_t Cap_Thd */
+                                               (rme_cid_t)RME_PARAM_D1(Param[0]),   /* rme_cid_t Cap_Thd_Sched */
+                                               (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Sig */
+                                               (rme_tid_t)Param[1],                 /* rme_tid_t TID */
+                                               Param[2]);                           /* rme_ptr_t Prio */
             break;
         }
         case RME_SVC_THD_SCHED_RCV:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
-                                              Param[0] /* rme_cid_t Cap_Thd */);
+            Retval=_RME_Thd_Sched_Rcv(Captbl, Reg,                                  /* struct RME_Reg_Struct* Reg */
+                                              (rme_cid_t)Param[0]);                 /* rme_cid_t Cap_Thd */
             break;
         }
         /* Signal */
@@ -611,16 +611,16 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Crt(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                        Param[0] /* rme_cid_t Cap_Sig */);
+            Retval=_RME_Sig_Crt(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
         case RME_SVC_SIG_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                        Param[0] /* rme_cid_t Cap_Sig */);
+            Retval=_RME_Sig_Del(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
         /* Invocation */
@@ -628,29 +628,29 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
-                                        RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
-                                        RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Inv */,
-                                        Param[1]               /* rme_cid_t Cap_Proc */,
-                                        Param[2]               /* rme_ptr_t Raddr */);
+            Retval=_RME_Inv_Crt(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kmem */
+                                        (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Inv */
+                                        (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Proc */
+                                        Param[2]);                                  /* rme_ptr_t Raddr */
             break;
         }
         case RME_SVC_INV_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
-                                        Param[0] /* rme_cid_t Cap_Inv */);
+            Retval=_RME_Inv_Del(Captbl, (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+                                        (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Inv */
             break;
         }
         case RME_SVC_INV_SET:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Set(Captbl, RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Inv */,
-                                        Param[1]               /* rme_ptr_t Entry */,
-                                        Param[2]               /* rme_ptr_t Stack */,
-                                        RME_PARAM_D1(Param[0]) /* rme_ptr_t Fault_Ret_Flag */);
+            Retval=_RME_Inv_Set(Captbl, (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Inv */
+                                        Param[1],                                   /* rme_ptr_t Entry */
+                                        Param[2],                                   /* rme_ptr_t Stack */
+                                        RME_PARAM_D1(Param[0]));                    /* rme_ptr_t Fault_Ret_Flag */
             break;
         }
         /* This is an error */
@@ -755,7 +755,7 @@ Return      : None.
 ******************************************************************************/
 void _RME_Clear(void* Addr, rme_ptr_t Size)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
 
     for(Count=0;Count<Size;Count++)
         ((rme_u8_t*)Addr)[Count]=0;
@@ -774,12 +774,12 @@ Return      : rme_ret_t - If Ptr1>Ptr2, then return a positive value; else a neg
 ******************************************************************************/
 rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
 {
-    rme_u8_t* Dst;
-    rme_u8_t* Src;
-    rme_cnt_t Count;
+    const rme_u8_t* Dst;
+    const rme_u8_t* Src;
+    rme_ptr_t Count;
 
-    Dst=(rme_u8_t*)Ptr1;
-    Src=(rme_u8_t*)Ptr2;
+    Dst=(const rme_u8_t*)Ptr1;
+    Src=(const rme_u8_t*)Ptr2;
 
     for(Count=0;Count<Num;Count++)
     {
@@ -811,7 +811,7 @@ Return      : None.
 ******************************************************************************/
 void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
 
     for(Count=0;Count<Num;Count++)
         ((rme_u8_t*)Dst)[Count]=((rme_u8_t*)Src)[Count];
@@ -827,10 +827,10 @@ Return      : rme_cnt_t - The length of the string printed.
 ******************************************************************************/
 rme_cnt_t RME_Print_Int(rme_cnt_t Int)
 {
-    rme_ptr_t Iter;
+    rme_cnt_t Iter;
     rme_cnt_t Count;
     rme_cnt_t Num;
-    rme_ptr_t Div;
+    rme_cnt_t Div;
     
     /* how many digits are there? */
     if(Int==0)
@@ -863,7 +863,7 @@ rme_cnt_t RME_Print_Int(rme_cnt_t Int)
         while(Count>0)
         {
             Count--;
-            __RME_Putchar(Iter/Div+'0');
+            __RME_Putchar((rme_s8_t)(Iter/Div)+'0');
             Iter=Iter%Div;
             Div/=10;
         }
@@ -890,7 +890,7 @@ rme_cnt_t RME_Print_Int(rme_cnt_t Int)
         while(Count>0)
         {
             Count--;
-            __RME_Putchar(Iter/Div+'0');
+            __RME_Putchar((rme_s8_t)(Iter/Div)+'0');
             Iter=Iter%Div;
             Div/=10;
         }
@@ -910,8 +910,8 @@ Return      : rme_cnt_t - The length of the string printed.
 rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
 {
     rme_ptr_t Iter;
-    rme_cnt_t Count;
-    rme_cnt_t Num;
+    rme_ptr_t Count;
+    rme_ptr_t Num;
     
     /* how many digits are there? */
     if(Uint==0)
@@ -935,20 +935,20 @@ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
         }
         
         /* Count is the number of pts to print */
-        Count=sizeof(rme_ptr_t)*2-Count;
+        Count=-Count+sizeof(rme_ptr_t)*2;
         Num=Count;
         while(Count>0)
         {
             Count--;
             Iter=(Uint>>(Count*4))&0x0F;
             if(Iter<10)
-                __RME_Putchar('0'+Iter);
+                __RME_Putchar(((rme_s8_t)Iter)+'0');
             else
-                __RME_Putchar('A'+Iter-10);
+                __RME_Putchar(((rme_s8_t)Iter)+'A'-10);
         }
     }
     
-    return Num;
+    return (rme_cnt_t)Num;
 }
 /* End Function:RME_Print_Uint ***********************************************/
 
@@ -997,7 +997,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t Entry_Num)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
     struct RME_Cap_Captbl* Captbl;
 
     /* See if the entry number is too big */
@@ -1005,7 +1005,7 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t
     {
         RME_COVERAGE_MARKER();
         
-    	return RME_ERR_CAP_RANGE;
+        return RME_ERR_CAP_RANGE;
     }
     else
     {
@@ -1060,7 +1060,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                                rme_cid_t Cap_Crt, rme_ptr_t Vaddr, rme_ptr_t Entry_Num)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Captbl* Captbl_Crt;
     rme_ptr_t Type_Stat;
@@ -1134,7 +1134,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                           rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Raddr, rme_ptr_t Entry_Num)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
     struct RME_Cap_Captbl* Captbl_Crt;
@@ -1225,7 +1225,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Del, rme_cid_t Cap_Del)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Captbl* Captbl_Del;
     struct RME_Cap_Struct* Table;
@@ -1952,7 +1952,7 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl
     /* Check if the target captbl is not frozen, but don't check their properties */
     RME_CAP_CHECK(Pgtbl_Op,0);
 
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* Check if we force identical mapping */
     if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Base_Addr)))
     {
@@ -2020,7 +2020,7 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
     rme_ptr_t Parend_End_Addr;
@@ -2059,7 +2059,7 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
                     RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
@@ -2453,7 +2453,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
 
     /* Calculate the destination physical address */
     Paddr_Dst=Paddr_Src+(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order));
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* Check if we force identical mapping. No need to check granularity here */
     if(Paddr_Dst!=((Pos_Dst<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order))+
                    RME_PGTBL_START(Pgtbl_Dst->Base_Addr)))
@@ -2576,7 +2576,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Pgtbl* Child_Root;
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
     rme_ptr_t Parend_End_Addr;
@@ -2618,7 +2618,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
                    RME_PGTBL_SIZEORD(Pgtbl_Child->Size_Num_Order);
 
-#if(RME_VA_EQU_PA==RME_TRUE)
+#if(RME_VA_EQU_PA==1U)
     /* Path-compression option available */
     if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
     {
@@ -2803,7 +2803,7 @@ rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words)
 
     /* Zero out the whole table */
     for(Count=0;Count<Words;Count++)
-    	RME_KOTBL[Count]=0;
+        RME_KOTBL[Count]=0;
 
     return 0;
 }
@@ -2849,11 +2849,11 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
         return RME_ERR_KOT_BMP; */
     
     /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
-    Start=(Kaddr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;
+    Start=(Kaddr-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1));
     Start=Start>>RME_WORD_ORDER;
     
-    End=(Kaddr+Size-1-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;
+    End=(Kaddr+Size-1-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
     End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1));
     End=End>>RME_WORD_ORDER;
     
@@ -3039,11 +3039,11 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size)
         return RME_ERR_KOT_BMP; */
     
     /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
-    Start=(Kaddr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;
+    Start=(Kaddr-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1));
     Start=Start>>RME_WORD_ORDER;
     
-    End=(Kaddr+Size-1-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER;
+    End=(Kaddr+Size-1-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
     End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1));
     End=End>>RME_WORD_ORDER;
     
@@ -3197,7 +3197,7 @@ Return      : None.
 ******************************************************************************/
 void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID)
 {
-    rme_cnt_t Prio_Cnt;
+    rme_ptr_t Prio_Cnt;
     
     CPU_Local->CPUID=CPUID;
     CPU_Local->Cur_Thd=0;
@@ -3215,47 +3215,47 @@ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID)
 
 /* Begin Function:__RME_List_Crt **********************************************
 Description : Create a doubly linked list.
-Input       : volatile struct RME_List* Head - The pointer to the list head.
+Input       : struct RME_List* Head - The pointer to the list head.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_List_Crt(volatile struct RME_List* Head)
+void __RME_List_Crt(struct RME_List* Head)
 {
-    Head->Prev=(struct RME_List*)Head;
-    Head->Next=(struct RME_List*)Head;
+    Head->Prev=Head;
+    Head->Next=Head;
 }
 /* End Function:__RME_List_Crt ***********************************************/
 
 /* Begin Function:__RME_List_Del **********************************************
 Description : Delete a node from the doubly-linked list.
-Input       : volatile struct RME_List* Prev - The prevoius node of the target node.
-              volatile struct RME_List* Next - The next node of the target node.
+Input       : struct RME_List* Prev - The prevoius node of the target node.
+              struct RME_List* Next - The next node of the target node.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_List_Del(volatile struct RME_List* Prev,volatile struct RME_List* Next)
+void __RME_List_Del(struct RME_List* Prev, struct RME_List* Next)
 {
-    Next->Prev=(struct RME_List*)Prev;
-    Prev->Next=(struct RME_List*)Next;
+    Next->Prev=Prev;
+    Prev->Next=Next;
 }
 /* End Function:__RME_List_Del ***********************************************/
 
 /* Begin Function:__RME_List_Ins **********************************************
 Description : Insert a node to the doubly-linked list.
-Input       : volatile struct RME_List* New - The new node to insert.
-              volatile struct RME_List* Prev - The previous node.
-              volatile struct RME_List* Next - The next node.
+Input       : struct RME_List* New - The new node to insert.
+              struct RME_List* Prev - The previous node.
+              struct RME_List* Next - The next node.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_List_Ins(volatile struct RME_List* New,
-                    volatile struct RME_List* Prev,
-                    volatile struct RME_List* Next)
+void __RME_List_Ins(struct RME_List* New,
+                    struct RME_List* Prev,
+                    struct RME_List* Next)
 {
-    Next->Prev=(struct RME_List*)New;
-    New->Next=(struct RME_List*)Next;
-    New->Prev=(struct RME_List*)Prev;
-    Prev->Next=(struct RME_List*)New;
+    Next->Prev=New;
+    New->Next=Next;
+    New->Prev=Prev;
+    Prev->Next=New;
 }
 /* End Function:__RME_List_Ins ***********************************************/
 
@@ -3307,8 +3307,8 @@ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg, rme_ptr_t Fault)
         /* Send a scheduler notification to its parent */
         _RME_Run_Notif(CPU_Local->Cur_Thd);
         
-    	/* All kernel send complete, now pick the highest priority thread to run */
-    	_RME_Kern_High(Reg,CPU_Local);
+        /* All kernel send complete, now pick the highest priority thread to run */
+        _RME_Kern_High(Reg,CPU_Local);
     }
     else
     {
@@ -3397,7 +3397,7 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
     rme_ptr_t Prio;
     
     /* We start looking for preemption priority levels from the highest */
-    for(Count=RME_PRIO_WORD_NUM-1;Count>=0;Count--)
+    for(Count=(rme_cnt_t)(RME_PRIO_WORD_NUM-1);Count>=0;Count--)
     {
         if((CPU_Local->Run).Bitmap[Count]!=0)
         {
@@ -3416,7 +3416,7 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
     
     /* Get the first "1"'s position in the word */
     Prio=RME_MSB_GET((CPU_Local->Run).Bitmap[Count]);
-    Prio+=Count<<RME_WORD_ORDER;
+    Prio+=((rme_ptr_t)Count)<<RME_WORD_ORDER;
 
     /* Now there is something at this priority level. Get it and start to run */
     return (struct RME_Thd_Struct*)((CPU_Local->Run).List[Prio].Next);
@@ -3456,7 +3456,7 @@ rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
     if(Thd->Sched.Sched_Sig!=0)
     {
         RME_COVERAGE_MARKER();
-    	_RME_Kern_Snd(Thd->Sched.Sched_Sig);
+        _RME_Kern_Snd(Thd->Sched.Sched_Sig);
     }
     else
     {
@@ -4203,8 +4203,8 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd, rme
         RME_COVERAGE_MARKER();
         
         /* Register external save area must be aligned to word boundary and accessible to the kernel */
-        if(RME_IS_ALIGNED(Kaddr)&&(Kaddr>=RME_HYP_VA_START)&&
-           ((Kaddr+sizeof(struct RME_Thd_Regs))<(RME_HYP_VA_START+RME_HYP_SIZE)))
+        if(RME_IS_ALIGNED(Kaddr)&&(Kaddr>=RME_HYP_VA_BASE)&&
+           ((Kaddr+sizeof(struct RME_Thd_Regs))<(RME_HYP_VA_BASE+RME_HYP_VA_SIZE)))
         {
             RME_COVERAGE_MARKER();
 
@@ -4279,15 +4279,15 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
     {
         RME_COVERAGE_MARKER();
 
-    	Sig_Op=0;
+        Sig_Op=0;
     }
 
     /* Check the TID passed in to see whether it is good */
-    if((TID>=RME_THD_FAULT_FLAG)||(TID<0))
+    if((((rme_ptr_t)TID)>=RME_THD_FAULT_FLAG)||(TID<0))
     {
         RME_COVERAGE_MARKER();
 
-    	return RME_ERR_PTH_TID;
+        return RME_ERR_PTH_TID;
     }
     else
     {
@@ -4367,14 +4367,14 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
      * operations on this thread because this thread is already binded to this core */
     Thd_Op_Struct->Sched.Sched_Thd=Thd_Sched_Struct;
     Thd_Op_Struct->Sched.Prio=Prio;
-    Thd_Op_Struct->Sched.TID=TID;
+    Thd_Op_Struct->Sched.TID=(rme_ptr_t)TID;
 
     /* Tie the signal endpoint to it if not zero */
     if(Sig_Op==0)
     {
         RME_COVERAGE_MARKER();
 
-    	Thd_Op_Struct->Sched.Sched_Sig=0;
+        Thd_Op_Struct->Sched.Sched_Sig=0;
     }
     else
     {
@@ -4561,7 +4561,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
 
-    	RME_FETCH_ADD(&(Thd_Struct->Sched.Sched_Sig->Head.Root_Ref), -1);
+        RME_FETCH_ADD(&(Thd_Struct->Sched.Sched_Sig->Head.Root_Ref), -1);
     }
     else
     {
@@ -4691,9 +4691,9 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     {
         RME_COVERAGE_MARKER();
         /* Set the reason of that fault to the invocation return value register */
-        __RME_Set_Inv_Retval(Reg,Thd_Child->Sched.Fault);
+        __RME_Set_Inv_Retval(Reg,(rme_ret_t)(Thd_Child->Sched.Fault));
         /* Return the TID with the fault flag set */
-        return Thd_Child->Sched.TID|RME_THD_FAULT_FLAG;
+        return (rme_ret_t)(Thd_Child->Sched.TID|RME_THD_FAULT_FLAG);
     }
     else
     {
@@ -4701,7 +4701,7 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     }
 
     /* Return the notification TID, which means that it is just a timeout */
-    return Thd_Child->Sched.TID;
+    return (rme_ret_t)(Thd_Child->Sched.TID);
 }
 /* End Function:_RME_Thd_Sched_Rcv *******************************************/
 
@@ -4963,7 +4963,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     {
         RME_COVERAGE_MARKER();
         
-    	/* If it is blocked, we do not change its state, and only sends the scheduler notification */
+        /* If it is blocked, we do not change its state, and only sends the scheduler notification */
         if((Thd_Src_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Src_Struct->Sched.State==RME_THD_READY))
         {
             RME_COVERAGE_MARKER();
@@ -4985,7 +4985,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     }
 
     /* Now save the system call return value to the caller stack - how much time the destination have now */
-    __RME_Set_Syscall_Retval(Reg,Thd_Dst_Struct->Sched.Slices);
+    __RME_Set_Syscall_Retval(Reg,(rme_ret_t)(Thd_Dst_Struct->Sched.Slices));
 
     /* See what was the state of the destination thread. If it is timeout, then
      * activate it. If it is other state, then leave it alone */
@@ -5118,8 +5118,8 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             if((High_Thd->Sched.Prio>Next_Thd->Sched.Prio)||(CPU_Local->Cur_Thd==Next_Thd))
             {
                 RME_COVERAGE_MARKER();
-                
-            	Next_Thd=High_Thd;
+
+                Next_Thd=High_Thd;
             }
             else
             {
@@ -5778,7 +5778,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             }
             
             /* We have taken all, now return what we have taken */
-            __RME_Set_Syscall_Retval(Reg, Old_Value);
+            __RME_Set_Syscall_Retval(Reg, (rme_ret_t)Old_Value);
         }
         
         return 0;
@@ -6111,7 +6111,7 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, rme_ptr_t Retval, rme_ptr_t F
     /* Restore the register contents, and set return value. We need to set
      * the return value of the invocation system call itself as well */
     __RME_Inv_Reg_Restore(Reg, &(Inv_Struct->Ret));
-    __RME_Set_Inv_Retval(Reg, Retval);
+    __RME_Set_Inv_Retval(Reg, (rme_ret_t)Retval);
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */

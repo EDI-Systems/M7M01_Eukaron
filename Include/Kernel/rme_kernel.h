@@ -13,8 +13,6 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define __RME_KERNEL_H_DEFS__
 /*****************************************************************************/
 /* Generic *******************************************************************/
-#define RME_TRUE                                    (1)
-#define RME_FALSE                                   (0)
 #define RME_NULL                                    (0)
 #define RME_EXIST                                   (1)
 #define RME_EMPTY                                   (0)
@@ -72,12 +70,14 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
  * is responsible for setting the parameters; If failed, we set the parameters for it.
  * Possible categories of context switch includes synchronous invocation and thread switch. */
 #define RME_SWITCH_RETURN(REG,RETVAL) \
+do \
 { \
     if(RME_UNLIKELY((RETVAL)<0)) \
         __RME_Set_Syscall_Retval((REG),(RETVAL)); \
     \
     return; \
-}
+} \
+while(0)
 
 /* The system service numbers are defined here. This is included in both user level 
  * and kernel level */
@@ -150,7 +150,7 @@ while(0)
 #define RME_ERR_KOT_BMP                             (-1)
 
 /* Number of slots, and size of each slot */
-#define RME_KOTBL_SLOT_NUM                          (RME_KMEM_SIZE>>RME_KMEM_SLOT_ORDER)
+#define RME_KOTBL_SLOT_NUM                          (RME_KMEM_VA_SIZE>>RME_KMEM_SLOT_ORDER)
 #define RME_KOTBL_SLOT_SIZE                         RME_POW2(RME_KMEM_SLOT_ORDER)
 #define RME_KOTBL_WORD_NUM                          (RME_KOTBL_SLOT_NUM>>RME_WORD_ORDER)
 /* Round the kernel object size to the entry slot size */
@@ -247,9 +247,9 @@ while(0)
 /* Make 2-level capability */
 #define RME_CAPID(X,Y)                              (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
 /* High-level capability table capability position */
-#define RME_CAP_H(X)                                ((X)>>(sizeof(rme_ptr_t)*2))
+#define RME_CAP_H(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))>>(sizeof(rme_ptr_t)*2)))
 /* Low-level capability table capability position */
-#define RME_CAP_L(X)                                ((X)&RME_MASK_END(sizeof(rme_ptr_t)*2-2))
+#define RME_CAP_L(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))&RME_MASK_END(sizeof(rme_ptr_t)*2-2)))
 
 /* When we are clearing capabilities */
 #define RME_CAP_CLEAR(X) \
@@ -430,7 +430,7 @@ while(0)
 do \
 { \
     /* Check if the captbl is over range */ \
-    if(RME_UNLIKELY((CAP_NUM)>=((CAPTBL)->Entry_Num))) \
+    if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CAPTBL)->Entry_Num))) \
         return RME_ERR_CAP_RANGE; \
     /* Get the slot position */ \
     (PARAM)=&(RME_CAP_GETOBJ((CAPTBL),TYPE)[(CAP_NUM)]); \
@@ -458,7 +458,7 @@ do \
     if(((CAP_NUM)&RME_CAPID_2L)==0) \
     { \
         /* Check if the captbl is over range */ \
-        if(RME_UNLIKELY((CAP_NUM)>=((CAPTBL)->Entry_Num))) \
+        if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CAPTBL)->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CAPTBL,struct RME_Cap_Struct*)[(CAP_NUM)]); \
@@ -600,7 +600,7 @@ while(0)
 #define RME_SIG_SIZE                                sizeof(struct RME_Sig_Struct)
 #define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
-/* Get the top of invocation stack */
+/* Get the top of invocation stack - no volatile needed here because this is single-threaded */
 #define RME_INVSTK_TOP(THD)                         ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
                                                                               (0): \
                                                                               ((THD)->Inv_Stack.Next)))
@@ -696,8 +696,8 @@ struct RME_Cap_Kmem
 /* List head structure */
 struct RME_List
 {
-    volatile struct RME_List* Prev;
-    volatile struct RME_List* Next;
+    struct RME_List* Prev;
+    struct RME_List* Next;
 };
 
 /* Per-CPU run queue structure */
@@ -1033,12 +1033,12 @@ __EXTERN__ rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t
 
 /* Process and Thread ********************************************************/
 /* Linked list operations */
-__EXTERN__ void __RME_List_Crt(volatile struct RME_List* Head);
-__EXTERN__ void __RME_List_Del(volatile struct RME_List* Prev,
-                               volatile struct RME_List* Next);
-__EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
-                               volatile struct RME_List* Prev,
-                               volatile struct RME_List* Next);
+__EXTERN__ void __RME_List_Crt(struct RME_List* Head);
+__EXTERN__ void __RME_List_Del(struct RME_List* Prev,
+                               struct RME_List* Next);
+__EXTERN__ void __RME_List_Ins(struct RME_List* New,
+                               struct RME_List* Prev,
+                               struct RME_List* Next);
 /* Initialize per-CPU data structures */
 __EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID);
 /* Thread fatal killer */
