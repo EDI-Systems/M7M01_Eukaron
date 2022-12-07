@@ -77,10 +77,10 @@ rme_ptr_t __RME_A7M_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
     if(*Ptr==Old)
     {
         *Ptr=New;
-        return 1;
+        return 1U;
     }
     
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Comp_Swap ******************************************/
 
@@ -132,7 +132,7 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_A7M_PUTCHAR(Char);
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Putchar ************************************************/
 
@@ -144,7 +144,7 @@ Return      : rme_ptr_t - The CPUID. On Cortex-M, this is certainly always 0.
 ******************************************************************************/
 rme_ptr_t __RME_CPUID_Get(void)
 {
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_CPUID_Get **********************************************/
 
@@ -167,7 +167,7 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     struct __RME_A7M_Pgtbl_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
-    RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0);
+    RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0U);
     
     /* Get the address of this faulty address, and what caused this fault */
     Cur_HFSR=RME_A7M_SCB_HFSR;
@@ -175,12 +175,12 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     Cur_MMFAR=RME_A7M_SCB_MMFAR;
     
     /* Are we activating the NMI? If yes, we directly soft lockup */
-    RME_ASSERT((RME_A7M_SCB_ICSR&RME_A7M_ICSR_NMIPENDSET)==0);
+    RME_ASSERT((RME_A7M_SCB_ICSR&RME_A7M_ICSR_NMIPENDSET)==0U);
     /* If this is a hardfault, make sure that it is not the vector table problem, or we lockup */
-    RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_VECTTBL)==0);
+    RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_VECTTBL)==0U);
     /* Is this a escalated hard fault? If yes, and this is not a trivial debug fault, we lockup */
-    if((Cur_HFSR&RME_A7M_HFSR_FORCED)!=0)
-        RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_DEBUGEVT)!=0);
+    if((Cur_HFSR&RME_A7M_HFSR_FORCED)!=0U)
+        RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_DEBUGEVT)!=0U);
     
     /* We cannot recover from the following: */
     if((Cur_CFSR&
@@ -193,42 +193,42 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
          RME_A7M_BFSR_UNSTKERR|         /* Bus unstacking errors */ 
          RME_A7M_BFSR_PRECISERR|        /* Precise bus data errors */
          RME_A7M_BFSR_IBUSERR|          /* Bus instruction errors */
-         RME_A7M_MFSR_MUNSTKERR))!=0)   /* MPU unstacking errors */
+         RME_A7M_MFSR_MUNSTKERR))!=0U)   /* MPU unstacking errors */
     {
         
         __RME_Thd_Fatal(Reg, Cur_CFSR);
     }
     /* Attempt recovery from memory management fault by MPU region swapping */
-    else if((Cur_CFSR&RME_A7M_MFSR_MMARVALID)!=0)
+    else if((Cur_CFSR&RME_A7M_MFSR_MMARVALID)!=0U)
     {
         /* This must be a data violation. This is the only case where MMAR will be loaded */
-        RME_ASSERT((Cur_CFSR&RME_A7M_MFSR_DACCVIOL)!=0);
+        RME_ASSERT((Cur_CFSR&RME_A7M_MFSR_DACCVIOL)!=0U);
         /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
          * can be found in our current page table, and if it is there, we only care about the flags */
         Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
-        if(Inv_Top==0)
+        if(Inv_Top==RME_NULL)
             Proc=(RME_A7M_Local.Cur_Thd)->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+        if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
             __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
-            RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
+            RME_ASSERT((Flags&RME_PGTBL_STATIC)==0U);
             /* Try to update the dynamic page */
-            if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
+            if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
                 __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
         }
     }
     /* This is an instruction access violation. We need to know where that instruction is.
      * This requires access of an user-level page, due to the fact that the fault address
      * is stored on the fault stack. */ 
-    else if((Cur_CFSR&RME_A7M_MFSR_IACCVIOL)!=0)
+    else if((Cur_CFSR&RME_A7M_MFSR_IACCVIOL)!=0U)
     {
         Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
-        if(Inv_Top==0)
+        if(Inv_Top==0U)
             Proc=(RME_A7M_Local.Cur_Thd)->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
@@ -236,25 +236,25 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
         Stack=(rme_ptr_t*)(Reg->SP);
         
         /* Stack[6] is where the PC is before the fault */
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6]), (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+        if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
             __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
-            if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6], (rme_ptr_t*)(&Meta), 0, 0, 0, 0, &Flags)!=0)
+            if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
                 __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
             else
             {
                 /* This must be a dynamic page */
-                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0);
+                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0U);
                 
                 /* This page does not allow execution */
-                if((Flags&RME_PGTBL_EXECUTE)==0)
+                if((Flags&RME_PGTBL_EXECUTE)==0U)
                     __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
                 else
                 {
                     /* Try to update the dynamic page */
-                    if(___RME_Pgtbl_MPU_Update(Meta, 1)!=0)
+                    if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
                         __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
                 }
             }
@@ -297,17 +297,17 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7M_Set_Flag(rme_ptr_t Flagset, rme_ptr_t Pos)
 {
-    struct __RME_A7M_Flag_Set* Flags;
+    struct __RME_RVM_Flag_Set* Flags;
     
     /* Choose a data structure that is not locked at the moment */
-    if(((struct __RME_A7M_Phys_Flags*)Flagset)->Set0.Lock==0)
-        Flags=&(((struct __RME_A7M_Phys_Flags*)Flagset)->Set0);
+    if(((struct __RME_RVM_Flag*)Flagset)->Set0.Lock==0U)
+        Flags=&(((struct __RME_RVM_Flag*)Flagset)->Set0);
     else
-        Flags=&(((struct __RME_A7M_Phys_Flags*)Flagset)->Set1);
+        Flags=&(((struct __RME_RVM_Flag*)Flagset)->Set1);
     
     /* Set the flags for this interrupt source */
     Flags->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
-    Flags->Flags[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1));
+    Flags->Flags[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
 }
 /* End Function:__RME_A7M_Set_Flag *******************************************/
 
@@ -326,11 +326,11 @@ void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
     extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
      * this due to some reason), we skip the flag marshalling & sending process */
-    if(RME_Boot_Vect_Handler(Vect_Num)!=0)
+    if(RME_Boot_Vect_Handler(Vect_Num)!=0U)
         return;
 #endif
     
-    __RME_A7M_Set_Flag(RME_A7M_VECT_FLAG_ADDR, Vect_Num);
+    __RME_A7M_Set_Flag(RME_RVM_VECT_FLAG_ADDR, Vect_Num);
     
     _RME_Kern_Snd(RME_A7M_Local.Vect_Sig);
     /* Remember to pick the guy with the highest priority after we did all sends */
@@ -361,7 +361,7 @@ rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl,
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_TYPE_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op,Type_Stat);
     
-    if(__RME_Pgtbl_Walk(Pgtbl_Op, Vaddr, 0, 0, 0, &Size_Order, &Num_Order, &Flags)!=0)
+    if(__RME_Pgtbl_Walk(Pgtbl_Op, Vaddr, 0U, 0U, 0U, &Size_Order, &Num_Order, &Flags)!=0U)
         return RME_ERR_KERN_OPFAIL;
     
     switch(Type)
@@ -393,19 +393,19 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_pt
     {
         case RME_A7M_KERN_INT_LOCAL_MOD_GET_STATE:
         {
-            if((RME_A7M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1F))==0)
-                return 0;
+            if((RME_A7M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1FU))==0U)
+                return 0U;
             else
-                return 1;
+                return 1U;
         }
         case RME_A7M_KERN_INT_LOCAL_MOD_SET_STATE:
         {
-            if(Param==0)
-                RME_A7M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1F);
+            if(Param==0U)
+                RME_A7M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1FU);
             else
-                RME_A7M_NVIC_ISER(Int_Num)=RME_POW2(Int_Num&0x1F);
+                RME_A7M_NVIC_ISER(Int_Num)=RME_POW2(Int_Num&0x1FU);
             
-            return 0;
+            return 0U;
         }
         case RME_A7M_KERN_INT_LOCAL_MOD_GET_PRIO:
         {
@@ -413,11 +413,11 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_pt
         }
         case RME_A7M_KERN_INT_LOCAL_MOD_SET_PRIO:
         {
-            if(Param>0xFF)
+            if(Param>0xFFU)
                 return RME_ERR_KERN_OPFAIL;
             
             RME_A7M_NVIC_IPR(Int_Num)=(rme_u8_t)Param;
-            return 0;
+            return 0U;
         }
         default:break;
     }
@@ -435,7 +435,7 @@ Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num)
 {
-    if(CPUID!=0)
+    if(CPUID!=0U)
         return RME_ERR_KERN_OPFAIL;
 
     if(Int_Num>=RME_A7M_VECT_NUM)
@@ -444,7 +444,7 @@ rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num)
     /* Trigger the interrupt */
     RME_A7M_SCNSCB_STIR=Int_Num;
 
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Int_Local_Trig *************************************/
 
@@ -458,23 +458,23 @@ Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Evt_Num)
 {
-    if(CPUID!=0)
+    if(CPUID!=0U)
         return RME_ERR_KERN_OPFAIL;
 
     if(Evt_Num>=RME_A7M_MAX_EVTS)
         return RME_ERR_KERN_OPFAIL;
 
-    __RME_A7M_Set_Flag(RME_A7M_EVT_FLAG_ADDR, Evt_Num);
+    __RME_A7M_Set_Flag(RME_RVM_EVT_FLAG_ADDR, Evt_Num);
     
-    if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0)
+    if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0U)
         return RME_ERR_KERN_OPFAIL;
     
     /* Set return value first before we really do context switch */
-    __RME_Set_Syscall_Retval(Reg,0);
+    __RME_Set_Syscall_Retval(Reg, 0);
     
     _RME_Kern_High(Reg, &RME_A7M_Local);
 
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Evt_Local_Trig *************************************/
 
@@ -496,17 +496,17 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
 
     if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
     {
-        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        CLIDR=RME_A7M_SCB_CLIDR&0x07U;
         
         /* Do we have instruction cache at all? */
-        if((CLIDR!=0x01)&&(CLIDR!=0x03))
+        if((CLIDR!=0x01U)&&(CLIDR!=0x03U))
             return RME_ERR_KERN_OPFAIL;
 
-        RME_A7M_SCB_CSSELR=1;
+        RME_A7M_SCB_CSSELR=1U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
-        if((Sets==0)||(Ways==0))
+        if((Sets==0U)||(Ways==0U))
             return RME_ERR_KERN_OPFAIL;
         
         /* Are we doing get or set? */
@@ -516,37 +516,37 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
             if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
-                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0)
-                    return 0;
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
+                    return 0U;
                 
                 /* Invalidate contents, then enable I-cache */
                 __RME_A7M_Barrier();
-                RME_A7M_SCNSCB_ICALLU=0;
+                RME_A7M_SCNSCB_ICALLU=0U;
                 RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
                 __RME_A7M_Barrier();
-                return 0;
+                return 0U;
             }
             else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
-                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)==0)
-                    return 0;
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)==0U)
+                    return 0U;
                 
                 /* Disable I-cache */
                 __RME_A7M_Barrier();
                 RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_IC;
                 __RME_A7M_Barrier();
                 /* Invalidate contents */
-                RME_A7M_SCNSCB_ICALLU=0;
+                RME_A7M_SCNSCB_ICALLU=0U;
                 __RME_A7M_Barrier();
-                return 0;
+                return 0U;
             }
             else
                 return RME_ERR_KERN_OPFAIL;
         }
         else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
         {
-            if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0)
+            if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
                 return RME_A7M_KERN_CACHE_STATE_ENABLE;
             else
                 return RME_A7M_KERN_CACHE_STATE_DISABLE;
@@ -556,17 +556,17 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
     }
     else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
     {
-        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        CLIDR=RME_A7M_SCB_CLIDR&0x07U;
 
         /* Do we have data cache at all? */
-        if((CLIDR!=0x02)&&(CLIDR!=0x03)&&(CLIDR!=0x04))
+        if((CLIDR!=0x02U)&&(CLIDR!=0x03U)&&(CLIDR!=0x04U))
             return RME_ERR_KERN_OPFAIL;
         
-        RME_A7M_SCB_CSSELR=0;
+        RME_A7M_SCB_CSSELR=0U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
-        if((Sets==0)||(Ways==0))
+        if((Sets==0U)||(Ways==0U))
             return RME_ERR_KERN_OPFAIL;
         
         /* Are we doing get or set? */
@@ -576,13 +576,13 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
             if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
-                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0)
-                    return 0;
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0U)
+                    return 0U;
         
                 /* Invalidate contents, then enable D-cache */
-                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
-                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                     {
                         RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                         __RME_A7M_Barrier();
@@ -590,13 +590,13 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
                 }
                 RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DC;
                 __RME_A7M_Barrier();
-                return 0;
+                return 0U;
             }
             else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)==0)
-                    return 0;
+                    return 0U;
                 
                 /* Stop new allocations to D-cache NOW (by disabling interrupts) */
                 __RME_Disable_Int();
@@ -608,9 +608,9 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
                 Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
                 
                 /* Clean and invalidate contents */
-                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
-                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                     {
                         RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                         __RME_A7M_Barrier();
@@ -619,7 +619,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
                 
                 /* Reenable interrupts */
                 __RME_Enable_Int();
-                return 0;
+                return 0U;
             }
             else
                 return RME_ERR_KERN_OPFAIL;
@@ -632,7 +632,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
         /* Whether a BTAC exists is implementation defined. Cortex-M3 and Cortex-M4
          * does not have a BTAC but Cortex-M7 have. We need to see what processor
          * this is and decide whether this operation makes sense. */
-        if(((RME_A7M_SCB_CPUID>>4)&0x0FFF)!=0x0C27)
+        if(((RME_A7M_SCB_CPUID>>4)&0x0FFFU)!=0x0C27U)
             return RME_ERR_KERN_OPFAIL;
         
         /* Are we doing get or set? */
@@ -642,22 +642,22 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
             if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
-                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0)
-                    return 0;
+                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
+                    return 0U;
                 
                 /* Enable BTAC */
                 RME_A7M_SCNSCB_ACTLR&=~RME_A7M_SCNSCB_ACTLR_DISBTAC;
-                return 0;
+                return 0U;
             }
             else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
-                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)!=0)
-                    return 0;
+                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)!=0U)
+                    return 0U;
                 
                 /* Disable BTAC */
                 RME_A7M_SCNSCB_ACTLR|=RME_A7M_SCNSCB_ACTLR_DISBTAC;
-                return 0;
+                return 0U;
             }
             else
                 return RME_ERR_KERN_OPFAIL;
@@ -665,7 +665,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t
         else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
         {
             /* Is it already enabled? */
-            if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0)
+            if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
                 return RME_A7M_KERN_CACHE_STATE_ENABLE;
             else
                 return RME_A7M_KERN_CACHE_STATE_DISABLE;
@@ -695,17 +695,17 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
 
     if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
     {
-        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        CLIDR=RME_A7M_SCB_CLIDR&0x07U;
         
         /* Do we have instruction cache at all? */
-        if((CLIDR!=0x01)&&(CLIDR!=0x03))
+        if((CLIDR!=0x01U)&&(CLIDR!=0x03U))
             return RME_ERR_KERN_OPFAIL;
 
-        RME_A7M_SCB_CSSELR=1;
+        RME_A7M_SCB_CSSELR=1U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
-        if((Sets==0)||(Ways==0))
+        if((Sets==0U)||(Ways==0U))
             return RME_ERR_KERN_OPFAIL;
 
         /* What maintenance operation are we gonna do? */
@@ -714,30 +714,30 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
 
         /* I-cache maintenance does not care if the cache is enabled */
         if(Operation==RME_A7M_KERN_CACHE_INV_ALL)
-            RME_A7M_SCNSCB_ICALLU=0;
+            RME_A7M_SCNSCB_ICALLU=0U;
         else
             RME_A7M_SCNSCB_ICIMVAU=Param;
         
         __RME_A7M_Barrier();
-        return 0;
+        return 0U;
     }
     else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
     {
-        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        CLIDR=RME_A7M_SCB_CLIDR&0x07U;
 
         /* Do we have data cache at all? */
-        if((CLIDR!=0x02)&&(CLIDR!=0x03)&&(CLIDR!=0x04))
+        if((CLIDR!=0x02U)&&(CLIDR!=0x03U)&&(CLIDR!=0x04U))
             return RME_ERR_KERN_OPFAIL;
         
-        RME_A7M_SCB_CSSELR=0;
+        RME_A7M_SCB_CSSELR=0U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
-        if((Sets==0)||(Ways==0))
+        if((Sets==0U)||(Ways==0U))
             return RME_ERR_KERN_OPFAIL;
         
         /* Is it enabled? If yes, we cannot do invalidate, because we may lose data */
-        if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0)
+        if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0U)
         {
             if((Operation>=RME_A7M_KERN_CACHE_INV_ALL)&&(Operation<=RME_A7M_KERN_CACHE_INV_SETWAY))
                 return RME_ERR_KERN_OPFAIL;
@@ -751,9 +751,9 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
             case RME_A7M_KERN_CACHE_INV_ALL:
             case RME_A7M_KERN_CACHE_CLEAN_INV_ALL:
             {
-                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
-                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                     {
                         /* Compiler LICM */
                         if(Operation==RME_A7M_KERN_CACHE_CLEAN_ALL)
@@ -766,12 +766,12 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                     }
                 }
                 
-                return 0;
+                return 0U;
             }
             /* By address */
-            case RME_A7M_KERN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0;}
-            case RME_A7M_KERN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0;}
-            case RME_A7M_KERN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0;}
+            case RME_A7M_KERN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0U;}
+            case RME_A7M_KERN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0U;}
+            case RME_A7M_KERN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0U;}
             /* By set */
             case RME_A7M_KERN_CACHE_CLEAN_SET: /* Fall-through */
             case RME_A7M_KERN_CACHE_INV_SET:
@@ -780,7 +780,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                 if(Param>=Sets)
                     return RME_ERR_KERN_OPFAIL;
                 
-                for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                 {
                     /* Compiler LICM */
                     if(Operation==RME_A7M_KERN_CACHE_CLEAN_SET)
@@ -792,7 +792,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                     __RME_A7M_Barrier();
                 }
                 
-                return 0;
+                return 0U;
             }
             /* By way */
             case RME_A7M_KERN_CACHE_CLEAN_WAY: /* Fall-through */
@@ -802,7 +802,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                 if(Param>=Ways)
                     return RME_ERR_KERN_OPFAIL;
                 
-                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
                     /* Compiler LICM */
                     if(Operation==RME_A7M_KERN_CACHE_CLEAN_WAY)
@@ -814,7 +814,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                     __RME_A7M_Barrier();
                 }
                 
-                return 0; 
+                return 0U; 
             }
             /* By set and way */
             case RME_A7M_KERN_CACHE_CLEAN_SETWAY: /* Fall-through */
@@ -835,7 +835,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
                     RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                 __RME_A7M_Barrier();
                 
-                return 0;
+                return 0U;
             }
             default:break;
         }
@@ -849,9 +849,9 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr
             return RME_ERR_KERN_OPFAIL;
         
         /* This may take effect or not... */
-        RME_A7M_SCNSCB_BPIALL=0;
+        RME_A7M_SCNSCB_BPIALL=0U;
         
-        return 0;
+        return 0U;
     }
     
     /* Invalid cache specified */
@@ -872,24 +872,24 @@ Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID, rme_ptr_t Operation, rme_ptr_t Param)
 {
-    if(Prfth_ID!=0)
+    if(Prfth_ID!=0U)
         return RME_ERR_KERN_OPFAIL;
     
     if(Operation==RME_A7M_KERN_PRFTH_MOD_SET_STATE)
     {
         if(Param==RME_A7M_KERN_PRFTH_STATE_ENABLE)
-            RME_A7M_PRFTH_STATE_SET(1);
+            RME_A7M_PRFTH_STATE_SET(1U);
         else if(Param==RME_A7M_KERN_PRFTH_STATE_DISABLE)
-            RME_A7M_PRFTH_STATE_SET(0);
+            RME_A7M_PRFTH_STATE_SET(0U);
         else
             return RME_ERR_KERN_OPFAIL;
         
         __RME_A7M_Barrier();
-        return 0;
+        return 0U;
     }
     else if(Operation==RME_A7M_KERN_PRFTH_MOD_GET_STATE)
     {
-        if(RME_A7M_PRFTH_STATE_GET()==0)
+        if(RME_A7M_PRFTH_STATE_GET()==0U)
             return RME_A7M_KERN_PRFTH_STATE_DISABLE;
         else
             return RME_A7M_KERN_PRFTH_STATE_ENABLE;
@@ -929,14 +929,14 @@ rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg, rme_ptr_t Freg_ID)
         case RME_A7M_KERN_CPU_FUNC_CTR:             {Reg->R6=RME_A7M_SCB_CTR;break;}
         case RME_A7M_KERN_CPU_FUNC_ICACHE_CCSIDR:
         {
-            RME_A7M_SCB_CSSELR=1;
+            RME_A7M_SCB_CSSELR=1U;
             __RME_A7M_Barrier();
             Reg->R6=RME_A7M_SCB_CCSIDR;
             break;
         }
         case RME_A7M_KERN_CPU_FUNC_DCACHE_CCSIDR:
         {
-            RME_A7M_SCB_CSSELR=0;
+            RME_A7M_SCB_CSSELR=0U;
             __RME_A7M_Barrier();
             Reg->R6=RME_A7M_SCB_CCSIDR;
             break;
@@ -960,7 +960,7 @@ rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg, rme_ptr_t Freg_ID)
         default:                                    {return RME_ERR_KERN_OPFAIL;}
     }
 
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Perf_CPU_Func **************************************/
 
@@ -980,7 +980,7 @@ rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr
         return RME_ERR_KERN_OPFAIL;
 
     /* Do we have this counter at all? */
-    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0)
+    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0U)
         return RME_ERR_KERN_OPFAIL;
     
     if(Operation==RME_A7M_KERN_PERF_STATE_GET)
@@ -994,7 +994,7 @@ rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr
         else
             return RME_ERR_KERN_OPFAIL;
 
-        return 0;
+        return 0U;
     }
     
     return RME_ERR_KERN_OPFAIL;
@@ -1016,7 +1016,7 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_I
         return RME_ERR_KERN_OPFAIL;
     
     /* Do we have this counter at all? */
-    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0)
+    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0U)
         return RME_ERR_KERN_OPFAIL;
 
     /* We do have the counter, access it */
@@ -1027,7 +1027,7 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_I
     else
         return RME_ERR_KERN_OPFAIL;
 
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Perf_Cycle_Mod *************************************/
 
@@ -1117,7 +1117,7 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         default:                                    {return RME_ERR_KERN_OPFAIL;}
     }
 
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_A7M_Debug_Reg_Mod **************************************/
 
@@ -1158,7 +1158,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         if(Inv_Struct==(struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
             return RME_ERR_KERN_OPFAIL;
         
-        if(Layer_Cnt==0)
+        if(Layer_Cnt==0U)
             break;
         
         Layer_Cnt--;
@@ -1311,7 +1311,7 @@ Return      : None.
 void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc, rme_ptr_t Prio)
 {
     RME_ASSERT(Exc<0);
-    RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0xFU)-4U)=(rme_u8_t)Prio;
+    RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0x0FU)-4U)=(rme_u8_t)Prio;
 }
 /* End Function:__RME_A7M_NVIC_Set_Exc_Prio **********************************/
 
@@ -1331,20 +1331,20 @@ void __RME_A7M_Cache_Init(void)
 
     /* I-Cache */
     __RME_A7M_Barrier();
-    RME_A7M_SCNSCB_ICALLU=0;
+    RME_A7M_SCNSCB_ICALLU=0U;
     RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
     __RME_A7M_Barrier();
 
     /* D-Cache */
-    RME_A7M_SCB_CSSELR=0;
+    RME_A7M_SCB_CSSELR=0U;
     __RME_A7M_Barrier();
 
     Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
     Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
     
-    for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+    for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
     {
-        for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+        for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
         {
             RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
             __RME_A7M_Barrier();
@@ -1372,8 +1372,8 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_A7M_LOW_LEVEL_INIT();
     
     /* Check the number of interrupt lines */
-    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1)<<5)>=RME_A7M_VECT_NUM);
-    RME_ASSERT(240>=RME_A7M_VECT_NUM);
+    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_A7M_VECT_NUM);
+    RME_ASSERT(RME_A7M_VECT_NUM<=240U);
 
     /* Enable the MPU */
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
@@ -1404,20 +1404,20 @@ rme_ptr_t __RME_Low_Level_Init(void)
      * placed at a priority smaller than 0x80 and the user needs to guarantee
      * that they never preempt each other. To make things 100% work, place all
      * those vectors that may send from kernel to priority 0xFF. */
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SVCALL, 0x80);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_PENDSV, 0xFF);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SYSTICK, 0xFF);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_BUSFAULT, 0x40);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT, 0x40);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR, 0xFF);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT, 0xFF);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SVCALL, 0x80U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_PENDSV, 0xFFU);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SYSTICK, 0xFFU);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_BUSFAULT, 0x40U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT, 0x40U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR, 0xFFU);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT, 0xFFU);
 
     /* Initialize CPU-local data structures */
-    _RME_CPU_Local_Init(&RME_A7M_Local, 0);
+    _RME_CPU_Local_Init(&RME_A7M_Local, 0U);
     
     /* Configure and turn on the systick */
-    RME_A7M_SYSTICK_LOAD=RME_A7M_SYSTICK_VAL-1;
-    RME_A7M_SYSTICK_VALREG=0;
+    RME_A7M_SYSTICK_LOAD=RME_A7M_SYSTICK_VAL-1U;
+    RME_A7M_SYSTICK_VALREG=0U;
     RME_A7M_SYSTICK_CTRL=RME_A7M_SYSTICK_CTRL_CLKSOURCE|
                          RME_A7M_SYSTICK_CTRL_TICKINT|
                          RME_A7M_SYSTICK_CTRL_ENABLE;
@@ -1427,7 +1427,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
      * attribution. They can be alternatively disabled as well if you wish */
      
     /* Turn on FPU access from unpriviledged software - CP10&11 full access */
-    RME_A7M_SCB_CPACR|=((3U<<(10*2))|(3U<<(11*2)));
+    RME_A7M_SCB_CPACR|=((3U<<(10U*2U))|(3U<<(11U*2U)));
 		 
 #if(RME_RVM_GEN_ENABLE==1U)
     RME_Boot_Post_Init();
@@ -1454,63 +1454,63 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr=RME_KMEM_VA_BASE;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0);
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0U);
     Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_BOOT_CAPTBL_SIZE));
     
 #if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0);
+               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0U);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0U);
 #else
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8)==0);
+               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8U)==0U);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_8));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000, 0, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x20000000, 1, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x40000000, 2, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x60000000, 3, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x80000000, 4, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000, 5, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000, 6, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000, 7, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x20000000U, 1U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x40000000U, 2U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x60000000U, 3U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x80000000U, 4U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000U, 5U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000U, 6U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000U, 7U, RME_PGTBL_ALL_PERM)==0U);
 #endif
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Proc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC, 
-                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL)==0);
+                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL)==0U);
     
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0U);
     RME_ASSERT(_RME_Kmem_Boot_Crt(RME_A7M_CPT, 
                                   RME_BOOT_CAPTBL, 
                                   RME_BOOT_INIT_KMEM,
                                   RME_KMEM_VA_BASE,
                                   RME_KMEM_VA_BASE+RME_KMEM_VA_SIZE-1,
-                                  RME_KMEM_FLAG_ALL)==0);
+                                  RME_KMEM_FLAG_ALL)==0U);
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_A7M_Local.Tick_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0U);
     
     /* Create the initial kernel endpoint for all other interrupts */
     RME_A7M_Local.Vect_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0U);
     
     /* Clean up the region for vectors and events */
-    RME_ASSERT(sizeof(struct __RME_A7M_Phys_Flags)<=512);
-    _RME_Clear((void*)RME_A7M_VECT_FLAG_ADDR,sizeof(struct __RME_A7M_Phys_Flags));
-    _RME_Clear((void*)RME_A7M_EVT_FLAG_ADDR,sizeof(struct __RME_A7M_Phys_Flags));
+    RME_ASSERT(sizeof(struct __RME_RVM_Flag)<=512U);
+    _RME_Clear((void*)RME_RVM_VECT_FLAG_ADDR, sizeof(struct __RME_RVM_Flag));
+    _RME_Clear((void*)RME_RVM_EVT_FLAG_ADDR, sizeof(struct __RME_RVM_Flag));
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PROC, Cur_Addr, 0, &RME_A7M_Local)==0);
+                                 RME_BOOT_INIT_PROC, Cur_Addr, 0U, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
     /* Print the size of some kernel objects, only used in debugging 
@@ -1522,14 +1522,14 @@ rme_ptr_t __RME_Boot(void)
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
-    Cur_Addr=RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_VECT+1, Cur_Addr);
+    Cur_Addr=RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_VECT+1U, Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
 #if(RME_RVM_GEN_ENABLE==1U)
-    RME_ASSERT(Cur_Addr==RME_A7M_KMEM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr==RME_RVM_KMEM_BOOT_FRONTIER);
 #else
-    RME_ASSERT(Cur_Addr<RME_A7M_KMEM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr<RME_RVM_KMEM_BOOT_FRONTIER);
 #endif
 
     /* Enable the MPU & interrupt */
@@ -1537,7 +1537,7 @@ rme_ptr_t __RME_Boot(void)
     __RME_Enable_Int();
     
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0);
+    __RME_Enter_User_Mode(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0U);
     
     /* Dummy return, never reaches here */
     return 0;
@@ -1573,10 +1573,10 @@ Return      : None.
 void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc, rme_ptr_t* Capid, rme_ptr_t* Param)
 {
     *Svc=(Reg->R4)>>16;
-    *Capid=(Reg->R4)&0xFFFF;
-    Param[0]=Reg->R5;
-    Param[1]=Reg->R6;
-    Param[2]=Reg->R7;
+    *Capid=(Reg->R4)&0xFFFFU;
+    Param[0U]=Reg->R5;
+    Param[1U]=Reg->R6;
+    Param[2U]=Reg->R7;
 }
 /* End Function:__RME_Get_Syscall_Param **************************************/
 
@@ -1607,7 +1607,7 @@ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struc
     /* Set the LR to a value indicating that we have never used FPU in this new task */
     Reg->LR=RME_A7M_EXC_RET_INIT;
     /* The entry point needs to have the last bit set to avoid ARM mode */
-    Reg->R4=Entry|0x01;
+    Reg->R4=Entry|0x01U;
     /* Put something in the SP later */
     Reg->SP=Stack;
     /* Set the parameter */
@@ -1663,7 +1663,7 @@ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_R
 #ifdef RME_A7M_FPU_TYPE
 #if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
     /* If this is a standard frame which does not contain FPU usage&context */
-    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0)
+    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
         return;
     /* Not. We save the context of FPU */
     ___RME_A7M_Thd_Cop_Save(Cop_Reg);
@@ -1686,7 +1686,7 @@ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Co
 #ifdef RME_A7M_FPU_TYPE
 #if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
     /* If this is a standard frame which does not contain FPU usage&context */
-    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0)
+    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
         return;
     /* Not. We restore the context of FPU */
     ___RME_A7M_Thd_Cop_Restore(Cop_Reg);
@@ -1744,7 +1744,7 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
 {
     /* Empty function, always immediately successful */
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Pgtbl_Kmem_Init ****************************************/
 
@@ -1759,7 +1759,7 @@ rme_ptr_t __RME_A7M_Rand(void)
 {   
     static rme_ptr_t LFSR=0xACE1ACE1U;
     
-    if((LFSR&0x01)!=0)
+    if((LFSR&0x01U)!=0U)
     {
         LFSR>>=1;
         LFSR^=0xB400B400U;
@@ -1787,21 +1787,21 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     
     /* Initialize the causal metadata */
     ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Base_Addr=Pgtbl_Op->Base_Addr;
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Toplevel=0;
+    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Toplevel=0U;
     ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Size_Num_Order=Pgtbl_Op->Size_Num_Order;
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0;
+    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0U;
     Ptr+=sizeof(struct __RME_A7M_Pgtbl_Meta)/sizeof(rme_ptr_t);
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
      * environments, if it is top-level, we need to add kernel pages as well */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
     {
-        ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0;
+        ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0U;
         
         for(Count=0;Count<RME_A7M_MPU_REGIONS;Count++)
         {
             ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
-            ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0;
+            ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
         }
         
         Ptr+=sizeof(struct __RME_A7M_MPU_Data)/sizeof(rme_ptr_t);
@@ -1809,10 +1809,10 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     
     /* Clean up the table itself - This is could be virtually unbounded if the user
      * pass in some very large length value */
-    for(Count=0;Count<RME_POW2(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order));Count++)
-        Ptr[Count]=0;
+    for(Count=0U;Count<RME_POW2(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order));Count++)
+        Ptr[Count]=0U;
     
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Pgtbl_Init *********************************************/
 
@@ -1836,10 +1836,10 @@ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag,
         return RME_ERR_PGT_OPFAIL;
     if(Size_Order>RME_PGTBL_SIZE_4G)
         return RME_ERR_PGT_OPFAIL;
-    if((Vaddr&0x03)!=0)
+    if((Vaddr&0x03U)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Pgtbl_Check ********************************************/
 
@@ -1852,11 +1852,11 @@ Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
 rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
 {
     /* Check if we are standalone */
-    if(((RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Dir_Page_Count)>>16)!=0)
+    if(((RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Dir_Page_Count)>>16)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if we still have a top-level */
-    if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Toplevel!=0)
+    if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Toplevel!=0U)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -1889,35 +1889,35 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
         case RME_PGTBL_NUM_2:Flag=0x0FU;break;
         case RME_PGTBL_NUM_4:Flag=0x03U;break;
         case RME_PGTBL_NUM_8:Flag=0x01U;break;
-        default:RME_ASSERT(0);
+        default:RME_ASSERT(0U);
     }
     
-    for(Count=0;Count<RME_POW2(Num_Order);Count++)
+    for(Count=0U;Count<RME_POW2(Num_Order);Count++)
     {
-        if(((Table[Count]&RME_A7M_PGTBL_PRESENT)!=0)&&((Table[Count]&RME_A7M_PGTBL_TERMINAL)!=0))
+        if(((Table[Count]&RME_A7M_PGTBL_PRESENT)!=0U)&&((Table[Count]&RME_A7M_PGTBL_TERMINAL)!=0U))
             RASR|=Flag<<Count*RME_POW2(RME_PGTBL_NUM_8-Num_Order);
     }
     
-    if(RASR==0)
-        return 0;
+    if(RASR==0U)
+        return 0U;
     
     RASR<<=8;
     
     RASR=RME_A7M_MPU_SRDCLR&(~RASR);
     RASR|=RME_A7M_MPU_SZENABLE;
     /* Is it read-only? - we do not care if the read bit is set, because it is always readable anyway */
-    if((Flags&RME_PGTBL_WRITE)!=0)
+    if((Flags&RME_PGTBL_WRITE)!=0U)
         RASR|=RME_A7M_MPU_RW;
     else
         RASR|=RME_A7M_MPU_RO;
     /* Can we fetch instructions from there? */
-    if((Flags&RME_PGTBL_EXECUTE)==0)
+    if((Flags&RME_PGTBL_EXECUTE)==0U)
         RASR|=RME_A7M_MPU_XN;
     /* Is the area cacheable? */
-    if((Flags&RME_PGTBL_CACHEABLE)!=0)
+    if((Flags&RME_PGTBL_CACHEABLE)!=0U)
         RASR|=RME_A7M_MPU_CACHEABLE;
     /* Is the area bufferable? */
-    if((Flags&RME_PGTBL_BUFFERABLE)!=0)
+    if((Flags&RME_PGTBL_BUFFERABLE)!=0U)
         RASR|=RME_A7M_MPU_BUFFERABLE;
     /* What is the region size? */
     RASR|=RME_A7M_MPU_REGIONSIZE(Size_Order+Num_Order);
@@ -1943,7 +1943,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU,
     
     for(Count=0;Count<RME_A7M_MPU_REGIONS;Count++)
     {
-        if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0)
+        if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0U)
         {
             /* We got one MPU region valid here */
             if((RME_A7M_MPU_ADDR(Top_MPU->Data[Count].MPU_RBAR)==Base_Addr)&&
@@ -1951,7 +1951,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU,
             {
                 /* Clean it up and return */
                 Top_MPU->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
-                Top_MPU->Data[Count].MPU_RASR=0;
+                Top_MPU->Data[Count].MPU_RASR=0U;
                 /* Clean the static flag as well */
                 Top_MPU->Static&=~RME_POW2(Count);
                 return 0;
@@ -1992,13 +1992,13 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
     rme_u8_t Dynamic[RME_A7M_MPU_REGIONS];
     
     /* Set these values to some overrange value */
-    Empty_Cnt=0;
-    Dynamic_Cnt=0;
-    for(Count=0;Count<RME_A7M_MPU_REGIONS;Count++)
+    Empty_Cnt=0U;
+    Dynamic_Cnt=0U;
+    for(Count=0U;Count<RME_A7M_MPU_REGIONS;Count++)
     {
-        if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0)
+        if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0U)
         {
-            if((Top_MPU->Static&RME_POW2(Count))==0)
+            if((Top_MPU->Static&RME_POW2(Count))==0U)
             {
                 Dynamic[Dynamic_Cnt]=Count;
                 Dynamic_Cnt++;
@@ -2011,11 +2011,11 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
                 Top_MPU->Data[Count].MPU_RASR=MPU_RASR;
                 /* STATIC or not is reflected in the MPU state; instead it is
                  * maintained by using another standalone word */
-                if(Static!=0)
+                if(Static!=0U)
                     Top_MPU->Static|=RME_POW2(Count);
                 else
                     Top_MPU->Static&=~RME_POW2(Count);
-                return 0;
+                return 0U;
             }
         }
         else
@@ -2034,19 +2034,19 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
      * If this is a dynamic page:
      * 1. See if there are empty slots, if there is, use it.
      * 2. See if there are dynamic regions in use, if there is, evict one. If none is present, throw an error. */
-    if(Static!=0)
+    if(Static!=0U)
     {
-        if((Empty_Cnt+Dynamic_Cnt)<3)
+        if((Empty_Cnt+Dynamic_Cnt)<3U)
             return RME_ERR_PGT_OPFAIL;
     }
     else
     {
-        if((Empty_Cnt+Dynamic_Cnt)==0)
+        if((Empty_Cnt+Dynamic_Cnt)==0U)
             return RME_ERR_PGT_OPFAIL;
     }
     
     /* We may map in using an empty slot */
-    if(Empty_Cnt!=0)
+    if(Empty_Cnt!=0U)
         Count=Empty[0];
     /* We must evict an dynamic entry */
     else
@@ -2056,7 +2056,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
     Top_MPU->Data[Count].MPU_RBAR=RME_A7M_MPU_ADDR(Base_Addr)|RME_A7M_MPU_VALID|Count;
     Top_MPU->Data[Count].MPU_RASR=MPU_RASR;
     /* STATIC or not is reflected in the state */
-    if(Static!=0)
+    if(Static!=0U)
         Top_MPU->Static|=RME_POW2(Count);
     else
         Top_MPU->Static&=!RME_POW2(Count);
@@ -2083,13 +2083,13 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the tables */
-    if(Meta->Toplevel!=0)
+    if(Meta->Toplevel!=0U)
     {
         /* We have a top-level */
         Top_MPU=(struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgtbl_Meta));
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
     }
-    else if(((Meta->Base_Addr)&RME_PGTBL_TOP)!=0)
+    else if(((Meta->Base_Addr)&RME_PGTBL_TOP)!=0U)
     {
         /* We don't have a top-level, but we are the top-level */
         Top_MPU=(struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgtbl_Meta));
@@ -2112,7 +2112,7 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
         MPU_RASR=___RME_Pgtbl_MPU_Gen_RASR(Table, Meta->Page_Flags, 
                                            RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
                                            RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
-        if(MPU_RASR==0)
+        if(MPU_RASR==0U)
         {
             /* All pages are unmapped. Clear this from the MPU data */
             ___RME_Pgtbl_MPU_Clear(Top_MPU,
@@ -2127,12 +2127,12 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
                                     RME_A7M_PGTBL_START(Meta->Base_Addr),
                                     RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
                                     RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order),
-                                    MPU_RASR,Meta->Page_Flags&RME_PGTBL_STATIC)!=0)
+                                    MPU_RASR,Meta->Page_Flags&RME_PGTBL_STATIC)!=0U)
                 return RME_ERR_PGT_OPFAIL;
         }
     }
     
-    return 0;
+    return 0U;
 }
 /* End Function:___RME_Pgtbl_MPU_Update **************************************/
 
@@ -2174,7 +2174,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
     struct __RME_A7M_Pgtbl_Meta* Meta;
 
     /* It should at least be readable */
-    if((Flags&RME_PGTBL_READ)==0)
+    if((Flags&RME_PGTBL_READ)==0U)
         return RME_ERR_PGT_OPFAIL;
         
     /* We are doing page-based operations on this, so the page directory should
@@ -2186,18 +2186,18 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
     Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
     
     /* Check if we are trying to make duplicate mappings into the same location */
-    if((Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0)
+    if((Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0U)
         return RME_ERR_PGT_OPFAIL;
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
      * subregions shall share the same flags in Cortex-M */
-    if(RME_A7M_PGTBL_PAGENUM(Meta->Dir_Page_Count)==0)
+    if(RME_A7M_PGTBL_PAGENUM(Meta->Dir_Page_Count)==0U)
         Meta->Page_Flags=Flags;
     else
     {
@@ -2210,15 +2210,15 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
                RME_ROUND_DOWN(Paddr,RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order));
    
     /* If we are the top level or we have a top level, and we have static pages mapped in, do MPU updates */
-    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0))
+    if((Meta->Toplevel!=0U)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U))
     {
-        if((Flags&RME_PGTBL_STATIC)!=0)
+        if((Flags&RME_PGTBL_STATIC)!=0U)
         {
             /* Mapping static pages, update the MPU representation */
             if(___RME_Pgtbl_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
             {
                 /* MPU update failed. Revert operations */
-                Table[Pos]=0;
+                Table[Pos]=0U;
                 return RME_ERR_PGT_OPFAIL;
             }
         }
@@ -2252,20 +2252,20 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
 
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0))
+    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0U))
         return RME_ERR_PGT_OPFAIL;
 
     Temp=Table[Pos];
-    Table[Pos]=0;
+    Table[Pos]=0U;
     /* If we are top-level or we have a top-level, do MPU updates */
-    if((Meta->Toplevel!=0)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0))
+    if((Meta->Toplevel!=0U)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
         if(___RME_Pgtbl_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
@@ -2278,7 +2278,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     /* Modify count */
     RME_A7M_PGTBL_DEC_PAGENUM(Meta->Dir_Page_Count);
     
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Pgtbl_Page_Unmap ***************************************/
 
@@ -2303,7 +2303,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     /* Is the child a designated top level directory? If it is, we do not allow 
      * constructions. In Cortex-M, we only allow the designated top-level to be
      * the actual top-level. */
-    if(((Pgtbl_Child->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Child->Base_Addr)&RME_PGTBL_TOP)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the metadata */
@@ -2311,21 +2311,21 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     Child_Meta=RME_CAP_GETOBJ(Pgtbl_Child,struct __RME_A7M_Pgtbl_Meta*);
     
     /* The parent table must have or be a top-directory */
-    if((Parent_Meta->Toplevel==0)&&(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)==0))
+    if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)==0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if the child already mapped somewhere, or have grandchild directories */
-    if(((Child_Meta->Toplevel)!=0)||(RME_A7M_PGTBL_DIRNUM(Child_Meta->Dir_Page_Count)!=0))
+    if(((Child_Meta->Toplevel)!=0U)||(RME_A7M_PGTBL_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* Where is the entry slot? */
-    if(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)!=0U)
         Parent_Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
         Parent_Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
     
     /* Check if anything already mapped in */
-    if((Parent_Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0)
+    if((Parent_Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* The address must be aligned to a word */
@@ -2333,7 +2333,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     
     /* Log the entry into the destination - if the parent is a top-level, then the top-level
      * is the parent; if the parent have a top-level, then the top-level is the parent's top-level */
-    if(Parent_Meta->Toplevel==0)
+    if(Parent_Meta->Toplevel==0U)
         Child_Meta->Toplevel=(rme_ptr_t)Parent_Meta;
     else
         Child_Meta->Toplevel=Parent_Meta->Toplevel;
@@ -2342,14 +2342,14 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
     
     /* Update MPU settings if there are static pages mapped into the source. If there
      * are any, update the MPU settings */
-    if((RME_A7M_PGTBL_PAGENUM(Child_Meta->Dir_Page_Count)!=0)&&
-       (((Child_Meta->Page_Flags)&RME_PGTBL_STATIC)!=0))
+    if((RME_A7M_PGTBL_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
+       (((Child_Meta->Page_Flags)&RME_PGTBL_STATIC)!=0U))
     {
         if(___RME_Pgtbl_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
         {
             /* Mapping failed. Revert operations */
-            Parent_Table[Pos]=0;
-            Child_Meta->Toplevel=0;
+            Parent_Table[Pos]=0U;
+            Child_Meta->Toplevel=0U;
             RME_A7M_PGTBL_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
             return RME_ERR_PGT_OPFAIL;
         }
@@ -2378,13 +2378,13 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
     Parent_Meta=RME_CAP_GETOBJ(Pgtbl_Parent,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Parent->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Parent->Base_Addr)&RME_PGTBL_TOP)!=0U)
         Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
         Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
 
     /* Check if we try to remove something nonexistent, or a page */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0))
+    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* See if the child page table is actually mapped there */
@@ -2393,18 +2393,18 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
         return RME_ERR_PGT_OPFAIL;
 
     /* Check if the directory still have child directories */
-    if(RME_A7M_PGTBL_DIRNUM(Parent_Meta->Dir_Page_Count)!=0)
+    if(RME_A7M_PGTBL_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
-    if(RME_A7M_PGTBL_PAGENUM(Parent_Meta->Dir_Page_Count)!=0)
+    if(RME_A7M_PGTBL_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
     {
         if(___RME_Pgtbl_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
             return RME_ERR_PGT_OPFAIL;
     }
 
-    Table[Pos]=0;
-    Parent_Meta->Toplevel=0;
+    Table[Pos]=0U;
+    Parent_Meta->Toplevel=0U;
     RME_A7M_PGTBL_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
 
     return 0;
@@ -2424,18 +2424,18 @@ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_
     rme_ptr_t* Table;
     
     /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0)
+    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if this is the top-level page table. Get the table */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
         Table=RME_A7M_PGTBL_TBL_TOP(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
     else
         Table=RME_A7M_PGTBL_TBL_NOM(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
     
     /* Start lookup */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||
-       ((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0))
+    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)||
+       ((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* This is a page. Return the physical address and flags */
@@ -2473,7 +2473,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
     rme_ptr_t Pos;
     
     /* Check if this is the top-level page table */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the table and start lookup */
@@ -2489,25 +2489,25 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
         /* Calculate where is the entry */
         Pos=(Vaddr-RME_A7M_PGTBL_START(Meta->Base_Addr))>>RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
         /* See if the entry is overrange */
-        if((Pos>>RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order))!=0)
+        if((Pos>>RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order))!=0U)
             return RME_ERR_PGT_OPFAIL;
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
-        if((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)
+        if((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)
             return RME_ERR_PGT_OPFAIL;
-        if((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0)
+        if((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0U)
         {
             /* This is a page - we found it */
-            if(Pgtbl!=0)
+            if(Pgtbl!=0U)
                 *Pgtbl=(rme_ptr_t)Meta;
-            if(Map_Vaddr!=0)
+            if(Map_Vaddr!=0U)
                 *Map_Vaddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
-            if(Paddr!=0)
+            if(Paddr!=0U)
                 *Paddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
-            if(Size_Order!=0)
+            if(Size_Order!=0U)
                 *Size_Order=RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
-            if(Num_Order!=0)
+            if(Num_Order!=0U)
                 *Num_Order=RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order);
-            if(Flags!=0)
+            if(Flags!=0U)
                 *Flags=Meta->Page_Flags;
             
             break;
@@ -2519,7 +2519,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
             Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
         }
     }
-    return 0;
+    return 0U;
 }
 /* End Function:__RME_Pgtbl_Walk *********************************************/
 

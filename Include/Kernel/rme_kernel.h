@@ -13,14 +13,14 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define __RME_KERNEL_H_DEFS__
 /*****************************************************************************/
 /* Generic *******************************************************************/
-#define RME_NULL                                    (0)
-#define RME_EXIST                                   (1)
-#define RME_EMPTY                                   (0)
-#define RME_CASFAIL                                 (0)
+#define RME_NULL                                    (0U)
+#define RME_EXIST                                   (1U)
+#define RME_EMPTY                                   (0U)
+#define RME_CASFAIL                                 (0U)
 
 /* Bit mask/address operations */
-#define RME_ALLBITS                                 ((rme_ptr_t)(-1))
-#define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8)
+#define RME_ALLBITS                                 (~((rme_ptr_t)0U))
+#define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8U)
 #define RME_POSITIVE_BITS                           (RME_ALLBITS>>1)
 /* Apply this mask to keep START to MSB bits */
 #define RME_MASK_START(START)                       ((RME_ALLBITS)<<(START))
@@ -30,10 +30,10 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define RME_MASK(START,END)                         ((RME_MASK_START(START))&(RME_MASK_END(END)))
 /* Round the number down & up to a power of 2, or get the power of 2 */
 #define RME_ROUND_DOWN(NUM,POW)                     ((NUM)&(RME_MASK_START(POW)))
-#define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1),POW)
-#define RME_POW2(POW)                               (((rme_ptr_t)1)<<(POW))
+#define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1U),POW)
+#define RME_POW2(POW)                               (((rme_ptr_t)1U)<<(POW))
 /* Check if address is aligned on word boundary */
-#define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4))==0)
+#define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))==0U)
 /* Bit field extraction macros for easy extraction of parameters
 [MSB                                 PARAMS                                 LSB]
 [                  D1                  ][                  D0                  ]
@@ -41,28 +41,28 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 [   O7   ][   O6   ][   O5   ][   O4   ][   O3   ][   O2   ][   O1   ][   O0   ] 
 */
 /* Cut in half */
-#define RME_PARAM_D1(X)                             ((X)>>(sizeof(rme_ptr_t)*4))
-#define RME_PARAM_D0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4)-1))
+#define RME_PARAM_D1(X)                             ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_PARAM_D0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
 /* Cut into 4 parts */
-#define RME_PARAM_Q3(X)                             ((X)>>(sizeof(rme_ptr_t)*6))
-#define RME_PARAM_Q2(X)                             (((X)>>(sizeof(rme_ptr_t)*4))&RME_MASK_END((sizeof(rme_ptr_t)*2)-1))
-#define RME_PARAM_Q1(X)                             (((X)>>(sizeof(rme_ptr_t)*2))&RME_MASK_END((sizeof(rme_ptr_t)*2)-1))
-#define RME_PARAM_Q0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*2)-1))
+#define RME_PARAM_Q3(X)                             ((X)>>(sizeof(rme_ptr_t)*6U))
+#define RME_PARAM_Q2(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
+#define RME_PARAM_Q1(X)                             (((X)>>(sizeof(rme_ptr_t)*2U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
+#define RME_PARAM_Q0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
 /* Cut into 8 parts */
-#define RME_PARAM_O7(X)                             ((X)>>(sizeof(rme_ptr_t)*7))
-#define RME_PARAM_O6(X)                             (((X)>>(sizeof(rme_ptr_t)*6))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O5(X)                             (((X)>>(sizeof(rme_ptr_t)*5))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O4(X)                             (((X)>>(sizeof(rme_ptr_t)*4))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O3(X)                             (((X)>>(sizeof(rme_ptr_t)*3))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O2(X)                             (((X)>>(sizeof(rme_ptr_t)*2))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O1(X)                             (((X)>>(sizeof(rme_ptr_t)*1))&RME_MASK_END(sizeof(rme_ptr_t)-1))
-#define RME_PARAM_O0(X)                             ((X)&RME_MASK_END(sizeof(rme_ptr_t)-1))
+#define RME_PARAM_O7(X)                             ((X)>>(sizeof(rme_ptr_t)*7U))
+#define RME_PARAM_O6(X)                             (((X)>>(sizeof(rme_ptr_t)*6U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O5(X)                             (((X)>>(sizeof(rme_ptr_t)*5U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O4(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O3(X)                             (((X)>>(sizeof(rme_ptr_t)*3U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O2(X)                             (((X)>>(sizeof(rme_ptr_t)*2U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O1(X)                             (((X)>>(sizeof(rme_ptr_t)*1U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O0(X)                             ((X)&RME_MASK_END(sizeof(rme_ptr_t)-1U))
 
 /* This is the special one used for delegation, and used for kernel memory
  * capability only because it is very complicated. Other capabilities will not use this */
-#define RME_PARAM_KM(SVC,CAPID)                     (((SVC)<<(sizeof(rme_ptr_t)*4))|(CAPID))
+#define RME_PARAM_KM(SVC,CAPID)                     (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CAPID))
 /* This is the special one used for page table top-level flags */
-#define RME_PARAM_PT(X)                             ((X)&0x01)
+#define RME_PARAM_PT(X)                             ((X)&0x01U)
 /* The page table creation extra parameter packed in the svc number */
 #define RME_PARAM_PC(SVC)                           ((SVC)>>((sizeof(rme_ptr_t)<<1)))
 
@@ -84,7 +84,7 @@ while(0)
 #include "rme.h"
 
 /* Debugging */
-#define RME_KERNEL_DEBUG_MAX_STR                    (128)
+#define RME_KERNEL_DEBUG_MAX_STR                    (128U)
 /* Printk macros */
 #define RME_PRINTK_I(INT)                           RME_Print_Int((INT))
 #define RME_PRINTK_U(UINT)                          RME_Print_Uint((UINT))
@@ -97,7 +97,7 @@ while(0)
 #define RME_ASSERT(X) \
 do \
 { \
-    if(RME_UNLIKELY((X)==0)) \
+    if(RME_UNLIKELY((X)==0U)) \
     { \
         RME_PRINTK_S((rme_s8_t*)"\r\n***\r\nKernel panic - not syncing:\r\n"); \
         RME_PRINTK_S((rme_s8_t*)__FILE__); \
@@ -117,7 +117,7 @@ while(0)
 #define RME_ASSERT(X) \
 do \
 { \
-    if(RME_UNLIKELY((X)==0)) \
+    if(RME_UNLIKELY((X)==0U)) \
     { \
     } \
 } \
@@ -128,12 +128,12 @@ while(0)
 /* #define RME_COVERAGE */
 /* Test marker macro */
 #ifdef RME_COVERAGE
-#define RME_COVERAGE_LINES                          (8192)
+#define RME_COVERAGE_LINES                          (8192U)
 #define RME_COVERAGE_MARKER() \
 do \
 { \
     RME_Coverage[__LINE__]++; \
-    RME_Coverage[0]=RME_Coverage[__LINE__]; \
+    RME_Coverage[0U]=RME_Coverage[__LINE__]; \
 } \
 while(0)
 #else
@@ -158,7 +158,7 @@ while(0)
 
 /* Capability Table **********************************************************/
 /* Capability size macro */
-#define RME_CAP_SIZE                                (8*sizeof(rme_ptr_t))
+#define RME_CAP_SIZE                                (sizeof(rme_ptr_t)*8U)
 /* Capability table size calculation macro */
 #define RME_CAPTBL_SIZE(NUM)                        (sizeof(struct RME_Cap_Struct)*(NUM))
 /* The operation inline macros on the capabilities */
@@ -173,44 +173,44 @@ while(0)
  *        create/destroy/alteration operations on them can be done. If one of the
  *        locks failed, we will give up all the locks, and retry.
  * Type is a field denoting what is it. */
-#define RME_CAP_TYPE_STAT(TYPE,STAT,ATTR)           ((((rme_ptr_t)(TYPE))<<(sizeof(rme_ptr_t)*6))| \
-                                                     (((rme_ptr_t)(STAT))<<(sizeof(rme_ptr_t)*4))|(ATTR))
+#define RME_CAP_TYPE_STAT(TYPE,STAT,ATTR)           ((((rme_ptr_t)(TYPE))<<(sizeof(rme_ptr_t)*6U))| \
+                                                     (((rme_ptr_t)(STAT))<<(sizeof(rme_ptr_t)*4U))|(ATTR))
                                                      
 /* Capability types */
-#define RME_CAP_TYPE(X)                             ((X)>>(sizeof(rme_ptr_t)*6))
+#define RME_CAP_TYPE(X)                             ((X)>>(sizeof(rme_ptr_t)*6U))
 /* Empty */
-#define RME_CAP_TYPE_NOP                            (0)
+#define RME_CAP_TYPE_NOP                            (0U)
 /* Kernel function */
-#define RME_CAP_TYPE_KERN                           (1)
+#define RME_CAP_TYPE_KERN                           (1U)
 /* Kernel memory */
-#define RME_CAP_TYPE_KMEM                           (2)
+#define RME_CAP_TYPE_KMEM                           (2U)
 /* Capability table */
-#define RME_CAP_TYPE_CAPTBL                         (3)
+#define RME_CAP_TYPE_CAPTBL                         (3U)
 /* Page table */
-#define RME_CAP_TYPE_PGTBL                          (4)
+#define RME_CAP_TYPE_PGTBL                          (4U)
 /* Process */
-#define RME_CAP_TYPE_PROC                           (5)
+#define RME_CAP_TYPE_PROC                           (5U)
 /* Thread */
-#define RME_CAP_TYPE_THD                            (6)
+#define RME_CAP_TYPE_THD                            (6U)
 /* Synchronous invocation */
-#define RME_CAP_TYPE_INV                            (7)
+#define RME_CAP_TYPE_INV                            (7U)
 /* Asynchronous signal endpoint */
-#define RME_CAP_TYPE_SIG                            (8)
+#define RME_CAP_TYPE_SIG                            (8U)
 
 /* Capability statuses */
-#define RME_CAP_STAT(X)                             (((X)>>(sizeof(rme_ptr_t)*4))&RME_MASK_END((sizeof(rme_ptr_t)*2)-1))
+#define RME_CAP_STAT(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
 /* Valid capability */
-#define RME_CAP_STAT_VALID                          (0)
+#define RME_CAP_STAT_VALID                          (0U)
 /* Capability under creation */
-#define RME_CAP_STAT_CREATING                       (1)
+#define RME_CAP_STAT_CREATING                       (1U)
 /* Frozen capability */
-#define RME_CAP_STAT_FROZEN                         (2)
+#define RME_CAP_STAT_FROZEN                         (2U)
 /* Capability attributes */
-#define RME_CAP_ATTR(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4)-1))
+#define RME_CAP_ATTR(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
 /* Root capability */
-#define RME_CAP_ATTR_ROOT                           (0)
+#define RME_CAP_ATTR_ROOT                           (0U)
 /* Leaf capability */
-#define RME_CAP_ATTR_LEAF                           (1)
+#define RME_CAP_ATTR_LEAF                           (1U)
 
 /* Is this cap quiescent? Yes-1, No-0 */
 #if(RME_QUIE_TIME!=0)
@@ -223,7 +223,7 @@ while(0)
 #define RME_CAP_QUIE(X)                             ((RME_Timestamp-(X))>RME_QUIE_TIME)
 #endif
 #else
-#define RME_CAP_QUIE(X)                             (1)
+#define RME_CAP_QUIE(X)                             (1U)
 #endif
 
 /* Convert to root */
@@ -241,22 +241,22 @@ while(0)
  * [15 Reserved][14 High Table(Master)  8][7  2L(1)][6   Low Table(Child) 0]
  * 64-bit systems: Capid range 0x0000 - 0x7FFF
  * [31 Reserved][30 High Table(Master) 16][15 2L(1)][14  Low Table(Child) 0] */
-#define RME_CAPID_NULL                              (1<<(sizeof(rme_ptr_t)*4-1))
+#define RME_CAPID_NULL                              (1<<(sizeof(rme_ptr_t)*4U-1U))
 /* See if the capid is a 2-level representation */
-#define RME_CAPID_2L                                (1<<(sizeof(rme_ptr_t)*2-1))
+#define RME_CAPID_2L                                (1<<(sizeof(rme_ptr_t)*2U-1U))
 /* Make 2-level capability */
-#define RME_CAPID(X,Y)                              (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
+#define RME_CAPID(X,Y)                              (((X)<<(sizeof(rme_ptr_t)*2U))|(Y)|RME_CAPID_2L)
 /* High-level capability table capability position */
-#define RME_CAP_H(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))>>(sizeof(rme_ptr_t)*2)))
+#define RME_CAP_H(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))>>(sizeof(rme_ptr_t)*2U)))
 /* Low-level capability table capability position */
-#define RME_CAP_L(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))&RME_MASK_END(sizeof(rme_ptr_t)*2-2)))
+#define RME_CAP_L(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))&RME_MASK_END(sizeof(rme_ptr_t)*2U-2U)))
 
 /* When we are clearing capabilities */
 #define RME_CAP_CLEAR(X) \
 do \
 { \
     /* Do this at last lest that some overlapping operations may happen */ \
-    (X)->Head.Type_Stat=0; \
+    (X)->Head.Type_Stat=0U; \
 } \
 while(0)
 
@@ -266,7 +266,7 @@ while(0)
  * DST - The pointer to the destination slot.
  * SRC - The pointer to the source slot.
  * FLAGS - The new operation flags of this capability. */
-#define RME_CAP_COPY(DST,SRC,FLAGS) \
+#define RME_CAP_COPY(DST, SRC, FLAGS) \
 do \
 { \
     /* The suboperation capability flags */ \
@@ -298,7 +298,7 @@ while(0)
  * VADDR - The true start address of the kernel object in kernel memory, output.
  * SIZE - The size of the kernel memory trunk. */
 /* This have wraparounds now */
-#define RME_KMEM_CHECK(CAP,FLAG,RADDR,VADDR,SIZE) \
+#define RME_KMEM_CHECK(CAP, FLAG, RADDR, VADDR, SIZE) \
 do \
 { \
     /* See if the creation of such capability is allowed */ \
@@ -326,11 +326,11 @@ while(0)
  * other resources that may depend on it.
  * CAP - The pointer to the capability slot to defreeze.
  * TEMP - A temporary variable, for compare-and-swap. */
-#define RME_CAP_DEFROST(CAP,TEMP) \
+#define RME_CAP_DEFROST(CAP, TEMP) \
 do \
 { \
     RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP), \
-                  RME_CAP_TYPE_STAT(RME_CAP_TYPE(TEMP),RME_CAP_STAT_VALID,RME_CAP_ATTR(TEMP))); \
+                  RME_CAP_TYPE_STAT(RME_CAP_TYPE(TEMP), RME_CAP_STAT_VALID, RME_CAP_ATTR(TEMP))); \
 } \
 while(0)
 
@@ -340,7 +340,7 @@ while(0)
  * CAP - The pointer to the capability slot to check for deletion.
  * TEMP - A temporary variable, for compare-and-swap. 
  * TYPE - What type should we anticipate when we check against the slot? */
-#define RME_CAP_DEL_CHECK(CAP,TEMP,TYPE) \
+#define RME_CAP_DEL_CHECK(CAP, TEMP, TYPE) \
 do \
 { \
     /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
@@ -352,10 +352,10 @@ do \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(TYPE))) \
         return RME_ERR_CAP_TYPE; \
     /* See if the slot is quiescent */ \
-    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
+    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0U)) \
         return RME_ERR_CAP_QUIE; \
     /* To use deletion, we must be an unreferenced root */ \
-    if(RME_UNLIKELY(((CAP)->Head.Root_Ref)!=0)) \
+    if(RME_UNLIKELY(((CAP)->Head.Root_Ref)!=0U)) \
     { \
         /* Defrost the cap if it is a root (likely), and return */ \
         if(RME_LIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
@@ -372,7 +372,7 @@ while(0)
  * deletion check, the type of the slot will not be checked.
  * CAP - The pointer to the capability slot to check for removal.
  * TEMP - A temporary variable, for compare-and-swap. */
-#define RME_CAP_REM_CHECK(CAP,TEMP) \
+#define RME_CAP_REM_CHECK(CAP, TEMP) \
 do \
 { \
     /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
@@ -381,7 +381,7 @@ do \
     if(RME_UNLIKELY(RME_CAP_STAT(TEMP)!=RME_CAP_STAT_FROZEN)) \
         return RME_ERR_CAP_FROZEN; \
     /* See if the slot is quiescent */ \
-    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0)) \
+    if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0U)) \
         return RME_ERR_CAP_QUIE; \
     /* To use removal, we must be a leaf */ \
     if(RME_UNLIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
@@ -392,11 +392,11 @@ while(0)
 /* Actually delete the cap.
  * CAP - The pointer to the capability slot to delete or remove.
  * TEMP - A temporary variable, for compare-and-swap's old value. */
-#define RME_CAP_DELETE(CAP,TEMP) \
+#define RME_CAP_DELETE(CAP, TEMP) \
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
-    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP),0)==RME_CASFAIL)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), (TEMP), 0U)==RME_CASFAIL)) \
         return RME_ERR_CAP_NULL; \
 } \
 while(0)
@@ -411,8 +411,8 @@ while(0)
 do \
 { \
     /* Check if anything is there. If there is nothing there, the Type_Ref must be 0 */ \
-    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), 0, \
-                                  RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP,RME_CAP_STAT_CREATING,RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), 0U, \
+                                  RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP, RME_CAP_STAT_CREATING, RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
         return RME_ERR_CAP_EXIST; \
     /* We have taken the slot. Now log the quiescence counter in. No barrier needed as our atomics are serializing */ \
     (CAP)->Head.Timestamp=RME_Timestamp; \
@@ -426,7 +426,7 @@ while(0)
  * CAP_NUM - The capability number. Only allows 1-level encoding.
  * TYPE -  When assigning the pointer to the PARAM, what struct pointer type should I cast it into?
  * PARAM - The parameter to receive the pointer to the found capability slot. */
-#define RME_CAPTBL_GETSLOT(CAPTBL,CAP_NUM,TYPE,PARAM) \
+#define RME_CAPTBL_GETSLOT(CAPTBL, CAP_NUM, TYPE, PARAM) \
 do \
 { \
     /* Check if the captbl is over range */ \
@@ -451,11 +451,11 @@ while(0)
  * PARAM - The parameter to receive the pointer to the found capability slot.
  * TEMP - A temporary variable, used to atomically keep a snapshot of Type_Ref when checking.
  */
-#define RME_CAPTBL_GETCAP(CAPTBL,CAP_NUM,CAP_TYPE,TYPE,PARAM,TEMP) \
+#define RME_CAPTBL_GETCAP(CAPTBL, CAP_NUM, CAP_TYPE, TYPE, PARAM, TEMP) \
 do \
 { \
     /* See if this is a 2-level cap */ \
-    if(((CAP_NUM)&RME_CAPID_2L)==0) \
+    if(((CAP_NUM)&RME_CAPID_2L)==0U) \
     { \
         /* Check if the captbl is over range */ \
         if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CAPTBL)->Entry_Num))) \
@@ -514,25 +514,25 @@ while(0)
 * 64-bit systems: Maximum page table size 2^28 = 268435456
 * [63    High Limit    36] [35    Low Limit    8][7    Flags    0] */
 /* Maximum number of entries in a page table */
-#define RME_PGTBL_MAX_ENTRY                         RME_POW2(sizeof(rme_ptr_t)*4-4)
+#define RME_PGTBL_MAX_ENTRY                         RME_POW2(sizeof(rme_ptr_t)*4U-4U)
 /* Range high limit */ 
-#define RME_PGTBL_FLAG_HIGH(X)                      ((X)>>(sizeof(rme_ptr_t)*4+4))
+#define RME_PGTBL_FLAG_HIGH(X)                      ((X)>>(sizeof(rme_ptr_t)*4U+4U))
 /* Range low limit */
-#define RME_PGTBL_FLAG_LOW(X)                       (((X)>>8)&RME_MASK_END(sizeof(rme_ptr_t)*4-5))
+#define RME_PGTBL_FLAG_LOW(X)                       (((X)>>8)&RME_MASK_END(sizeof(rme_ptr_t)*4U-5U))
 /* Permission flags */
-#define RME_PGTBL_FLAG_FLAGS(X)                     ((X)&RME_MASK_END(7))
+#define RME_PGTBL_FLAG_FLAGS(X)                     ((X)&RME_MASK_END(7U))
 /* The initial flag of boot-time page table - allows all range delegation access only */
-#define RME_PGTBL_FLAG_FULL_RANGE                   RME_MASK_START(sizeof(rme_ptr_t)*4+4)
+#define RME_PGTBL_FLAG_FULL_RANGE                   RME_MASK_START(sizeof(rme_ptr_t)*4U+4U)
 
 /* Page table start address/top-level attributes */
-#define RME_PGTBL_START(X)                          ((X)&RME_MASK_START(1))
-#define RME_PGTBL_TOP                               (1)
-#define RME_PGTBL_NOM                               (0)
+#define RME_PGTBL_START(X)                          ((X)&RME_MASK_START(1U))
+#define RME_PGTBL_TOP                               (1U)
+#define RME_PGTBL_NOM                               (0U)
 
 /* Size order and number order */
-#define RME_PGTBL_SIZEORD(X)                        ((X)>>(sizeof(rme_ptr_t)*4))
-#define RME_PGTBL_NUMORD(X)                         ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4-1))
-#define RME_PGTBL_ORDER(SIZE,NUM)                   (((SIZE)<<(sizeof(rme_ptr_t)*4))|(NUM))
+#define RME_PGTBL_SIZEORD(X)                        ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_PGTBL_NUMORD(X)                         ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
+#define RME_PGTBL_ORDER(SIZE,NUM)                   (((SIZE)<<(sizeof(rme_ptr_t)*4U))|(NUM))
     
 /* Kernel Memory *************************************************************/
 /* Kernel memory function capability flag arrangement - extended flags used, Granularity always 64 bytes min,
@@ -544,46 +544,46 @@ while(0)
 * [63          High Limit[64:32]         32] [31       Low Limit[64:32]       0]  Flags
 * [63 High Limit[31: 6] 38] [37 Reserved 32] [31 Low Limit[31: 6] 6] [5 Flags 0]  Ext_Flags
 */
-#define RME_KMEM_FLAG_HIGH_F(FLAGS)                 ((FLAGS)&RME_MASK_START(sizeof(rme_ptr_t)*4))
-#define RME_KMEM_FLAG_HIGH_E(EFLAGS)                (((EFLAGS)>>(sizeof(rme_ptr_t)*4))&RME_MASK_START(6))
+#define RME_KMEM_FLAG_HIGH_F(FLAGS)                 ((FLAGS)&RME_MASK_START(sizeof(rme_ptr_t)*4U))
+#define RME_KMEM_FLAG_HIGH_E(EFLAGS)                (((EFLAGS)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_START(6U))
 #define RME_KMEM_FLAG_HIGH(FLAGS,EFLAGS)            (RME_KMEM_FLAG_HIGH_F(FLAGS)|RME_KMEM_FLAG_HIGH_E(EFLAGS))
-#define RME_KMEM_FLAG_LOW_F(FLAGS)                  ((FLAGS)<<(sizeof(rme_ptr_t)*4))
-#define RME_KMEM_FLAG_LOW_E(EFLAGS)                 ((EFLAGS)&RME_MASK(sizeof(rme_ptr_t)*4-1,6))
+#define RME_KMEM_FLAG_LOW_F(FLAGS)                  ((FLAGS)<<(sizeof(rme_ptr_t)*4U))
+#define RME_KMEM_FLAG_LOW_E(EFLAGS)                 ((EFLAGS)&RME_MASK(sizeof(rme_ptr_t)*4U-1U,6U))
 #define RME_KMEM_FLAG_LOW(FLAGS,EFLAGS)             (RME_KMEM_FLAG_LOW_F(FLAGS)|RME_KMEM_FLAG_LOW_E(EFLAGS))
-#define RME_KMEM_FLAG_FLAGS(EFLAGS)                 ((EFLAGS)&RME_MASK(5,0))
+#define RME_KMEM_FLAG_FLAGS(EFLAGS)                 ((EFLAGS)&RME_MASK(5U,0U))
 
 /* Process and Thread ********************************************************/
 /* Thread states */
 /* The thread is currently running */
-#define RME_THD_RUNNING                             (0)
+#define RME_THD_RUNNING                             (0U)
 /* The thread is currently ready for scheduling */
-#define RME_THD_READY                               (1)
+#define RME_THD_READY                               (1U)
 /* The thread is currently blocked on a asynchronous send endpoint */
-#define RME_THD_BLOCKED                             (2)
+#define RME_THD_BLOCKED                             (2U)
 /* The thread just ran out of time */
-#define RME_THD_TIMEOUT                             (3)
+#define RME_THD_TIMEOUT                             (3U)
 /* The thread is blocked on the sched rcv endpoint */
-#define RME_THD_SCHED_BLOCKED                       (4)
+#define RME_THD_SCHED_BLOCKED                       (4U)
 /* The thread is stopped due to a fault */
-#define RME_THD_FAULT                               (5)
+#define RME_THD_FAULT                               (5U)
 
 /* Priority level bitmap */
-#define RME_PRIO_WORD_NUM                           (RME_MAX_PREEMPT_PRIO>>RME_WORD_ORDER)
+#define RME_PRIO_WORD_NUM                           (RME_PREEMPT_PRIO_NUM>>RME_WORD_ORDER)
 
 /* Thread binding state */
 #define RME_THD_UNBINDED                            ((struct RME_CPU_Local*)RME_ALLBITS)
 /* Thread sched rcv faulty state */
-#define RME_THD_FAULT_FLAG                          (1U<<(sizeof(rme_ptr_t)*8-2))
+#define RME_THD_FAULT_FLAG                          RME_POW2(sizeof(rme_ptr_t)*8U-2U)
 /* Init thread infinite time marker */
 #define RME_THD_INIT_TIME                           (RME_ALLBITS>>1)
 /* Other thread infinite time marker */
-#define RME_THD_INF_TIME                            (RME_THD_INIT_TIME-1)
+#define RME_THD_INF_TIME                            (RME_THD_INIT_TIME-1U)
 /* Thread time upper limit - always ths infinite time */
 #define RME_THD_MAX_TIME                            (RME_THD_INF_TIME)
 #define RME_THD_SIZE                                sizeof(struct RME_Thd_Struct)
     
 /* Time checking macro */
-#define RME_TIME_CHECK(DST,AMOUNT) \
+#define RME_TIME_CHECK(DST, AMOUNT) \
 do \
 { \
     /* Check if exceeded maximum time or overflowed */ \
@@ -602,7 +602,7 @@ while(0)
 
 /* Get the top of invocation stack - no volatile needed here because this is single-threaded */
 #define RME_INVSTK_TOP(THD)                         ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
-                                                                              (0): \
+                                                                              (RME_NULL): \
                                                                               ((THD)->Inv_Stack.Next)))
 
 /* Kernel Function ***********************************************************/
@@ -613,9 +613,9 @@ while(0)
 * [31        High Limit        16] [15        Low Limit        0]
 * 64-bit systems: Maximum kernel function number 2^32
 * [63        High Limit        32] [31        Low Limit        0] */
-#define RME_KERN_FLAG_HIGH(X)                       ((X)>>(sizeof(rme_ptr_t)*4))
-#define RME_KERN_FLAG_LOW(X)                        ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4)-1))
-#define RME_KERN_FLAG_FULL_RANGE                    RME_MASK_START(sizeof(rme_ptr_t)*4)
+#define RME_KERN_FLAG_HIGH(X)                       ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_KERN_FLAG_LOW(X)                        ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
+#define RME_KERN_FLAG_FULL_RANGE                    RME_MASK_START(sizeof(rme_ptr_t)*4U)
 
 /* __RME_KERNEL_H_DEFS__ */
 #endif
@@ -706,7 +706,7 @@ struct RME_Run_Struct
     /* The bitmap marking to show if there are active threads at a run level */
     rme_ptr_t Bitmap[RME_PRIO_WORD_NUM];
     /* The actual RME running list */
-    struct RME_List List[RME_MAX_PREEMPT_PRIO];
+    struct RME_List List[RME_PREEMPT_PRIO_NUM];
 };
 
 /* Process capability structure - does not have an object */

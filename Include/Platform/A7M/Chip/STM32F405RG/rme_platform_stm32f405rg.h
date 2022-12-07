@@ -24,7 +24,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_KSTK_VA_SIZE                                (0x400U)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
-#define RME_MAX_PREEMPT_PRIO                            (32U)
+#define RME_PREEMPT_PRIO_NUM                            (32U)
 /* Size of capability table */
 #if(RME_RVM_GEN_ENABLE==1U)
 #define RME_BOOT_CAPTBL_SIZE                            (18U)
@@ -32,12 +32,13 @@ Description: The configuration file for STM32F405RG.
 #define RME_BOOT_CAPTBL_SIZE                            (18U)
 #endif
 
-/* Shared vector flag region address - always 512B memory for ARMv7-M */
-#define RME_A7M_VECT_FLAG_ADDR                          (0x10007C00U)
-/* Shared interrupt flag region address - always 512B memory for ARMv7-M */
-#define RME_A7M_EVT_FLAG_ADDR                           (0x10007E00U)
+/* Shared vector flag region address */
+#define RME_RVM_VECT_FLAG_ADDR                          (0x10007C00U)
+/* Shared interrupt flag region address */
+#define RME_RVM_EVT_FLAG_ADDR                           (0x10007E00U)
 /* Initial kenel object frontier limit */
-#define RME_A7M_KMEM_BOOT_FRONTIER                      (0x10003000U)
+#define RME_RVM_KMEM_BOOT_FRONTIER                      (0x10003000U)
+
 /* Init process's first thread's entry point address */
 #define RME_A7M_INIT_ENTRY                              (0x08004001U)
 /* Init process's first thread's stack address */
@@ -45,7 +46,7 @@ Description: The configuration file for STM32F405RG.
 /* What is the NVIC priority grouping? */
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
 /* What is the Systick value? - 10ms per tick*/
-#define RME_A7M_SYSTICK_VAL                             (1680000)
+#define RME_A7M_SYSTICK_VAL                             (1680000U)
 
 /* What is the external crystal frequency? */
 #define RME_A7M_STM32F405RG_XTAL                        (8U)
