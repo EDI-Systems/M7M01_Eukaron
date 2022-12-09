@@ -32,10 +32,12 @@ Description: The configuration file for STM32F405RG.
 #define RME_BOOT_CAPTBL_SIZE                            (18U)
 #endif
 
-/* Shared vector flag region address */
-#define RME_RVM_VECT_FLAG_ADDR                          (0x10007C00U)
-/* Shared interrupt flag region address */
-#define RME_RVM_EVT_FLAG_ADDR                           (0x10007E00U)
+/* Physical vector flag area base and its size */
+#define RME_RVM_PHYS_VECT_BASE                          (0x10007C00U)
+#define RME_RVM_PHYS_VECT_SIZE                          (0x200U)
+/* Virtual event flag area base and its size */
+#define RME_RVM_VIRT_EVENT_BASE                         (0x10007E00U)
+#define RME_RVM_VIRT_EVENT_SIZE                         (0x200U)
 /* Initial kenel object frontier limit */
 #define RME_RVM_KMEM_BOOT_FRONTIER                      (0x10003000U)
 

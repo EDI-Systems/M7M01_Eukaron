@@ -290,20 +290,21 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
 /* Begin Function:__RME_A7M_Set_Flag ******************************************
 Description : Set a generic flag in a flag set. Works for both vectors and events
               for ARMv7-M.
-Input       : rme_ptr_t Flagset - The address of the flagset.
+Input       : rme_ptr_t Base - The base address of the flagset.
+              rme_ptr_t Base - The size of the flagset.
               rme_ptr_t Pos - The position in the flagset to set.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Set_Flag(rme_ptr_t Flagset, rme_ptr_t Pos)
+void __RME_A7M_Set_Flag(rme_ptr_t Base, rme_ptr_t Size, rme_ptr_t Pos)
 {
-    struct __RME_RVM_Flag_Set* Flags;
+    volatile struct __RME_RVM_Flag* Flags;
     
     /* Choose a data structure that is not locked at the moment */
-    if(((struct __RME_RVM_Flag*)Flagset)->Set0.Lock==0U)
-        Flags=&(((struct __RME_RVM_Flag*)Flagset)->Set0);
+    if(RME_RVM_FLAG_SET(Base, Size, 0U)->Lock==0U)
+        Flags=RME_RVM_FLAG_SET(Base, Size, 0U);
     else
-        Flags=&(((struct __RME_RVM_Flag*)Flagset)->Set1);
+        Flags=RME_RVM_FLAG_SET(Base, Size, 1U);
     
     /* Set the flags for this interrupt source */
     Flags->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
@@ -319,18 +320,19 @@ Input       : struct RME_Reg_Struct* Reg - The register set when entering the ha
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
+#if(RME_RVM_GEN_ENABLE==1U)
+extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
+#endif
 void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
-    /* Do in-kernel processing first */
-    extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
      * this due to some reason), we skip the flag marshalling & sending process */
     if(RME_Boot_Vect_Handler(Vect_Num)!=0U)
         return;
 #endif
     
-    __RME_A7M_Set_Flag(RME_RVM_VECT_FLAG_ADDR, Vect_Num);
+    __RME_A7M_Set_Flag(RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE, Vect_Num);
     
     _RME_Kern_Snd(RME_A7M_Local.Vect_Sig);
     /* Remember to pick the guy with the highest priority after we did all sends */
@@ -464,7 +466,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, 
     if(Evt_Num>=RME_A7M_MAX_EVTS)
         return RME_ERR_KERN_OPFAIL;
 
-    __RME_A7M_Set_Flag(RME_RVM_EVT_FLAG_ADDR, Evt_Num);
+    __RME_A7M_Set_Flag(RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE, Evt_Num);
     
     if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0U)
         return RME_ERR_KERN_OPFAIL;
@@ -1504,9 +1506,8 @@ rme_ptr_t __RME_Boot(void)
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0U);
     
     /* Clean up the region for vectors and events */
-    RME_ASSERT(sizeof(struct __RME_RVM_Flag)<=512U);
-    _RME_Clear((void*)RME_RVM_VECT_FLAG_ADDR, sizeof(struct __RME_RVM_Flag));
-    _RME_Clear((void*)RME_RVM_EVT_FLAG_ADDR, sizeof(struct __RME_RVM_Flag));
+    _RME_Clear((void*)RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE);
+    _RME_Clear((void*)RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE);
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
@@ -1914,11 +1915,11 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
     if((Flags&RME_PGTBL_EXECUTE)==0U)
         RASR|=RME_A7M_MPU_XN;
     /* Is the area cacheable? */
-    if((Flags&RME_PGTBL_CACHEABLE)!=0U)
-        RASR|=RME_A7M_MPU_CACHEABLE;
+    if((Flags&RME_PGTBL_CACHE)!=0U)
+        RASR|=RME_A7M_MPU_CACHE;
     /* Is the area bufferable? */
-    if((Flags&RME_PGTBL_BUFFERABLE)!=0U)
-        RASR|=RME_A7M_MPU_BUFFERABLE;
+    if((Flags&RME_PGTBL_BUFFER)!=0U)
+        RASR|=RME_A7M_MPU_BUFFER;
     /* What is the region size? */
     RASR|=RME_A7M_MPU_REGIONSIZE(Size_Order+Num_Order);
     

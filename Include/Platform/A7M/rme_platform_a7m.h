@@ -124,6 +124,8 @@ typedef rme_s32_t rme_ret_t;
 
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7m_conf.h"
+
+#define RME_RVM_FLAG_SET(B, S, N)       ((volatile struct __RME_RVM_Flag*)((B)+((S)>>1)*(N)))
 /* End System macros *********************************************************/
 
 /* Cortex-M specific macros **************************************************/
@@ -399,8 +401,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MPU_XN                  (1U<<28)
 #define RME_A7M_MPU_RO                  (2U<<24)
 #define RME_A7M_MPU_RW                  (3U<<24)
-#define RME_A7M_MPU_CACHEABLE           (1U<<17)
-#define RME_A7M_MPU_BUFFERABLE          (1U<<16)
+#define RME_A7M_MPU_CACHE               (1U<<17)
+#define RME_A7M_MPU_BUFFER              (1U<<16)
 #define RME_A7M_MPU_REGIONSIZE(X)       ((X-1U)<<1)
 #define RME_A7M_MPU_SZENABLE            (1U)
 
@@ -575,18 +577,11 @@ typedef rme_s32_t rme_ret_t;
 /*****************************************************************************/
 /* Handler *******************************************************************/
 /* Interrupt flag structure */
-struct __RME_RVM_Flag_Set
+struct __RME_RVM_Flag
 {
     rme_ptr_t Lock;
     rme_ptr_t Group;
-    rme_ptr_t Flags[32];
-};
-
-/* Interrupt flag pair structure */
-struct __RME_RVM_Flag
-{
-    struct __RME_RVM_Flag_Set Set0;
-    struct __RME_RVM_Flag_Set Set1;
+    rme_ptr_t Flags[1024];
 };
 
 /* Register Manipulation *****************************************************/
@@ -696,7 +691,7 @@ struct __RME_A7M_MPU_Data
 
 /* Private C Function Prototypes *********************************************/
 /* Vector Flags **************************************************************/
-static void __RME_A7M_Set_Flag(rme_ptr_t Flagset, rme_ptr_t Pos);
+static void __RME_A7M_Set_Flag(rme_ptr_t Base, rme_ptr_t Size, rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
