@@ -5,6 +5,19 @@ Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
 Description : The header of the kernel. Whitebox testing of all branches encapsulated
               in macros are inspected manually carefully.
+              Note that the kernel global variables usually don't need to be 'volatile'-
+              qualified (unlike the RMP library operating system) because these kernel
+              calls are over the protection boundary. That way, there's no chance that
+              the compiler can cache values in registers since all kernel execution are
+              short-lived in nature.
+              It is indeed possible that, when the compilers are clever enough (whole-
+              program optimizations of GCC, etc.), optimize out the final stages of 
+              writes to memory, because this will not alter the behavior of the abstract 
+              machine w.r.t the current kernel trap. In this case, the 'volatile' is
+              needed. Note that this cannot be replaced by the compiler barriers: they
+              only tell the compiler that instruction shouldn't be reordered across the
+              barrier, they don't mean that writes (that are provably useless in this
+              particular kernel trap execution) cannot be optimized away.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
@@ -144,6 +157,9 @@ do \
 } \
 while(0)
 #endif
+
+/* CPU & Coprocessor *********************************************************/
+#define RME_COPROCESSOR_NONE                        (0U)
 
 /* Kernel Object Table *******************************************************/
 /* Bitmap reference error */
@@ -329,7 +345,7 @@ while(0)
 #define RME_CAP_DEFROST(CAP, TEMP) \
 do \
 { \
-    RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP), \
+    RME_COMP_SWAP(&((CAP)->Head.Type_Stat), (TEMP), \
                   RME_CAP_TYPE_STAT(RME_CAP_TYPE(TEMP), RME_CAP_STAT_VALID, RME_CAP_ATTR(TEMP))); \
 } \
 while(0)
@@ -488,7 +504,7 @@ do \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=RME_CAP_TYPE_CAPTBL)) \
             return RME_ERR_CAP_TYPE; \
         /* Check if the 2nd-layer captbl is over range */ \
-        if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Captbl*)(PARAM))->Entry_Num))) \
+        if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((volatile struct RME_Cap_Captbl*)(PARAM))->Entry_Num))) \
             return RME_ERR_CAP_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
@@ -601,9 +617,9 @@ while(0)
 #define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
 /* Get the top of invocation stack - no volatile needed here because this is single-threaded */
-#define RME_INVSTK_TOP(THD)                         ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
-                                                                              (RME_NULL): \
-                                                                              ((THD)->Inv_Stack.Next)))
+#define RME_INVSTK_TOP(THD)                         ((volatile struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
+                                                                                       (RME_NULL): \
+                                                                                       ((THD)->Inv_Stack.Next)))
 
 /* Kernel Function ***********************************************************/
 /* Driver layer error reporting macro */
@@ -696,8 +712,8 @@ struct RME_Cap_Kmem
 /* List head structure */
 struct RME_List
 {
-    struct RME_List* Prev;
-    struct RME_List* Next;
+    volatile struct RME_List* Prev;
+    volatile struct RME_List* Next;
 };
 
 /* Per-CPU run queue structure */
@@ -734,7 +750,7 @@ struct RME_Thd_Sched
     /* What is the CPU-local data structure that this thread is on? If this is
      * 0xFF....FF, then this is not binded to any core. "struct RME_CPU_Local" is
      * not yet defined here but compilation will still pass - it is a pointer */
-    struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* CPU_Local;
     /* How much time slices is left for this thread? */
     rme_ptr_t Slices;
     /* What is the current state of the thread? */
@@ -746,15 +762,15 @@ struct RME_Thd_Sched
     /* What's the maximum priority allowed for this thread? */
     rme_ptr_t Max_Prio;
     /* What signal endpoint does this thread block on? */
-    struct RME_Cap_Sig* Signal;
+    volatile struct RME_Cap_Sig* Signal;
     /* Which process is it created in? */
-    struct RME_Cap_Proc* Proc;
+    volatile struct RME_Cap_Proc* Proc;
     /* Am I referenced by someone as a scheduler? */
     rme_ptr_t Sched_Ref;
     /* What is its scheduler thread? */
-    struct RME_Thd_Struct* Sched_Thd;
+    volatile struct RME_Thd_Struct* Sched_Thd;
     /* What is the signal endpoint to send to if we have scheduler notifications? (optional) */
-    struct RME_Cap_Sig* Sched_Sig;
+    volatile struct RME_Cap_Sig* Sched_Sig;
     /* The event list for the thread */
     struct RME_List Event;
 };
@@ -764,9 +780,11 @@ struct RME_Thd_Regs
 {
     /* The register set - architecture specific */
     struct RME_Reg_Struct Reg;
+#if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
     /* The co-processor/peripheral context - architecture specific.
      * This usually contains the FPU data */
-    struct RME_Cop_Struct Cop_Reg;
+    struct RME_Cop_Struct Cop;
+#endif
 };
 
 /* Thread object structure */
@@ -775,9 +793,9 @@ struct RME_Thd_Struct
     /* The thread scheduling structure */
     struct RME_Thd_Sched Sched;
     /* The pointer to current register set */
-    struct RME_Thd_Regs* Cur_Reg;
+    volatile struct RME_Thd_Regs* Reg_Cur;
     /* The default register storage area - may be used or not */
-    struct RME_Thd_Regs Def_Reg;
+    struct RME_Thd_Regs Reg_Def;
     /* The thread synchronous invocation stack */
     struct RME_List Inv_Stack;
 };
@@ -832,13 +850,13 @@ struct RME_CPU_Local
     /* The CPUID of the CPU */
     rme_ptr_t CPUID;
     /* The current thread on the CPU */
-    struct RME_Thd_Struct* Cur_Thd;
+    volatile struct RME_Thd_Struct* Thd_Cur;
     /* The tick timer signal endpoint */
-    struct RME_Cap_Sig* Tick_Sig;
+    volatile struct RME_Cap_Sig* Sig_Tick;
     /* The vector signal endpoint */
-    struct RME_Cap_Sig* Vect_Sig;
+    volatile struct RME_Cap_Sig* Sig_Vect;
     /* The runqueue and bitmap */
-    struct RME_Run_Struct Run;
+    volatile struct RME_Run_Struct Run;
 };
 
 /* Kernel Function ***********************************************************/
@@ -874,7 +892,7 @@ struct RME_Cap_Kern
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
 /* Kernel object table */
-static rme_ptr_t RME_Kotbl[RME_KOTBL_WORD_NUM];
+static volatile rme_ptr_t RME_Kotbl[RME_KOTBL_WORD_NUM];
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -885,87 +903,178 @@ static rme_ret_t _RME_Syscall_Init(void);
 
 /* Capability Table **********************************************************/
 /* Capability system calls */
-static rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt, 
-                                 rme_cid_t Cap_Kmem, rme_cid_t Cap_Crt, rme_ptr_t Raddr, rme_ptr_t Entry_Num);
-static rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Del, rme_cid_t Cap_Del);
-static rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Frz, rme_cid_t Cap_Frz);
+static rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl,
+                                 rme_cid_t Cap_Captbl_Crt, 
+                                 rme_cid_t Cap_Kmem,
+                                 rme_cid_t Cap_Crt,
+                                 rme_ptr_t Raddr,
+                                 rme_ptr_t Entry_Num);
+static rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl,
+                                 rme_cid_t Cap_Captbl_Del,
+                                 rme_cid_t Cap_Del);
+static rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl,
+                                 rme_cid_t Cap_Captbl_Frz,
+                                 rme_cid_t Cap_Frz);
 static rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
-                                 rme_cid_t Cap_Captbl_Dst, rme_cid_t Cap_Dst, 
-                                 rme_cid_t Cap_Captbl_Src, rme_cid_t Cap_Src,
-                                 rme_ptr_t Flags, rme_ptr_t Ext_Flags);
-static rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Rem, rme_cid_t Cap_Rem);
+                                 rme_cid_t Cap_Captbl_Dst,
+                                 rme_cid_t Cap_Dst, 
+                                 rme_cid_t Cap_Captbl_Src,
+                                 rme_cid_t Cap_Src,
+                                 rme_ptr_t Flags,
+                                 rme_ptr_t Ext_Flags);
+static rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl,
+                                 rme_cid_t Cap_Captbl_Rem,
+                                 rme_cid_t Cap_Rem);
 
 /* Page Table ****************************************************************/
 /* Page table system calls */
-static rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
-                                rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
-static rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,  rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
+static rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
+                                rme_cid_t Cap_Captbl,
+                                rme_cid_t Cap_Kmem,
+                                rme_cid_t Cap_Pgtbl,
+                                rme_ptr_t Raddr,
+                                rme_ptr_t Base_Addr,
+                                rme_ptr_t Top_Flag,
+                                rme_ptr_t Size_Order,
+                                rme_ptr_t Num_Order);
+static rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,
+                                rme_cid_t Cap_Captbl,
+                                rme_cid_t Cap_Pgtbl);
 static rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl, 
-                                rme_cid_t Cap_Pgtbl_Dst, rme_ptr_t Pos_Dst, rme_ptr_t Flags_Dst,
-                                rme_cid_t Cap_Pgtbl_Src, rme_ptr_t Pos_Src, rme_ptr_t Index);
-static rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Pos);
+                                rme_cid_t Cap_Pgtbl_Dst,
+                                rme_ptr_t Pos_Dst,
+                                rme_ptr_t Flags_Dst,
+                                rme_cid_t Cap_Pgtbl_Src,
+                                rme_ptr_t Pos_Src,
+                                rme_ptr_t Index);
+static rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl,
+                                rme_cid_t Cap_Pgtbl,
+                                rme_ptr_t Pos);
 static rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
-                                rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos,
-                                rme_cid_t Cap_Pgtbl_Child, rme_ptr_t Flags_Child);
+                                rme_cid_t Cap_Pgtbl_Parent,
+                                rme_ptr_t Pos,
+                                rme_cid_t Cap_Pgtbl_Child,
+                                rme_ptr_t Flags_Child);
 static rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, 
-                                rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos, rme_cid_t Cap_Pgtbl_Child);
+                                rme_cid_t Cap_Pgtbl_Parent,
+                                rme_ptr_t Pos,
+                                rme_cid_t Cap_Pgtbl_Child);
 
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
-static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
-static rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
-static struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local);
-static rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
-static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
-                              struct RME_Thd_Struct* Curr_Thd, 
-                              struct RME_Thd_Struct* Next_Thd);
+static rme_ret_t _RME_Run_Ins(volatile struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Del(volatile struct RME_Thd_Struct* Thd);
+static volatile struct RME_Thd_Struct* _RME_Run_High(volatile struct RME_CPU_Local* CPU_Local);
+static rme_ret_t _RME_Run_Notif(volatile struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
+                              volatile struct RME_Thd_Struct* Curr_Thd, 
+                              volatile struct RME_Thd_Struct* Next_Thd);
 /* Process system calls */
-static rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
-                               rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
-static rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Proc);
-static rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl);
-static rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_cid_t Cap_Pgtbl);
+static rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl,
+                               rme_cid_t Cap_Captbl_Crt,
+                               rme_cid_t Cap_Proc,
+                               rme_cid_t Cap_Captbl,
+                               rme_cid_t Cap_Pgtbl);
+static rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl,
+                               rme_cid_t Cap_Captbl,
+                               rme_cid_t Cap_Proc);
+static rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl,
+                               rme_cid_t Cap_Proc,
+                               rme_cid_t Cap_Captbl);
+static rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl,
+                               rme_cid_t Cap_Proc,
+                               rme_cid_t Cap_Pgtbl);
 /* Thread system calls */
-static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Kmem,
-                              rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Max_Prio, rme_ptr_t Raddr);
-static rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Kmem,
+                              rme_cid_t Cap_Thd,
+                              rme_cid_t Cap_Proc,
+                              rme_ptr_t Max_Prio,
+                              rme_ptr_t Raddr);
+static rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
-                                   rme_cid_t Cap_Thd, rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param);
-static rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd, rme_ptr_t Kaddr);
-static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
-                                     rme_cid_t Cap_Thd_Sched, rme_cid_t Cap_Sig, rme_tid_t TID, rme_ptr_t Prio);
+                                   rme_cid_t Cap_Thd,
+                                   rme_ptr_t Entry,
+                                   rme_ptr_t Stack,
+                                   rme_ptr_t Param);
+static rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
+                                  rme_cid_t Cap_Thd,
+                                  rme_ptr_t Kaddr);
+static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
+                                     rme_cid_t Cap_Thd,
+                                     rme_cid_t Cap_Thd_Sched,
+                                     rme_cid_t Cap_Sig,
+                                     rme_tid_t TID,
+                                     rme_ptr_t Prio);
 static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
-                                     struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd, rme_ptr_t Prio);
+                                     volatile struct RME_Reg_Struct* Reg,
+                                     rme_cid_t Cap_Thd,
+                                     rme_ptr_t Prio);
 static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
-                                     struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
-static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
-static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                                    rme_cid_t Cap_Thd_Dst, rme_cid_t Cap_Thd_Src, rme_ptr_t Time);
+                                     volatile struct RME_Reg_Struct* Reg,
+                                     rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
+                                    volatile struct RME_Reg_Struct* Reg,
+                                    rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
+                                    volatile struct RME_Reg_Struct* Reg,
+                                    rme_cid_t Cap_Thd_Dst,
+                                    rme_cid_t Cap_Thd_Src,
+                                    rme_ptr_t Time);
 static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
-                              struct RME_Reg_Struct* Reg,
-                              rme_cid_t Cap_Thd, rme_ptr_t Yield);
+                              volatile struct RME_Reg_Struct* Reg,
+                              rme_cid_t Cap_Thd,
+                              rme_ptr_t Yield);
                               
 /* Signal and Invocation *****************************************************/
 /* Signal system calls */
-static rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
-static rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
-static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Sig);
-static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                              rme_cid_t Cap_Sig, rme_ptr_t Option);
+static rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Sig);
+static rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Sig);
+static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
+                              volatile struct RME_Reg_Struct* Reg,
+                              rme_cid_t Cap_Sig);
+static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
+                              volatile struct RME_Reg_Struct* Reg,
+                              rme_cid_t Cap_Sig,
+                              rme_ptr_t Option);
 /* Invocation system calls */
-static rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                              rme_cid_t Cap_Kmem, rme_cid_t Cap_Inv, rme_cid_t Cap_Proc, rme_ptr_t Raddr);
-static rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Inv);
-static rme_ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Inv,
-                              rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Fault_Ret_Flag);
+static rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Kmem,
+                              rme_cid_t Cap_Inv,
+                              rme_cid_t Cap_Proc,
+                              rme_ptr_t Raddr);
+static rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Captbl,
+                              rme_cid_t Cap_Inv);
+static rme_ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl,
+                              rme_cid_t Cap_Inv,
+                              rme_ptr_t Entry,
+                              rme_ptr_t Stack,
+                              rme_ptr_t Fault_Ret_Flag);
 static rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl, 
-                              struct RME_Reg_Struct* Reg, rme_cid_t Cap_Inv, rme_ptr_t Param);
-static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, rme_ptr_t Retval, rme_ptr_t Fault_Flag);
+                              volatile struct RME_Reg_Struct* Reg,
+                              rme_cid_t Cap_Inv,
+                              rme_ptr_t Param);
+static rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
+                              rme_ptr_t Retval,
+                              rme_ptr_t Fault_Flag);
 
 /* Kernel Function ***********************************************************/
-static rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                               rme_cid_t Cap_Kern, rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+static rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl,
+                               volatile struct RME_Reg_Struct* Reg,
+                               rme_cid_t Cap_Kern,
+                               rme_ptr_t Func_ID,
+                               rme_ptr_t Sub_ID,
+                               rme_ptr_t Param1,
+                               rme_ptr_t Param2);
 
 /*****************************************************************************/
 #define __EXTERN__
@@ -990,16 +1099,21 @@ __EXTERN__ rme_ptr_t RME_Timestamp;
 /* Kernel entry */
 __EXTERN__ rme_ret_t RME_Kmain(void);
 /* System call handler */
-__EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Increase counter */
 __EXTERN__ rme_ptr_t _RME_Timestamp_Inc(rme_cnt_t Value);
 /* Timer interrupt handler */
-__EXTERN__ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg);
-__EXTERN__ void _RME_Tick_Handler(struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Tick_SMP_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Tick_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Memory helpers */
-__EXTERN__ void _RME_Clear(void* Addr, rme_ptr_t Size);
-__EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num);
-__EXTERN__ void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num);
+__EXTERN__ void _RME_Clear(volatile void* Addr,
+                           rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
+                                 const void* Ptr2,
+                                 rme_ptr_t Num);
+__EXTERN__ void _RME_Memcpy(volatile void* Dst,
+                            volatile void* Src,
+                            rme_ptr_t Num);
 /* Debugging helpers */
 __EXTERN__ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint);
 __EXTERN__ rme_cnt_t RME_Print_Int(rme_cnt_t Int);
@@ -1007,58 +1121,89 @@ __EXTERN__ rme_cnt_t RME_Print_String(rme_s8_t* String);
 
 /* Capability Table **********************************************************/
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t Entry_Num);
-__EXTERN__ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
-                                          rme_cid_t Cap_Crt, rme_ptr_t Vaddr, rme_ptr_t Entry_Num);
+__EXTERN__ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl,
+                                           rme_ptr_t Vaddr,
+                                           rme_ptr_t Entry_Num);
+__EXTERN__ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                          rme_cid_t Cap_Captbl_Crt,
+                                          rme_cid_t Cap_Crt,
+                                          rme_ptr_t Vaddr,
+                                          rme_ptr_t Entry_Num);
 
 /* Page Table ****************************************************************/
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                         rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
-                                         rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
+__EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                         rme_cid_t Cap_Captbl,
+                                         rme_cid_t Cap_Pgtbl,
+                                         rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
+                                         rme_ptr_t Top_Flag,
+                                         rme_ptr_t Size_Order,
+                                         rme_ptr_t Num_Order);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
-                                         rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos,
-                                         rme_cid_t Cap_Pgtbl_Child, rme_ptr_t Flags_Child);
-__EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, 
-                                         rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+                                         rme_cid_t Cap_Pgtbl_Parent,
+                                         rme_ptr_t Pos,
+                                         rme_cid_t Cap_Pgtbl_Child,
+                                         rme_ptr_t Flags_Child);
+__EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl,
+                                         rme_cid_t Cap_Pgtbl, 
+                                         rme_ptr_t Paddr,
+                                         rme_ptr_t Pos,
+                                         rme_ptr_t Flags);
 
 /* Kernel Memory *************************************************************/
 __EXTERN__ rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words);
 /* Kernel memory operations (in case HAL needs to allocate kernel memory) */
-__EXTERN__ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size);
-__EXTERN__ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
+                                     rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
+                                      rme_ptr_t Size);
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                        rme_cid_t Cap_Kmem, rme_ptr_t Start, rme_ptr_t End, rme_ptr_t Flags);
+__EXTERN__ rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                        rme_cid_t Cap_Captbl,
+                                        rme_cid_t Cap_Kmem,
+                                        rme_ptr_t Start,
+                                        rme_ptr_t End,
+                                        rme_ptr_t Flags);
 
 /* Process and Thread ********************************************************/
 /* Linked list operations */
-__EXTERN__ void __RME_List_Crt(struct RME_List* Head);
-__EXTERN__ void __RME_List_Del(struct RME_List* Prev,
-                               struct RME_List* Next);
-__EXTERN__ void __RME_List_Ins(struct RME_List* New,
-                               struct RME_List* Prev,
-                               struct RME_List* Next);
+__EXTERN__ void __RME_List_Crt(volatile struct RME_List* Head);
+__EXTERN__ void __RME_List_Del(volatile struct RME_List* Prev,
+                               volatile struct RME_List* Next);
+__EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
+                               volatile struct RME_List* Prev,
+                               volatile struct RME_List* Next);
 /* Initialize per-CPU data structures */
-__EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID);
+__EXTERN__ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* CPU_Local,
+                                    rme_ptr_t CPUID);
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs, rme_ptr_t Fault);                              
+__EXTERN__ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Regs,
+                                     rme_ptr_t Fault);                              
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
-                                        rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
-__EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                       rme_cid_t Cap_Thd, rme_cid_t Cap_Proc, rme_ptr_t Vaddr,
-                                       rme_ptr_t Prio, struct RME_CPU_Local* CPU_Local);
+__EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                        rme_cid_t Cap_Captbl_Crt,
+                                        rme_cid_t Cap_Proc,
+                                        rme_cid_t Cap_Captbl,
+                                        rme_cid_t Cap_Pgtbl);
+__EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                       rme_cid_t Cap_Captbl,
+                                       rme_cid_t Cap_Thd,
+                                       rme_cid_t Cap_Proc, rme_ptr_t Vaddr,
+                                       rme_ptr_t Prio,
+                                       volatile struct RME_CPU_Local* CPU_Local);
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
-__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig);
-__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local);
+__EXTERN__ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Sig);
+__EXTERN__ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
+                               volatile struct RME_CPU_Local* CPU_Local);
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
+__EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                       rme_cid_t Cap_Captbl, rme_cid_t Cap_Sig);
 
 /* Kernel Function ***********************************************************/
-__EXTERN__ rme_ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_cid_t Cap_Kern);
+__EXTERN__ rme_ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl,
+                                        rme_cid_t Cap_Captbl, rme_cid_t Cap_Kern);
 
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */

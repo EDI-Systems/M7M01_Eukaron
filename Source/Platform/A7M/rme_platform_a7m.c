@@ -66,13 +66,15 @@ Description : The compare-and-swap atomic instruction. If the Old value is equal
               On Cortex-M there is only one core. There's basically no need to do
               anything special, and because we are already in kernel, relevant
               interrupts are already masked by default.
-Input       : rme_ptr_t* Ptr - The pointer to the data.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
               rme_ptr_t Old - The old value.
               rme_ptr_t New - The new value.
-Output      : rme_ptr_t* Ptr - The pointer to the data.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-rme_ptr_t __RME_A7M_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
+rme_ptr_t __RME_A7M_Comp_Swap(volatile rme_ptr_t* Ptr,
+                              rme_ptr_t Old,
+                              rme_ptr_t New)
 {
     if(*Ptr==Old)
     {
@@ -87,12 +89,13 @@ rme_ptr_t __RME_A7M_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
 /* Begin Function:__RME_A7M_Fetch_Add *****************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is 
               pointed to by the pointer, and return the value before addition.
-Input       : rme_ptr_t* Ptr - The pointer to the data.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
               rme_cnt_t Addend - The number to add.
-Output      : rme_ptr_t* Ptr - The pointer to the data.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the addition.
 ******************************************************************************/
-rme_ptr_t __RME_A7M_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
+rme_ptr_t __RME_A7M_Fetch_Add(volatile rme_ptr_t* Ptr,
+                              rme_cnt_t Addend)
 {
     rme_cnt_t Old;
     
@@ -106,12 +109,13 @@ rme_ptr_t __RME_A7M_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
 /* Begin Function:__RME_A7M_Fetch_And *****************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
-Input       : rme_ptr_t* Ptr - The pointer to the data.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
               rme_cnt_t Operand - The number to logic AND with the destination.
-Output      : rme_ptr_t* Ptr - The pointer to the data.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
 Return      : rme_ptr_t - The value before the AND operation.
 ******************************************************************************/
-rme_ptr_t __RME_A7M_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
+rme_ptr_t __RME_A7M_Fetch_And(volatile rme_ptr_t* Ptr,
+                              rme_ptr_t Operand)
 {
     rme_ptr_t Old;
     
@@ -151,20 +155,20 @@ rme_ptr_t __RME_CPUID_Get(void)
 /* Begin Function:__RME_A7M_Fault_Handler *************************************
 Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
               faults.
-Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
+void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     rme_ptr_t Cur_HFSR;
     rme_ptr_t Cur_CFSR;
     rme_ptr_t Cur_MMFAR;
     rme_ptr_t Flags;
     rme_ptr_t* Stack;
-    struct RME_Cap_Proc* Proc;
-    struct RME_Inv_Struct* Inv_Top;
-    struct __RME_A7M_Pgtbl_Meta* Meta;
+    volatile struct RME_Cap_Proc* Proc;
+    volatile struct RME_Inv_Struct* Inv_Top;
+    volatile struct __RME_A7M_Pgtbl_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0U);
@@ -205,9 +209,9 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
         RME_ASSERT((Cur_CFSR&RME_A7M_MFSR_DACCVIOL)!=0U);
         /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
          * can be found in our current page table, and if it is there, we only care about the flags */
-        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
+        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Thd_Cur);
         if(Inv_Top==RME_NULL)
-            Proc=(RME_A7M_Local.Cur_Thd)->Sched.Proc;
+            Proc=(RME_A7M_Local.Thd_Cur)->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
@@ -227,9 +231,9 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
      * is stored on the fault stack. */ 
     else if((Cur_CFSR&RME_A7M_MFSR_IACCVIOL)!=0U)
     {
-        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
+        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Thd_Cur);
         if(Inv_Top==0U)
-            Proc=(RME_A7M_Local.Cur_Thd)->Sched.Proc;
+            Proc=(RME_A7M_Local.Thd_Cur)->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
@@ -296,7 +300,9 @@ Input       : rme_ptr_t Base - The base address of the flagset.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Set_Flag(rme_ptr_t Base, rme_ptr_t Size, rme_ptr_t Pos)
+void __RME_A7M_Set_Flag(rme_ptr_t Base,
+                        rme_ptr_t Size,
+                        rme_ptr_t Pos)
 {
     volatile struct __RME_RVM_Flag* Flags;
     
@@ -314,16 +320,16 @@ void __RME_A7M_Set_Flag(rme_ptr_t Base, rme_ptr_t Size, rme_ptr_t Pos)
 
 /* Begin Function:__RME_A7M_Vect_Handler **************************************
 Description : The generic interrupt handler of RME for ARMv7-M.
-Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Vect_Num - The vector number. For ARMv7-M, this is in accordance
                                    with the ARMv7-M architecture reference manual.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
 extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
 #endif
-void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
+void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
@@ -334,7 +340,7 @@ void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
     
     __RME_A7M_Set_Flag(RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE, Vect_Num);
     
-    _RME_Kern_Snd(RME_A7M_Local.Vect_Sig);
+    _RME_Kern_Snd(RME_A7M_Local.Sig_Vect);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A7M_Local);
 }
@@ -352,7 +358,9 @@ Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl, 
-                                    rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Type)
+                                    rme_cid_t Cap_Pgtbl,
+                                    rme_ptr_t Vaddr,
+                                    rme_ptr_t Type)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Op;
     rme_ptr_t Type_Stat;
@@ -386,7 +394,9 @@ Input       : rme_ptr_t Int_Num - The interrupt number to consult or modify.
 Output      : None.
 Return      : rme_ret_t - If successful, 0 or the desired value; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_ptr_t Param)
+rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
+                                  rme_ptr_t Operation,
+                                  rme_ptr_t Param)
 {
     if(Int_Num>=RME_A7M_VECT_NUM)
         return RME_ERR_KERN_OPFAIL;
@@ -435,7 +445,8 @@ Input       : rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num)
+rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
+                                   rme_ptr_t Int_Num)
 {
     if(CPUID!=0U)
         return RME_ERR_KERN_OPFAIL;
@@ -452,13 +463,15 @@ rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num)
 
 /* Begin Function:__RME_A7M_Evt_Local_Trig ************************************
 Description : Trigger a CPU's local event source.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
               rme_ptr_t Evt_Num - The event ID.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Evt_Num)
+rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
+                                   rme_ptr_t CPUID,
+                                   rme_ptr_t Evt_Num)
 {
     if(CPUID!=0U)
         return RME_ERR_KERN_OPFAIL;
@@ -468,7 +481,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, 
 
     __RME_A7M_Set_Flag(RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE, Evt_Num);
     
-    if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0U)
+    if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vect)!=0U)
         return RME_ERR_KERN_OPFAIL;
     
     /* Set return value first before we really do context switch */
@@ -488,7 +501,9 @@ Input       : rme_ptr_t Cache_ID - The ID of the cache to enable, disable or con
 Output      : None.
 Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param)
+rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
+                              rme_ptr_t Operation,
+                              rme_ptr_t Param)
 {
     rme_ptr_t CLIDR;
     rme_ptr_t Sets;
@@ -687,7 +702,9 @@ Input       : rme_ptr_t Cache_ID - The ID of the cache to do maintenance on.
 Output      : None.
 Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param)
+rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
+                                rme_ptr_t Operation,
+                                rme_ptr_t Param)
 {
     rme_ptr_t CLIDR;
     rme_ptr_t Sets;
@@ -872,7 +889,9 @@ Input       : rme_ptr_t Prfth_ID - The ID of the prefetcher to enable, disable o
 Output      : None.
 Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID, rme_ptr_t Operation, rme_ptr_t Param)
+rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID,
+                              rme_ptr_t Operation,
+                              rme_ptr_t Param)
 {
     if(Prfth_ID!=0U)
         return RME_ERR_KERN_OPFAIL;
@@ -903,12 +922,13 @@ rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID, rme_ptr_t Operation, rme_ptr_t
 
 /* Begin Function:__RME_A7M_Perf_CPU_Func *************************************
 Description : CPU feature detection for ARMv7-M.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Freg_ID - The capability to the thread to consult.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg, rme_ptr_t Freg_ID)
+rme_ret_t __RME_A7M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
+                                  rme_ptr_t Freg_ID)
 {
     switch(Freg_ID)
     {
@@ -976,7 +996,9 @@ Input       : rme_ptr_t Perf_ID - The performance monitor identifier.
 Output      : None.
 Return      : rme_ret_t - If successful, the desired value; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr_t Param)
+rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID,
+                                 rme_ptr_t Operation,
+                                 rme_ptr_t Param)
 {
     if(Perf_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
         return RME_ERR_KERN_OPFAIL;
@@ -1006,13 +1028,15 @@ rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr
 /* Begin Function:__RME_A7M_Perf_Cycle_Mod ************************************
 Description : Cycle performance counter read or write for ARMv7-M. Only supports
               CYCCNT register.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Cycle_ID - The performance counter to read or write.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_ID, 
-                                   rme_ptr_t Operation, rme_ptr_t Value)
+rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
+                                   rme_ptr_t Cycle_ID, 
+                                   rme_ptr_t Operation,
+                                   rme_ptr_t Value)
 {
     if(Cycle_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
         return RME_ERR_KERN_OPFAIL;
@@ -1036,86 +1060,93 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_I
 /* Begin Function:__RME_A7M_Debug_Reg_Mod *************************************
 Description : Debug regular register modification implementation for ARMv7-M.
 Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
-              struct RME_Reg_Struct* Reg - The current register set.
+              volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
               rme_ptr_t Value - The value to write into the register.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
-                                  rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value)
+rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
+                                  volatile struct RME_Reg_Struct* Reg, 
+                                  rme_cid_t Cap_Thd,
+                                  rme_ptr_t Operation,
+                                  rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Regs* Reg_Cur;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Stat);
+    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
         return RME_ERR_PTH_INVSTATE;
+    Reg_Cur=Thd_Struct->Reg_Cur;
     
     switch(Operation)
     {
         /* Register read/write */
-        case RME_A7M_KERN_DEBUG_REG_MOD_SP_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.SP;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_SP_SET:     {Thd_Struct->Cur_Reg->Reg.SP=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R4_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R4;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R4_SET:     {Thd_Struct->Cur_Reg->Reg.R4=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R5_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R5;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R5_SET:     {Thd_Struct->Cur_Reg->Reg.R5=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R6_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R6;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R6_SET:     {Thd_Struct->Cur_Reg->Reg.R6=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R7_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R7;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R7_SET:     {Thd_Struct->Cur_Reg->Reg.R7=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R8_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R8;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R8_SET:     {Thd_Struct->Cur_Reg->Reg.R8=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R9_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R9;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R9_SET:     {Thd_Struct->Cur_Reg->Reg.R9=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R10_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Reg.R10;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R10_SET:    {Thd_Struct->Cur_Reg->Reg.R10=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Reg.R11;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R11_SET:    {Thd_Struct->Cur_Reg->Reg.R11=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.LR;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_SP_GET:     {Reg->R6=Reg_Cur->Reg.SP;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_SP_SET:     {Reg_Cur->Reg.SP=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R4_GET:     {Reg->R6=Reg_Cur->Reg.R4;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R4_SET:     {Reg_Cur->Reg.R4=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R5_GET:     {Reg->R6=Reg_Cur->Reg.R5;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R5_SET:     {Reg_Cur->Reg.R5=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R6_GET:     {Reg->R6=Reg_Cur->Reg.R6;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R6_SET:     {Reg_Cur->Reg.R6=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R7_GET:     {Reg->R6=Reg_Cur->Reg.R7;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R7_SET:     {Reg_Cur->Reg.R7=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R8_GET:     {Reg->R6=Reg_Cur->Reg.R8;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R8_SET:     {Reg_Cur->Reg.R8=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R9_GET:     {Reg->R6=Reg_Cur->Reg.R9;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R9_SET:     {Reg_Cur->Reg.R9=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R10_GET:    {Reg->R6=Reg_Cur->Reg.R10;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R10_SET:    {Reg_Cur->Reg.R10=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Reg_Cur->Reg.R11;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R11_SET:    {Reg_Cur->Reg.R11=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Reg_Cur->Reg.LR;break;}
         /* case RME_A7M_KERN_DEBUG_REG_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
+#if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
         /* FPU register read/write */
-        case RME_A7M_KERN_DEBUG_REG_MOD_S16_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S16;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S16_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S16=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S17_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S17;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S17_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S17=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S18_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S18;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S18_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S18=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S19_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S19;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S19_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S19=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S20_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S20;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S20_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S20=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S21_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S21;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S21_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S21=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S22_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S22;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S22_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S22=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S23_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S23;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S23_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S23=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S24_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S24;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S24_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S24=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S25_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S25;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S25_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S25=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S26_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S26;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S26_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S26=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S27_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S27;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S27_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S27=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S28_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S28;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S28_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S28=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S29_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S29;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S29_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S29=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S30_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S30;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S30_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S30=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S31_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S31;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S31_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S31=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S16_GET:    {Reg->R6=Reg_Cur->Cop.S16;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S16_SET:    {Reg_Cur->Cop.S16=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S17_GET:    {Reg->R6=Reg_Cur->Cop.S17;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S17_SET:    {Reg_Cur->Cop.S17=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S18_GET:    {Reg->R6=Reg_Cur->Cop.S18;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S18_SET:    {Reg_Cur->Cop.S18=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S19_GET:    {Reg->R6=Reg_Cur->Cop.S19;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S19_SET:    {Reg_Cur->Cop.S19=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S20_GET:    {Reg->R6=Reg_Cur->Cop.S20;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S20_SET:    {Reg_Cur->Cop.S20=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S21_GET:    {Reg->R6=Reg_Cur->Cop.S21;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S21_SET:    {Reg_Cur->Cop.S21=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S22_GET:    {Reg->R6=Reg_Cur->Cop.S22;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S22_SET:    {Reg_Cur->Cop.S22=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S23_GET:    {Reg->R6=Reg_Cur->Cop.S23;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S23_SET:    {Reg_Cur->Cop.S23=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S24_GET:    {Reg->R6=Reg_Cur->Cop.S24;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S24_SET:    {Reg_Cur->Cop.S24=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S25_GET:    {Reg->R6=Reg_Cur->Cop.S25;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S25_SET:    {Reg_Cur->Cop.S25=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S26_GET:    {Reg->R6=Reg_Cur->Cop.S26;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S26_SET:    {Reg_Cur->Cop.S26=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S27_GET:    {Reg->R6=Reg_Cur->Cop.S27;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S27_SET:    {Reg_Cur->Cop.S27=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S28_GET:    {Reg->R6=Reg_Cur->Cop.S28;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S28_SET:    {Reg_Cur->Cop.S28=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S29_GET:    {Reg->R6=Reg_Cur->Cop.S29;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S29_SET:    {Reg_Cur->Cop.S29=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S30_GET:    {Reg->R6=Reg_Cur->Cop.S30;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S30_SET:    {Reg_Cur->Cop.S30=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S31_GET:    {Reg->R6=Reg_Cur->Cop.S31;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S31_SET:    {Reg_Cur->Cop.S31=Value;break;}
+#endif
         default:                                    {return RME_ERR_KERN_OPFAIL;}
     }
 
@@ -1126,25 +1157,28 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
 /* Begin Function:__RME_A7M_Debug_Inv_Mod *************************************
 Description : Debug invocation register modification implementation for ARMv7-M.
 Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
-              struct RME_Reg_Struct* Reg - The current register set.
+              volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
               rme_ptr_t Value - The value to write into the register.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
-                                  rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value)
+rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
+                                  volatile struct RME_Reg_Struct* Reg, 
+                                  rme_cid_t Cap_Thd,
+                                  rme_ptr_t Operation,
+                                  rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
-    struct RME_Thd_Struct* Thd_Struct;
-    struct RME_Inv_Struct* Inv_Struct;
-    struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Struct* Thd_Struct;
+    volatile struct RME_Inv_Struct* Inv_Struct;
+    volatile struct RME_CPU_Local* CPU_Local;
     rme_ptr_t Type_Stat;
     rme_ptr_t Layer_Cnt;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Stat);
+    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -1154,17 +1188,17 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
     
     /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
     Layer_Cnt=RME_PARAM_D1(Operation);
-    Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
-    while(1)
+    Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
+    while(1U)
     {
-        if(Inv_Struct==(struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
+        if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
             return RME_ERR_KERN_OPFAIL;
         
         if(Layer_Cnt==0U)
             break;
         
         Layer_Cnt--;
-        Inv_Struct=(struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
+        Inv_Struct=(volatile struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
     }
 
     /* D0 position is the operation */
@@ -1185,7 +1219,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
-              struct RME_Reg_Struct* Reg - The current register set.
+              volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The subfunction ID.
               rme_ptr_t Param1 - The first parameter.
@@ -1193,8 +1227,15 @@ Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
 Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
-                                  rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+#if(RME_RVM_GEN_ENABLE==1U)
+extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+#endif
+rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl,
+                                  volatile struct RME_Reg_Struct* Reg,
+                                  rme_ptr_t Func_ID,
+                                  rme_ptr_t Sub_ID,
+                                  rme_ptr_t Param1,
+                                  rme_ptr_t Param2)
 {
     rme_ret_t Retval;
 
@@ -1266,7 +1307,6 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
         default:
         {
 #if(RME_RVM_GEN_ENABLE==1U)
-            extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
             Retval=RME_User_Kern_Func_Handler(Func_ID, Sub_ID, Param1, Param2);
 #else
             return RME_ERR_KERN_OPFAIL;
@@ -1310,7 +1350,8 @@ Input       : rme_cnt_t Exc - The exception number, always nagative.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc, rme_ptr_t Prio)
+void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
+                                 rme_ptr_t Prio)
 {
     RME_ASSERT(Exc<0);
     RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0x0FU)-4U)=(rme_u8_t)Prio;
@@ -1446,7 +1487,7 @@ Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
-    extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
+extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
 #endif
 rme_ptr_t __RME_Boot(void)
 {
@@ -1494,15 +1535,15 @@ rme_ptr_t __RME_Boot(void)
                                   RME_BOOT_CAPTBL, 
                                   RME_BOOT_INIT_KMEM,
                                   RME_KMEM_VA_BASE,
-                                  RME_KMEM_VA_BASE+RME_KMEM_VA_SIZE-1,
+                                  RME_KMEM_VA_BASE+RME_KMEM_VA_SIZE-1U,
                                   RME_KMEM_FLAG_ALL)==0U);
     
     /* Create the initial kernel endpoint for timer ticks */
-    RME_A7M_Local.Tick_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
+    RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0U);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_A7M_Local.Vect_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
+    RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0U);
     
     /* Clean up the region for vectors and events */
@@ -1534,7 +1575,7 @@ rme_ptr_t __RME_Boot(void)
 #endif
 
     /* Enable the MPU & interrupt */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_A7M_Local.Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
+    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_A7M_Local.Thd_Cur)->Sched.Proc->Pgtbl,rme_ptr_t));
     __RME_Enable_Int();
     
     /* Boot into the init thread */
@@ -1565,13 +1606,16 @@ void __RME_A7M_Reboot(void)
 
 /* Begin Function:__RME_Get_Syscall_Param *************************************
 Description : Get the system call parameters from the stack frame.
-Input       : struct RME_Reg_Struct* Reg - The register set.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Capid - The capability ID number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
-void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc, rme_ptr_t* Capid, rme_ptr_t* Param)
+void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg, 
+                             rme_ptr_t* Svc,
+                             rme_ptr_t* Capid,
+                             rme_ptr_t* Param)
 {
     *Svc=(Reg->R4)>>16;
     *Capid=(Reg->R4)&0xFFFFU;
@@ -1586,10 +1630,11 @@ Description : Set the system call return value to the stack frame. This function
               may carry up to 4 return values. If the last 3 is not needed, just set
               them to zero.
 Input       : rme_ret_t Retval - The return value.
-Output      : struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
+void __RME_Set_Syscall_Retval(volatile struct RME_Reg_Struct* Reg,
+                              rme_ret_t Retval)
 {
     Reg->R4=(rme_ptr_t)Retval;
 }
@@ -1600,10 +1645,13 @@ Description : Initialize the register set for the thread.
 Input       : rme_ptr_t Entry - The thread entry address.
               rme_ptr_t Stack - The thread stack address.
               rme_ptr_t Param - The parameter to pass.
-Output      : struct RME_Reg_Struct* Reg - The register set content generated.
+Output      : volatile struct RME_Reg_Struct* Reg - The register set content generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg)
+void __RME_Thd_Reg_Init(rme_ptr_t Entry,
+                        rme_ptr_t Stack,
+                        rme_ptr_t Param, 
+                        volatile struct RME_Reg_Struct* Reg)
 {
     /* Set the LR to a value indicating that we have never used FPU in this new task */
     Reg->LR=RME_A7M_EXC_RET_INIT;
@@ -1618,11 +1666,12 @@ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struc
 
 /* Begin Function:__RME_Thd_Reg_Copy ******************************************
 Description : Copy one set of registers into another.
-Input       : struct RME_Reg_Struct* Src - The source register set.
-Output      : struct RME_Reg_Struct* Dst - The destination register set.
+Input       : volatile struct RME_Reg_Struct* Src - The source register set.
+Output      : volatile struct RME_Reg_Struct* Dst - The destination register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
+void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
+                        volatile struct RME_Reg_Struct* Src)
 {
     /* Make sure that the ordering is the same so the compiler can optimize */
     Dst->SP=Src->SP;
@@ -1640,11 +1689,14 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
 
 /* Begin Function:__RME_Thd_Cop_Init ******************************************
 Description : Initialize the coprocessor register set for the thread.
-Input       : struct RME_Reg_Struct* Reg - The register struct to help initialize the coprocessor.
-Output      : struct RME_Reg_Cop_Struct* Cop_Reg - The register set content generated.
+Input       : volatile struct RME_Reg_Struct* Reg - The register struct to help
+                                                    initialize the coprocessor.
+Output      : volatile struct RME_Reg_Cop_Struct* Cop_Reg - The register set content
+                                                            generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Init(volatile struct RME_Reg_Struct* Reg,
+                        volatile struct RME_Cop_Struct* Cop_Reg)
 {
     /* Empty function, return immediately. The FPU contents is not predictable */
 }
@@ -1653,12 +1705,13 @@ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_R
 /* Begin Function:__RME_Thd_Cop_Save ******************************************
 Description : Save the co-op register sets. This operation is flexible - If the
               program does not use the FPU, we do not save its context.
-Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
-                                           to save the context of the coprocessor.
-Output      : struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
+Input       : volatile struct RME_Reg_Struct* Reg - The context, used to decide whether
+                                                    to save the context of the coprocessor.
+Output      : volatile struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Save(volatile struct RME_Reg_Struct* Reg,
+                        volatile struct RME_Cop_Struct* Cop_Reg)
 {
     /* If we do not have a FPU, return 0 directly */
 #ifdef RME_A7M_FPU_TYPE
@@ -1676,12 +1729,15 @@ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_R
 /* Begin Function:__RME_Thd_Cop_Restore ***************************************
 Description : Restore the co-op register sets. This operation is flexible - If the
               FPU is not used, we do not restore its context.
-Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
-                                           to save the context of the coprocessor.
-Output      : struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
+Input       : volatile struct RME_Reg_Struct* Reg - The context, used to decide 
+                                                    whether to save the context
+                                                    of the coprocessor.
+Output      : volatile struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor
+                                                        contents.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Restore(volatile struct RME_Reg_Struct* Reg, 
+                           volatile struct RME_Cop_Struct* Cop_Reg)
 {    
 /* If we do not have a FPU, return 0 directly */
 #ifdef RME_A7M_FPU_TYPE
@@ -1699,11 +1755,12 @@ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Co
 /* Begin Function:__RME_Inv_Reg_Save ******************************************
 Description : Save the necessary registers on invocation for returning. Only the
               registers that will influence program control flow will be saved.
-Input       : struct RME_Reg_Struct* Reg - The register set.
-Output      : struct RME_Iret_Struct* Ret - The invocation return register context.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Iret_Struct* Ret - The invocation return register context.
 Return      : None.
 ******************************************************************************/
-void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg)
+void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
+                        volatile struct RME_Reg_Struct* Reg)
 {
     Ret->LR=Reg->LR;
     Ret->SP=Reg->SP;
@@ -1712,11 +1769,12 @@ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg)
 
 /* Begin Function:__RME_Inv_Reg_Restore ***************************************
 Description : Restore the necessary registers for returning from an invocation.
-Input       : struct RME_Iret_Struct* Ret - The invocation return register context.
-Output      : struct RME_Reg_Struct* Reg - The register set.
+Input       : volatile struct RME_Iret_Struct* Ret - The invocation return register context.
+Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret)
+void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
+                           volatile struct RME_Iret_Struct* Ret)
 {
     Reg->LR=Ret->LR;
     Reg->SP=Ret->SP;
@@ -1726,10 +1784,11 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 /* Begin Function:__RME_Set_Inv_Retval ****************************************
 Description : Set the invocation return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
-Output      : struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
+void __RME_Set_Inv_Retval(volatile struct RME_Reg_Struct* Reg,
+                          rme_ret_t Retval)
 {
     Reg->R5=(rme_ptr_t)Retval;
 }
@@ -1828,8 +1887,11 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, 
-                            rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
+rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr,
+                            rme_ptr_t Top_Flag, 
+                            rme_ptr_t Size_Order,
+                            rme_ptr_t Num_Order,
+                            rme_ptr_t Vaddr)
 {
     if(Num_Order>RME_PGTBL_NUM_256)
         return RME_ERR_PGT_OPFAIL;
@@ -1866,16 +1928,19 @@ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
 
 /* Begin Function:___RME_Pgtbl_MPU_Gen_RASR ***********************************
 Description : Generate the RASR metadata for this level of page table.
-Input       : rme_ptr_t* Table - The table to generate data for. This is directly the
-                                 raw page table itself, without accounting for metadata.
+Input       : volatile rme_ptr_t* Table - The table to generate data for. This 
+                                          is directly the raw page table itself,
+                                          without accounting for metadata.
               rme_ptr_t Flags - The flags for each entry.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : struct __RME_A7M_MPU_Entry* Entry - The data generated.
 Return      : rme_ptr_t - The RASR value returned.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags, 
-                                    rme_ptr_t Size_Order, rme_ptr_t Num_Order)
+rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(volatile rme_ptr_t* Table,
+                                    rme_ptr_t Flags, 
+                                    rme_ptr_t Size_Order,
+                                    rme_ptr_t Num_Order)
 {
     rme_ptr_t RASR;
     rme_ptr_t Count;
@@ -1930,15 +1995,17 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(rme_ptr_t* Table, rme_ptr_t Flags,
 /* Begin Function:___RME_Pgtbl_MPU_Clear **************************************
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
-Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
+Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
               rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
-                                 rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
+rme_ptr_t ___RME_Pgtbl_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+                                 rme_ptr_t Base_Addr,
+                                 rme_ptr_t Size_Order,
+                                 rme_ptr_t Num_Order)
 {
     rme_ptr_t Count;
     
@@ -1969,7 +2036,7 @@ Description : Add or update the MPU entry in the top-level MPU table. We guarant
               that at any time at least two regions are dedicated to dynamic entries.
               This is due to the fact that ARM have LDRD and STRD, which can require
               two regions to function correctly.
-Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
+Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
               rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
@@ -1978,9 +2045,12 @@ Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
-                               rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
-                               rme_ptr_t MPU_RASR, rme_ptr_t Static)
+rme_ptr_t ___RME_Pgtbl_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+                               rme_ptr_t Base_Addr,
+                               rme_ptr_t Size_Order,
+                               rme_ptr_t Num_Order,
+                               rme_ptr_t MPU_RASR,
+                               rme_ptr_t Static)
 {
     rme_u8_t Count;
     /* The number of empty slots available */
@@ -2068,16 +2138,17 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
 
 /* Begin Function:___RME_Pgtbl_MPU_Update *************************************
 Description : Update the top-level MPU metadata for this level of page table.
-Input       : struct __RME_A7M_Pgtbl_Meta* Meta - This page table.
+Input       : volatile struct __RME_A7M_Pgtbl_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag)
+rme_ptr_t ___RME_Pgtbl_MPU_Update(volatile struct __RME_A7M_Pgtbl_Meta* Meta,
+                                  rme_ptr_t Op_Flag)
 {
-    rme_ptr_t* Table;
     rme_ptr_t MPU_RASR;
-    struct __RME_A7M_MPU_Data* Top_MPU;
+    volatile rme_ptr_t* Table;
+    volatile struct __RME_A7M_MPU_Data* Top_MPU;
     
     /* Is it possible for MPU to represent this? */
     if(RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order)>RME_PGTBL_NUM_8)
@@ -2087,14 +2158,14 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t O
     if(Meta->Toplevel!=0U)
     {
         /* We have a top-level */
-        Top_MPU=(struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgtbl_Meta));
-        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
+        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgtbl_Meta));
+        Table=RME_A7M_PGTBL_TBL_NOM((volatile rme_ptr_t*)Meta);
     }
     else if(((Meta->Base_Addr)&RME_PGTBL_TOP)!=0U)
     {
         /* We don't have a top-level, but we are the top-level */
-        Top_MPU=(struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgtbl_Meta));
-        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
+        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgtbl_Meta));
+        Table=RME_A7M_PGTBL_TBL_TOP((volatile rme_ptr_t*)Meta);
     }
     else
         return RME_ERR_PGT_OPFAIL;
@@ -2169,7 +2240,10 @@ Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to opera
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
+rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op,
+                               rme_ptr_t Paddr,
+                               rme_ptr_t Pos,
+                               rme_ptr_t Flags)
 {
     rme_ptr_t* Table;
     struct __RME_A7M_Pgtbl_Meta* Meta;
@@ -2238,7 +2312,8 @@ Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operat
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
+rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op,
+                                 rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
@@ -2290,12 +2365,14 @@ Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
               struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
               rme_ptr_t Pos - The position in the destination page table.
               rme_ptr_t Flags - This have no effect for MPU-based architectures
-                            (because page table addresses use up the whole word).
+                               (because page table addresses use up the whole word).
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
-                                struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags)
+rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent,
+                                rme_ptr_t Pos, 
+                                struct RME_Cap_Pgtbl* Pgtbl_Child,
+                                rme_ptr_t Flags)
 {
     rme_ptr_t* Parent_Table;
     struct __RME_A7M_Pgtbl_Meta* Parent_Meta;
@@ -2368,7 +2445,8 @@ Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table to unma
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
+rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent,
+                                  rme_ptr_t Pos, 
                                   struct RME_Cap_Pgtbl* Pgtbl_Child)
 {
     rme_ptr_t* Table;
@@ -2420,7 +2498,10 @@ Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags)
+rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op,
+                             rme_ptr_t Pos,
+                             rme_ptr_t* Paddr,
+                             rme_ptr_t* Flags)
 {
     rme_ptr_t* Table;
     
@@ -2465,9 +2546,13 @@ Output      : rme_ptr_t* Pgtbl - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
-                           rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order,
-                           rme_ptr_t* Num_Order, rme_ptr_t* Flags)
+rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op,
+                           rme_ptr_t Vaddr,
+                           rme_ptr_t* Pgtbl,
+                           rme_ptr_t* Map_Vaddr,
+                           rme_ptr_t* Paddr, rme_ptr_t* Size_Order,
+                           rme_ptr_t* Num_Order,
+                           rme_ptr_t* Flags)
 {
     struct __RME_A7M_Pgtbl_Meta* Meta;
     rme_ptr_t* Table;
