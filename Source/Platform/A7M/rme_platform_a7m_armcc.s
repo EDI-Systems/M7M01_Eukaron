@@ -21,16 +21,9 @@
 ;*****************************************************************************/
 
 ;/* Begin Stacks *************************************************************/
-Stack_Size              EQU 0x00000400
-    AREA                STACK, NOINIT, READWRITE, ALIGN=3
-Stack_Mem               SPACE Stack_Size
-__initial_sp
-
-Heap_Size               EQU 0x00000000
-    AREA                HEAP, NOINIT, READWRITE, ALIGN=3
-__heap_base
-Heap_Mem                SPACE Heap_Size
-__heap_limit
+    AREA                DUMMY, NOINIT, READWRITE, ALIGN=3
+                        SPACE 0x00000010
+DUMMY_STACK
 ;/* End Stacks ***************************************************************/
 
 ;/* Begin Header *************************************************************/
@@ -53,8 +46,6 @@ __heap_limit
     EXPORT              __RME_A7M_Wait_Int
     ;Get the MSB in a word
     EXPORT              __RME_A7M_MSB_Get
-    ;Kernel main function wrapper
-    EXPORT              _RME_Kmain
     ;Entering of the user mode
     EXPORT              __RME_Enter_User_Mode
     ;The FPU register save routine
@@ -73,8 +64,6 @@ __heap_limit
     ;Preinitialization routine.
     IMPORT              __RME_A7M_Low_Level_Preinit
     IMPORT              __main
-    ;The kernel entry of RME. This will be defined in C language.
-    IMPORT              RME_Kmain
     ;The system call handler of RME. This will be defined in C language.
     IMPORT              _RME_Svc_Handler
     ;The system tick handler of RME. This will be defined in C language.
@@ -90,7 +79,7 @@ __heap_limit
     EXPORT              __Vectors_End
     EXPORT              __Vectors_Size
 
-__Vectors               DCD __initial_sp    ; Top of Stack
+__Vectors               DCD DUMMY_STACK     ; Top of Stack
     DCD                 Reset_Handler       ; Reset Handler
     DCD                 NMI_Handler         ; NMI Handler
     DCD                 HardFault_Handler   ; Hard Fault Handler
@@ -373,24 +362,6 @@ __Vectors               DCD __initial_sp    ; Top of Stack
 __Vectors_End
 __Vectors_Size          EQU __Vectors_End-__Vectors
 ;/* End Vector Table *********************************************************/
-
-;/* Begin Memory Init ********************************************************/
-    ALIGN
-    IF                  :DEF:__MICROLIB
-    EXPORT              __initial_sp
-    EXPORT              __heap_base
-    EXPORT              __heap_limit
-    ELSE
-    IMPORT              __use_two_region_memory
-    EXPORT              __user_initial_stackheap
-__user_initial_stackheap
-    LDR                 R0,=Heap_Mem
-    LDR                 R1,=(Stack_Mem+Stack_Size)
-    LDR                 R2,=(Heap_Mem+Heap_Size)
-    LDR                 R3,=Stack_Mem
-    BX                  LR
-    ENDIF
-;/* End Memory Init **********************************************************/
 
 ;/* Begin Handlers ***********************************************************/
 Reset_Handler           PROC
@@ -1016,18 +987,6 @@ __RME_A7M_Wait_Int
     WFE
     BX                  LR
 ;/* End Function:__RME_A7M_Wait_Int ******************************************/
-
-;/* Begin Function:_RME_Kmain *************************************************
-;Description : The entry address of the kernel. Never returns.
-;Input       : ptr_t Stack - The stack address to set SP to.
-;Output      : None.
-;Return      : None.
-;*****************************************************************************/
-_RME_Kmain
-    MOV                 SP,R0
-    B                   RME_Kmain
-    B                   .
-;/* End Function:_RME_Kmain **************************************************/
 
 ;/* Begin Function:__RME_A7M_MSB_Get ******************************************
 ;Description : Get the MSB of the word.

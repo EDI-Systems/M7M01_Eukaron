@@ -5663,7 +5663,8 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
                        rme_cid_t Cap_Sig)
 {
     struct RME_Cap_Sig* Sig_Op;
-    volatile struct RME_Thd_Struct* Thd_Wait;
+    volatile struct RME_Cap_Sig* Sig_Root;
+    volatile struct RME_Thd_Struct* Thd_Rcv;
     volatile struct RME_CPU_Local* CPU_Local;
     volatile struct RME_Thd_Struct* Thd_Cur;
     rme_ptr_t Unblock;
@@ -5676,16 +5677,16 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
     
     CPU_Local=RME_CPU_LOCAL();
     Thd_Cur=CPU_Local->Thd_Cur;
-    Sig_Op=RME_CAP_CONV_ROOT(Sig_Op, struct RME_Cap_Sig*);
-    Thd_Wait=Sig_Op->Thd;
+    Sig_Root=RME_CAP_CONV_ROOT(Sig_Op, struct RME_Cap_Sig*);
+    Thd_Rcv=Sig_Root->Thd;
 
     /* If and only if we are calling from the same core as the blocked thread do
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
-    if(Thd_Wait!=RME_NULL)
+    if(Thd_Rcv!=RME_NULL)
     {
         RME_COVERAGE_MARKER();
 
-        if(Thd_Wait->Sched.CPU_Local==CPU_Local)
+        if(Thd_Rcv->Sched.CPU_Local==CPU_Local)
         {
             RME_COVERAGE_MARKER();
 
@@ -5715,30 +5716,30 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this */
-        __RME_Set_Syscall_Retval(&(Thd_Wait->Reg_Cur->Reg), 1);
+        __RME_Set_Syscall_Retval(&(Thd_Rcv->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
-        if(Thd_Wait->Sched.Slices!=0U)
+        if(Thd_Rcv->Sched.Slices!=0U)
         {
             RME_COVERAGE_MARKER();
 
-            /* Put this into the runqueue */
-            _RME_Run_Ins(Thd_Wait);
+            /* Put the waiting one into the runqueue */
+            _RME_Run_Ins(Thd_Rcv);
             /* See if it will preempt us */
-            if(Thd_Wait->Sched.Prio>Thd_Cur->Sched.Prio)
+            if(Thd_Rcv->Sched.Prio>Thd_Cur->Sched.Prio)
             {
                 RME_COVERAGE_MARKER();
 
                 /* Yes. Do a context switch */
-                _RME_Run_Swt(Reg, Thd_Cur, Thd_Wait);
+                _RME_Run_Swt(Reg, Thd_Cur, Thd_Rcv);
                 Thd_Cur->Sched.State=RME_THD_READY;
-                Thd_Wait->Sched.State=RME_THD_RUNNING;
-                Thd_Cur=Thd_Wait;
+                Thd_Rcv->Sched.State=RME_THD_RUNNING;
+                CPU_Local->Thd_Cur=Thd_Rcv;
             }
             else
             {
                 RME_COVERAGE_MARKER();
 
-                Thd_Wait->Sched.State=RME_THD_READY;
+                Thd_Rcv->Sched.State=RME_THD_READY;
             }
         }
         else
@@ -5746,23 +5747,23 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
             RME_COVERAGE_MARKER();
 
             /* Silently change state to timeout */
-            Thd_Wait->Sched.State=RME_THD_TIMEOUT;
+            Thd_Rcv->Sched.State=RME_THD_TIMEOUT;
         }
         
         /* Clear the blocking status of the endpoint up - we don't need a write release barrier
          * here because even if this is reordered to happen earlier it is still fine. */
-        Sig_Op->Thd=RME_NULL;
+        Sig_Root->Thd=RME_NULL;
     }
     else
     {
         RME_COVERAGE_MARKER();
 
         /* The guy who blocked on it is not on our core, we just faa and return */
-        if(RME_FETCH_ADD(&(Sig_Op->Sig_Num), 1U)>=RME_MAX_SIG_NUM)
+        if(RME_FETCH_ADD(&(Sig_Root->Sig_Num), 1U)>=RME_MAX_SIG_NUM)
         {
             RME_COVERAGE_MARKER();
 
-            RME_FETCH_ADD(&(Sig_Op->Sig_Num), -1);
+            RME_FETCH_ADD(&(Sig_Root->Sig_Num), -1);
             return RME_ERR_SIV_FULL;
         }
         else
@@ -5811,8 +5812,9 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
 {
     struct RME_Cap_Sig* Sig_Op;
     volatile struct RME_Cap_Sig* Sig_Root;
-    volatile struct RME_Thd_Struct* Thd_Struct;
     volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Struct* Thd_Cur;
+    volatile struct RME_Thd_Struct* Thd_New;
     rme_ptr_t Old_Value;
     rme_ptr_t Type_Stat;
     
@@ -5874,13 +5876,13 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
     }
     
     CPU_Local=RME_CPU_LOCAL();
-    Thd_Struct=CPU_Local->Thd_Cur;
+    Thd_Cur=CPU_Local->Thd_Cur;
     
     /* Are we trying to let a boot-time thread block on a signal? This is NOT allowed.
      * Additionally, if the current thread have no timeslice left (which shouldn't happen
      * under whatever circumstances), we assert and die */
-    RME_ASSERT(Thd_Struct->Sched.Slices!=0U);
-    if(Thd_Struct->Sched.Slices==RME_THD_INIT_TIME)
+    RME_ASSERT(Thd_Cur->Sched.Slices!=0U);
+    if(Thd_Cur->Sched.Slices==RME_THD_INIT_TIME)
     {
         RME_COVERAGE_MARKER();
 
@@ -5949,7 +5951,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
 
-            if(RME_COMP_SWAP((volatile rme_ptr_t*)&(Sig_Root->Thd), RME_NULL, (rme_ptr_t)Thd_Struct)==RME_CASFAIL)
+            if(RME_COMP_SWAP((volatile rme_ptr_t*)&(Sig_Root->Thd), RME_NULL, (rme_ptr_t)Thd_Cur)==RME_CASFAIL)
             {
                 RME_COVERAGE_MARKER();
 
@@ -5964,12 +5966,13 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
              * set here, because we do not yet know how many signals will be there when the thread
              * unblocks. The unblocking does not need an option so we don't keep that; we always
              * treat it as single receive when we unblock anyway. */
-            Thd_Struct->Sched.State=RME_THD_BLOCKED;
-            Thd_Struct->Sched.Signal=Sig_Root;
-            _RME_Run_Del(Thd_Struct);
-            CPU_Local->Thd_Cur=_RME_Run_High(CPU_Local);
-            _RME_Run_Swt(Reg,Thd_Struct, CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.State=RME_THD_RUNNING;
+            Thd_Cur->Sched.State=RME_THD_BLOCKED;
+            Thd_Cur->Sched.Signal=Sig_Root;
+            _RME_Run_Del(Thd_Cur);
+            Thd_New=_RME_Run_High(CPU_Local);
+            _RME_Run_Swt(Reg, Thd_Cur, Thd_New);
+            Thd_New->Sched.State=RME_THD_RUNNING;
+            CPU_Local->Thd_Cur=Thd_New;
         }
         else
         {

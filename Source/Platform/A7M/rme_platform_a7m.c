@@ -47,7 +47,7 @@ states that the
 
 /* Begin Function:main ********************************************************
 Description : The entry of the operating system. This function is for compatibility
-              with the toolchains.
+              with the existing toolchains.
 Input       : None.
 Output      : None.
 Return      : int - Dummy value, this function never returns.
@@ -55,7 +55,7 @@ Return      : int - Dummy value, this function never returns.
 int main(void)
 {
     /* The main function of the kernel - we will start our kernel boot here */
-    _RME_Kmain(RME_KSTK_VA_BASE+RME_KSTK_VA_SIZE-16U);
+    RME_Kmain();
     return 0;
 }
 /* End Function:main *********************************************************/
@@ -1492,7 +1492,7 @@ extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    /* volatile rme_ptr_t Size; */
+    volatile rme_ptr_t Size;
     
     Cur_Addr=RME_KMEM_VA_BASE;
     
@@ -1555,12 +1555,12 @@ rme_ptr_t __RME_Boot(void)
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0U, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
-    /* Print the size of some kernel objects, only used in debugging 
+    /* Print the size of some kernel objects, only used in debugging */
     Size=RME_CAPTBL_SIZE(1);
     Size=RME_PGTBL_SIZE_TOP(0)-sizeof(rme_ptr_t);
     Size=RME_PGTBL_SIZE_NOM(0)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    Size=RME_THD_SIZE; */
+    Size=RME_THD_SIZE;
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)

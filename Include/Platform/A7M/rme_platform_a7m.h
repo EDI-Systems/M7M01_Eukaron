@@ -811,7 +811,6 @@ __EXTERN__ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl,
                                              rme_ptr_t Param2);
 
 /* Initialization ************************************************************/
-EXTERN void _RME_Kmain(rme_ptr_t Stack);
 __EXTERN__ void __RME_A7M_Low_Level_Preinit(void);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);

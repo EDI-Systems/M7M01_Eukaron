@@ -97,7 +97,7 @@ while(0)
 #include "rme.h"
 
 /* Debugging */
-#define RME_KERNEL_DEBUG_MAX_STR                    (128U)
+#define RME_KERNEL_DEBUG_MAX_STR                    (256U)
 /* Printk macros */
 #define RME_PRINTK_I(INT)                           RME_Print_Int((INT))
 #define RME_PRINTK_U(UINT)                          RME_Print_Uint((UINT))
@@ -168,7 +168,7 @@ while(0)
 /* Number of slots, and size of each slot */
 #define RME_KOTBL_SLOT_NUM                          (RME_KMEM_VA_SIZE>>RME_KMEM_SLOT_ORDER)
 #define RME_KOTBL_SLOT_SIZE                         RME_POW2(RME_KMEM_SLOT_ORDER)
-#define RME_KOTBL_WORD_NUM                          (RME_KOTBL_SLOT_NUM>>RME_WORD_ORDER)
+#define RME_KOTBL_WORD_NUM                          (RME_ROUND_UP(RME_KOTBL_SLOT_NUM, RME_WORD_ORDER)>>RME_WORD_ORDER)
 /* Round the kernel object size to the entry slot size */
 #define RME_KOTBL_ROUND(X)                          RME_ROUND_UP(X,RME_KMEM_SLOT_ORDER)
 
