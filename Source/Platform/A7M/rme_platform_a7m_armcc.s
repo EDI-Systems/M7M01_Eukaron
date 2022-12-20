@@ -48,10 +48,12 @@ DUMMY_STACK
     EXPORT              __RME_A7M_MSB_Get
     ;Entering of the user mode
     EXPORT              __RME_Enter_User_Mode
+    ;Clear FPU register contents
+    EXPORT              ___RME_A7M_Thd_Cop_Clear
     ;The FPU register save routine
     EXPORT              ___RME_A7M_Thd_Cop_Save
     ;The FPU register restore routine
-    EXPORT              ___RME_A7M_Thd_Cop_Restore
+    EXPORT              ___RME_A7M_Thd_Cop_Load
     ;The MPU setup routine
     EXPORT              ___RME_A7M_MPU_Set
     ;A full barrier
@@ -902,17 +904,17 @@ IRQ238_Handler
 IRQ239_Handler
     PUSH                {LR}
     PUSH                {R4-R11}            ; Spill all the general purpose registers; empty descending
-    MRS                 R0,PSP
+    MRS                 R0, PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               ; Pass in the pt_regs parameter, and call the handler.
-    MRS                 R1,xPSR             ; Pass in the interrupt number
-    UBFX                R1,R1,#0,#9         ; Extract the interrupt number bitfield
-    SUB                 R1,#16              ; The IRQ0's starting number is 16. we subtract it here
+    MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
+    MRS                 R1, xPSR            ; Pass in the interrupt number
+    UBFX                R1, R1, #0, #9      ; Extract the interrupt number bitfield
+    SUB                 R1, #16             ; The IRQ0's starting number is 16. we subtract it here
     BL                  __RME_A7M_Vect_Handler
     
     POP                 {R0}
-    MSR                 PSP,R0
+    MSR                 PSP, R0
     POP                 {R4-R11}
     POP                 {PC}                ; Now we reset the PC.
     B                   .                   ; Capture faults
@@ -967,9 +969,9 @@ __RME_A7M_Reset
     ;Disable all interrupts
     CPSID               I
     ;ARMv7-M Standard system reset
-    LDR                 R0,=0xE000ED0C
-    LDR                 R1,=0x05FA0004
-    STR                 R1,[R0]
+    LDR                 R0, =0xE000ED0C
+    LDR                 R1, =0x05FA0004
+    STR                 R1, [R0]
     DSB                 SY
     ISB                 SY
     ;Deadloop
@@ -995,9 +997,9 @@ __RME_A7M_Wait_Int
 ;Return      : ptr_t - The MSB position.
 ;*****************************************************************************/
 __RME_A7M_MSB_Get
-    CLZ                 R1,R0
-    MOV                 R0,#31
-    SUB                 R0,R1
+    CLZ                 R1, R0
+    MOV                 R0, #31
+    SUB                 R0, R1
     BX                  LR
 ;/* End Function:__RME_A7M_MSB_Get *******************************************/
 
@@ -1012,11 +1014,11 @@ __RME_A7M_MSB_Get
 ;Return      : None.
 ;*****************************************************************************/
 __RME_Enter_User_Mode
-    MSR                 PSP,R1              ; Set the stack pointer
-    MOV                 R4,#0x03            ; Unprevileged thread mode
-    MSR                 CONTROL,R4
-    MOV                 R1,R0               ; Save the entry to R1
-    MOV                 R0,R2               ; Save CPUID(always 0) to R0
+    MSR                 PSP, R1             ; Set the stack pointer
+    MOV                 R4, #0x03           ; Unprevileged thread mode
+    MSR                 CONTROL, R4
+    MOV                 R1, R0              ; Save the entry to R1
+    MOV                 R0, R2              ; Save CPUID(always 0) to R0
     BLX                 R1                  ; Branch to our target
     B                   .                   ; Capture faults
 ;/* End Function:__RME_Enter_User_Mode ***************************************/
@@ -1030,15 +1032,15 @@ __RME_Enter_User_Mode
 ;*****************************************************************************/
 SysTick_Handler
     PUSH                {LR}
-    PUSH                {R4-R11}            ; Spill all the general purpose registers; empty descending
-    MRS                 R0,PSP
+    PUSH                {R4-R11}           ; Spill all the general purpose registers; empty descending
+    MRS                 R0, PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               ; Pass in the pt_regs parameter, and call the handler.
+    MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
     BL                  _RME_Tick_Handler
     
     POP                 {R0}
-    MSR                 PSP,R0
+    MSR                 PSP, R0
     POP                 {R4-R11}
     POP                 {PC}                ; Now we reset the PC.
     B                   .                   ; Capture faults
@@ -1054,14 +1056,14 @@ SysTick_Handler
 SVC_Handler
     PUSH                {LR}
     PUSH                {R4-R11}            ; Spill all the general purpose registers; empty descending
-    MRS                 R0,PSP
+    MRS                 R0, PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               ; Pass in the pt_regs parameter, and call the handler.
+    MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
     BL                  _RME_Svc_Handler
     
     POP                 {R0}
-    MSR                 PSP,R0
+    MSR                 PSP, R0
     POP                 {R4-R11}
     POP                 {PC}                ; Now we reset the PC.
     B                   .                   ; Capture faults
@@ -1090,18 +1092,40 @@ BusFault_Handler
 UsageFault_Handler
     PUSH                {LR}
     PUSH                {R4-R11}            ; Spill all the general purpose registers; empty descending
-    MRS                 R0,PSP
+    MRS                 R0, PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               ; Pass in the pt_regs parameter, and call the handler.
+    MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
     BL                  __RME_A7M_Fault_Handler
     
     POP                 {R0}
-    MSR                 PSP,R0
+    MSR                 PSP, R0
     POP                 {R4-R11}
     POP                 {PC}                ; Now we reset the PC.
     B                   .                   ; Capture faults
 ;/* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********/
+
+;/* Begin Function:___RME_A7M_Thd_Cop_Clear ***********************************
+;Description : Clean up the coprocessor state so that the FP information is not
+;              leaked when switching from a fpu-enabled thread to a fpu-disabled
+;              thread.             
+;Input       : None.
+;Output      : None.
+;Return      : None.
+;*****************************************************************************/
+___RME_A7M_Thd_Cop_Clear                
+    ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
+    ;this will not be called when FPU not enabled.
+    LDR                 R0, =COP_CLEAR
+    DCI                 0xECB0              ; VLDMIA    R0!,{S0-S31}
+    DCI                 0x0A20              ; Clear all the FPU registers
+    MOV                 R0, #0              ; Clear FPSCR as well
+    VMSR                FPSCR, R0
+    BX                  LR
+    B                   .
+COP_CLEAR
+    SPACE               32*4
+;/* End Function:___RME_A7M_Thd_Cop_Clear ************************************/
 
 ;/* Begin Function:___RME_A7M_Thd_Cop_Save ************************************
 ;Description : Save the coprocessor context on switch.         
@@ -1114,24 +1138,30 @@ ___RME_A7M_Thd_Cop_Save
     ;this will not be called when FPU not enabled.
     DCI                 0xED20              ; VSTMDB    R0!,{S16-S31}
     DCI                 0x8A10              ; Save all the FPU registers
+;   LDR                 R1,=0xE000EF38      ; Save FPCAR @ 0xE000EF38
+;   LDR                 R1,[R1]
+;   STR                 R1,[R0]
     BX                  LR
     B                   .
 ;/* End Function:___RME_A7M_Thd_Cop_Save *************************************/
 
-;/* Begin Function:___RME_A7M_Thd_Cop_Restore *********************************
+;/* Begin Function:___RME_A7M_Thd_Cop_Load ************************************
 ;Description : Restore the coprocessor context on switch.             
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-___RME_A7M_Thd_Cop_Restore                
+___RME_A7M_Thd_Cop_Load                
     ;Use DCI to avoid compilation errors when FPU not enabled. Anyway,
     ;this will not be called when FPU not enabled.
     DCI                 0xECB0              ; VLDMIA    R0!,{S16-S31}
     DCI                 0x8A10              ; Restore all the FPU registers
+;   LDR                 R1,=0xE000EF38      ; Restore FPCAR @ 0xE000EF38
+;   LDR                 R0,[R0]
+;   STR                 R0,[R1]
     BX                  LR
     B                   .
-;/* End Function:___RME_A7M_Thd_Cop_Restore **********************************/
+;/* End Function:___RME_A7M_Thd_Cop_Load *************************************/
 
 ;/* Begin Function:___RME_A7M_MPU_Set *****************************************
 ;Description : Set the MPU context. We write 8 registers at a time to increase efficiency.            

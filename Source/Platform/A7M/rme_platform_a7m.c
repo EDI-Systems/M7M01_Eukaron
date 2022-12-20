@@ -133,11 +133,13 @@ Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
+#if(RME_DEBUG_PRINT==1U)
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_A7M_PUTCHAR(Char);
     return 0U;
 }
+#endif
 /* End Function:__RME_Putchar ************************************************/
 
 /* Begin Function:__RME_CPUID_Get *********************************************
@@ -161,33 +163,37 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
 {
-    rme_ptr_t Cur_HFSR;
-    rme_ptr_t Cur_CFSR;
-    rme_ptr_t Cur_MMFAR;
+    rme_ptr_t HFSR_Reg;
+    rme_ptr_t CFSR_Reg;
+    rme_ptr_t MMFAR_Reg;
     rme_ptr_t Flags;
     rme_ptr_t* Stack;
     volatile struct RME_Cap_Proc* Proc;
     volatile struct RME_Inv_Struct* Inv_Top;
+    volatile struct RME_Thd_Struct* Thd_Cur;
+    volatile struct RME_Err_Struct* Err;
     volatile struct __RME_A7M_Pgtbl_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0U);
     
     /* Get the address of this faulty address, and what caused this fault */
-    Cur_HFSR=RME_A7M_SCB_HFSR;
-    Cur_CFSR=RME_A7M_SCB_CFSR;
-    Cur_MMFAR=RME_A7M_SCB_MMFAR;
+    Thd_Cur=RME_A7M_Local.Thd_Cur;
+    Err=&Thd_Cur->Reg_Cur->Err;
+    HFSR_Reg=RME_A7M_SCB_HFSR;
+    CFSR_Reg=RME_A7M_SCB_CFSR;
+    MMFAR_Reg=RME_A7M_SCB_MMFAR;
     
     /* Are we activating the NMI? If yes, we directly soft lockup */
     RME_ASSERT((RME_A7M_SCB_ICSR&RME_A7M_ICSR_NMIPENDSET)==0U);
     /* If this is a hardfault, make sure that it is not the vector table problem, or we lockup */
-    RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_VECTTBL)==0U);
+    RME_ASSERT((HFSR_Reg&RME_A7M_HFSR_VECTTBL)==0U);
     /* Is this a escalated hard fault? If yes, and this is not a trivial debug fault, we lockup */
-    if((Cur_HFSR&RME_A7M_HFSR_FORCED)!=0U)
-        RME_ASSERT((Cur_HFSR&RME_A7M_HFSR_DEBUGEVT)!=0U);
+    if((HFSR_Reg&RME_A7M_HFSR_FORCED)!=0U)
+        RME_ASSERT((HFSR_Reg&RME_A7M_HFSR_DEBUGEVT)!=0U);
     
-    /* We cannot recover from the following: */
-    if((Cur_CFSR&
+    /* We cannot recover from the following errors, have to kill the thread */
+    if((CFSR_Reg&
         (RME_A7M_UFSR_DIVBYZERO|        /* Division by zero errors */
          RME_A7M_UFSR_UNALIGNED|        /* Unaligned access errors */
          RME_A7M_UFSR_NOCP|             /* Unpresenting coprocessor errors */
@@ -197,56 +203,72 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
          RME_A7M_BFSR_UNSTKERR|         /* Bus unstacking errors */ 
          RME_A7M_BFSR_PRECISERR|        /* Precise bus data errors */
          RME_A7M_BFSR_IBUSERR|          /* Bus instruction errors */
-         RME_A7M_MFSR_MUNSTKERR))!=0U)   /* MPU unstacking errors */
+         RME_A7M_MFSR_MUNSTKERR))!=0U)  /* MPU unstacking errors */
     {
-        
-        __RME_Thd_Fatal(Reg, Cur_CFSR);
+        Err->Cause=CFSR_Reg;
+        __RME_Thd_Fatal(Reg);
     }
     /* Attempt recovery from memory management fault by MPU region swapping */
-    else if((Cur_CFSR&RME_A7M_MFSR_MMARVALID)!=0U)
+    else if((CFSR_Reg&RME_A7M_MFSR_MMARVALID)!=0U)
     {
         /* This must be a data violation. This is the only case where MMAR will be loaded */
-        RME_ASSERT((Cur_CFSR&RME_A7M_MFSR_DACCVIOL)!=0U);
+        RME_ASSERT((CFSR_Reg&RME_A7M_MFSR_DACCVIOL)!=0U);
         /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
          * can be found in our current page table, and if it is there, we only care about the flags */
-        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Thd_Cur);
+        Inv_Top=RME_INVSTK_TOP(Thd_Cur);
         if(Inv_Top==RME_NULL)
-            Proc=(RME_A7M_Local.Thd_Cur)->Sched.Proc;
+            Proc=Thd_Cur->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, Cur_MMFAR, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
-            __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
+        if(__RME_Pgtbl_Walk(Proc->Pgtbl, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+        {
+            Err->Cause=RME_A7M_MFSR_DACCVIOL;
+            Err->Addr=MMFAR_Reg;
+            __RME_Thd_Fatal(Reg);
+        }
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
             RME_ASSERT((Flags&RME_PGTBL_STATIC)==0U);
             /* Try to update the dynamic page */
             if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
-                __RME_Thd_Fatal(Reg, RME_A7M_MFSR_DACCVIOL);
+            {
+                Err->Cause=RME_A7M_MFSR_DACCVIOL;
+                Err->Addr=MMFAR_Reg;
+                __RME_Thd_Fatal(Reg);
+            }
         }
     }
     /* This is an instruction access violation. We need to know where that instruction is.
      * This requires access of an user-level page, due to the fact that the fault address
      * is stored on the fault stack. */ 
-    else if((Cur_CFSR&RME_A7M_MFSR_IACCVIOL)!=0U)
+    else if((CFSR_Reg&RME_A7M_MFSR_IACCVIOL)!=0U)
     {
-        Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Thd_Cur);
+        Inv_Top=RME_INVSTK_TOP(Thd_Cur);
         if(Inv_Top==0U)
-            Proc=(RME_A7M_Local.Thd_Cur)->Sched.Proc;
+            Proc=Thd_Cur->Sched.Proc;
         else
             Proc=Inv_Top->Proc;
         
         Stack=(rme_ptr_t*)(Reg->SP);
         
-        /* Stack[6] is where the PC is before the fault */
+        /* Stack[6] is where the PC is before the fault. Make sure that this stack location is indeed accessible */
         if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
-            __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
+        {
+            Err->Cause=RME_A7M_MFSR_DACCVIOL;
+            Err->Addr=(rme_ptr_t)(&Stack[6U]);
+            __RME_Thd_Fatal(Reg);
+        }
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
             if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
-                __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
+            {
+                Err->Cause=RME_A7M_MFSR_IACCVIOL;
+                Err->Addr=Stack[6U];
+                __RME_Thd_Fatal(Reg);
+            }
             else
             {
                 /* This must be a dynamic page */
@@ -254,12 +276,20 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
                 
                 /* This page does not allow execution */
                 if((Flags&RME_PGTBL_EXECUTE)==0U)
-                    __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
+                {
+                    Err->Cause=RME_A7M_MFSR_IACCVIOL;
+                    Err->Addr=Stack[6U];
+                    __RME_Thd_Fatal(Reg);
+                }
                 else
                 {
                     /* Try to update the dynamic page */
                     if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
-                        __RME_Thd_Fatal(Reg, RME_A7M_MFSR_IACCVIOL);
+                    {
+                        Err->Cause=RME_A7M_MFSR_IACCVIOL;
+                        Err->Addr=Stack[6U];
+                        __RME_Thd_Fatal(Reg);
+                    }
                 }
             }
         }
@@ -284,6 +314,9 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
         /* RME_A7M_MFSR_MLSPERR - MPU FP lazy stacking errors */
         /* RME_A7M_MFSR_MSTKERR - MPU stacking errors */
     }
+    
+    /* Cortex-M FPU errors are configured as an interrupt (not an synchronous exception). We leave it alone
+     * and wait for it to develop into a larger error. */
     
     /* Clear all bits in these status registers - they are sticky */
     RME_A7M_SCB_HFSR=RME_ALLBITS>>1;
@@ -1076,7 +1109,7 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
     volatile struct RME_CPU_Local* CPU_Local;
-    volatile struct RME_Thd_Regs* Reg_Cur;
+    volatile struct RME_Thd_Reg* Reg_Cur;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -1216,6 +1249,48 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
 }
 /* End Function:__RME_A7M_Debug_Inv_Mod **************************************/
 
+/* Begin Function:__RME_A7M_Debug_Err_Get *************************************
+Description : Debug error register extraction implementation for ARMv7-M.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              volatile struct RME_Reg_Struct* Reg - The current register set.
+              rme_cid_t Cap_Thd - The capability to the thread to consult.
+              rme_ptr_t Operation - The operation, e.g. which register to read.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : rme_ret_t - If successful, 0; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Debug_Err_Get(struct RME_Cap_Captbl* Captbl,
+                                  volatile struct RME_Reg_Struct* Reg, 
+                                  rme_cid_t Cap_Thd,
+                                  rme_ptr_t Operation)
+{
+    struct RME_Cap_Thd* Thd_Op;
+    struct RME_Thd_Struct* Thd_Struct;
+    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Reg* Reg_Cur;
+    rme_ptr_t Type_Stat;
+    
+    /* Get the capability slot */
+    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    
+    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    CPU_Local=RME_CPU_LOCAL();
+    Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
+    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+        return RME_ERR_PTH_INVSTATE;
+    Reg_Cur=Thd_Struct->Reg_Cur;
+    
+    switch(Operation)
+    {
+        /* Register read */
+        case RME_A7M_KERN_DEBUG_ERR_GET_CAUSE:      {Reg->R6=Reg_Cur->Err.Cause;break;}
+        case RME_A7M_KERN_DEBUG_ERR_GET_ADDR:       {Reg->R6=Reg_Cur->Err.Addr;break;}
+        default:                                    {return RME_ERR_KERN_OPFAIL;}
+    }
+
+    return 0U;
+}
+/* End Function:__RME_A7M_Debug_Err_Get **************************************/
+
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
@@ -1297,9 +1372,12 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl,
         case RME_KERN_ECLV_ACT:         {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_ECLV_RET:         {return RME_ERR_KERN_OPFAIL;}
 /* Debugging operations ******************************************************/
+#if(RME_DEBUG_PRINT==1U)
         case RME_KERN_DEBUG_PRINT:      {__RME_Putchar((rme_s8_t)Sub_ID);Retval=0;break;}
+#endif
         case RME_KERN_DEBUG_REG_MOD:    {Retval=__RME_A7M_Debug_Reg_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
         case RME_KERN_DEBUG_INV_MOD:    {Retval=__RME_A7M_Debug_Inv_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_DEBUG_ERR_GET:    {Retval=__RME_A7M_Debug_Err_Get(Captbl, Reg, (rme_cid_t)Sub_ID, Param1);break;} /* Value in R6 */
         case RME_KERN_DEBUG_MODE_MOD:   {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_DEBUG_IBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
         case RME_KERN_DEBUG_DBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
@@ -1468,9 +1546,10 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* We do not need to turn off lazy stacking, because even if a fault occurs,
      * it will get dropped by our handler deliberately and will not cause wrong
      * attribution. They can be alternatively disabled as well if you wish */
-     
+#if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
     /* Turn on FPU access from unpriviledged software - CP10&11 full access */
     RME_A7M_SCB_CPACR|=((3U<<(10U*2U))|(3U<<(11U*2U)));
+#endif
 		 
 #if(RME_RVM_GEN_ENABLE==1U)
     RME_Boot_Post_Init();
@@ -1492,37 +1571,37 @@ extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    volatile rme_ptr_t Size;
+    /* volatile rme_ptr_t Size; */
     
     Cur_Addr=RME_KMEM_VA_BASE;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0U);
+    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_BOOT_CAPTBL_SIZE));
     
 #if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0U);
+               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0);
 #else
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8U)==0U);
+               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8U)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_8));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x20000000U, 1U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x40000000U, 2U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x60000000U, 3U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x80000000U, 4U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000U, 5U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000U, 6U, RME_PGTBL_ALL_PERM)==0U);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000U, 7U, RME_PGTBL_ALL_PERM)==0U);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x20000000U, 1U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x40000000U, 2U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x60000000U, 3U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x80000000U, 4U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000U, 5U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000U, 6U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000U, 7U, RME_PGTBL_ALL_PERM)==0);
 #endif
 
     /* Activate the first process - This process cannot be deleted */
@@ -1530,7 +1609,7 @@ rme_ptr_t __RME_Boot(void)
                                   RME_BOOT_CAPTBL, RME_BOOT_PGTBL)==0U);
     
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0U);
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
     RME_ASSERT(_RME_Kmem_Boot_Crt(RME_A7M_CPT, 
                                   RME_BOOT_CAPTBL, 
                                   RME_BOOT_INIT_KMEM,
@@ -1540,11 +1619,11 @@ rme_ptr_t __RME_Boot(void)
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0U);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
     RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0U);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0);
     
     /* Clean up the region for vectors and events */
     _RME_Clear((void*)RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE);
@@ -1555,12 +1634,12 @@ rme_ptr_t __RME_Boot(void)
                                  RME_BOOT_INIT_PROC, Cur_Addr, 0U, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
-    /* Print the size of some kernel objects, only used in debugging */
-    Size=RME_CAPTBL_SIZE(1);
-    Size=RME_PGTBL_SIZE_TOP(0)-sizeof(rme_ptr_t);
-    Size=RME_PGTBL_SIZE_NOM(0)-sizeof(rme_ptr_t);
+    /* Print the size of some kernel objects, only used in debugging
+    Size=RME_CAPTBL_SIZE(1U);
+    Size=RME_PGTBL_SIZE_TOP(0U)-sizeof(rme_ptr_t);
+    Size=RME_PGTBL_SIZE_NOM(0U)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    Size=RME_THD_SIZE;
+    Size=RME_THD_SIZE; */
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
@@ -1691,66 +1770,82 @@ void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
 Description : Initialize the coprocessor register set for the thread.
 Input       : volatile struct RME_Reg_Struct* Reg - The register struct to help
                                                     initialize the coprocessor.
-Output      : volatile struct RME_Reg_Cop_Struct* Cop_Reg - The register set content
+Output      : volatile struct RME_Reg_Cop_Struct* Cop - The register set content
                                                             generated.
 Return      : None.
 ******************************************************************************/
 void __RME_Thd_Cop_Init(volatile struct RME_Reg_Struct* Reg,
-                        volatile struct RME_Cop_Struct* Cop_Reg)
+                        volatile struct RME_Cop_Struct* Cop)
 {
-    /* Empty function, return immediately. The FPU contents is not predictable */
+    Cop->S16=0U;
+    Cop->S17=0U;
+    Cop->S18=0U;
+    Cop->S19=0U;
+    Cop->S20=0U;
+    Cop->S21=0U;
+    Cop->S22=0U;
+    Cop->S23=0U;
+    Cop->S24=0U;
+    Cop->S25=0U;
+    Cop->S26=0U;
+    Cop->S27=0U;
+    Cop->S28=0U;
+    Cop->S29=0U;
+    Cop->S30=0U;
+    Cop->S31=0U;
 }
 /* End Function:__RME_Thd_Cop_Reg_Init ***************************************/
 
-/* Begin Function:__RME_Thd_Cop_Save ******************************************
-Description : Save the co-op register sets. This operation is flexible - If the
-              program does not use the FPU, we do not save its context.
-Input       : volatile struct RME_Reg_Struct* Reg - The context, used to decide whether
-                                                    to save the context of the coprocessor.
-Output      : volatile struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor contents.
+/* Begin Function:__RME_Thd_Cop_Swap ******************************************
+Description : Swap the co-op register sets. This operation is flexible - If the
+              program does not use the FPU, we do not save/restore its context.
+Input       : volatile struct RME_Reg_Struct* Reg_New - The context to switch to.
+              volatile struct RME_Reg_Struct* Reg_Cur - The context to switch from.
+Output      : volatile struct RME_Cop_Struct* Cop_New - The coprocessor context
+                                                        to switch to.
+              volatile struct RME_Cop_Struct* Cop_Cur - The coprocessor context
+                                                        to switch from.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Cop_Save(volatile struct RME_Reg_Struct* Reg,
-                        volatile struct RME_Cop_Struct* Cop_Reg)
+void __RME_Thd_Cop_Swap(volatile struct RME_Reg_Struct* Reg_New,
+                        volatile struct RME_Cop_Struct* Cop_New,
+                        volatile struct RME_Reg_Struct* Reg_Cur,
+                        volatile struct RME_Cop_Struct* Cop_Cur)
 {
-    /* If we do not have a FPU, return 0 directly */
-#ifdef RME_A7M_FPU_TYPE
+    /* If we do not have a FPU, return directly */
 #if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
-    /* If this is a standard frame which does not contain FPU usage&context */
-    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
-        return;
-    /* Not. We save the context of FPU */
-    ___RME_A7M_Thd_Cop_Save(Cop_Reg);
-#endif
+    if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
+    {
+        /* If both are not using the FPU, then no need to care about FPU context */
+        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
+        {
+            /* Do nothing */
+        }
+        /* Current thread uses the FPU, but the new thread does not. Save FPU context
+         * to the current thread, and clean up the FPU registers so there is no leak */
+        else
+        {
+            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
+            ___RME_A7M_Thd_Cop_Clear();
+        }
+    }
+    else
+    {
+        /* The current thread is not using the FPU, but the new thread is */
+        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
+        {
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
+        }
+        /* Both ones are using the FPU */
+        else
+        {
+            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
+        }
+    }
 #endif
 }
-/* End Function:__RME_Thd_Cop_Save *******************************************/
-
-/* Begin Function:__RME_Thd_Cop_Restore ***************************************
-Description : Restore the co-op register sets. This operation is flexible - If the
-              FPU is not used, we do not restore its context.
-Input       : volatile struct RME_Reg_Struct* Reg - The context, used to decide 
-                                                    whether to save the context
-                                                    of the coprocessor.
-Output      : volatile struct RME_Cop_Struct* Cop_Reg - The pointer to the coprocessor
-                                                        contents.
-Return      : None.
-******************************************************************************/
-void __RME_Thd_Cop_Restore(volatile struct RME_Reg_Struct* Reg, 
-                           volatile struct RME_Cop_Struct* Cop_Reg)
-{    
-/* If we do not have a FPU, return 0 directly */
-#ifdef RME_A7M_FPU_TYPE
-#if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
-    /* If this is a standard frame which does not contain FPU usage&context */
-    if(((Reg->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
-        return;
-    /* Not. We restore the context of FPU */
-    ___RME_A7M_Thd_Cop_Restore(Cop_Reg);
-#endif
-#endif
-}
-/* End Function:__RME_Thd_Cop_Restore ****************************************/
+/* End Function:__RME_Thd_Cop_Swap *******************************************/
 
 /* Begin Function:__RME_Inv_Reg_Save ******************************************
 Description : Save the necessary registers on invocation for returning. Only the
@@ -1947,7 +2042,8 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(volatile rme_ptr_t* Table,
     rme_ptr_t Flag;
     
     /* Get the SRD part first */
-    RASR=0;
+    RASR=0U;
+    Flag=0U;
     
     switch(Num_Order)
     {

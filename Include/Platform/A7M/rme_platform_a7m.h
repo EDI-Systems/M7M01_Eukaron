@@ -561,6 +561,9 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_KERN_DEBUG_INV_MOD_SP_SET           (1U)
 #define RME_A7M_KERN_DEBUG_INV_MOD_LR_GET           (2U)
 #define RME_A7M_KERN_DEBUG_INV_MOD_LR_SET           (3U)
+/* Error register read */
+#define RME_A7M_KERN_DEBUG_ERR_GET_CAUSE            (0U)
+#define RME_A7M_KERN_DEBUG_ERR_GET_ADDR             (1U)
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_DEFS__ */
 #endif
@@ -624,6 +627,12 @@ struct RME_Cop_Struct
     rme_ptr_t S29;
     rme_ptr_t S30;
     rme_ptr_t S31;
+};
+
+struct RME_Err_Struct
+{
+    rme_ptr_t Cause;
+    rme_ptr_t Addr;
 };
 
 /* Invocation register set structure */
@@ -756,6 +765,10 @@ static rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
                                          rme_cid_t Cap_Thd,
                                          rme_ptr_t Operation,
                                          rme_ptr_t Value);
+static rme_ret_t __RME_A7M_Debug_Err_Get(struct RME_Cap_Captbl* Captbl,
+                                         volatile struct RME_Reg_Struct* Reg, 
+                                         rme_cid_t Cap_Thd,
+                                         rme_ptr_t Operation);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -791,8 +804,10 @@ __EXTERN__ rme_ptr_t __RME_A7M_Fetch_Add(volatile rme_ptr_t* Ptr,
                                          rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_A7M_Fetch_And(volatile rme_ptr_t* Ptr,
                                          rme_ptr_t Operand);
+#if(RME_DEBUG_PRINT==1U)
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
+#endif
 /* Getting CPUID */
 __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 
@@ -825,8 +840,9 @@ EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr,
 
 /* Register Manipulation *****************************************************/
 /* Coprocessor */
-EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_Cop_Struct* Cop_Reg);
-EXTERN void ___RME_A7M_Thd_Cop_Restore(volatile struct RME_Cop_Struct* Cop_Reg);
+EXTERN void ___RME_A7M_Thd_Cop_Clear(void);
+EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_Cop_Struct* Cop);
+EXTERN void ___RME_A7M_Thd_Cop_Load(volatile struct RME_Cop_Struct* Cop);
 /* Syscall parameter */
 __EXTERN__ void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Svc,
@@ -842,11 +858,11 @@ __EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry,
 __EXTERN__ void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
                                    volatile struct RME_Reg_Struct* Src);
 __EXTERN__ void __RME_Thd_Cop_Init(volatile struct RME_Reg_Struct* Reg,
-                                   volatile struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ void __RME_Thd_Cop_Save(volatile struct RME_Reg_Struct* Reg,
-                                   volatile struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ void __RME_Thd_Cop_Restore(volatile struct RME_Reg_Struct* Reg,
-                                      volatile struct RME_Cop_Struct* Cop_Reg);
+                                   volatile struct RME_Cop_Struct* Cop);
+__EXTERN__ void __RME_Thd_Cop_Swap(volatile struct RME_Reg_Struct* Reg_New,
+                                   volatile struct RME_Cop_Struct* Cop_New,
+                                   volatile struct RME_Reg_Struct* Reg_Cur,
+                                   volatile struct RME_Cop_Struct* Cop_Cur);
 /* Invocation register sets */
 __EXTERN__ void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
                                    volatile struct RME_Reg_Struct* Reg);

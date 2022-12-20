@@ -360,15 +360,20 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
                                  Param[2]);                                 /* rme_ptr_t Param2 */
             RME_SWITCH_RETURN(Reg, Retval);
         }
-        /* Changing thread priority */
+        /* Changing thread priority (up to three threads at once) */
         case RME_SVC_THD_SCHED_PRIO:
         {
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Thd_Sched_Prio(Captbl,
                                        Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
-                                       (rme_cid_t)Param[0],                 /* rme_cid_t Cap_Thd */
-                                       Param[1]);                           /* rme_ptr_t Prio */
+                                       Capid,                               /* rme_ptr_t Number */
+                                       (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Thd0 */
+                                       RME_PARAM_D1(Param[0]),              /* rme_ptr_t Prio0 */
+                                       (rme_cid_t)RME_PARAM_D0(Param[1]),   /* rme_cid_t Cap_Thd1 */
+                                       RME_PARAM_D1(Param[1]),              /* rme_ptr_t Prio1 */
+                                       (rme_cid_t)RME_PARAM_D0(Param[2]),   /* rme_cid_t Cap_Thd2 */
+                                       RME_PARAM_D1(Param[2]));             /* rme_ptr_t Prio2 */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Free a thread from some core */
@@ -611,10 +616,14 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         case RME_SVC_THD_HYP_SET:
         {
             RME_COVERAGE_MARKER();
-            
+            /* This in theory may switch the context of itself, and in that case, we're assuming
+             * that the return value register (of itself) will always be rewritten. This is mostly
+             * used by hypervisors, so this is not an issue. */
             Retval=_RME_Thd_Hyp_Set(Captbl,
-                                    (rme_cid_t)Param[0],                    /* rme_cid_t Cap_Thd */
-                                    Param[1]);                              /* rme_ptr_t Kaddr */
+                                    (rme_cid_t)Capid,                       /* rme_cid_t Cap_Thd */
+                                    Param[0],                               /* rme_ptr_t Kaddr */
+                                    Param[1],                               /* rme_ptr_t Entry */
+                                    Param[2]);                              /* rme_ptr_t Stack */
             break;
         }
         case RME_SVC_THD_SCHED_BIND:
@@ -735,14 +744,14 @@ void _RME_Tick_SMP_Handler(volatile struct RME_Reg_Struct* Reg)
     
     CPU_Local=RME_CPU_LOCAL();
     Thd_Cur=CPU_Local->Thd_Cur;
-    if(Thd_Cur->Sched.Slices<RME_THD_INF_TIME)
+    if(Thd_Cur->Sched.Slice<RME_THD_INF_TIME)
     {
         RME_COVERAGE_MARKER();
         
         /* Decrease timeslice count */
-        Thd_Cur->Sched.Slices--;
+        Thd_Cur->Sched.Slice--;
         /* See if the current thread's timeslice is used up */
-        if(Thd_Cur->Sched.Slices==0U)
+        if(Thd_Cur->Sched.Slice==0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -863,14 +872,15 @@ void _RME_Memcpy(volatile void* Dst,
 }
 /* End Function:_RME_Memcpy **************************************************/
 
-/* Begin Function:RME_Print_Int ***********************************************
+/* Begin Function:RME_Int_Print ***********************************************
 Description : Print a signed integer on the debugging console. This integer is
               printed as decimal with sign.
 Input       : rme_cnt_t Int - The integer to print.
 Output      : None.
 Return      : rme_cnt_t - The length of the string printed.
 ******************************************************************************/
-rme_cnt_t RME_Print_Int(rme_cnt_t Int)
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Int_Print(rme_cnt_t Int)
 {
     rme_cnt_t Iter;
     rme_cnt_t Count;
@@ -943,16 +953,18 @@ rme_cnt_t RME_Print_Int(rme_cnt_t Int)
     
     return Num;
 }
-/* End Function:RME_Print_Int ************************************************/
+#endif
+/* End Function:RME_Int_Print ************************************************/
 
-/* Begin Function:RME_Print_Uint **********************************************
+/* Begin Function:RME_Hex_Print ***********************************************
 Description : Print a unsigned integer on the debugging console. This integer is
               printed as hexadecimal.
 Input       : rme_ptr_t Uint - The unsigned integer to print.
 Output      : None.
 Return      : rme_cnt_t - The length of the string printed.
 ******************************************************************************/
-rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
 {
     rme_ptr_t Iter;
     rme_ptr_t Count;
@@ -995,21 +1007,23 @@ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
     
     return (rme_cnt_t)Num;
 }
-/* End Function:RME_Print_Uint ***********************************************/
+#endif
+/* End Function:RME_Hex_Print ************************************************/
 
-/* Begin Function:RME_Print_String ********************************************
+/* Begin Function:RME_Str_Print ***********************************************
 Description : Print a string the kernel console.
               This is only used for kernel-level debugging.
 Input       : rme_s8_t* String - The string to print
 Output      : None.
 Return      : rme_cnt_t - The length of the string printed, the '\0' is not included.
 ******************************************************************************/
-rme_cnt_t RME_Print_String(rme_s8_t* String)
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Str_Print(rme_s8_t* String)
 {
     rme_ptr_t Count;
     
     Count=0;
-    while(Count<RME_KERNEL_DEBUG_MAX_STR)
+    while(Count<RME_DEBUG_PRINT_MAX)
     {
         if(String[Count]=='\0')
         {
@@ -1027,7 +1041,8 @@ rme_cnt_t RME_Print_String(rme_s8_t* String)
     
     return (rme_cnt_t)Count;
 }
-/* End Function:RME_Print_String *********************************************/
+#endif
+/* End Function:RME_Str_Print ************************************************/
 
 /* Begin Function:_RME_Captbl_Boot_Init ***************************************
 Description : Create the first boot-time capability table. This will be the first
@@ -3372,14 +3387,13 @@ Description : The fatal fault handler of RME. This handler will be called by the
               that all these exceptions be dropped rather than handled; or there will be
               integrity and availability compromises.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_ptr_t Fault - The reason of this fault.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg,
-                          rme_ptr_t Fault)
+rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg)
 {
     volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Struct* Thd_Cur;
     
     /* Attempt to return from the invocation, from fault */
     if(_RME_Inv_Ret(Reg, 0U, 1U)!=0U)
@@ -3388,23 +3402,23 @@ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg,
 
         /* Return failure, we are not in an invocation. Killing the thread now */
         CPU_Local=RME_CPU_LOCAL();
+        Thd_Cur=CPU_Local->Thd_Cur;
         
         /* Are we attempting to kill the init threads? If yes, panic */
-        RME_ASSERT((CPU_Local->Thd_Cur)->Sched.Slices!=RME_THD_INIT_TIME);
+        RME_ASSERT(Thd_Cur->Sched.Slice!=RME_THD_INIT_TIME);
         
         /* Deprive it of all its timeslices */
-        (CPU_Local->Thd_Cur)->Sched.Slices=0U;
+        Thd_Cur->Sched.Slice=0U;
         
         /* Set the fault flag and reason of the fault */
-        (CPU_Local->Thd_Cur)->Sched.State=RME_THD_FAULT;
-        (CPU_Local->Thd_Cur)->Sched.Fault=Fault;
-        _RME_Run_Del(CPU_Local->Thd_Cur);
+        Thd_Cur->Sched.State=RME_THD_FAULT;
+        _RME_Run_Del(Thd_Cur);
         
         /* Send a scheduler notification to its parent */
-        _RME_Run_Notif(CPU_Local->Thd_Cur);
+        _RME_Run_Notif(Thd_Cur);
         
         /* All kernel send complete, now pick the highest priority thread to run */
-        _RME_Kern_High(Reg,CPU_Local);
+        _RME_Kern_High(Reg, CPU_Local);
     }
     else
     {
@@ -3566,66 +3580,70 @@ rme_ret_t _RME_Run_Notif(volatile struct RME_Thd_Struct* Thd)
 /* Begin Function:_RME_Run_Swt ************************************************
 Description : Switch the register set and page table to another thread. 
 Input       : struct RME_Reg_Struct* Reg - The register set.
-              struct RME_Thd_Struct* Curr_Thd - The current thread.
-              struct RME_Thd_Struct* Next_Thd - The next thread.
+              struct RME_Thd_Struct* Thd_Cur - The current thread.
+              struct RME_Thd_Struct* Thd_New - The next thread.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
 rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
-                       volatile struct RME_Thd_Struct* Curr_Thd, 
-                       volatile struct RME_Thd_Struct* Next_Thd)
+                       volatile struct RME_Thd_Struct* Thd_Cur, 
+                       volatile struct RME_Thd_Struct* Thd_New)
 {
-    volatile struct RME_Inv_Struct* Curr_Inv_Top;
-    volatile struct RME_Cap_Pgtbl* Curr_Pgtbl;
-    volatile struct RME_Inv_Struct* Next_Inv_Top;
-    volatile struct RME_Cap_Pgtbl* Next_Pgtbl;
+    volatile struct RME_Inv_Struct* Inv_Top_Cur;
+    volatile struct RME_Cap_Pgtbl* Pgtbl_Cur;
+    volatile struct RME_Reg_Struct* Reg_Cur;
+    volatile struct RME_Inv_Struct* Inv_Top_New;
+    volatile struct RME_Cap_Pgtbl* Pgtbl_New;
+    volatile struct RME_Reg_Struct* Reg_New;
     
-    /* Save current context */
-    __RME_Thd_Reg_Copy(&(Curr_Thd->Reg_Cur->Reg), Reg);
+    Reg_Cur=&(Thd_Cur->Reg_Cur->Reg);
+    Reg_New=&(Thd_New->Reg_Cur->Reg);
+    
+    /* Swap normal context */
+    __RME_Thd_Reg_Copy(Reg_Cur, Reg);
+    __RME_Thd_Reg_Copy(Reg, Reg_New);
+    
+    /* If coprocessor is enabled, handle coprocessor context as well */
 #if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
-    __RME_Thd_Cop_Save(Reg, &(Curr_Thd->Reg_Cur->Cop));
-#endif
-    /* Restore next context */
-    __RME_Thd_Reg_Copy(Reg, &(Next_Thd->Reg_Cur->Reg));
-#if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
-    __RME_Thd_Cop_Restore(Reg, &(Next_Thd->Reg_Cur->Cop));
+    __RME_Thd_Cop_Swap(Reg_New, &(Thd_Cur->Reg_Cur->Cop),
+                       Reg_Cur, &(Thd_New->Reg_Cur->Cop));
 #endif
 
     /* Are we going to switch page tables? If yes, we change it now */
-    Curr_Inv_Top=RME_INVSTK_TOP(Curr_Thd);
-    Next_Inv_Top=RME_INVSTK_TOP(Next_Thd);
+    Inv_Top_Cur=RME_INVSTK_TOP(Thd_Cur);
+    Inv_Top_New=RME_INVSTK_TOP(Thd_New);
     
-    if(Curr_Inv_Top==RME_NULL)
+    if(Inv_Top_Cur==RME_NULL)
     {
         RME_COVERAGE_MARKER();
 
-        Curr_Pgtbl=Curr_Thd->Sched.Proc->Pgtbl;
+        Pgtbl_Cur=Thd_Cur->Sched.Proc->Pgtbl;
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Curr_Pgtbl=Curr_Inv_Top->Proc->Pgtbl;
+        Pgtbl_Cur=Inv_Top_Cur->Proc->Pgtbl;
     }
     
-    if(Next_Inv_Top==RME_NULL)
+    if(Inv_Top_New==RME_NULL)
     {
         RME_COVERAGE_MARKER();
 
-        Next_Pgtbl=Next_Thd->Sched.Proc->Pgtbl;
+        Pgtbl_New=Thd_New->Sched.Proc->Pgtbl;
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Next_Pgtbl=Next_Inv_Top->Proc->Pgtbl;
+        Pgtbl_New=Inv_Top_New->Proc->Pgtbl;
     }
     
-    if(RME_CAP_GETOBJ(Curr_Pgtbl,rme_ptr_t)!=RME_CAP_GETOBJ(Next_Pgtbl,rme_ptr_t))
+    if(RME_CAP_GETOBJ(Pgtbl_Cur, rme_ptr_t)!=RME_CAP_GETOBJ(Pgtbl_New, rme_ptr_t))
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Next_Pgtbl,rme_ptr_t));
+        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Pgtbl_New, rme_ptr_t));
     }
     else
     {
@@ -3987,12 +4005,12 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     Thd_Struct=(volatile struct RME_Thd_Struct*)Vaddr;
     /* The TID of these threads are by default taken care of by the kernel */
     Thd_Struct->Sched.TID=0U;
-    Thd_Struct->Sched.Slices=RME_THD_INIT_TIME;
+    Thd_Struct->Sched.Slice=RME_THD_INIT_TIME;
     Thd_Struct->Sched.State=RME_THD_RUNNING;
     Thd_Struct->Sched.Proc=RME_CAP_CONV_ROOT(Proc_Op, volatile struct RME_Cap_Proc*);
     Thd_Struct->Sched.Signal=0U;
     Thd_Struct->Sched.Prio=Prio;
-    Thd_Struct->Sched.Max_Prio=RME_PREEMPT_PRIO_NUM-1U;
+    Thd_Struct->Sched.Prio_Max=RME_PREEMPT_PRIO_NUM-1U;
     /* Set scheduler reference to 1 so cannot be unbinded */
     Thd_Struct->Sched.Sched_Ref=1U;
     Thd_Struct->Sched.Sched_Sig=0U;
@@ -4067,7 +4085,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     
     /* See if the maximum priority relationship is correct - a thread can
      * never create a thread with higher maximum priority */
-    if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Max_Prio<Max_Prio)
+    if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Max_Prio)
     {
         RME_COVERAGE_MARKER();
 
@@ -4110,11 +4128,11 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     Thd_Struct=(struct RME_Thd_Struct*)Vaddr;
     /* These thread's TID default to 0 */
     Thd_Struct->Sched.TID=0U;
-    Thd_Struct->Sched.Slices=0U;
+    Thd_Struct->Sched.Slice=0U;
     Thd_Struct->Sched.State=RME_THD_TIMEOUT;
     Thd_Struct->Sched.Proc=RME_CAP_CONV_ROOT(Proc_Op, struct RME_Cap_Proc*);
     Thd_Struct->Sched.Signal=0U;
-    Thd_Struct->Sched.Max_Prio=Max_Prio;
+    Thd_Struct->Sched.Prio_Max=Max_Prio;
     Thd_Struct->Sched.Sched_Ref=0U;
     Thd_Struct->Sched.Sched_Sig=0U;
     /* Currently the thread is not binded to any particular CPU */
@@ -4214,9 +4232,9 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Del *************************************************/
 
 /* Begin Function:_RME_Thd_Exec_Set *******************************************
-Description : Set a thread's entry point and stack. The registers will be initialized
-              with these contents. Only when the thread has exited, or just after
-              created should we change these values.
+Description : Set a thread's entry point and stack. The register sets will be 
+              reinitialized with these contents. Only when the thread has exited,
+              or just after created should we change these values.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
               rme_ptr_t Entry - The entry of the thread. An address.
@@ -4288,16 +4306,23 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
 /* Begin Function:_RME_Thd_Hyp_Set ********************************************
 Description : Set the thread as hypervisor-managed. This means that the thread's
               register set will be saved to somewhere that is indicated by the user,
-              instead of in the kernel data structures.
+              instead of in the kernel data structures. This also has the ability
+              to set execution context (like Exec_Set) when the Entry and Stack
+              are both non-zero, after it have switched the register set address.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
-              rme_ptr_t Kaddr - The kernel-accessible virtual address to save the register set to.
+              rme_ptr_t Kaddr - The kernel-accessible designated hypervisor virtual
+                                address to save the register set to.
+              rme_ptr_t Entry - The entry of the thread. An address.
+              rme_ptr_t Stack - The stack address to use for execution. An address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
                            rme_cid_t Cap_Thd,
-                           rme_ptr_t Kaddr)
+                           rme_ptr_t Kaddr,
+                           rme_ptr_t Entry,
+                           rme_ptr_t Stack)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -4306,7 +4331,18 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
-    RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_HYP_SET);
+    if((Entry!=RME_NULL)&&(Stack!=RME_NULL))
+    {
+        RME_COVERAGE_MARKER();
+        
+        RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_HYP_SET|RME_THD_FLAG_EXEC_SET);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+        
+        RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_HYP_SET);
+    }
     
     /* See if the target thread is already binded. If no or incorrect, we just quit */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Op, struct RME_Thd_Struct*);
@@ -4334,11 +4370,11 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
         
         /* Register external save area must be aligned to word boundary and accessible to the kernel */
         if(RME_IS_ALIGNED(Kaddr)&&(Kaddr>=RME_HYP_VA_BASE)&&
-           ((Kaddr+sizeof(struct RME_Thd_Regs))<(RME_HYP_VA_BASE+RME_HYP_VA_SIZE)))
+           ((Kaddr+sizeof(struct RME_Thd_Reg))<(RME_HYP_VA_BASE+RME_HYP_VA_SIZE)))
         {
             RME_COVERAGE_MARKER();
 
-            Thd_Struct->Reg_Cur=(struct RME_Thd_Regs*)Kaddr;
+            Thd_Struct->Reg_Cur=(struct RME_Thd_Reg*)Kaddr;
         }
         else
         {
@@ -4346,6 +4382,34 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
 
             return RME_ERR_PTH_PGTBL;
         }
+    }
+    
+    /* See if there is a fault pending. If yes, we clear it */
+    if(Thd_Struct->Sched.State==RME_THD_FAULT)
+    {
+        RME_COVERAGE_MARKER();
+
+        Thd_Struct->Sched.State=RME_THD_TIMEOUT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
+    /* Commit the change if both values are non-zero. If both are zero we are just
+     * clearing the error flag and continue execution from where it faulted */
+    if((Entry!=RME_NULL)&&(Stack!=RME_NULL))
+    {
+        RME_COVERAGE_MARKER();
+
+        __RME_Thd_Reg_Init(Entry, Stack, 0, &(Thd_Struct->Reg_Cur->Reg));
+#if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
+        __RME_Thd_Cop_Init(&(Thd_Struct->Reg_Cur->Reg), &(Thd_Struct->Reg_Cur->Cop));
+#endif
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     return 0;
@@ -4469,7 +4533,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the priority relationship is correct */
-    if(Thd_Sched_Struct->Sched.Max_Prio<Prio)
+    if(Thd_Sched_Struct->Sched.Prio_Max<Prio)
     {
         RME_COVERAGE_MARKER();
 
@@ -4527,97 +4591,142 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
 
 /* Begin Function:_RME_Thd_Sched_Prio *****************************************
 Description : Change a thread's priority level. This can only be called from the
-              core that have the thread binded.
+              core that have the thread binded. To facilitate scheduling, this
+              system call allows up to 3 thread's priority changes per call. This
+              system call is 
               This system call can cause a potential context switch.
               It is impossible to set a thread's priority beyond its maximum priority. 
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
-              rme_ptr_t Prio - The priority level, higher is more critical.
+              rme_ptr_t Number - The number of threads to adjust priority.
+                                 Allowed values are 1, 2 and 3.
+              rme_cid_t Cap_Thd0 - The capability to the thread. 2-Level.
+              rme_ptr_t Prio0 - The priority level, higher is more critical.
+              rme_cid_t Cap_Thd1 - The capability to the thread. 2-Level.
+              rme_ptr_t Prio1 - The priority level, higher is more critical.
+              rme_cid_t Cap_Thd2 - The capability to the thread. 2-Level.
+              rme_ptr_t Prio2 - The priority level, higher is more critical.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
                               volatile struct RME_Reg_Struct* Reg,
-                              rme_cid_t Cap_Thd,
-                              rme_ptr_t Prio)
+                              rme_ptr_t Number,
+                              rme_cid_t Cap_Thd0,
+                              rme_ptr_t Prio0,
+                              rme_cid_t Cap_Thd1,
+                              rme_ptr_t Prio1,
+                              rme_cid_t Cap_Thd2,
+                              rme_ptr_t Prio2)
 {
-    struct RME_Cap_Thd* Thd_Op;
-    volatile struct RME_Thd_Struct* Thd_Struct;
+    rme_ptr_t Count;
+    rme_cid_t Cap_Thd[3];
+    rme_ptr_t Prio[3];
+    struct RME_Cap_Thd* Thd_Op[3];
+    volatile struct RME_Thd_Struct* Thd_Struct[3];
     volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Struct* Thd_Cur;
+    volatile struct RME_Thd_Struct* Thd_New;
     rme_ptr_t Type_Stat;
     
-    /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
-    /* Check if the target cap is not frozen and allows such operations */
-    RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_SCHED_PRIO);
-    
-    /* See if the target thread is already binded to this core. If no, we just quit */
-    CPU_Local=RME_CPU_LOCAL();
-    Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    /* Check parameter validity */
+    if((Number==0U)||(Number>3U))
     {
         RME_COVERAGE_MARKER();
 
         return RME_ERR_PTH_INVSTATE;
     }
-    else
-    {
-        RME_COVERAGE_MARKER();
-    }
     
-    /* See if the priority relationship is correct */
-    if(Thd_Struct->Sched.Max_Prio<Prio)
-    {
-        RME_COVERAGE_MARKER();
+    /* We'll use arrays in the next */
+    Cap_Thd[0]=Cap_Thd0;
+    Cap_Thd[1]=Cap_Thd1;
+    Cap_Thd[2]=Cap_Thd2;
+    Prio[0]=Prio0;
+    Prio[1]=Prio1;
+    Prio[2]=Prio2;
 
-        return RME_ERR_PTH_PRIO;
-    }
-    else
+    CPU_Local=RME_CPU_LOCAL();
+    for(Count=0U;Count<Number;Count++)
     {
-        RME_COVERAGE_MARKER();
-    }
-    
-    /* Now save the system call return value to the caller stack */
-    __RME_Set_Syscall_Retval(Reg, 0);
-    
-    /* See if this thread is currently running, or is runnable. If yes, it must be
-     * in the run queue. Remove it from there and change priority, after changing
-     * priority, put it back, and see if we need a reschedule. */
-    if((Thd_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Struct->Sched.State==RME_THD_READY))
-    {
-        RME_COVERAGE_MARKER();
-
-        _RME_Run_Del(Thd_Struct);
-        Thd_Struct->Sched.Prio=Prio;
-        _RME_Run_Ins(Thd_Struct);
+        /* Get the capability slot */
+        RME_CAPTBL_GETCAP(Captbl, Cap_Thd[Count], RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op[Count], Type_Stat);
+        /* Check if the target cap is not frozen and allows such operations */
+        RME_CAP_CHECK(Thd_Op[Count], RME_THD_FLAG_SCHED_PRIO);
         
-        /* Get the current highest-priority running thread */
-        Thd_Struct=_RME_Run_High(CPU_Local);
-        RME_ASSERT(Thd_Struct->Sched.Prio>=(CPU_Local->Thd_Cur)->Sched.Prio);
-        
-        /* See if we need a context switch */
-        if(Thd_Struct->Sched.Prio>(CPU_Local->Thd_Cur)->Sched.Prio)
+        /* See if the target thread is already binded to this core. If no, we just quit */
+        Thd_Struct[Count]=(volatile struct RME_Thd_Struct*)(Thd_Op[Count]->Head.Object);
+        if(Thd_Struct[Count]->Sched.CPU_Local!=CPU_Local)
         {
             RME_COVERAGE_MARKER();
 
-            /* This will cause a solid context switch - The current thread will be set
-             * to ready, and we will set the thread that we switch to to be running. */
-            _RME_Run_Swt(Reg,CPU_Local->Thd_Cur,Thd_Struct);
-            (CPU_Local->Thd_Cur)->Sched.State=RME_THD_READY;
-            Thd_Struct->Sched.State=RME_THD_RUNNING;
-            CPU_Local->Thd_Cur=Thd_Struct;
+            return RME_ERR_PTH_INVSTATE;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
+        /* See if the priority relationship is correct */
+        if(Thd_Struct[Count]->Sched.Prio_Max<Prio[Count])
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PTH_PRIO;
         }
         else
         {
             RME_COVERAGE_MARKER();
         }
     }
-    else
+    
+    /* Now save the system call return value to the caller stack. We're now sure that all
+     * the context switches may be performed without ano possibility of a failure. */
+    __RME_Set_Syscall_Retval(Reg, 0);
+    
+    /* Do the scheduling for each thread, and we'll switch to the real winner after all
+     * these scheduling. This can help remove the excessive overhead. */
+    for(Count=0U;Count<Number;Count++)
+    {
+        /* See if this thread is currently running, or is runnable. If yes, it must be
+         * in the run queue. Remove it from there and change priority, after changing
+         * priority, put it back, and see if we need a reschedule. If the thread*/
+        if((Thd_Struct[Count]->Sched.State==RME_THD_RUNNING)||
+           (Thd_Struct[Count]->Sched.State==RME_THD_READY))
+        {
+            RME_COVERAGE_MARKER();
+
+            _RME_Run_Del(Thd_Struct[Count]);
+            Thd_Struct[Count]->Sched.Prio=Prio[Count];
+            _RME_Run_Ins(Thd_Struct[Count]);
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+
+            Thd_Struct[Count]->Sched.Prio=Prio[Count];
+        }
+    }
+    
+    /* Get the current highest-priority running thread */
+    Thd_New=_RME_Run_High(CPU_Local);
+    Thd_Cur=CPU_Local->Thd_Cur;
+    RME_ASSERT(Thd_New->Sched.Prio>=Thd_Cur->Sched.Prio);
+    
+    /* See if we need a context switch */
+    if(Thd_New->Sched.Prio>Thd_Cur->Sched.Prio)
     {
         RME_COVERAGE_MARKER();
 
-        Thd_Struct->Sched.Prio=Prio;
+        /* This will cause a solid context switch - The current thread will be set
+         * to ready, and we will set the thread that we switch to to be running. */
+        _RME_Run_Swt(Reg, Thd_Cur, Thd_New);
+        Thd_Cur->Sched.State=RME_THD_READY;
+        Thd_New->Sched.State=RME_THD_RUNNING;
+        CPU_Local->Thd_Cur=Thd_New;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     return 0;
@@ -4739,7 +4848,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
         Thd_Struct->Sched.State=RME_THD_TIMEOUT;
     }
     /* Delete all slices on it */
-    Thd_Struct->Sched.Slices=0U;
+    Thd_Struct->Sched.Slice=0U;
     
     /* See if this thread is the current thread. If yes, then there will be a context switch */
     if(CPU_Local->Thd_Cur==Thd_Struct)
@@ -4828,8 +4937,6 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
     if(Thd_Child->Sched.State==RME_THD_FAULT)
     {
         RME_COVERAGE_MARKER();
-        /* Set the reason of that fault to the invocation return value register */
-        __RME_Set_Inv_Retval(Reg, (rme_ret_t)(Thd_Child->Sched.Fault));
         /* Return the TID with the fault flag set */
         return (rme_ret_t)(Thd_Child->Sched.TID|RME_THD_FAULT_FLAG);
     }
@@ -4919,10 +5026,10 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
                              rme_cid_t Cap_Thd_Src,
                              rme_ptr_t Time)
 {
-    struct RME_Cap_Thd* Thd_Dst;
-    struct RME_Cap_Thd* Thd_Src;
-    volatile struct RME_Thd_Struct* Thd_Dst_Struct;
-    volatile struct RME_Thd_Struct* Thd_Src_Struct;
+    struct RME_Cap_Thd* Thd_Dst_Op;
+    struct RME_Cap_Thd* Thd_Src_Op;
+    volatile struct RME_Thd_Struct* Thd_Dst;
+    volatile struct RME_Thd_Struct* Thd_Src;
     volatile struct RME_CPU_Local* CPU_Local;
     rme_ptr_t Time_Xfer;
     rme_ptr_t Type_Stat;
@@ -4940,16 +5047,16 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Dst, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Dst, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Src, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Src, Type_Stat);
+    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Dst, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Dst_Op, Type_Stat);
+    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Src, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Src_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
-    RME_CAP_CHECK(Thd_Dst, RME_THD_FLAG_XFER_DST);
-    RME_CAP_CHECK(Thd_Src, RME_THD_FLAG_XFER_SRC);
+    RME_CAP_CHECK(Thd_Dst_Op, RME_THD_FLAG_XFER_DST);
+    RME_CAP_CHECK(Thd_Src_Op, RME_THD_FLAG_XFER_SRC);
 
     /* Check if the two threads are on the core that is accordance with what we are on */
     CPU_Local=RME_CPU_LOCAL();
-    Thd_Src_Struct=RME_CAP_GETOBJ(Thd_Src, volatile struct RME_Thd_Struct*);
-    if(Thd_Src_Struct->Sched.CPU_Local!=CPU_Local)
+    Thd_Src=RME_CAP_GETOBJ(Thd_Src_Op, volatile struct RME_Thd_Struct*);
+    if(Thd_Src->Sched.CPU_Local!=CPU_Local)
     {
         RME_COVERAGE_MARKER();
 
@@ -4961,7 +5068,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED, or even FAULT */
-    if(Thd_Src_Struct->Sched.Slices==0U)
+    if(Thd_Src->Sched.Slice==0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -4972,9 +5079,9 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    Thd_Dst_Struct=RME_CAP_GETOBJ(Thd_Dst, volatile struct RME_Thd_Struct*);
+    Thd_Dst=RME_CAP_GETOBJ(Thd_Dst_Op, volatile struct RME_Thd_Struct*);
     
-    if(Thd_Dst_Struct->Sched.CPU_Local!=CPU_Local)
+    if(Thd_Dst->Sched.CPU_Local!=CPU_Local)
     {
         RME_COVERAGE_MARKER();
 
@@ -4986,7 +5093,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the destination is in a fault. If yes, cancel the transfer */
-    if(Thd_Dst_Struct->Sched.State==RME_THD_FAULT)
+    if(Thd_Dst->Sched.State==RME_THD_FAULT)
     {
         RME_COVERAGE_MARKER();
 
@@ -4998,7 +5105,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Delegating from a normal thread */
-    if(Thd_Src_Struct->Sched.Slices<RME_THD_INF_TIME)
+    if(Thd_Src->Sched.Slice<RME_THD_INF_TIME)
     {
         RME_COVERAGE_MARKER();
 
@@ -5007,14 +5114,14 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
 
-            Time_Xfer=Thd_Src_Struct->Sched.Slices;
+            Time_Xfer=Thd_Src->Sched.Slice;
         }
         /* Delegate some time, if not sufficient, clean up the source time */
         else
         {
             RME_COVERAGE_MARKER();
             
-            if(Thd_Src_Struct->Sched.Slices>Time)
+            if(Thd_Src->Sched.Slice>Time)
             {
                 RME_COVERAGE_MARKER();
 
@@ -5024,25 +5131,25 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
             {
                 RME_COVERAGE_MARKER();
 
-                Time_Xfer=Thd_Src_Struct->Sched.Slices;
+                Time_Xfer=Thd_Src->Sched.Slice;
             }
         }
         
         /* See if we are transferring to an infinite budget thread. If yes, we
          * are revoking timeslices; If not, this is a finite transfer */
-        if(Thd_Dst_Struct->Sched.Slices<RME_THD_INF_TIME)
+        if(Thd_Dst->Sched.Slice<RME_THD_INF_TIME)
         {
             RME_COVERAGE_MARKER();
             
-            RME_TIME_CHECK(Thd_Dst_Struct->Sched.Slices, Time_Xfer);
-            Thd_Dst_Struct->Sched.Slices+=Time_Xfer;
+            RME_TIME_CHECK(Thd_Dst->Sched.Slice, Time_Xfer);
+            Thd_Dst->Sched.Slice+=Time_Xfer;
         }
         else
         {
             RME_COVERAGE_MARKER();
         }
         
-        Thd_Src_Struct->Sched.Slices-=Time_Xfer;
+        Thd_Src->Sched.Slice-=Time_Xfer;
     }
     /* Delegating from init or infinite thread */
     else
@@ -5060,11 +5167,11 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
                 RME_COVERAGE_MARKER();
                 
                 /* Will not revoke, source is an init thread */
-                if(Thd_Src_Struct->Sched.Slices!=RME_THD_INIT_TIME)
+                if(Thd_Src->Sched.Slice!=RME_THD_INIT_TIME)
                 {
                     RME_COVERAGE_MARKER();
                     
-                    Thd_Src_Struct->Sched.Slices=0U;
+                    Thd_Src->Sched.Slice=0U;
                 }
                 else
                 {
@@ -5077,11 +5184,11 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
             }
             
             /* Set destination to infinite if it is not an init thread */
-            if(Thd_Dst_Struct->Sched.Slices<RME_THD_INF_TIME)
+            if(Thd_Dst->Sched.Slice<RME_THD_INF_TIME)
             {
                 RME_COVERAGE_MARKER();
                 
-                Thd_Dst_Struct->Sched.Slices=RME_THD_INF_TIME;
+                Thd_Dst->Sched.Slice=RME_THD_INF_TIME;
             }
             else
             {
@@ -5093,24 +5200,24 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
             RME_COVERAGE_MARKER();
 
             /* Just increase the budget of the other thread - check first */
-            RME_TIME_CHECK(Thd_Dst_Struct->Sched.Slices, Time);
-            Thd_Dst_Struct->Sched.Slices+=Time;
+            RME_TIME_CHECK(Thd_Dst->Sched.Slice, Time);
+            Thd_Dst->Sched.Slice+=Time;
         }
     }
 
     /* Is the source time used up? If yes, delete it from the run queue, and notify its 
      * parent. If it is not in the run queue, The state of the source must be BLOCKED. */
-    if(Thd_Src_Struct->Sched.Slices==0U)
+    if(Thd_Src->Sched.Slice==0U)
     {
         RME_COVERAGE_MARKER();
         
         /* If it is blocked, we do not change its state, and only sends the scheduler notification */
-        if((Thd_Src_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Src_Struct->Sched.State==RME_THD_READY))
+        if((Thd_Src->Sched.State==RME_THD_RUNNING)||(Thd_Src->Sched.State==RME_THD_READY))
         {
             RME_COVERAGE_MARKER();
             
-            _RME_Run_Del(Thd_Src_Struct);
-            Thd_Src_Struct->Sched.State=RME_THD_TIMEOUT;
+            _RME_Run_Del(Thd_Src);
+            Thd_Src->Sched.State=RME_THD_TIMEOUT;
         }
         else
         {
@@ -5118,7 +5225,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
         }
 
         /* Notify the parent about this */
-        _RME_Run_Notif(Thd_Src_Struct);
+        _RME_Run_Notif(Thd_Src);
     }
     else
     {
@@ -5126,16 +5233,16 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Now save the system call return value to the caller stack - how much time the destination have now */
-    __RME_Set_Syscall_Retval(Reg, (rme_ret_t)(Thd_Dst_Struct->Sched.Slices));
+    __RME_Set_Syscall_Retval(Reg, (rme_ret_t)(Thd_Dst->Sched.Slice));
 
     /* See what was the state of the destination thread. If it is timeout, then
      * activate it. If it is other state, then leave it alone */
-    if(Thd_Dst_Struct->Sched.State==RME_THD_TIMEOUT)
+    if(Thd_Dst->Sched.State==RME_THD_TIMEOUT)
     {
         RME_COVERAGE_MARKER();
         
-        Thd_Dst_Struct->Sched.State=RME_THD_READY;
-        _RME_Run_Ins(Thd_Dst_Struct);
+        Thd_Dst->Sched.State=RME_THD_READY;
+        _RME_Run_Ins(Thd_Dst);
     }
     else
     {
@@ -5242,12 +5349,12 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         }
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slices<RME_THD_INF_TIME))
+        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
             _RME_Run_Del(CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.Slices=0U;
+            CPU_Local->Thd_Cur->Sched.Slice=0U;
             CPU_Local->Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this. This function includes kernel send as well, but
              * we don't need to call _RME_Kern_High after this because we are using optimized
@@ -5281,12 +5388,12 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slices<RME_THD_INF_TIME))
+        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
             _RME_Run_Del(CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.Slices=0U;
+            CPU_Local->Thd_Cur->Sched.Slice=0U;
             CPU_Local->Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
             _RME_Run_Notif(CPU_Local->Thd_Cur);
@@ -5487,13 +5594,15 @@ Return      : None.
 void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
                     volatile struct RME_CPU_Local* CPU_Local)
 {
-    volatile struct RME_Thd_Struct* Thd_Struct;
+    volatile struct RME_Thd_Struct* Thd_New;
+    volatile struct RME_Thd_Struct* Thd_Cur;
 
-    Thd_Struct=_RME_Run_High(CPU_Local);
-    RME_ASSERT(Thd_Struct!=RME_NULL);
+    Thd_New=_RME_Run_High(CPU_Local);
+    RME_ASSERT(Thd_New!=RME_NULL);
+    Thd_Cur=CPU_Local->Thd_Cur;
 
     /* Are these two threads the same? */
-    if(Thd_Struct==CPU_Local->Thd_Cur)
+    if(Thd_New==Thd_Cur)
     {
         RME_COVERAGE_MARKER();
 
@@ -5505,13 +5614,13 @@ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
     }
 
     /* Is the current thread running or ready? */
-    if((CPU_Local->Thd_Cur->Sched.State==RME_THD_RUNNING)||
-       (CPU_Local->Thd_Cur->Sched.State==RME_THD_READY))
+    if((Thd_Cur->Sched.State==RME_THD_RUNNING)||
+       (Thd_Cur->Sched.State==RME_THD_READY))
     {
         RME_COVERAGE_MARKER();
 
         /* Yes, compare the priority to see if we need to do it */
-        if(Thd_Struct->Sched.Prio<=CPU_Local->Thd_Cur->Sched.Prio)
+        if(Thd_New->Sched.Prio<=Thd_Cur->Sched.Prio)
         {
             RME_COVERAGE_MARKER();
 
@@ -5528,20 +5637,20 @@ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
     }
 
     /* We will have a solid context switch on this point */
-    if(CPU_Local->Thd_Cur->Sched.State==RME_THD_RUNNING)
+    if(Thd_Cur->Sched.State==RME_THD_RUNNING)
     {
         RME_COVERAGE_MARKER();
 
-        CPU_Local->Thd_Cur->Sched.State=RME_THD_READY;
+        Thd_Cur->Sched.State=RME_THD_READY;
     }
     else
     {
         RME_COVERAGE_MARKER();
     }
 
-    _RME_Run_Swt(Reg, CPU_Local->Thd_Cur, Thd_Struct);
-    Thd_Struct->Sched.State=RME_THD_RUNNING;
-    CPU_Local->Thd_Cur=Thd_Struct;
+    _RME_Run_Swt(Reg, Thd_Cur, Thd_New);
+    Thd_New->Sched.State=RME_THD_RUNNING;
+    CPU_Local->Thd_Cur=Thd_New;
 }
 /* End Function:_RME_Kern_High ***********************************************/
 
@@ -5599,7 +5708,7 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
          * to zero while we are doing this */
         __RME_Set_Syscall_Retval(&(Thd_Struct->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
-        if(Thd_Struct->Sched.Slices!=0U)
+        if(Thd_Struct->Sched.Slice!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -5718,7 +5827,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
          * to zero while we are doing this */
         __RME_Set_Syscall_Retval(&(Thd_Rcv->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
-        if(Thd_Rcv->Sched.Slices!=0U)
+        if(Thd_Rcv->Sched.Slice!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -5881,8 +5990,8 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
     /* Are we trying to let a boot-time thread block on a signal? This is NOT allowed.
      * Additionally, if the current thread have no timeslice left (which shouldn't happen
      * under whatever circumstances), we assert and die */
-    RME_ASSERT(Thd_Cur->Sched.Slices!=0U);
-    if(Thd_Cur->Sched.Slices==RME_THD_INIT_TIME)
+    RME_ASSERT(Thd_Cur->Sched.Slice!=0U);
+    if(Thd_Cur->Sched.Slice==RME_THD_INIT_TIME)
     {
         RME_COVERAGE_MARKER();
 

@@ -99,27 +99,27 @@ void __RME_CAV7_Int_Init(void)
 
     /* Who implemented the GIC, what variant, how many interrupts? */
     Temp=RME_CAV7_GICD_IIDR;
-    RME_PRINTK_S("\r\nCAV7-GIC: ProductID: ");
-    RME_PRINTK_I(Temp>>24);
-    RME_PRINTK_S("\r\nCAV7-GIC: Variant: ");
-    RME_PRINTK_I((Temp>>20)&0xF);
-    RME_PRINTK_S("\r\nCAV7-GIC: Revision: ");
-    RME_PRINTK_I((Temp>>12)&0xF);
-    RME_PRINTK_S("\r\nCAV7-GIC: Implementer: 0x");
-    RME_PRINTK_U(Temp&0xFFF);
+    RME_DBG_S("\r\nCAV7-GIC: ProductID: ");
+    RME_DBG_I(Temp>>24);
+    RME_DBG_S("\r\nCAV7-GIC: Variant: ");
+    RME_DBG_I((Temp>>20)&0xF);
+    RME_DBG_S("\r\nCAV7-GIC: Revision: ");
+    RME_DBG_I((Temp>>12)&0xF);
+    RME_DBG_S("\r\nCAV7-GIC: Implementer: 0x");
+    RME_DBG_U(Temp&0xFFF);
 
     /* How many locked SPIs, security extension enabled or not, number of
      * actual CPUs and interrupt lines */
     Temp=RME_CAV7_GICD_TYPER;
-    RME_PRINTK_S("\r\nCAV7-GIC: SPI number: ");
-    RME_PRINTK_I(Temp>>16);
-    RME_PRINTK_S("\r\nCAV7-GIC: Security extension: ");
-    RME_PRINTK_I((Temp>>10)&0x1);
-    RME_PRINTK_S("\r\nCAV7-GIC: CPU number: ");
-    RME_PRINTK_I(((Temp>>5)&0x7)+1);
-    RME_PRINTK_S("\r\nCAV7-GIC: Interrupt line number: ");
+    RME_DBG_S("\r\nCAV7-GIC: SPI number: ");
+    RME_DBG_I(Temp>>16);
+    RME_DBG_S("\r\nCAV7-GIC: Security extension: ");
+    RME_DBG_I((Temp>>10)&0x1);
+    RME_DBG_S("\r\nCAV7-GIC: CPU number: ");
+    RME_DBG_I(((Temp>>5)&0x7)+1);
+    RME_DBG_S("\r\nCAV7-GIC: Interrupt line number: ");
     Lines=((Temp&0x1F)+1)*32;
-    RME_PRINTK_I(Lines);
+    RME_DBG_I(Lines);
 
 #if(RME_CAV7_GIC_TYPE==RME_CAV7_GIC_V1)
     /* Initialize all vectors to group 0, and disable all */
@@ -309,12 +309,12 @@ rme_ptr_t __RME_Low_Level_Init(void)
 	__RME_CAV7_Int_Local_Init();
 
     /* Initialize the vector table */
-    RME_PRINTK_S("\r\nCAV7-Vector: 0x");
-    RME_PRINTK_U((rme_ptr_t)&__RME_CAV7_Vector_Table);
+    RME_DBG_S("\r\nCAV7-Vector: 0x");
+    RME_DBG_U((rme_ptr_t)&__RME_CAV7_Vector_Table);
     __RME_CAV7_VBAR_Set((rme_ptr_t)&__RME_CAV7_Vector_Table);
 
-    RME_PRINTK_S("\r\nCAV7-Non-Secure: ");
-    RME_PRINTK_U(__RME_CAV7_SCR_Get());
+    RME_DBG_S("\r\nCAV7-Non-Secure: ");
+    RME_DBG_U(__RME_CAV7_SCR_Get());
 
     return 0;
 }
@@ -698,8 +698,8 @@ Return      : None.
 void __RME_CAV7_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
 {
     /* Not handling interrupts */
-    RME_PRINTK_S("\r\nGeneral int:");
-    RME_PRINTK_I(Int_Num);
+    RME_DBG_S("\r\nGeneral int:");
+    RME_DBG_I(Int_Num);
 
     /* Not handling anything */
     switch(Int_Num)

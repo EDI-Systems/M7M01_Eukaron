@@ -366,8 +366,8 @@ void __RME_C66X_SMP_Init(void)
 
         /* Set the boot address */
         RME_C66X_DSC_BOOT_ADDR(Count)=(rme_ptr_t)_RME_C66X_SMP_Kmain;
-        RME_PRINTK_S("\n\rBooting CPU ");
-        RME_PRINTK_I(Count);
+        RME_DBG_S("\n\rBooting CPU ");
+        RME_DBG_I(Count);
         __RME_C66X_Boot_Done[Count]=0;
 
         /* Set the stack for this CPU */
@@ -465,24 +465,24 @@ rme_ptr_t __RME_Boot(void)
         Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     }
 
-    RME_PRINTK_S("\r\nKotbl registration end offset: 0x");
-    RME_PRINTK_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
-    RME_PRINTK_S("\r\nKernel memory frontier: 0x");
-    RME_PRINTK_U(Cur_Addr);
+    RME_DBG_S("\r\nKotbl registration end offset: 0x");
+    RME_DBG_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
+    RME_DBG_S("\r\nKernel memory frontier: 0x");
+    RME_DBG_U(Cur_Addr);
     RME_ASSERT(Cur_Addr<RME_C66X_KMEM_BOOT_FRONTIER);
 
     /* Print sizes and halt */
-    RME_PRINTK_S("\r\nThread object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Thd_Struct)/sizeof(rme_ptr_t));
-    RME_PRINTK_S("\r\nProcess object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Proc_Struct)/sizeof(rme_ptr_t));
-    RME_PRINTK_S("\r\nInvocation object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Inv_Struct)/sizeof(rme_ptr_t));
-    RME_PRINTK_S("\r\nEndpoint object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Sig_Struct)/sizeof(rme_ptr_t));
+    RME_DBG_S("\r\nThread object size: ");
+    RME_DBG_I(sizeof(struct RME_Thd_Struct)/sizeof(rme_ptr_t));
+    RME_DBG_S("\r\nProcess object size: ");
+    RME_DBG_I(sizeof(struct RME_Proc_Struct)/sizeof(rme_ptr_t));
+    RME_DBG_S("\r\nInvocation object size: ");
+    RME_DBG_I(sizeof(struct RME_Inv_Struct)/sizeof(rme_ptr_t));
+    RME_DBG_S("\r\nEndpoint object size: ");
+    RME_DBG_I(sizeof(struct RME_Sig_Struct)/sizeof(rme_ptr_t));
 
     /* Initialize the timer and start its interrupt routing */
-    RME_PRINTK_S("\r\nTimer init\r\n");
+    RME_DBG_S("\r\nTimer init\r\n");
     __RME_C66X_Timer_Init();
 
     /* Change page tables */

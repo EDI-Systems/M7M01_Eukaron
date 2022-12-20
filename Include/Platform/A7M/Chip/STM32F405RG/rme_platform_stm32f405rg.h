@@ -7,6 +7,9 @@ Description: The configuration file for STM32F405RG.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
+/* Debugging *****************************************************************/
+#define RME_ASSERT_CORRECT                              (0U)
+#define RME_DEBUG_PRINT                                 (1U)
 /* Generator *****************************************************************/
 /* Are we using the generator in the first place? */
 #define RME_RVM_GEN_ENABLE                              (0U)
@@ -281,8 +284,7 @@ do \
 } \
 while(0)
 
-/* Other low-level initialization stuff - clock and serial */
-#define RME_A7M_LOW_LEVEL_INIT() \
+#define RME_A7M_LOW_LEVEL_INIT_COMMON() \
 do \
 { \
     /* Set the clock tree in the system */ \
@@ -322,6 +324,15 @@ do \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_ICEN; \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_DCEN; \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
+} \
+while(0)
+
+#if(RME_DEBUG_PRINT==1U)
+/* Other low-level initialization stuff - clock and serial */
+#define RME_A7M_LOW_LEVEL_INIT() \
+do \
+{ \
+    RME_A7M_LOW_LEVEL_INIT_COMMON(); \
     \
     /* Enable USART 1 for user-level operations */ \
     /* UART IO initialization */ \
@@ -350,6 +361,17 @@ do \
     while((RME_A7M_USART1_SR&0x80)==0); \
 } \
 while(0)
+
+#else
+
+/* Other low-level initialization stuff - clock and serial */
+#define RME_A7M_LOW_LEVEL_INIT() \
+do \
+{ \
+    RME_A7M_LOW_LEVEL_INIT_COMMON(); \
+} \
+while(0)
+#endif
 
 /* Prefetcher state set and get */
 #define RME_A7M_PRFTH_STATE_SET(STATE) \

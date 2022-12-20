@@ -31,6 +31,8 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define RME_EMPTY                                   (0U)
 #define RME_CASFAIL                                 (0U)
 
+/* Power of 2 */
+#define RME_POW2(POW)                               (((rme_ptr_t)1U)<<(POW))
 /* Bit mask/address operations */
 #define RME_ALLBITS                                 (~((rme_ptr_t)0U))
 #define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8U)
@@ -41,10 +43,9 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define RME_MASK_END(END)                           ((RME_ALLBITS)>>(RME_WORD_BITS-1-(END)))
 /* Apply this mask to keep START to END bits, START < END */
 #define RME_MASK(START,END)                         ((RME_MASK_START(START))&(RME_MASK_END(END)))
-/* Round the number down & up to a power of 2, or get the power of 2 */
+/* Round the number down & up to a power of 2 */
 #define RME_ROUND_DOWN(NUM,POW)                     ((NUM)&(RME_MASK_START(POW)))
 #define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1U),POW)
-#define RME_POW2(POW)                               (((rme_ptr_t)1U)<<(POW))
 /* Check if address is aligned on word boundary */
 #define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))==0U)
 /* Bit field extraction macros for easy extraction of parameters
@@ -96,31 +97,35 @@ while(0)
  * and kernel level */
 #include "rme.h"
 
+#if(RME_DEBUG_PRINT==1U)
 /* Debugging */
-#define RME_KERNEL_DEBUG_MAX_STR                    (256U)
+#define RME_DEBUG_PRINT_MAX                         (256U)
 /* Printk macros */
-#define RME_PRINTK_I(INT)                           RME_Print_Int((INT))
-#define RME_PRINTK_U(UINT)                          RME_Print_Uint((UINT))
-#define RME_PRINTK_S(STR)                           RME_Print_String((rme_s8_t*)(STR))
+#define RME_DBG_I(INT)                              RME_Int_Print(INT)
+#define RME_DBG_U(UINT)                             RME_Hex_Print(UINT)
+#define RME_DBG_S(STR)                              RME_Str_Print((rme_s8_t*)(STR))
+#else
+#define RME_DBG_I(INT)                              while(0U)
+#define RME_DBG_U(UINT)                             while(0U)
+#define RME_DBG_S(STR)                              while(0U)
+#endif
 
-/* Shutdown debugging */
-/* #define RME_ASSERT_CORRECT */
-/* Default assert macro - used only when internal development option is on */
-#ifndef RME_ASSERT_CORRECT
+#if(RME_ASSERT_CORRECT==0U)
+/* Assert macro - used only in internal development */
 #define RME_ASSERT(X) \
 do \
 { \
-    if(RME_UNLIKELY((X)==0U)) \
+    if(RME_UNLIKELY((X)==0)) \
     { \
-        RME_PRINTK_S((rme_s8_t*)"\r\n***\r\nKernel panic - not syncing:\r\n"); \
-        RME_PRINTK_S((rme_s8_t*)__FILE__); \
-        RME_PRINTK_S((rme_s8_t*)" , Line "); \
-        RME_PRINTK_I(__LINE__); \
-        RME_PRINTK_S((rme_s8_t*)"\r\n"); \
-        RME_PRINTK_S((rme_s8_t*)__DATE__); \
-        RME_PRINTK_S((rme_s8_t*)" , "); \
-        RME_PRINTK_S((rme_s8_t*)__TIME__); \
-        RME_PRINTK_S((rme_s8_t*)"\r\n"); \
+        RME_DBG_S("\r\n***\r\nKernel panic - not syncing:\r\n"); \
+        RME_DBG_S(__FILE__); \
+        RME_DBG_S(" , Line "); \
+        RME_DBG_I(__LINE__); \
+        RME_DBG_S("\r\n"); \
+        RME_DBG_S(__DATE__); \
+        RME_DBG_S(" , "); \
+        RME_DBG_S(__TIME__); \
+        RME_DBG_S("\r\n"); \
         RME_ASSERT_FAILED(__FILE__, __LINE__, __DATE__, __TIME__); \
         while(1); \
     } \
@@ -130,9 +135,7 @@ while(0)
 #define RME_ASSERT(X) \
 do \
 { \
-    if(RME_UNLIKELY((X)==0U)) \
-    { \
-    } \
+    if(RME_UNLIKELY((X)==0)) {} \
 } \
 while(0)
 #endif
@@ -752,15 +755,13 @@ struct RME_Thd_Sched
      * not yet defined here but compilation will still pass - it is a pointer */
     volatile struct RME_CPU_Local* CPU_Local;
     /* How much time slices is left for this thread? */
-    rme_ptr_t Slices;
+    rme_ptr_t Slice;
     /* What is the current state of the thread? */
     rme_ptr_t State;
-    /* What is the reason for the fault that killed the thread? */
-    rme_ptr_t Fault;
     /* What's the priority of the thread? */
     rme_ptr_t Prio;
     /* What's the maximum priority allowed for this thread? */
-    rme_ptr_t Max_Prio;
+    rme_ptr_t Prio_Max;
     /* What signal endpoint does this thread block on? */
     volatile struct RME_Cap_Sig* Signal;
     /* Which process is it created in? */
@@ -776,7 +777,7 @@ struct RME_Thd_Sched
 };
 
 /* Thread register set structure */
-struct RME_Thd_Regs 
+struct RME_Thd_Reg
 {
     /* The register set - architecture specific */
     struct RME_Reg_Struct Reg;
@@ -785,6 +786,8 @@ struct RME_Thd_Regs
      * This usually contains the FPU data */
     struct RME_Cop_Struct Cop;
 #endif
+    /* The error information - architecture specific */
+    struct RME_Err_Struct Err;
 };
 
 /* Thread object structure */
@@ -793,9 +796,9 @@ struct RME_Thd_Struct
     /* The thread scheduling structure */
     struct RME_Thd_Sched Sched;
     /* The pointer to current register set */
-    volatile struct RME_Thd_Regs* Reg_Cur;
+    volatile struct RME_Thd_Reg* Reg_Cur;
     /* The default register storage area - may be used or not */
-    struct RME_Thd_Regs Reg_Def;
+    struct RME_Thd_Reg Reg_Def;
     /* The thread synchronous invocation stack */
     struct RME_List Inv_Stack;
 };
@@ -1002,7 +1005,9 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
                                    rme_ptr_t Param);
 static rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
                                   rme_cid_t Cap_Thd,
-                                  rme_ptr_t Kaddr);
+                                  rme_ptr_t Kaddr,
+                                  rme_ptr_t Entry,
+                                  rme_ptr_t Stack);
 static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
                                      rme_cid_t Cap_Thd,
                                      rme_cid_t Cap_Thd_Sched,
@@ -1011,8 +1016,13 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
                                      rme_ptr_t Prio);
 static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
                                      volatile struct RME_Reg_Struct* Reg,
-                                     rme_cid_t Cap_Thd,
-                                     rme_ptr_t Prio);
+                                     rme_ptr_t Number,
+                                     rme_cid_t Cap_Thd0,
+                                     rme_ptr_t Prio0,
+                                     rme_cid_t Cap_Thd1,
+                                     rme_ptr_t Prio1,
+                                     rme_cid_t Cap_Thd2,
+                                     rme_ptr_t Prio2);
 static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
                                      volatile struct RME_Reg_Struct* Reg,
                                      rme_cid_t Cap_Thd);
@@ -1114,10 +1124,12 @@ __EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
 __EXTERN__ void _RME_Memcpy(volatile void* Dst,
                             volatile void* Src,
                             rme_ptr_t Num);
+#if(RME_DEBUG_PRINT==1U)
 /* Debugging helpers */
-__EXTERN__ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint);
-__EXTERN__ rme_cnt_t RME_Print_Int(rme_cnt_t Int);
-__EXTERN__ rme_cnt_t RME_Print_String(rme_s8_t* String);
+__EXTERN__ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint);
+__EXTERN__ rme_cnt_t RME_Int_Print(rme_cnt_t Int);
+__EXTERN__ rme_cnt_t RME_Str_Print(rme_s8_t* String);
+#endif
 
 /* Capability Table **********************************************************/
 /* Boot-time calls */
@@ -1177,8 +1189,7 @@ __EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
 __EXTERN__ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* CPU_Local,
                                     rme_ptr_t CPUID);
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Regs,
-                                     rme_ptr_t Fault);                              
+__EXTERN__ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg);                              
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl,
                                         rme_cid_t Cap_Captbl_Crt,

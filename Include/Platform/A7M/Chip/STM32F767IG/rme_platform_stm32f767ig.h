@@ -7,6 +7,8 @@ Description: The configuration file for STM32F767IG.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
+/* Debugging *****************************************************************/
+#define RME_ASSERT_CORRECT                              (0U)
 /* Generator *****************************************************************/
 /* Are we using the generator in the first place? */
 #define RME_RVM_GEN_ENABLE                              RME_FALSE
