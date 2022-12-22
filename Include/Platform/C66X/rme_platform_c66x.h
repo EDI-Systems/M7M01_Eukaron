@@ -99,12 +99,12 @@ typedef rme_s32_t rme_ret_t;
 #define RME_VA_EQU_PA                   (RME_TRUE)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
-/* Captbl size limit - not restricted */
-#define RME_CAPTBL_LIMIT                0
+/* Cpt size limit - not restricted */
+#define RME_CPT_LIMIT                0
 /* Normal page directory size calculation macro */
-#define RME_PGTBL_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(rme_ptr_t)+sizeof(struct __RME_C66X_Pgtbl_Meta))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)   ((1<<(NUM_ORDER))*sizeof(rme_ptr_t)+sizeof(struct __RME_C66X_Pgt_Meta))
 /* Top-level page directory size calculation macro */
-#define RME_PGTBL_SIZE_TOP(NUM_ORDER)   (RME_PGTBL_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_C66X_MMU_Data))
+#define RME_PGT_SIZE_TOP(NUM_ORDER)   (RME_PGT_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_C66X_MMU_Data))
 /* The kernel object allocation table address - original */
 #define RME_KOTBL                       RME_Kotbl
 /* Compare-and-Swap(CAS) */
@@ -127,24 +127,24 @@ typedef rme_s32_t rme_ret_t;
 /* C66X specific macros ******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CAPTBL                 0
+#define RME_BOOT_CPT                 0
 /* The top-level page table of the init process - an array */
-#define RME_BOOT_INIT_PGTBL             1
+#define RME_BOOT_INIT_PGT             1
 /* The init process */
-#define RME_BOOT_INIT_PROC              2
+#define RME_BOOT_INIT_PRC              2
 /* The init thread - this is a per-core array */
 #define RME_BOOT_TBL_THD                3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN              4
 /* The initial kernel memory capability */
-#define RME_BOOT_INIT_KMEM              5
+#define RME_BOOT_INIT_KOM              5
 /* The initial timer endpoint - this is a per-core array */
 #define RME_BOOT_TBL_TIMER              6
 /* The initial default endpoint for all other interrupts - this is a per-core array */
 #define RME_BOOT_TBL_INT                7
 
 /* Booting capability layout */
-#define RME_C66X_CPT                    (Captbl)
+#define RME_C66X_CPT                    (Cpt)
 /* For C66X:
  * The layout of the page entry is:
  * [31:12] Paddr - The physical address to map this page to, or the physical
@@ -165,30 +165,30 @@ typedef rme_s32_t rme_ret_t;
  * [0] Present - Is this entry present?
  */
 /* Get the actual table positions */
-#define RME_C66X_PGTBL_TBL_NOM(X)       ((X)+(sizeof(struct __RME_C66X_Pgtbl_Meta)/sizeof(rme_ptr_t)))
-#define RME_C66X_PGTBL_TBL_TOP(X)       ((X)+(sizeof(struct __RME_C66X_Pgtbl_Meta)+sizeof(struct __RME_C66X_MMU_Data))/sizeof(rme_ptr_t))
+#define RME_C66X_PGT_TBL_NOM(X)       ((X)+(sizeof(struct __RME_C66X_Pgt_Meta)/sizeof(rme_ptr_t)))
+#define RME_C66X_PGT_TBL_TOP(X)       ((X)+(sizeof(struct __RME_C66X_Pgt_Meta)+sizeof(struct __RME_C66X_MMU_Data))/sizeof(rme_ptr_t))
 
 /* Page entry bit definitions */
-#define RME_C66X_PGTBL_PRESENT          (1<<0)
-#define RME_C66X_PGTBL_TERMINAL         (1<<1)
-#define RME_C66X_PGTBL_READONLY         (1<<2)
-#define RME_C66X_PGTBL_READWRITE        (1<<3)
-#define RME_C66X_PGTBL_EXECUTE          (1<<4)
-#define RME_C66X_PGTBL_STATIC           (1<<7)
+#define RME_C66X_PGT_PRESENT          (1<<0)
+#define RME_C66X_PGT_TERMINAL         (1<<1)
+#define RME_C66X_PGT_READONLY         (1<<2)
+#define RME_C66X_PGT_READWRITE        (1<<3)
+#define RME_C66X_PGT_EXECUTE          (1<<4)
+#define RME_C66X_PGT_STATIC           (1<<7)
 /* The address mask for the actual page address */
-#define RME_C66X_PGTBL_PTE_ADDR(X)      RME_ROUND_DOWN(X,12)
+#define RME_C66X_PGT_PTE_ADDR(X)      RME_ROUND_DOWN(X,12)
 /* The address mask for the next level page table address */
-#define RME_C66X_PGTBL_PGD_ADDR(X)      ((X)&0xFFFFFFFC)
+#define RME_C66X_PGT_PGD_ADDR(X)      ((X)&0xFFFFFFFC)
 /* Extract flags from the table itself */
-#define RME_C66X_PGTBL_FLAG(X)          (((X)&0x0000000F)>>2)
+#define RME_C66X_PGT_FLAG(X)          (((X)&0x0000000F)>>2)
 /* Page table metadata definitions */
-#define RME_C66X_PGTBL_SIZEORD(X)       ((X)>>16)
-#define RME_C66X_PGTBL_NUMORD(X)        ((X)&0x0000FFFF)
+#define RME_C66X_PGT_SIZEORD(X)       ((X)>>16)
+#define RME_C66X_PGT_NUMORD(X)        ((X)&0x0000FFFF)
 /* Extract address for MMU */
-#define RME_C66X_PGTBL_MPAXH_VA(X)      ((X)&0xFFFFF000)
-#define RME_C66X_PGTBL_MPAXL_PA(X)      (((X)&0xFFFFF000)<<4)
+#define RME_C66X_PGT_MPAXH_VA(X)      ((X)&0xFFFFF000)
+#define RME_C66X_PGT_MPAXL_PA(X)      (((X)&0xFFFFF000)<<4)
 /* Get info from MMU */
-#define RME_C66X_PGTBL_MPAXL_SZORD(X)   ((((X)&0x3F)>>1)-2)
+#define RME_C66X_PGT_MPAXL_SZORD(X)   ((((X)&0x3F)>>1)-2)
 
 /* Special function register definitions */
 #define RME_C66X_SFR(BASE,OFFSET)       (*((volatile rme_ptr_t*)((rme_ptr_t)((BASE)+(OFFSET)))))
@@ -222,9 +222,9 @@ typedef rme_s32_t rme_ret_t;
 #define RME_C66X_XMC_XMPAXL_UR          (1<<2)
 #define RME_C66X_XMC_XMPAXL_UW          (1<<1)
 #define RME_C66X_XMC_XMPAXL_UX          (1<<0)
-#define RME_C66X_XMC_XMPAXL_FLAG(FLAG)  (((FLAG)&RME_PGTBL_READ)<<2)| \
-                                         ((FLAG)&RME_PGTBL_WRITE)| \
-                                         (((FLAG)&RME_PGTBL_EXECUTE)>>2)
+#define RME_C66X_XMC_XMPAXL_FLAG(FLAG)  (((FLAG)&RME_PGT_READ)<<2)| \
+                                         ((FLAG)&RME_PGT_WRITE)| \
+                                         (((FLAG)&RME_PGT_EXECUTE)>>2)
 #define RME_C66X_XMC_XMPFSR_LOCAL       (1<<8)
 #define RME_C66X_XMC_XMPFCR_MPFCLR      (1<<0)
 /* Lock bitfields */
@@ -241,9 +241,9 @@ typedef rme_s32_t rme_ret_t;
 #define RME_C66X_XMC_XMPAXL_V(PA,FLAG)  (((PA)>>4)|RME_C66X_XMC_XMPAXL_FLAG(FLAG))
 /* Default values for region 0 & 1 (kernel) */
 #define RME_C66X_XMC_XMPAXL0_DEF        (RME_C66X_XMC_XMPAXL_SR|RME_C66X_XMC_XMPAXL_SW|RME_C66X_XMC_XMPAXL_SX)
-#define RME_C66X_XMC_XMPAXH0_DEF        (RME_C66X_XMC_XMPAXH_SIZE(RME_PGTBL_SIZE_2G))
+#define RME_C66X_XMC_XMPAXH0_DEF        (RME_C66X_XMC_XMPAXH_SIZE(RME_PGT_SIZE_2G))
 #define RME_C66X_XMC_XMPAXL1_DEF        ((0x80000000UL)|RME_C66X_XMC_XMPAXL_SR|RME_C66X_XMC_XMPAXL_SW|RME_C66X_XMC_XMPAXL_SX)
-#define RME_C66X_XMC_XMPAXH1_DEF        ((0x80000000UL)|RME_C66X_XMC_XMPAXH_SIZE(RME_PGTBL_SIZE_2G))
+#define RME_C66X_XMC_XMPAXH1_DEF        ((0x80000000UL)|RME_C66X_XMC_XMPAXH_SIZE(RME_PGT_SIZE_2G))
 
 /* Cache controller base */
 #define RME_C66X_CACHE                  (0x01840000)
@@ -298,12 +298,12 @@ typedef rme_s32_t rme_ret_t;
 /* Get the semaphore positions - what semaphore is responsible for this memory range? */
 #define RME_C66X_SEM_POS(ADDR,POS) \
 { \
-    if((ADDR)<RME_KMEM_VA_START) \
+    if((ADDR)<RME_KOM_VA_START) \
         (POS)=0; \
-    else if((ADDR)>=(RME_KMEM_VA_START+RME_KMEM_SIZE)) \
+    else if((ADDR)>=(RME_KOM_VA_START+RME_KOM_SIZE)) \
         (POS)=RME_C66X_SEM_NUM-1; \
     else \
-        (POS)=((ADDR)-RME_KMEM_VA_START)/(RME_KMEM_SIZE/RME_C66X_SEM_NUM);\
+        (POS)=((ADDR)-RME_KOM_VA_START)/(RME_KOM_SIZE/RME_C66X_SEM_NUM);\
 }
 
 /* UART base */
@@ -615,16 +615,16 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |0--------------------------2GB|----------64MB or 128MB|-----|------|------|-----|3.25G-4G|-----|-----|
- * |Peripherals, identical mapping|Kernel&Globals|Kotbl|PerCPU|Kpgtbl|Kmem1|  Hole  |Kmem2|Stack|
+ * |Peripherals, identical mapping|Kernel&Globals|Kotbl|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
  *  Vectors        : Interrupt vectors.
  *  Kernel&Globals : Initial kernel text segment and all static variables.
  *  Kotbl          : Kernel object registration table.
  *  PerCPU         : Per-CPU data structures.
  *  Kpgtbl         : Kernel page tables.
  *  Pgreg          : Page table registration table.
- *  Kmem1          : Kernel memory 1, linear mapping, allow creation of page tables.
+ *  Kom1          : Kernel memory 1, linear mapping, allow creation of page tables.
  *  Hole           : Memory hole present at 3.25G-4G. For PCI devices.
- *  Kmem2          : Ker
+ *  Kom2          : Ker
  * The C snippet to generate this table is shown below (gcc x64):nel memory 2, nonlinear mapping, no page table creation allowed.
  *  Stacks         : Kernel stacks, per-CPU.
  *  All values are in bytes, and are virtual addresses.
@@ -651,7 +651,7 @@ struct __RME_C66X_MMU_CPU_Local
 
 /* Top-level page table organization: Meta - MMU - Table
  * Other page table level organization: Meta - Table */
-struct __RME_C66X_Pgtbl_Meta
+struct __RME_C66X_Pgt_Meta
 {
     /* The size/num order of this level */
     rme_ptr_t Size_Num_Order;
@@ -716,7 +716,7 @@ static rme_ptr_t __RME_C66X_Boot_Done[RME_C66X_CPU_NUM];
 
 /* Private C Function Prototypes *********************************************/ 
 /*****************************************************************************/
-static rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgtbl* Pgtbl, rme_ptr_t CPUID);
+static rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgt* Pgt, rme_ptr_t CPUID);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -804,18 +804,18 @@ __EXTERN__ void __RME_C66X_Int_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cau
 /* Generic interrupt handler */
 __EXTERN__ void __RME_C66X_Generic_Handler(struct RME_Reg_Struct* Reg);
 /* Page table operations */
-__EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
-                                           struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
+__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
+__EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
+                                           struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */

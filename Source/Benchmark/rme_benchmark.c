@@ -46,31 +46,31 @@ typedef s32 ret_t;
 
 /* Initial boot capabilities - This should be in accordnace with the kernel settings */
 /* The capability table of the init process */
-#define RME_BOOT_CAPTBL          0
+#define RME_BOOT_CPT          0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGTBL           1
+#define RME_BOOT_PGT           1
 /* The top-level page table of the init process's SRAM */
-#define RME_BOOT_PGTBL_SRAM      2
+#define RME_BOOT_PGT_SRAM      2
 /* The init process */
-#define RME_BOOT_INIT_PROC       3
+#define RME_BOOT_INIT_PRC       3
 /* The init thread */
 #define RME_BOOT_INIT_THD        4
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN       5
 /* The initial kernel memory capability */
-#define RME_BOOT_INIT_KMEM       6
+#define RME_BOOT_INIT_KOM       6
 /* The initial timer endpoint */
 #define RME_BOOT_INIT_TIMER      7
 
 /* The test objects */
 #define RME_BOOT_BENCH_THD       8
-#define RME_BOOT_BENCH_PGTBL_TOP 9
-#define RME_BOOT_BENCH_PGTBL_SRAM 10
+#define RME_BOOT_BENCH_PGT_TOP 9
+#define RME_BOOT_BENCH_PGT_SRAM 10
 
 /* Need to export the memory frontier! */
 /* Need to export the flags as well ! */
 /* Export the errno too */
-#define RME_BOOT_BENCH_KMEM_FRONTIER 0x10005000
+#define RME_BOOT_BENCH_KOM_FRONTIER 0x10005000
 
 /* The stack safe size */
 #define RME_STACK_SAFE_SIZE 16
@@ -130,8 +130,8 @@ extern void RME_Thd_Stub(void);
 extern void RME_Inv_Stub(void);
 ptr_t _RME_Stack_Init(ptr_t Stack, ptr_t Stub, ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4);
 void RME_Benchmark(void);
-void RME_Same_Proc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4);
-void RME_Same_Proc_Thd_Switch_Test(void);
+void RME_Same_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4);
+void RME_Same_Prc_Thd_Switch_Test(void);
 /* End Function Prototypes ***************************************************/
 
 /* Begin Function:_RME_Tsc_Init ***********************************************
@@ -181,13 +181,13 @@ ptr_t _RME_Stack_Init(ptr_t Stack, ptr_t Stub, ptr_t Param1, ptr_t Param2, ptr_t
 }
 /* End Function:_RME_Stack_Init **********************************************/
 
-/* Begin Function:RME_Same_Proc_Thd_Switch_Test_Thd ***************************
+/* Begin Function:RME_Same_Prc_Thd_Switch_Test_Thd ***************************
 Description : The thread for testing same-process thread switching performance.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RME_Same_Proc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4)
+void RME_Same_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4)
 {
     ret_t Retval;
     /* Now we switch back to the init thread, immediately */
@@ -199,15 +199,15 @@ void RME_Same_Proc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3,
                           0);
     }
 }
-/* End Function:RME_Same_Proc_Thd_Switch_Test_Thd ****************************/
+/* End Function:RME_Same_Prc_Thd_Switch_Test_Thd ****************************/
 
-/* Begin Function:RME_Same_Proc_Thd_Switch_Test *******************************
+/* Begin Function:RME_Same_Prc_Thd_Switch_Test *******************************
 Description : The same-process thread switch test code.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RME_Same_Proc_Thd_Switch_Test(void)
+void RME_Same_Prc_Thd_Switch_Test(void)
 {
     /* Intra-process thread switching time */
     ret_t Retval;
@@ -220,10 +220,10 @@ void RME_Same_Proc_Thd_Switch_Test(void)
                                1, 2, 3, 4);
     /* There are still many bugs in the kernel. Need a white-box test to guarantee
      * that it is free of bugs. Find a scheme to do that */
-    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CAPTBL,
-                      RME_PARAM_D1(RME_BOOT_INIT_KMEM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
-                      RME_PARAM_D1(RME_BOOT_INIT_PROC)|RME_PARAM_D0(31),
-                      RME_BOOT_BENCH_KMEM_FRONTIER);
+    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CPT,
+                      RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
+                      RME_PARAM_D1(RME_BOOT_INIT_PRC)|RME_PARAM_D0(31),
+                      RME_BOOT_BENCH_KOM_FRONTIER);
     
     /* Bind the thread to the processor */
     Retval=RME_CAP_OP(RME_SVC_THD_SCHED_BIND,0,
@@ -234,7 +234,7 @@ void RME_Same_Proc_Thd_Switch_Test(void)
     /* Set the execution information */
     Retval=RME_CAP_OP(RME_SVC_THD_EXEC_SET,0,
                       RME_BOOT_BENCH_THD,
-                      (ptr_t)RME_Same_Proc_Thd_Switch_Test_Thd,
+                      (ptr_t)RME_Same_Prc_Thd_Switch_Test_Thd,
                       Stack_Addr);
                       
     /* Delegate some timeslice to it */
@@ -277,15 +277,15 @@ void RME_Same_Proc_Thd_Switch_Test(void)
     
     while(1);
 }
-/* End Function:RME_Same_Proc_Thd_Switch_Test ********************************/
+/* End Function:RME_Same_Prc_Thd_Switch_Test ********************************/
 
-/* Begin Function:RME_Diff_Proc_Thd_Switch_Test_Thd ***************************
+/* Begin Function:RME_Diff_Prc_Thd_Switch_Test_Thd ***************************
 Description : The thread for testing same-process thread switching performance.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RME_Diff_Proc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4)
+void RME_Diff_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, ptr_t Param4)
 {
     ret_t Retval;
     /* Now we switch back to the init thread, immediately */
@@ -297,15 +297,15 @@ void RME_Diff_Proc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3,
                           0);
     }
 }
-/* End Function:RME_Diff_Proc_Thd_Switch_Test_Thd ****************************/
+/* End Function:RME_Diff_Prc_Thd_Switch_Test_Thd ****************************/
 
-/* Begin Function:RME_Diff_Proc_Thd_Switch_Test *******************************
+/* Begin Function:RME_Diff_Prc_Thd_Switch_Test *******************************
 Description : The same-process thread switch test code.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void RME_Diff_Proc_Thd_Switch_Test(void)
+void RME_Diff_Prc_Thd_Switch_Test(void)
 {
     /* Intra-process thread switching time */
     ret_t Retval;
@@ -314,40 +314,40 @@ void RME_Diff_Proc_Thd_Switch_Test(void)
     ptr_t Temp;
     ptr_t Frontier;
     
-    Frontier=RME_BOOT_BENCH_KMEM_FRONTIER;
+    Frontier=RME_BOOT_BENCH_KOM_FRONTIER;
     /* Initialize the thread's stack before entering it */
     Stack_Addr=_RME_Stack_Init((ptr_t)(&RME_Stack[2047]),
                                (ptr_t)RME_Thd_Stub,
                                1, 2, 3, 4);
     
     /* Create the page table for the whole address space range */
-    Retval=RME_CAP_OP(RME_SVC_PGTBL_CRT,RME_BOOT_CAPTBL,
-                      RME_PARAM_D1(RME_BOOT_INIT_KMEM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGTBL_TOP)|
+    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_CPT,
+                      RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGT_TOP)|
                       RME_PARAM_O1(29)|RME_PARAM_O0(3),
                       Frontier,
                       1);
 //    Frontier+=;
 //    /* Create the page table for the SRAM range */
-//    Retval=RME_CAP_OP(RME_SVC_PGTBL_CRT,RME_BOOT_CAPTBL,
-//                      RME_PARAM_D1(RME_BOOT_INIT_KMEM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGTBL_SRAM)|
+//    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_CPT,
+//                      RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGT_SRAM)|
 //                      RME_PARAM_O1(16)|RME_PARAM_O0(3),
 //                      Frontier,
 //                      0x20000001);
 //    Frontier+=;
 //    /* Map the pages into the top-level and the second-level */
-//    RME_CAP_OP(RME_SVC_PGTBL_ADD,0,
-//               RME_PARAM_Q1(RME_BOOT_BENCH_PGTBL_TOP)|0,
-//               RME_PARAM_D1(RME_BOOT_PGTBL)|0,
+//    RME_CAP_OP(RME_SVC_PGT_ADD,0,
+//               RME_PARAM_Q1(RME_BOOT_BENCH_PGT_TOP)|0,
+//               RME_PARAM_D1(RME_BOOT_PGT)|0,
 //               |0)
                       
                   
     
     
     
-    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CAPTBL,
-                      RME_PARAM_D1(RME_BOOT_INIT_KMEM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
-                      RME_PARAM_D1(RME_BOOT_INIT_PROC)|RME_PARAM_D0(31),
-                      RME_BOOT_BENCH_KMEM_FRONTIER);
+    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CPT,
+                      RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
+                      RME_PARAM_D1(RME_BOOT_INIT_PRC)|RME_PARAM_D0(31),
+                      RME_BOOT_BENCH_KOM_FRONTIER);
     
     /* Bind the thread to the processor */
     Retval=RME_CAP_OP(RME_SVC_THD_SCHED_BIND,0,
@@ -358,7 +358,7 @@ void RME_Diff_Proc_Thd_Switch_Test(void)
     /* Set the execution information */
     Retval=RME_CAP_OP(RME_SVC_THD_EXEC_SET,0,
                       RME_BOOT_BENCH_THD,
-                      (ptr_t)RME_Same_Proc_Thd_Switch_Test_Thd,
+                      (ptr_t)RME_Same_Prc_Thd_Switch_Test_Thd,
                       Stack_Addr);
                       
     /* Delegate some timeslice to it */
@@ -401,7 +401,7 @@ void RME_Diff_Proc_Thd_Switch_Test(void)
     
     while(1);
 }
-/* End Function:RME_Diff_Proc_Thd_Switch_Test ********************************/
+/* End Function:RME_Diff_Prc_Thd_Switch_Test ********************************/
 
 /* Begin Function:RME_Benchmark ***********************************************
 Description : The benchmark entry, also the init thread.
@@ -411,7 +411,7 @@ Return      : None.
 ******************************************************************************/
 void RME_Benchmark(void)
 {
-    RME_Same_Proc_Thd_Switch_Test();
+    RME_Same_Prc_Thd_Switch_Test();
 }
 /* End Function:RME_Benchmark ************************************************/
 

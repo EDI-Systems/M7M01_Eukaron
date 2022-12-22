@@ -154,32 +154,32 @@ rme_ptr_t __RME_CPUID_Get(void)
 }
 /* End Function:__RME_CPUID_Get **********************************************/
 
-/* Begin Function:__RME_A7M_Fault_Handler *************************************
+/* Begin Function:__RME_A7M_Exc_Handler ***************************************
 Description : The fault handler of RME. In Cortex-M, this is used to handle multiple
               faults.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
+void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     rme_ptr_t HFSR_Reg;
     rme_ptr_t CFSR_Reg;
     rme_ptr_t MMFAR_Reg;
     rme_ptr_t Flags;
     rme_ptr_t* Stack;
-    volatile struct RME_Cap_Proc* Proc;
+    volatile struct RME_Cap_Prc* Prc;
     volatile struct RME_Inv_Struct* Inv_Top;
     volatile struct RME_Thd_Struct* Thd_Cur;
-    volatile struct RME_Err_Struct* Err;
-    volatile struct __RME_A7M_Pgtbl_Meta* Meta;
+    volatile struct RME_Exc_Struct* Exc;
+    volatile struct __RME_A7M_Pgt_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0U);
     
     /* Get the address of this faulty address, and what caused this fault */
     Thd_Cur=RME_A7M_Local.Thd_Cur;
-    Err=&Thd_Cur->Reg_Cur->Err;
+    Exc=&Thd_Cur->Reg_Cur->Exc;
     HFSR_Reg=RME_A7M_SCB_HFSR;
     CFSR_Reg=RME_A7M_SCB_CFSR;
     MMFAR_Reg=RME_A7M_SCB_MMFAR;
@@ -205,7 +205,7 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
          RME_A7M_BFSR_IBUSERR|          /* Bus instruction errors */
          RME_A7M_MFSR_MUNSTKERR))!=0U)  /* MPU unstacking errors */
     {
-        Err->Cause=CFSR_Reg;
+        Exc->Cause=CFSR_Reg;
         __RME_Thd_Fatal(Reg);
     }
     /* Attempt recovery from memory management fault by MPU region swapping */
@@ -217,25 +217,25 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
          * can be found in our current page table, and if it is there, we only care about the flags */
         Inv_Top=RME_INVSTK_TOP(Thd_Cur);
         if(Inv_Top==RME_NULL)
-            Proc=Thd_Cur->Sched.Proc;
+            Prc=Thd_Cur->Sched.Prc;
         else
-            Proc=Inv_Top->Proc;
+            Prc=Inv_Top->Prc;
         
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+        if(__RME_Pgt_Walk(Prc->Pgt, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
         {
-            Err->Cause=RME_A7M_MFSR_DACCVIOL;
-            Err->Addr=MMFAR_Reg;
+            Exc->Cause=RME_A7M_MFSR_DACCVIOL;
+            Exc->Addr=MMFAR_Reg;
             __RME_Thd_Fatal(Reg);
         }
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
-            RME_ASSERT((Flags&RME_PGTBL_STATIC)==0U);
+            RME_ASSERT((Flags&RME_PGT_STATIC)==0U);
             /* Try to update the dynamic page */
-            if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
+            if(___RME_Pgt_MPU_Update(Meta, 1U)!=0U)
             {
-                Err->Cause=RME_A7M_MFSR_DACCVIOL;
-                Err->Addr=MMFAR_Reg;
+                Exc->Cause=RME_A7M_MFSR_DACCVIOL;
+                Exc->Addr=MMFAR_Reg;
                 __RME_Thd_Fatal(Reg);
             }
         }
@@ -247,47 +247,47 @@ void __RME_A7M_Fault_Handler(volatile struct RME_Reg_Struct* Reg)
     {
         Inv_Top=RME_INVSTK_TOP(Thd_Cur);
         if(Inv_Top==0U)
-            Proc=Thd_Cur->Sched.Proc;
+            Prc=Thd_Cur->Sched.Prc;
         else
-            Proc=Inv_Top->Proc;
+            Prc=Inv_Top->Prc;
         
         Stack=(rme_ptr_t*)(Reg->SP);
         
         /* Stack[6] is where the PC is before the fault. Make sure that this stack location is indeed accessible */
-        if(__RME_Pgtbl_Walk(Proc->Pgtbl, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+        if(__RME_Pgt_Walk(Prc->Pgt, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
         {
-            Err->Cause=RME_A7M_MFSR_DACCVIOL;
-            Err->Addr=(rme_ptr_t)(&Stack[6U]);
+            Exc->Cause=RME_A7M_MFSR_DACCVIOL;
+            Exc->Addr=(rme_ptr_t)(&Stack[6U]);
             __RME_Thd_Fatal(Reg);
         }
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
-            if(__RME_Pgtbl_Walk(Proc->Pgtbl, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+            if(__RME_Pgt_Walk(Prc->Pgt, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
             {
-                Err->Cause=RME_A7M_MFSR_IACCVIOL;
-                Err->Addr=Stack[6U];
+                Exc->Cause=RME_A7M_MFSR_IACCVIOL;
+                Exc->Addr=Stack[6U];
                 __RME_Thd_Fatal(Reg);
             }
             else
             {
                 /* This must be a dynamic page */
-                RME_ASSERT((Flags&RME_PGTBL_STATIC)==0U);
+                RME_ASSERT((Flags&RME_PGT_STATIC)==0U);
                 
                 /* This page does not allow execution */
-                if((Flags&RME_PGTBL_EXECUTE)==0U)
+                if((Flags&RME_PGT_EXECUTE)==0U)
                 {
-                    Err->Cause=RME_A7M_MFSR_IACCVIOL;
-                    Err->Addr=Stack[6U];
+                    Exc->Cause=RME_A7M_MFSR_IACCVIOL;
+                    Exc->Addr=Stack[6U];
                     __RME_Thd_Fatal(Reg);
                 }
                 else
                 {
                     /* Try to update the dynamic page */
-                    if(___RME_Pgtbl_MPU_Update(Meta, 1U)!=0U)
+                    if(___RME_Pgt_MPU_Update(Meta, 1U)!=0U)
                     {
-                        Err->Cause=RME_A7M_MFSR_IACCVIOL;
-                        Err->Addr=Stack[6U];
+                        Exc->Cause=RME_A7M_MFSR_IACCVIOL;
+                        Exc->Addr=Stack[6U];
                         __RME_Thd_Fatal(Reg);
                     }
                 }
@@ -337,17 +337,17 @@ void __RME_A7M_Set_Flag(rme_ptr_t Base,
                         rme_ptr_t Size,
                         rme_ptr_t Pos)
 {
-    volatile struct __RME_RVM_Flag* Flags;
+    volatile struct __RME_RVM_Flag* Set;
     
     /* Choose a data structure that is not locked at the moment */
     if(RME_RVM_FLAG_SET(Base, Size, 0U)->Lock==0U)
-        Flags=RME_RVM_FLAG_SET(Base, Size, 0U);
+        Set=RME_RVM_FLAG_SET(Base, Size, 0U);
     else
-        Flags=RME_RVM_FLAG_SET(Base, Size, 1U);
+        Set=RME_RVM_FLAG_SET(Base, Size, 1U);
     
     /* Set the flags for this interrupt source */
-    Flags->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
-    Flags->Flags[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
+    Set->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
+    Set->Flag[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
 }
 /* End Function:__RME_A7M_Set_Flag *******************************************/
 
@@ -379,45 +379,45 @@ void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vect_
 }
 /* End Function:__RME_A7M_Vect_Handler ***************************************/
 
-/* Begin Function:__RME_A7M_Pgtbl_Entry_Mod ***********************************
+/* Begin Function:__RME_A7M_Pgt_Entry_Mod ***********************************
 Description : Consult or modify the page table attributes. ARMv7-M only allows 
               consulting page table attributes but does not allow modifying them,
               because there are no architecture-specific flags.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
-              rme_cid_t Cap_Pgtbl - The capability to the top-level page table to consult.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
+              rme_cid_t Cap_Pgt - The capability to the top-level page table to consult.
               rme_ptr_t Vaddr - The virtual address to consult.
               rme_ptr_t Type - The consult type, see manual for details.
 Output      : None.
-Return      : rme_ret_t - If successful, the flags; else RME_ERR_KERN_OPFAIL.
+Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl, 
-                                    rme_cid_t Cap_Pgtbl,
+rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
+                                    rme_cid_t Cap_Pgt,
                                     rme_ptr_t Vaddr,
                                     rme_ptr_t Type)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Op;
+    struct RME_Cap_Pgt* Pgt_Op;
     rme_ptr_t Type_Stat;
     rme_ptr_t Size_Order;
     rme_ptr_t Num_Order;
     rme_ptr_t Flags;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_TYPE_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op,Type_Stat);
+    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
     
-    if(__RME_Pgtbl_Walk(Pgtbl_Op, Vaddr, 0U, 0U, 0U, &Size_Order, &Num_Order, &Flags)!=0U)
-        return RME_ERR_KERN_OPFAIL;
+    if(__RME_Pgt_Walk(Pgt_Op, Vaddr, 0U, 0U, 0U, &Size_Order, &Num_Order, &Flags)!=0U)
+        return RME_ERR_KFN_FAIL;
     
     switch(Type)
     {
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_FLAGS: return (rme_ret_t)Flags;
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
-        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_FLAGS: return (rme_ret_t)Flags;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
         default:break;
     }
     
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
-/* End Function:__RME_A7M_Pgtbl_Entry_Mod ************************************/
+/* End Function:__RME_A7M_Pgt_Entry_Mod ************************************/
 
 /* Begin Function:__RME_A7M_Int_Local_Mod *************************************
 Description : Consult or modify the local interrupt controller's vector state.
@@ -425,25 +425,25 @@ Input       : rme_ptr_t Int_Num - The interrupt number to consult or modify.
               rme_ptr_t Operation - The operation to conduct.
               rme_ptr_t Param - The parameter, could be state or priority.
 Output      : None.
-Return      : rme_ret_t - If successful, 0 or the desired value; else RME_ERR_KERN_OPFAIL.
+Return      : rme_ret_t - If successful, 0 or the desired value; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
     if(Int_Num>=RME_A7M_VECT_NUM)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     
     switch(Operation)
     {
-        case RME_A7M_KERN_INT_LOCAL_MOD_GET_STATE:
+        case RME_A7M_KFN_INT_LOCAL_MOD_GET_STATE:
         {
             if((RME_A7M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1FU))==0U)
                 return 0U;
             else
                 return 1U;
         }
-        case RME_A7M_KERN_INT_LOCAL_MOD_SET_STATE:
+        case RME_A7M_KFN_INT_LOCAL_MOD_SET_STATE:
         {
             if(Param==0U)
                 RME_A7M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1FU);
@@ -452,14 +452,14 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
             
             return 0U;
         }
-        case RME_A7M_KERN_INT_LOCAL_MOD_GET_PRIO:
+        case RME_A7M_KFN_INT_LOCAL_MOD_GET_PRIO:
         {
             return RME_A7M_NVIC_IPR(Int_Num);
         }
-        case RME_A7M_KERN_INT_LOCAL_MOD_SET_PRIO:
+        case RME_A7M_KFN_INT_LOCAL_MOD_SET_PRIO:
         {
             if(Param>0xFFU)
-                return RME_ERR_KERN_OPFAIL;
+                return RME_ERR_KFN_FAIL;
             
             RME_A7M_NVIC_IPR(Int_Num)=(rme_u8_t)Param;
             return 0U;
@@ -467,7 +467,7 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
         default:break;
     }
     
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
 /* End Function:__RME_A7M_Int_Local_Mod **************************************/
 
@@ -476,16 +476,16 @@ Description : Trigger a CPU's local event source.
 Input       : rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
               rme_ptr_t Evt_Num - The event ID.
 Output      : None.
-Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
                                    rme_ptr_t Int_Num)
 {
     if(CPUID!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
 
     if(Int_Num>=RME_A7M_VECT_NUM)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     
     /* Trigger the interrupt */
     RME_A7M_SCNSCB_STIR=Int_Num;
@@ -500,22 +500,22 @@ Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
               rme_ptr_t Evt_Num - The event ID.
 Output      : None.
-Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
                                    rme_ptr_t CPUID,
                                    rme_ptr_t Evt_Num)
 {
     if(CPUID!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
 
     if(Evt_Num>=RME_A7M_MAX_EVTS)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
 
     __RME_A7M_Set_Flag(RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE, Evt_Num);
     
     if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vect)!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
     __RME_Set_Syscall_Retval(Reg, 0);
@@ -532,7 +532,7 @@ Input       : rme_ptr_t Cache_ID - The ID of the cache to enable, disable or con
               rme_ptr_t Operation - The operation to perform.
               rme_ptr_t Param - The parameter.
 Output      : None.
-Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                               rme_ptr_t Operation,
@@ -544,26 +544,26 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
     rme_ptr_t Set_Cnt;
     rme_ptr_t Way_Cnt;
 
-    if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
+    if(Cache_ID==RME_A7M_KFN_CACHE_ICACHE)
     {
         CLIDR=RME_A7M_SCB_CLIDR&0x07U;
         
         /* Do we have instruction cache at all? */
         if((CLIDR!=0x01U)&&(CLIDR!=0x03U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
 
         RME_A7M_SCB_CSSELR=1U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
         if((Sets==0U)||(Ways==0U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
         {
             /* Enable or disable? */
-            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
@@ -576,7 +576,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 __RME_A7M_Barrier();
                 return 0U;
             }
-            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)==0U)
@@ -592,38 +592,38 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 return 0U;
             }
             else
-                return RME_ERR_KERN_OPFAIL;
+                return RME_ERR_KFN_FAIL;
         }
-        else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
+        else if(Operation==RME_A7M_KFN_CACHE_MOD_GET_STATE)
         {
             if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
-                return RME_A7M_KERN_CACHE_STATE_ENABLE;
+                return RME_A7M_KFN_CACHE_STATE_ENABLE;
             else
-                return RME_A7M_KERN_CACHE_STATE_DISABLE;
+                return RME_A7M_KFN_CACHE_STATE_DISABLE;
         }
         else
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
     }
-    else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
+    else if(Cache_ID==RME_A7M_KFN_CACHE_DCACHE)
     {
         CLIDR=RME_A7M_SCB_CLIDR&0x07U;
 
         /* Do we have data cache at all? */
         if((CLIDR!=0x02U)&&(CLIDR!=0x03U)&&(CLIDR!=0x04U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         RME_A7M_SCB_CSSELR=0U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
         if((Sets==0U)||(Ways==0U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
         {
             /* Enable or disable? */
-            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0U)
@@ -642,7 +642,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 __RME_A7M_Barrier();
                 return 0U;
             }
-            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)==0)
@@ -672,24 +672,24 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 return 0U;
             }
             else
-                return RME_ERR_KERN_OPFAIL;
+                return RME_ERR_KFN_FAIL;
         }
         else
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
     }
-    else if(Cache_ID==RME_A7M_KERN_CACHE_BTAC)
+    else if(Cache_ID==RME_A7M_KFN_CACHE_BTAC)
     {
         /* Whether a BTAC exists is implementation defined. Cortex-M3 and Cortex-M4
          * does not have a BTAC but Cortex-M7 have. We need to see what processor
          * this is and decide whether this operation makes sense. */
         if(((RME_A7M_SCB_CPUID>>4)&0x0FFFU)!=0x0C27U)
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
         {
             /* Enable or disable? */
-            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
@@ -699,7 +699,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 RME_A7M_SCNSCB_ACTLR&=~RME_A7M_SCNSCB_ACTLR_DISBTAC;
                 return 0U;
             }
-            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)!=0U)
@@ -710,20 +710,20 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 return 0U;
             }
             else
-                return RME_ERR_KERN_OPFAIL;
+                return RME_ERR_KFN_FAIL;
         }
-        else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
+        else if(Operation==RME_A7M_KFN_CACHE_MOD_GET_STATE)
         {
             /* Is it already enabled? */
             if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
-                return RME_A7M_KERN_CACHE_STATE_ENABLE;
+                return RME_A7M_KFN_CACHE_STATE_ENABLE;
             else
-                return RME_A7M_KERN_CACHE_STATE_DISABLE;
+                return RME_A7M_KFN_CACHE_STATE_DISABLE;
         }
     }
     
     /* Invalid cache specified */
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
 /* End Function:__RME_A7M_Cache_Mod ******************************************/
 
@@ -733,7 +733,7 @@ Input       : rme_ptr_t Cache_ID - The ID of the cache to do maintenance on.
               rme_ptr_t Operation - The maintenance operation to perform.
               rme_ptr_t Param - The parameter for that operation.
 Output      : None.
-Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                                 rme_ptr_t Operation,
@@ -745,27 +745,27 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
     rme_ptr_t Set_Cnt;
     rme_ptr_t Way_Cnt;
 
-    if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
+    if(Cache_ID==RME_A7M_KFN_CACHE_ICACHE)
     {
         CLIDR=RME_A7M_SCB_CLIDR&0x07U;
         
         /* Do we have instruction cache at all? */
         if((CLIDR!=0x01U)&&(CLIDR!=0x03U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
 
         RME_A7M_SCB_CSSELR=1U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
         if((Sets==0U)||(Ways==0U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
 
         /* What maintenance operation are we gonna do? */
-        if((Operation!=RME_A7M_KERN_CACHE_INV_ALL)&&(Operation!=RME_A7M_KERN_CACHE_INV_ADDR))
-            return RME_ERR_KERN_OPFAIL;
+        if((Operation!=RME_A7M_KFN_CACHE_INV_ALL)&&(Operation!=RME_A7M_KFN_CACHE_INV_ADDR))
+            return RME_ERR_KFN_FAIL;
 
         /* I-cache maintenance does not care if the cache is enabled */
-        if(Operation==RME_A7M_KERN_CACHE_INV_ALL)
+        if(Operation==RME_A7M_KFN_CACHE_INV_ALL)
             RME_A7M_SCNSCB_ICALLU=0U;
         else
             RME_A7M_SCNSCB_ICIMVAU=Param;
@@ -773,44 +773,44 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
         __RME_A7M_Barrier();
         return 0U;
     }
-    else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
+    else if(Cache_ID==RME_A7M_KFN_CACHE_DCACHE)
     {
         CLIDR=RME_A7M_SCB_CLIDR&0x07U;
 
         /* Do we have data cache at all? */
         if((CLIDR!=0x02U)&&(CLIDR!=0x03U)&&(CLIDR!=0x04U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         RME_A7M_SCB_CSSELR=0U;
         __RME_A7M_Barrier();
         Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
         Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
         if((Sets==0U)||(Ways==0U))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         /* Is it enabled? If yes, we cannot do invalidate, because we may lose data */
         if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0U)
         {
-            if((Operation>=RME_A7M_KERN_CACHE_INV_ALL)&&(Operation<=RME_A7M_KERN_CACHE_INV_SETWAY))
-                return RME_ERR_KERN_OPFAIL;
+            if((Operation>=RME_A7M_KFN_CACHE_INV_ALL)&&(Operation<=RME_A7M_KFN_CACHE_INV_SETWAY))
+                return RME_ERR_KFN_FAIL;
         }
 
         /* Do whatever we are instructed to do */
         switch(Operation)
         {
             /* All */
-            case RME_A7M_KERN_CACHE_CLEAN_ALL: /* Fall-through */
-            case RME_A7M_KERN_CACHE_INV_ALL:
-            case RME_A7M_KERN_CACHE_CLEAN_INV_ALL:
+            case RME_A7M_KFN_CACHE_CLEAN_ALL: /* Fall-through */
+            case RME_A7M_KFN_CACHE_INV_ALL:
+            case RME_A7M_KFN_CACHE_CLEAN_INV_ALL:
             {
                 for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
                     for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                     {
                         /* Compiler LICM */
-                        if(Operation==RME_A7M_KERN_CACHE_CLEAN_ALL)
+                        if(Operation==RME_A7M_KFN_CACHE_CLEAN_ALL)
                             RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
-                        else if(Operation==RME_A7M_KERN_CACHE_INV_ALL)
+                        else if(Operation==RME_A7M_KFN_CACHE_INV_ALL)
                             RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                         else
                             RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
@@ -821,23 +821,23 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                 return 0U;
             }
             /* By address */
-            case RME_A7M_KERN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0U;}
-            case RME_A7M_KERN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0U;}
-            case RME_A7M_KERN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0U;}
+            case RME_A7M_KFN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0U;}
+            case RME_A7M_KFN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0U;}
+            case RME_A7M_KFN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0U;}
             /* By set */
-            case RME_A7M_KERN_CACHE_CLEAN_SET: /* Fall-through */
-            case RME_A7M_KERN_CACHE_INV_SET:
-            case RME_A7M_KERN_CACHE_CLEAN_INV_SET:
+            case RME_A7M_KFN_CACHE_CLEAN_SET: /* Fall-through */
+            case RME_A7M_KFN_CACHE_INV_SET:
+            case RME_A7M_KFN_CACHE_CLEAN_INV_SET:
             {
                 if(Param>=Sets)
-                    return RME_ERR_KERN_OPFAIL;
+                    return RME_ERR_KFN_FAIL;
                 
                 for(Way_Cnt=0U;Way_Cnt<=Ways;Way_Cnt++)
                 {
                     /* Compiler LICM */
-                    if(Operation==RME_A7M_KERN_CACHE_CLEAN_SET)
+                    if(Operation==RME_A7M_KFN_CACHE_CLEAN_SET)
                         RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
-                    else if(Operation==RME_A7M_KERN_CACHE_INV_SET)
+                    else if(Operation==RME_A7M_KFN_CACHE_INV_SET)
                         RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
                     else
                         RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
@@ -847,19 +847,19 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                 return 0U;
             }
             /* By way */
-            case RME_A7M_KERN_CACHE_CLEAN_WAY: /* Fall-through */
-            case RME_A7M_KERN_CACHE_INV_WAY:
-            case RME_A7M_KERN_CACHE_CLEAN_INV_WAY:
+            case RME_A7M_KFN_CACHE_CLEAN_WAY: /* Fall-through */
+            case RME_A7M_KFN_CACHE_INV_WAY:
+            case RME_A7M_KFN_CACHE_CLEAN_INV_WAY:
             {
                 if(Param>=Ways)
-                    return RME_ERR_KERN_OPFAIL;
+                    return RME_ERR_KFN_FAIL;
                 
                 for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
                 {
                     /* Compiler LICM */
-                    if(Operation==RME_A7M_KERN_CACHE_CLEAN_WAY)
+                    if(Operation==RME_A7M_KFN_CACHE_CLEAN_WAY)
                         RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
-                    else if(Operation==RME_A7M_KERN_CACHE_INV_WAY)
+                    else if(Operation==RME_A7M_KFN_CACHE_INV_WAY)
                         RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
                     else
                         RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
@@ -869,19 +869,19 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                 return 0U; 
             }
             /* By set and way */
-            case RME_A7M_KERN_CACHE_CLEAN_SETWAY: /* Fall-through */
-            case RME_A7M_KERN_CACHE_INV_SETWAY:
-            case RME_A7M_KERN_CACHE_CLEAN_INV_SETWAY:
+            case RME_A7M_KFN_CACHE_CLEAN_SETWAY: /* Fall-through */
+            case RME_A7M_KFN_CACHE_INV_SETWAY:
+            case RME_A7M_KFN_CACHE_CLEAN_INV_SETWAY:
             {
                 Set_Cnt=RME_PARAM_D1(Param);
                 Way_Cnt=RME_PARAM_D0(Param);
                 
                 if((Set_Cnt>=Sets)||(Way_Cnt>=Ways))
-                    return RME_ERR_KERN_OPFAIL;
+                    return RME_ERR_KFN_FAIL;
                 
-                if(Operation==RME_A7M_KERN_CACHE_CLEAN_SETWAY)
+                if(Operation==RME_A7M_KFN_CACHE_CLEAN_SETWAY)
                     RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
-                else if(Operation==RME_A7M_KERN_CACHE_INV_SETWAY)
+                else if(Operation==RME_A7M_KFN_CACHE_INV_SETWAY)
                     RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                 else
                     RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
@@ -893,12 +893,12 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
         }
 
         /* Must be wrong operation */
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     }
-    else if(Cache_ID==RME_A7M_KERN_CACHE_BTAC)
+    else if(Cache_ID==RME_A7M_KFN_CACHE_BTAC)
     {
-        if(Operation!=RME_A7M_KERN_CACHE_INV_ALL)
-            return RME_ERR_KERN_OPFAIL;
+        if(Operation!=RME_A7M_KFN_CACHE_INV_ALL)
+            return RME_ERR_KFN_FAIL;
         
         /* This may take effect or not... */
         RME_A7M_SCNSCB_BPIALL=0U;
@@ -907,7 +907,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
     }
     
     /* Invalid cache specified */
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
 /* End Function:__RME_A7M_Cache_Maint ****************************************/
 
@@ -920,36 +920,36 @@ Input       : rme_ptr_t Prfth_ID - The ID of the prefetcher to enable, disable o
               rme_ptr_t Operation - The operation to perform.
               rme_ptr_t Param - The parameter.
 Output      : None.
-Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID,
                               rme_ptr_t Operation,
                               rme_ptr_t Param)
 {
     if(Prfth_ID!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     
-    if(Operation==RME_A7M_KERN_PRFTH_MOD_SET_STATE)
+    if(Operation==RME_A7M_KFN_PRFTH_MOD_SET_STATE)
     {
-        if(Param==RME_A7M_KERN_PRFTH_STATE_ENABLE)
+        if(Param==RME_A7M_KFN_PRFTH_STATE_ENABLE)
             RME_A7M_PRFTH_STATE_SET(1U);
-        else if(Param==RME_A7M_KERN_PRFTH_STATE_DISABLE)
+        else if(Param==RME_A7M_KFN_PRFTH_STATE_DISABLE)
             RME_A7M_PRFTH_STATE_SET(0U);
         else
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         __RME_A7M_Barrier();
         return 0U;
     }
-    else if(Operation==RME_A7M_KERN_PRFTH_MOD_GET_STATE)
+    else if(Operation==RME_A7M_KFN_PRFTH_MOD_GET_STATE)
     {
         if(RME_A7M_PRFTH_STATE_GET()==0U)
-            return RME_A7M_KERN_PRFTH_STATE_DISABLE;
+            return RME_A7M_KFN_PRFTH_STATE_DISABLE;
         else
-            return RME_A7M_KERN_PRFTH_STATE_ENABLE;
+            return RME_A7M_KFN_PRFTH_STATE_ENABLE;
     }
     
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
 /* End Function:__RME_A7M_Prfth_Mod ******************************************/
 
@@ -965,54 +965,54 @@ rme_ret_t __RME_A7M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
 {
     switch(Freg_ID)
     {
-        case RME_A7M_KERN_CPU_FUNC_CPUID:           {Reg->R6=RME_A7M_SCB_CPUID;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_PFR0:         {Reg->R6=RME_A7M_SCB_ID_PFR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_PFR1:         {Reg->R6=RME_A7M_SCB_ID_PFR1;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_DFR0:         {Reg->R6=RME_A7M_SCB_ID_DFR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_AFR0:         {Reg->R6=RME_A7M_SCB_ID_AFR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_MMFR0:        {Reg->R6=RME_A7M_SCB_ID_MMFR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_MMFR1:        {Reg->R6=RME_A7M_SCB_ID_MMFR1;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_MMFR2:        {Reg->R6=RME_A7M_SCB_ID_MMFR2;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_MMFR3:        {Reg->R6=RME_A7M_SCB_ID_MMFR3;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR0:        {Reg->R6=RME_A7M_SCB_ID_ISAR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR1:        {Reg->R6=RME_A7M_SCB_ID_ISAR1;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR2:        {Reg->R6=RME_A7M_SCB_ID_ISAR2;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR3:        {Reg->R6=RME_A7M_SCB_ID_ISAR3;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR4:        {Reg->R6=RME_A7M_SCB_ID_ISAR4;break;}
-        case RME_A7M_KERN_CPU_FUNC_ID_ISAR5:        {Reg->R6=RME_A7M_SCB_ID_ISAR5;break;}
-        case RME_A7M_KERN_CPU_FUNC_CLIDR:           {Reg->R6=RME_A7M_SCB_CLIDR;break;}
-        case RME_A7M_KERN_CPU_FUNC_CTR:             {Reg->R6=RME_A7M_SCB_CTR;break;}
-        case RME_A7M_KERN_CPU_FUNC_ICACHE_CCSIDR:
+        case RME_A7M_KFN_CPU_FUNC_CPUID:           {Reg->R6=RME_A7M_SCB_CPUID;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_PFR0:         {Reg->R6=RME_A7M_SCB_ID_PFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_PFR1:         {Reg->R6=RME_A7M_SCB_ID_PFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_DFR0:         {Reg->R6=RME_A7M_SCB_ID_DFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_AFR0:         {Reg->R6=RME_A7M_SCB_ID_AFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR0:        {Reg->R6=RME_A7M_SCB_ID_MMFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR1:        {Reg->R6=RME_A7M_SCB_ID_MMFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR2:        {Reg->R6=RME_A7M_SCB_ID_MMFR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR3:        {Reg->R6=RME_A7M_SCB_ID_MMFR3;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR0:        {Reg->R6=RME_A7M_SCB_ID_ISAR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR1:        {Reg->R6=RME_A7M_SCB_ID_ISAR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR2:        {Reg->R6=RME_A7M_SCB_ID_ISAR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR3:        {Reg->R6=RME_A7M_SCB_ID_ISAR3;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR4:        {Reg->R6=RME_A7M_SCB_ID_ISAR4;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR5:        {Reg->R6=RME_A7M_SCB_ID_ISAR5;break;}
+        case RME_A7M_KFN_CPU_FUNC_CLIDR:           {Reg->R6=RME_A7M_SCB_CLIDR;break;}
+        case RME_A7M_KFN_CPU_FUNC_CTR:             {Reg->R6=RME_A7M_SCB_CTR;break;}
+        case RME_A7M_KFN_CPU_FUNC_ICACHE_CCSIDR:
         {
             RME_A7M_SCB_CSSELR=1U;
             __RME_A7M_Barrier();
             Reg->R6=RME_A7M_SCB_CCSIDR;
             break;
         }
-        case RME_A7M_KERN_CPU_FUNC_DCACHE_CCSIDR:
+        case RME_A7M_KFN_CPU_FUNC_DCACHE_CCSIDR:
         {
             RME_A7M_SCB_CSSELR=0U;
             __RME_A7M_Barrier();
             Reg->R6=RME_A7M_SCB_CCSIDR;
             break;
         }
-        case RME_A7M_KERN_CPU_FUNC_MPU_TYPE:        {Reg->R6=RME_A7M_MPU_CTRL;break;}
-        case RME_A7M_KERN_CPU_FUNC_MVFR0:           {Reg->R6=RME_A7M_SCNSCB_MVFR0;break;}
-        case RME_A7M_KERN_CPU_FUNC_MVFR1:           {Reg->R6=RME_A7M_SCNSCB_MVFR1;break;}
-        case RME_A7M_KERN_CPU_FUNC_MVFR2:           {Reg->R6=RME_A7M_SCNSCB_MVFR2;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID0:            {Reg->R6=RME_A7M_SCNSCB_PID0;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID1:            {Reg->R6=RME_A7M_SCNSCB_PID1;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID2:            {Reg->R6=RME_A7M_SCNSCB_PID2;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID3:            {Reg->R6=RME_A7M_SCNSCB_PID3;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID4:            {Reg->R6=RME_A7M_SCNSCB_PID4;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID5:            {Reg->R6=RME_A7M_SCNSCB_PID5;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID6:            {Reg->R6=RME_A7M_SCNSCB_PID6;break;}
-        case RME_A7M_KERN_CPU_FUNC_PID7:            {Reg->R6=RME_A7M_SCNSCB_PID7;break;}
-        case RME_A7M_KERN_CPU_FUNC_CID0:            {Reg->R6=RME_A7M_SCNSCB_CID0;break;}
-        case RME_A7M_KERN_CPU_FUNC_CID1:            {Reg->R6=RME_A7M_SCNSCB_CID1;break;}
-        case RME_A7M_KERN_CPU_FUNC_CID2:            {Reg->R6=RME_A7M_SCNSCB_CID2;break;}
-        case RME_A7M_KERN_CPU_FUNC_CID3:            {Reg->R6=RME_A7M_SCNSCB_CID3;break;}
-        default:                                    {return RME_ERR_KERN_OPFAIL;}
+        case RME_A7M_KFN_CPU_FUNC_MPU_TYPE:        {Reg->R6=RME_A7M_MPU_CTRL;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR0:           {Reg->R6=RME_A7M_SCNSCB_MVFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR1:           {Reg->R6=RME_A7M_SCNSCB_MVFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR2:           {Reg->R6=RME_A7M_SCNSCB_MVFR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID0:            {Reg->R6=RME_A7M_SCNSCB_PID0;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID1:            {Reg->R6=RME_A7M_SCNSCB_PID1;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID2:            {Reg->R6=RME_A7M_SCNSCB_PID2;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID3:            {Reg->R6=RME_A7M_SCNSCB_PID3;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID4:            {Reg->R6=RME_A7M_SCNSCB_PID4;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID5:            {Reg->R6=RME_A7M_SCNSCB_PID5;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID6:            {Reg->R6=RME_A7M_SCNSCB_PID6;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID7:            {Reg->R6=RME_A7M_SCNSCB_PID7;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID0:            {Reg->R6=RME_A7M_SCNSCB_CID0;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID1:            {Reg->R6=RME_A7M_SCNSCB_CID1;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID2:            {Reg->R6=RME_A7M_SCNSCB_CID2;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID3:            {Reg->R6=RME_A7M_SCNSCB_CID3;break;}
+        default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0U;
@@ -1033,28 +1033,28 @@ rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID,
                                  rme_ptr_t Operation,
                                  rme_ptr_t Param)
 {
-    if(Perf_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
-        return RME_ERR_KERN_OPFAIL;
+    if(Perf_ID!=RME_A7M_KFN_PERF_CYCLE_CYCCNT)
+        return RME_ERR_KFN_FAIL;
 
     /* Do we have this counter at all? */
     if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
     
-    if(Operation==RME_A7M_KERN_PERF_STATE_GET)
+    if(Operation==RME_A7M_KFN_PERF_STATE_GET)
         return RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_CYCCNTENA;
-    else if(Operation==RME_A7M_KERN_PERF_STATE_SET)
+    else if(Operation==RME_A7M_KFN_PERF_STATE_SET)
     {
-        if(Param==RME_A7M_KERN_PERF_STATE_DISABLE)
+        if(Param==RME_A7M_KFN_PERF_STATE_DISABLE)
             RME_A7M_DWT_CTRL&=~RME_A7M_DWT_CTRL_CYCCNTENA;
-        else if(Param==RME_A7M_KERN_PERF_STATE_ENABLE)
+        else if(Param==RME_A7M_KFN_PERF_STATE_ENABLE)
             RME_A7M_DWT_CTRL|=RME_A7M_DWT_CTRL_CYCCNTENA;
         else
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
 
         return 0U;
     }
     
-    return RME_ERR_KERN_OPFAIL;
+    return RME_ERR_KFN_FAIL;
 }
 /* End Function:__RME_A7M_Perf_Mon_Mod ***************************************/
 
@@ -1071,20 +1071,20 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
                                    rme_ptr_t Operation,
                                    rme_ptr_t Value)
 {
-    if(Cycle_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
-        return RME_ERR_KERN_OPFAIL;
+    if(Cycle_ID!=RME_A7M_KFN_PERF_CYCLE_CYCCNT)
+        return RME_ERR_KFN_FAIL;
     
     /* Do we have this counter at all? */
     if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0U)
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
 
     /* We do have the counter, access it */
-    if(Operation==RME_A7M_KERN_PERF_VAL_GET)
+    if(Operation==RME_A7M_KFN_PERF_VAL_GET)
         Reg->R6=RME_A7M_DWT_CYCCNT;
-    else if(Operation==RME_A7M_KERN_PERF_VAL_SET)
+    else if(Operation==RME_A7M_KFN_PERF_VAL_SET)
         RME_A7M_DWT_CYCCNT=Value;
     else
-        return RME_ERR_KERN_OPFAIL;
+        return RME_ERR_KFN_FAIL;
 
     return 0U;
 }
@@ -1092,7 +1092,7 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
 
 /* Begin Function:__RME_A7M_Debug_Reg_Mod *************************************
 Description : Debug regular register modification implementation for ARMv7-M.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
@@ -1100,7 +1100,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
+rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
                                   volatile struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation,
@@ -1113,7 +1113,7 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -1125,62 +1125,62 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
     switch(Operation)
     {
         /* Register read/write */
-        case RME_A7M_KERN_DEBUG_REG_MOD_SP_GET:     {Reg->R6=Reg_Cur->Reg.SP;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_SP_SET:     {Reg_Cur->Reg.SP=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R4_GET:     {Reg->R6=Reg_Cur->Reg.R4;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R4_SET:     {Reg_Cur->Reg.R4=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R5_GET:     {Reg->R6=Reg_Cur->Reg.R5;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R5_SET:     {Reg_Cur->Reg.R5=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R6_GET:     {Reg->R6=Reg_Cur->Reg.R6;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R6_SET:     {Reg_Cur->Reg.R6=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R7_GET:     {Reg->R6=Reg_Cur->Reg.R7;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R7_SET:     {Reg_Cur->Reg.R7=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R8_GET:     {Reg->R6=Reg_Cur->Reg.R8;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R8_SET:     {Reg_Cur->Reg.R8=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R9_GET:     {Reg->R6=Reg_Cur->Reg.R9;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R9_SET:     {Reg_Cur->Reg.R9=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R10_GET:    {Reg->R6=Reg_Cur->Reg.R10;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R10_SET:    {Reg_Cur->Reg.R10=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Reg_Cur->Reg.R11;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_R11_SET:    {Reg_Cur->Reg.R11=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Reg_Cur->Reg.LR;break;}
-        /* case RME_A7M_KERN_DEBUG_REG_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
+        case RME_A7M_KFN_DEBUG_REG_MOD_SP_GET:     {Reg->R6=Reg_Cur->Reg.SP;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_SP_SET:     {Reg_Cur->Reg.SP=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R4_GET:     {Reg->R6=Reg_Cur->Reg.R4;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R4_SET:     {Reg_Cur->Reg.R4=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R5_GET:     {Reg->R6=Reg_Cur->Reg.R5;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R5_SET:     {Reg_Cur->Reg.R5=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R6_GET:     {Reg->R6=Reg_Cur->Reg.R6;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R6_SET:     {Reg_Cur->Reg.R6=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R7_GET:     {Reg->R6=Reg_Cur->Reg.R7;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R7_SET:     {Reg_Cur->Reg.R7=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R8_GET:     {Reg->R6=Reg_Cur->Reg.R8;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R8_SET:     {Reg_Cur->Reg.R8=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R9_GET:     {Reg->R6=Reg_Cur->Reg.R9;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R9_SET:     {Reg_Cur->Reg.R9=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R10_GET:    {Reg->R6=Reg_Cur->Reg.R10;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R10_SET:    {Reg_Cur->Reg.R10=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Reg_Cur->Reg.R11;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_R11_SET:    {Reg_Cur->Reg.R11=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Reg_Cur->Reg.LR;break;}
+        /* case RME_A7M_KFN_DEBUG_REG_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
 #if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
         /* FPU register read/write */
-        case RME_A7M_KERN_DEBUG_REG_MOD_S16_GET:    {Reg->R6=Reg_Cur->Cop.S16;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S16_SET:    {Reg_Cur->Cop.S16=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S17_GET:    {Reg->R6=Reg_Cur->Cop.S17;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S17_SET:    {Reg_Cur->Cop.S17=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S18_GET:    {Reg->R6=Reg_Cur->Cop.S18;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S18_SET:    {Reg_Cur->Cop.S18=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S19_GET:    {Reg->R6=Reg_Cur->Cop.S19;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S19_SET:    {Reg_Cur->Cop.S19=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S20_GET:    {Reg->R6=Reg_Cur->Cop.S20;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S20_SET:    {Reg_Cur->Cop.S20=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S21_GET:    {Reg->R6=Reg_Cur->Cop.S21;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S21_SET:    {Reg_Cur->Cop.S21=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S22_GET:    {Reg->R6=Reg_Cur->Cop.S22;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S22_SET:    {Reg_Cur->Cop.S22=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S23_GET:    {Reg->R6=Reg_Cur->Cop.S23;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S23_SET:    {Reg_Cur->Cop.S23=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S24_GET:    {Reg->R6=Reg_Cur->Cop.S24;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S24_SET:    {Reg_Cur->Cop.S24=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S25_GET:    {Reg->R6=Reg_Cur->Cop.S25;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S25_SET:    {Reg_Cur->Cop.S25=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S26_GET:    {Reg->R6=Reg_Cur->Cop.S26;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S26_SET:    {Reg_Cur->Cop.S26=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S27_GET:    {Reg->R6=Reg_Cur->Cop.S27;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S27_SET:    {Reg_Cur->Cop.S27=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S28_GET:    {Reg->R6=Reg_Cur->Cop.S28;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S28_SET:    {Reg_Cur->Cop.S28=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S29_GET:    {Reg->R6=Reg_Cur->Cop.S29;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S29_SET:    {Reg_Cur->Cop.S29=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S30_GET:    {Reg->R6=Reg_Cur->Cop.S30;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S30_SET:    {Reg_Cur->Cop.S30=Value;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S31_GET:    {Reg->R6=Reg_Cur->Cop.S31;break;}
-        case RME_A7M_KERN_DEBUG_REG_MOD_S31_SET:    {Reg_Cur->Cop.S31=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S16_GET:    {Reg->R6=Reg_Cur->Cop.S16;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S16_SET:    {Reg_Cur->Cop.S16=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S17_GET:    {Reg->R6=Reg_Cur->Cop.S17;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S17_SET:    {Reg_Cur->Cop.S17=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S18_GET:    {Reg->R6=Reg_Cur->Cop.S18;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S18_SET:    {Reg_Cur->Cop.S18=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S19_GET:    {Reg->R6=Reg_Cur->Cop.S19;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S19_SET:    {Reg_Cur->Cop.S19=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S20_GET:    {Reg->R6=Reg_Cur->Cop.S20;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S20_SET:    {Reg_Cur->Cop.S20=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S21_GET:    {Reg->R6=Reg_Cur->Cop.S21;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S21_SET:    {Reg_Cur->Cop.S21=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S22_GET:    {Reg->R6=Reg_Cur->Cop.S22;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S22_SET:    {Reg_Cur->Cop.S22=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S23_GET:    {Reg->R6=Reg_Cur->Cop.S23;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S23_SET:    {Reg_Cur->Cop.S23=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S24_GET:    {Reg->R6=Reg_Cur->Cop.S24;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S24_SET:    {Reg_Cur->Cop.S24=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S25_GET:    {Reg->R6=Reg_Cur->Cop.S25;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S25_SET:    {Reg_Cur->Cop.S25=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S26_GET:    {Reg->R6=Reg_Cur->Cop.S26;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S26_SET:    {Reg_Cur->Cop.S26=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S27_GET:    {Reg->R6=Reg_Cur->Cop.S27;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S27_SET:    {Reg_Cur->Cop.S27=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S28_GET:    {Reg->R6=Reg_Cur->Cop.S28;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S28_SET:    {Reg_Cur->Cop.S28=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S29_GET:    {Reg->R6=Reg_Cur->Cop.S29;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S29_SET:    {Reg_Cur->Cop.S29=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S30_GET:    {Reg->R6=Reg_Cur->Cop.S30;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S30_SET:    {Reg_Cur->Cop.S30=Value;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S31_GET:    {Reg->R6=Reg_Cur->Cop.S31;break;}
+        case RME_A7M_KFN_DEBUG_REG_MOD_S31_SET:    {Reg_Cur->Cop.S31=Value;break;}
 #endif
-        default:                                    {return RME_ERR_KERN_OPFAIL;}
+        default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0U;
@@ -1189,7 +1189,7 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl,
 
 /* Begin Function:__RME_A7M_Debug_Inv_Mod *************************************
 Description : Debug invocation register modification implementation for ARMv7-M.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
@@ -1197,7 +1197,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
+rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
                                   volatile struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation,
@@ -1211,7 +1211,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Layer_Cnt;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -1225,7 +1225,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
     while(1U)
     {
         if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
         
         if(Layer_Cnt==0U)
             break;
@@ -1238,27 +1238,28 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl,
     switch(RME_PARAM_D0(Operation))
     {
         /* Register read/write */
-        case RME_A7M_KERN_DEBUG_INV_MOD_SP_GET:     {Reg->R6=Inv_Struct->Ret.SP;break;}
-        case RME_A7M_KERN_DEBUG_INV_MOD_SP_SET:     {Inv_Struct->Ret.SP=Value;break;}
-        case RME_A7M_KERN_DEBUG_INV_MOD_LR_GET:     {Reg->R6=Reg->R6=Inv_Struct->Ret.LR;break;}
-        /* case RME_A7M_KERN_DEBUG_INV_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
-        default:                                    {return RME_ERR_KERN_OPFAIL;}
+        case RME_A7M_KFN_DEBUG_INV_MOD_SP_GET:     {Reg->R6=Inv_Struct->Ret.SP;break;}
+        case RME_A7M_KFN_DEBUG_INV_MOD_SP_SET:     {Inv_Struct->Ret.SP=Value;break;}
+        case RME_A7M_KFN_DEBUG_INV_MOD_LR_GET:     {Reg->R6=Reg->R6=Inv_Struct->Ret.LR;break;}
+        /* case RME_A7M_KFN_DEBUG_INV_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
+        default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0;
 }
 /* End Function:__RME_A7M_Debug_Inv_Mod **************************************/
 
-/* Begin Function:__RME_A7M_Debug_Err_Get *************************************
-Description : Debug error register extraction implementation for ARMv7-M.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+/* Begin Function:__RME_A7M_Debug_Exc_Get *************************************
+Description : Debug exception register extraction implementation for ARMv7-M.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read.
-Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the
+                                           handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Debug_Err_Get(struct RME_Cap_Captbl* Captbl,
+rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
                                   volatile struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation)
@@ -1270,7 +1271,7 @@ rme_ret_t __RME_A7M_Debug_Err_Get(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -1282,18 +1283,18 @@ rme_ret_t __RME_A7M_Debug_Err_Get(struct RME_Cap_Captbl* Captbl,
     switch(Operation)
     {
         /* Register read */
-        case RME_A7M_KERN_DEBUG_ERR_GET_CAUSE:      {Reg->R6=Reg_Cur->Err.Cause;break;}
-        case RME_A7M_KERN_DEBUG_ERR_GET_ADDR:       {Reg->R6=Reg_Cur->Err.Addr;break;}
-        default:                                    {return RME_ERR_KERN_OPFAIL;}
+        case RME_A7M_KFN_DEBUG_EXC_GET_CAUSE:      {Reg->R6=Reg_Cur->Exc.Cause;break;}
+        case RME_A7M_KFN_DEBUG_EXC_GET_ADDR:       {Reg->R6=Reg_Cur->Exc.Addr;break;}
+        default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0U;
 }
-/* End Function:__RME_A7M_Debug_Err_Get **************************************/
+/* End Function:__RME_A7M_Debug_Exc_Get **************************************/
 
-/* Begin Function:__RME_Kern_Func_Handler *************************************
+/* Begin Function:__RME_Kfn_Handler *******************************************
 Description : Handle kernel function calls.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               volatile struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The subfunction ID.
@@ -1303,14 +1304,14 @@ Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+extern rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 #endif
-rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl,
-                                  volatile struct RME_Reg_Struct* Reg,
-                                  rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID,
-                                  rme_ptr_t Param1,
-                                  rme_ptr_t Param2)
+rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
+                            volatile struct RME_Reg_Struct* Reg,
+                            rme_ptr_t Func_ID,
+                            rme_ptr_t Sub_ID,
+                            rme_ptr_t Param1,
+                            rme_ptr_t Param2)
 {
     rme_ret_t Retval;
 
@@ -1318,76 +1319,76 @@ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl,
     switch(Func_ID)
     {
 /* Page table operations *****************************************************/
-        case RME_KERN_PGTBL_CACHE_CLR:  {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PGTBL_LINE_CLR:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PGTBL_ASID_SET:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PGTBL_TLB_LOCK:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PGTBL_ENTRY_MOD:  {Retval=__RME_A7M_Pgtbl_Entry_Mod(Captbl, (rme_cid_t)Sub_ID, Param1, Param2);break;}
+        case RME_KFN_PGT_CACHE_CLR:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_ASID_SET:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_TLB_LOCK:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_ENTRY_MOD:     {Retval=__RME_A7M_Pgt_Entry_Mod(Cpt, (rme_cid_t)Sub_ID, Param1, Param2);break;}
 /* Interrupt controller operations *******************************************/
-        case RME_KERN_INT_LOCAL_MOD:    {Retval=__RME_A7M_Int_Local_Mod(Sub_ID, Param1, Param2);break;}
-        case RME_KERN_INT_GLOBAL_MOD:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_INT_LOCAL_TRIG:   {Retval=__RME_A7M_Int_Local_Trig(Sub_ID, Param1);break;} /* Never ctxsw */
-        case RME_KERN_EVT_LOCAL_TRIG:   {return __RME_A7M_Evt_Local_Trig(Reg, Sub_ID, Param1);} /* May ctxsw */
+        case RME_KFN_INT_LOCAL_MOD:     {Retval=__RME_A7M_Int_Local_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_INT_GLOBAL_MOD:    {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_INT_LOCAL_TRIG:    {Retval=__RME_A7M_Int_Local_Trig(Sub_ID, Param1);break;} /* Never ctxsw */
+        case RME_KFN_EVT_LOCAL_TRIG:    {return __RME_A7M_Evt_Local_Trig(Reg, Sub_ID, Param1);} /* May ctxsw */
 /* Cache operations **********************************************************/
-        case RME_KERN_CACHE_MOD:        {Retval=__RME_A7M_Cache_Mod(Sub_ID, Param1, Param2);break;}
-        case RME_KERN_CACHE_CONFIG:     {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_CACHE_MAINT:      {Retval=__RME_A7M_Cache_Maint(Sub_ID, Param1, Param2);break;}
-        case RME_KERN_CACHE_LOCK:       {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PRFTH_MOD:        {Retval=__RME_A7M_Prfth_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_CACHE_MOD:         {Retval=__RME_A7M_Cache_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_CACHE_CONFIG:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_CACHE_MAINT:       {Retval=__RME_A7M_Cache_Maint(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_CACHE_LOCK:        {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PRFTH_MOD:         {Retval=__RME_A7M_Prfth_Mod(Sub_ID, Param1, Param2);break;}
 /* Hot plug and pull operations **********************************************/
-        case RME_KERN_HPNP_PCPU_MOD:    {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_HPNP_LCPU_MOD:    {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_HPNP_PMEM_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_HPNP_PCPU_MOD:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_HPNP_LCPU_MOD:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_HPNP_PMEM_MOD:     {return RME_ERR_KFN_FAIL;}
 /* Power and frequency adjustment operations *********************************/
-        case RME_KERN_IDLE_SLEEP:       {__RME_A7M_Wait_Int();Retval=0;break;}
-        case RME_KERN_SYS_REBOOT:       {__RME_A7M_Reboot();while(1);}
-        case RME_KERN_SYS_SHDN:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VOLT_MOD:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_FREQ_MOD:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PMOD_MOD:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_SAFETY_MOD:       {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_IDLE_SLEEP:        {__RME_A7M_Wait_Int();Retval=0;break;}
+        case RME_KFN_SYS_REBOOT:        {__RME_A7M_Reboot();while(1);}
+        case RME_KFN_SYS_SHDN:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VOLT_MOD:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_FREQ_MOD:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PMOD_MOD:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_SAFETY_MOD:        {return RME_ERR_KFN_FAIL;}
 /* Performance monitoring operations *****************************************/
-        case RME_KERN_PERF_CPU_FUNC:    {Retval=__RME_A7M_Perf_CPU_Func(Reg, Sub_ID);break;} /* Value in R6 */
-        case RME_KERN_PERF_MON_MOD:     {Retval=__RME_A7M_Perf_Mon_Mod(Sub_ID, Param1, Param2);break;}
-        case RME_KERN_PERF_CNT_MOD:     {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PERF_CYCLE_MOD:   {Retval=__RME_A7M_Perf_Cycle_Mod(Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KERN_PERF_DATA_MOD:    {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PERF_PHYS_MOD:    {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_PERF_CUMUL_MOD:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_PERF_CPU_FUNC:     {Retval=__RME_A7M_Perf_CPU_Func(Reg, Sub_ID);break;} /* Value in R6 */
+        case RME_KFN_PERF_MON_MOD:      {Retval=__RME_A7M_Perf_Mon_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_PERF_CNT_MOD:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PERF_CYCLE_MOD:    {Retval=__RME_A7M_Perf_Cycle_Mod(Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KFN_PERF_DATA_MOD:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PERF_PHYS_MOD:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PERF_CUMUL_MOD:    {return RME_ERR_KFN_FAIL;}
 /* Hardware virtualization operations ****************************************/
-        case RME_KERN_VM_CRT:           {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VM_DEL:           {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VM_PGT:           {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VM_MOD:           {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_CRT:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_BIND:        {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_FREE:        {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_DEL:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_MOD:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_VCPU_RUN:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_VM_CRT:            {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VM_DEL:            {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VM_PGT:            {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VM_MOD:            {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_CRT:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_BIND:         {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_FREE:         {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_DEL:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_MOD:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_VCPU_RUN:          {return RME_ERR_KFN_FAIL;}
 /* Security monitor operations ***********************************************/
-        case RME_KERN_ECLV_CRT:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_ECLV_MOD:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_ECLV_DEL:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_ECLV_ACT:         {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_ECLV_RET:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_ECLV_CRT:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_ECLV_MOD:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_ECLV_DEL:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_ECLV_ACT:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_ECLV_RET:          {return RME_ERR_KFN_FAIL;}
 /* Debugging operations ******************************************************/
 #if(RME_DEBUG_PRINT==1U)
-        case RME_KERN_DEBUG_PRINT:      {__RME_Putchar((rme_s8_t)Sub_ID);Retval=0;break;}
+        case RME_KFN_DEBUG_PRINT:       {__RME_Putchar((rme_s8_t)Sub_ID);Retval=0;break;}
 #endif
-        case RME_KERN_DEBUG_REG_MOD:    {Retval=__RME_A7M_Debug_Reg_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KERN_DEBUG_INV_MOD:    {Retval=__RME_A7M_Debug_Inv_Mod(Captbl, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KERN_DEBUG_ERR_GET:    {Retval=__RME_A7M_Debug_Err_Get(Captbl, Reg, (rme_cid_t)Sub_ID, Param1);break;} /* Value in R6 */
-        case RME_KERN_DEBUG_MODE_MOD:   {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_DEBUG_IBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
-        case RME_KERN_DEBUG_DBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KFN_DEBUG_REG_MOD:     {Retval=__RME_A7M_Debug_Reg_Mod(Cpt, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KFN_DEBUG_INV_MOD:     {Retval=__RME_A7M_Debug_Inv_Mod(Cpt, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KFN_DEBUG_EXC_GET:     {Retval=__RME_A7M_Debug_Exc_Get(Cpt, Reg, (rme_cid_t)Sub_ID, Param1);break;} /* Value in R6 */
+        case RME_KFN_DEBUG_MODE_MOD:    {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_DEBUG_IBP_MOD:     {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_DEBUG_DBP_MOD:     {return RME_ERR_KFN_FAIL;}
 /* User-defined operations ***************************************************/
         default:
         {
 #if(RME_RVM_GEN_ENABLE==1U)
-            Retval=RME_User_Kern_Func_Handler(Func_ID, Sub_ID, Param1, Param2);
+            Retval=RME_Hook_Kfn_Handler(Func_ID, Sub_ID, Param1, Param2);
 #else
-            return RME_ERR_KERN_OPFAIL;
+            return RME_ERR_KFN_FAIL;
 #endif
         }
     }
@@ -1566,78 +1567,78 @@ Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Captbl* Captbl, rme_ptr_t Cap_Front, rme_ptr_t Kmem_Front);
+extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Cpt* Cpt, rme_ptr_t Cap_Front, rme_ptr_t Kom_Front);
 #endif
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
     /* volatile rme_ptr_t Size; */
     
-    Cur_Addr=RME_KMEM_VA_BASE;
+    Cur_Addr=RME_KOM_VA_BASE;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,RME_BOOT_CAPTBL_SIZE)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_BOOT_CAPTBL_SIZE));
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,RME_BOOT_CPT_SIZE)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_BOOT_CPT_SIZE));
     
 #if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
-    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_4G, RME_PGTBL_NUM_1)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_1));
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
+               Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_4G, RME_PGT_NUM_1)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
 #else
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
-    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_PGTBL, 
-               Cur_Addr, 0x00000000U, RME_PGTBL_TOP, RME_PGTBL_SIZE_512M, RME_PGTBL_NUM_8U)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_8));
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
+               Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_512M, RME_PGT_NUM_8U)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_8));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x00000000U, 0U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x20000000U, 1U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x40000000U, 2U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x60000000U, 3U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0x80000000U, 4U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xA0000000U, 5U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xC0000000U, 6U, RME_PGTBL_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_A7M_CPT, RME_BOOT_PGTBL, 0xE0000000U, 7U, RME_PGTBL_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x20000000U, 1U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x40000000U, 2U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x60000000U, 3U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x80000000U, 4U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xA0000000U, 5U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xC0000000U, 6U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xE0000000U, 7U, RME_PGT_ALL_PERM)==0);
 #endif
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Proc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC, 
-                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL)==0U);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC, 
+                                 RME_BOOT_CPT, RME_BOOT_PGT)==0U);
     
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
-    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_A7M_CPT, 
-                                  RME_BOOT_CAPTBL, 
-                                  RME_BOOT_INIT_KMEM,
-                                  RME_KMEM_VA_BASE,
-                                  RME_KMEM_VA_BASE+RME_KMEM_VA_SIZE-1U,
-                                  RME_KMEM_FLAG_ALL)==0U);
+    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KFN)==0);
+    RME_ASSERT(_RME_Kom_Boot_Crt(RME_A7M_CPT, 
+                                 RME_BOOT_CPT, 
+                                 RME_BOOT_INIT_KOM,
+                                 RME_KOM_VA_BASE,
+                                 RME_KOM_VA_BASE+RME_KOM_VA_SIZE-1U,
+                                 RME_KOM_FLAG_ALL)==0U);
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_TIMER)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
     RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_VECT)==0);
     
     /* Clean up the region for vectors and events */
     _RME_Clear((void*)RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE);
     _RME_Clear((void*)RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE);
     
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PROC, Cur_Addr, 0U, &RME_A7M_Local)==0);
+    RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_THD,
+                                 RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     
     /* Print the size of some kernel objects, only used in debugging
-    Size=RME_CAPTBL_SIZE(1U);
-    Size=RME_PGTBL_SIZE_TOP(0U)-sizeof(rme_ptr_t);
-    Size=RME_PGTBL_SIZE_NOM(0U)-sizeof(rme_ptr_t);
+    Size=RME_CPT_SIZE(1U);
+    Size=RME_PGT_SIZE_TOP(0U)-sizeof(rme_ptr_t);
+    Size=RME_PGT_SIZE_NOM(0U)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
     Size=RME_THD_SIZE; */
     
@@ -1648,13 +1649,13 @@ rme_ptr_t __RME_Boot(void)
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
 #if(RME_RVM_GEN_ENABLE==1U)
-    RME_ASSERT(Cur_Addr==RME_RVM_KMEM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr==RME_RVM_KOM_BOOT_FRONTIER);
 #else
-    RME_ASSERT(Cur_Addr<RME_RVM_KMEM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr<RME_RVM_KOM_BOOT_FRONTIER);
 #endif
 
     /* Enable the MPU & interrupt */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_A7M_Local.Thd_Cur)->Sched.Proc->Pgtbl,rme_ptr_t));
+    __RME_Pgt_Set(RME_CAP_GETOBJ((RME_A7M_Local.Thd_Cur)->Sched.Prc->Pgt,rme_ptr_t));
     __RME_Enable_Int();
     
     /* Boot into the init thread */
@@ -1889,19 +1890,19 @@ void __RME_Set_Inv_Retval(volatile struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
-/* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
+/* Begin Function:__RME_Pgt_Kom_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. In Cortex-M, we do not need to add such pages.
 Input       : None.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
+rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
     /* Empty function, always immediately successful */
     return 0U;
 }
-/* End Function:__RME_Pgtbl_Kmem_Init ****************************************/
+/* End Function:__RME_Pgt_Kom_Init ****************************************/
 
 /* Begin Function:__RME_A7M_Rand **********************************************
 Description : The random number generator used for random replacement policy.
@@ -1926,30 +1927,30 @@ rme_ptr_t __RME_A7M_Rand(void)
 }
 /* End Function:__RME_A7M_Rand ***********************************************/
 
-/* Begin Function:__RME_Pgtbl_Init ********************************************
+/* Begin Function:__RME_Pgt_Init ********************************************
 Description : Initialize the page table data structure, according to the capability.
-Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
+rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
     rme_ptr_t* Ptr;
     
     /* Get the actual table */
-    Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
     
     /* Initialize the causal metadata */
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Base_Addr=Pgtbl_Op->Base_Addr;
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Toplevel=0U;
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Size_Num_Order=Pgtbl_Op->Size_Num_Order;
-    ((struct __RME_A7M_Pgtbl_Meta*)Ptr)->Dir_Page_Count=0U;
-    Ptr+=sizeof(struct __RME_A7M_Pgtbl_Meta)/sizeof(rme_ptr_t);
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Toplevel=0U;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Dir_Page_Count=0U;
+    Ptr+=sizeof(struct __RME_A7M_Pgt_Meta)/sizeof(rme_ptr_t);
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
      * environments, if it is top-level, we need to add kernel pages as well */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
     {
         ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0U;
         
@@ -1964,64 +1965,64 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
     
     /* Clean up the table itself - This is could be virtually unbounded if the user
      * pass in some very large length value */
-    for(Count=0U;Count<RME_POW2(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order));Count++)
+    for(Count=0U;Count<RME_POW2(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order));Count++)
         Ptr[Count]=0U;
     
     return 0U;
 }
-/* End Function:__RME_Pgtbl_Init *********************************************/
+/* End Function:__RME_Pgt_Init *********************************************/
 
-/* Begin Function:__RME_Pgtbl_Check *******************************************
+/* Begin Function:__RME_Pgt_Check *******************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
 Input       : rme_ptr_t Base_Addr - The start mapping address.
-              rme_ptr_t Top_Flag - The top-level flag,
+              rme_ptr_t Is_Top - The top-level flag,
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr,
-                            rme_ptr_t Top_Flag, 
-                            rme_ptr_t Size_Order,
-                            rme_ptr_t Num_Order,
-                            rme_ptr_t Vaddr)
+rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
+                          rme_ptr_t Is_Top, 
+                          rme_ptr_t Size_Order,
+                          rme_ptr_t Num_Order,
+                          rme_ptr_t Vaddr)
 {
-    if(Num_Order>RME_PGTBL_NUM_256)
+    if(Num_Order>RME_PGT_NUM_256)
         return RME_ERR_PGT_OPFAIL;
-    if(Size_Order<RME_PGTBL_SIZE_32B)
+    if(Size_Order<RME_PGT_SIZE_32B)
         return RME_ERR_PGT_OPFAIL;
-    if(Size_Order>RME_PGTBL_SIZE_4G)
+    if(Size_Order>RME_PGT_SIZE_4G)
         return RME_ERR_PGT_OPFAIL;
     if((Vaddr&0x03U)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     return 0U;
 }
-/* End Function:__RME_Pgtbl_Check ********************************************/
+/* End Function:__RME_Pgt_Check ********************************************/
 
-/* Begin Function:__RME_Pgtbl_Del_Check ***************************************
+/* Begin Function:__RME_Pgt_Del_Check ***************************************
 Description : Check if the page table can be deleted.
-Input       : struct RME_Cap_Pgtbl Pgtbl_Op* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
+rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     /* Check if we are standalone */
-    if(((RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Dir_Page_Count)>>16)!=0U)
+    if(((RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if we still have a top-level */
-    if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Toplevel!=0U)
+    if(RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Toplevel!=0U)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Del_Check ****************************************/
+/* End Function:__RME_Pgt_Del_Check ****************************************/
 
-/* Begin Function:___RME_Pgtbl_MPU_Gen_RASR ***********************************
+/* Begin Function:___RME_Pgt_MPU_Gen_RASR ***********************************
 Description : Generate the RASR metadata for this level of page table.
 Input       : volatile rme_ptr_t* Table - The table to generate data for. This 
                                           is directly the raw page table itself,
@@ -2032,7 +2033,7 @@ Input       : volatile rme_ptr_t* Table - The table to generate data for. This
 Output      : struct __RME_A7M_MPU_Entry* Entry - The data generated.
 Return      : rme_ptr_t - The RASR value returned.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(volatile rme_ptr_t* Table,
+rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,
                                     rme_ptr_t Flags, 
                                     rme_ptr_t Size_Order,
                                     rme_ptr_t Num_Order)
@@ -2047,17 +2048,17 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(volatile rme_ptr_t* Table,
     
     switch(Num_Order)
     {
-        case RME_PGTBL_NUM_1:Flag=0xFFU;break;
-        case RME_PGTBL_NUM_2:Flag=0x0FU;break;
-        case RME_PGTBL_NUM_4:Flag=0x03U;break;
-        case RME_PGTBL_NUM_8:Flag=0x01U;break;
+        case RME_PGT_NUM_1:Flag=0xFFU;break;
+        case RME_PGT_NUM_2:Flag=0x0FU;break;
+        case RME_PGT_NUM_4:Flag=0x03U;break;
+        case RME_PGT_NUM_8:Flag=0x01U;break;
         default:RME_ASSERT(0U);
     }
     
     for(Count=0U;Count<RME_POW2(Num_Order);Count++)
     {
-        if(((Table[Count]&RME_A7M_PGTBL_PRESENT)!=0U)&&((Table[Count]&RME_A7M_PGTBL_TERMINAL)!=0U))
-            RASR|=Flag<<Count*RME_POW2(RME_PGTBL_NUM_8-Num_Order);
+        if(((Table[Count]&RME_A7M_PGT_PRESENT)!=0U)&&((Table[Count]&RME_A7M_PGT_TERMINAL)!=0U))
+            RASR|=Flag<<Count*RME_POW2(RME_PGT_NUM_8-Num_Order);
     }
     
     if(RASR==0U)
@@ -2068,27 +2069,27 @@ rme_ptr_t ___RME_Pgtbl_MPU_Gen_RASR(volatile rme_ptr_t* Table,
     RASR=RME_A7M_MPU_SRDCLR&(~RASR);
     RASR|=RME_A7M_MPU_SZENABLE;
     /* Is it read-only? - we do not care if the read bit is set, because it is always readable anyway */
-    if((Flags&RME_PGTBL_WRITE)!=0U)
+    if((Flags&RME_PGT_WRITE)!=0U)
         RASR|=RME_A7M_MPU_RW;
     else
         RASR|=RME_A7M_MPU_RO;
     /* Can we fetch instructions from there? */
-    if((Flags&RME_PGTBL_EXECUTE)==0U)
+    if((Flags&RME_PGT_EXECUTE)==0U)
         RASR|=RME_A7M_MPU_XN;
     /* Is the area cacheable? */
-    if((Flags&RME_PGTBL_CACHE)!=0U)
+    if((Flags&RME_PGT_CACHE)!=0U)
         RASR|=RME_A7M_MPU_CACHE;
     /* Is the area bufferable? */
-    if((Flags&RME_PGTBL_BUFFER)!=0U)
+    if((Flags&RME_PGT_BUFFER)!=0U)
         RASR|=RME_A7M_MPU_BUFFER;
     /* What is the region size? */
     RASR|=RME_A7M_MPU_REGIONSIZE(Size_Order+Num_Order);
     
     return RASR;
 }
-/* End Function:___RME_Pgtbl_MPU_Gen_RASR ************************************/
+/* End Function:___RME_Pgt_MPU_Gen_RASR ************************************/
 
-/* Begin Function:___RME_Pgtbl_MPU_Clear **************************************
+/* Begin Function:___RME_Pgt_MPU_Clear **************************************
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
 Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
@@ -2098,7 +2099,7 @@ Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU me
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+rme_ptr_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
                                  rme_ptr_t Base_Addr,
                                  rme_ptr_t Size_Order,
                                  rme_ptr_t Num_Order)
@@ -2125,9 +2126,9 @@ rme_ptr_t ___RME_Pgtbl_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU,
     
     return 0;
 }
-/* End Function:___RME_Pgtbl_MPU_Clear ***************************************/
+/* End Function:___RME_Pgt_MPU_Clear ***************************************/
 
-/* Begin Function:___RME_Pgtbl_MPU_Add ****************************************
+/* Begin Function:___RME_Pgt_MPU_Add ****************************************
 Description : Add or update the MPU entry in the top-level MPU table. We guarantee
               that at any time at least two regions are dedicated to dynamic entries.
               This is due to the fact that ARM have LDRD and STRD, which can require
@@ -2141,7 +2142,7 @@ Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU me
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
                                rme_ptr_t Base_Addr,
                                rme_ptr_t Size_Order,
                                rme_ptr_t Num_Order,
@@ -2230,16 +2231,16 @@ rme_ptr_t ___RME_Pgtbl_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU,
 
     return 0;
 }
-/* End Function:___RME_Pgtbl_MPU_Add *****************************************/
+/* End Function:___RME_Pgt_MPU_Add *****************************************/
 
-/* Begin Function:___RME_Pgtbl_MPU_Update *************************************
+/* Begin Function:___RME_Pgt_MPU_Update *************************************
 Description : Update the top-level MPU metadata for this level of page table.
-Input       : volatile struct __RME_A7M_Pgtbl_Meta* Meta - This page table.
+Input       : volatile struct __RME_A7M_Pgt_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgtbl_MPU_Update(volatile struct __RME_A7M_Pgtbl_Meta* Meta,
+rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
                                   rme_ptr_t Op_Flag)
 {
     rme_ptr_t MPU_RASR;
@@ -2247,21 +2248,21 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(volatile struct __RME_A7M_Pgtbl_Meta* Meta,
     volatile struct __RME_A7M_MPU_Data* Top_MPU;
     
     /* Is it possible for MPU to represent this? */
-    if(RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order)>RME_PGTBL_NUM_8)
+    if(RME_A7M_PGT_NUMORD(Meta->Size_Num_Order)>RME_PGT_NUM_8)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the tables */
     if(Meta->Toplevel!=0U)
     {
         /* We have a top-level */
-        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgtbl_Meta));
-        Table=RME_A7M_PGTBL_TBL_NOM((volatile rme_ptr_t*)Meta);
+        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgt_Meta));
+        Table=RME_A7M_PGT_TBL_NOM((volatile rme_ptr_t*)Meta);
     }
-    else if(((Meta->Base_Addr)&RME_PGTBL_TOP)!=0U)
+    else if(((Meta->Base)&RME_PGT_TOP)!=0U)
     {
         /* We don't have a top-level, but we are the top-level */
-        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgtbl_Meta));
-        Table=RME_A7M_PGTBL_TBL_TOP((volatile rme_ptr_t*)Meta);
+        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgt_Meta));
+        Table=RME_A7M_PGT_TBL_TOP((volatile rme_ptr_t*)Meta);
     }
     else
         return RME_ERR_PGT_OPFAIL;
@@ -2269,124 +2270,124 @@ rme_ptr_t ___RME_Pgtbl_MPU_Update(volatile struct __RME_A7M_Pgtbl_Meta* Meta,
     if(Op_Flag==RME_A7M_MPU_CLR)
     {
         /* Clear the metadata - this function will never fail */
-        ___RME_Pgtbl_MPU_Clear(Top_MPU,
-                               RME_A7M_PGTBL_START(Meta->Base_Addr),
-                               RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
-                               RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
+        ___RME_Pgt_MPU_Clear(Top_MPU,
+                               RME_A7M_PGT_START(Meta->Base),
+                               RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
+                               RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
     }
     else
     {
         /* See if the RASR contains anything */
-        MPU_RASR=___RME_Pgtbl_MPU_Gen_RASR(Table, Meta->Page_Flags, 
-                                           RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
-                                           RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
+        MPU_RASR=___RME_Pgt_MPU_Gen_RASR(Table, Meta->Page_Flag, 
+                                           RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
+                                           RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
         if(MPU_RASR==0U)
         {
             /* All pages are unmapped. Clear this from the MPU data */
-            ___RME_Pgtbl_MPU_Clear(Top_MPU,
-                                   RME_A7M_PGTBL_START(Meta->Base_Addr),
-                                   RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
-                                   RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order));
+            ___RME_Pgt_MPU_Clear(Top_MPU,
+                                   RME_A7M_PGT_START(Meta->Base),
+                                   RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
+                                   RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
         }
         else
         {
             /* At least one of the pages are there. Map it */
-            if(___RME_Pgtbl_MPU_Add(Top_MPU,
-                                    RME_A7M_PGTBL_START(Meta->Base_Addr),
-                                    RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order),
-                                    RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order),
-                                    MPU_RASR,Meta->Page_Flags&RME_PGTBL_STATIC)!=0U)
+            if(___RME_Pgt_MPU_Add(Top_MPU,
+                                    RME_A7M_PGT_START(Meta->Base),
+                                    RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
+                                    RME_A7M_PGT_NUMORD(Meta->Size_Num_Order),
+                                    MPU_RASR,Meta->Page_Flag&RME_PGT_STATIC)!=0U)
                 return RME_ERR_PGT_OPFAIL;
         }
     }
     
     return 0U;
 }
-/* End Function:___RME_Pgtbl_MPU_Update **************************************/
+/* End Function:___RME_Pgt_MPU_Update **************************************/
 
-/* Begin Function:__RME_Pgtbl_Set *********************************************
+/* Begin Function:__RME_Pgt_Set *********************************************
 Description : Set the processor's page table.
-Input       : rme_ptr_t Pgtbl - The virtual address of the page table.
+Input       : rme_ptr_t Pgt - The virtual address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
+void __RME_Pgt_Set(rme_ptr_t Pgt)
 {
     struct __RME_A7M_MPU_Data* MPU_Data;
     
-    MPU_Data=(struct __RME_A7M_MPU_Data*)(Pgtbl+sizeof(struct __RME_A7M_Pgtbl_Meta));
+    MPU_Data=(struct __RME_A7M_MPU_Data*)(Pgt+sizeof(struct __RME_A7M_Pgt_Meta));
     /* Get the physical address of the page table - here we do not need any conversion,
      * because VA = PA as always. We just need to extract the MPU metadata part
      * and pass it down */
     ___RME_A7M_MPU_Set((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
 }
-/* End Function:__RME_Pgtbl_Set **********************************************/
+/* End Function:__RME_Pgt_Set **********************************************/
 
-/* Begin Function:__RME_Pgtbl_Page_Map ****************************************
+/* Begin Function:__RME_Pgt_Page_Map ****************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
               required to have the same flags. We take advantage of this to increase
               the page granularity. This architecture requires that the mapping is
               always at least readable.
-Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate on.
               rme_ptr_t Paddr - The physical address to map to. No effect if we are unmapping.
               rme_ptr_t Pos - The position in the page table.
-              rme_ptr_t Flags - The RME standard page attributes. Need to translate them into 
+              rme_ptr_t Flag - The RME standard page attributes. Need to translate them into 
                                 architecture specific page table's settings.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op,
-                               rme_ptr_t Paddr,
-                               rme_ptr_t Pos,
-                               rme_ptr_t Flags)
+rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
+                             rme_ptr_t Paddr,
+                             rme_ptr_t Pos,
+                             rme_ptr_t Flag)
 {
     rme_ptr_t* Table;
-    struct __RME_A7M_Pgtbl_Meta* Meta;
+    struct __RME_A7M_Pgt_Meta* Meta;
 
     /* It should at least be readable */
-    if((Flags&RME_PGTBL_READ)==0U)
+    if((Flag&RME_PGT_READ)==0U)
         return RME_ERR_PGT_OPFAIL;
         
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
-    if(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order)>RME_PGTBL_NUM_8)
+    if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the metadata */
-    Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
+    Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
-        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
+        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
     else
-        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
     
     /* Check if we are trying to make duplicate mappings into the same location */
-    if((Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0U)
+    if((Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
         return RME_ERR_PGT_OPFAIL;
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
      * subregions shall share the same flags in Cortex-M */
-    if(RME_A7M_PGTBL_PAGENUM(Meta->Dir_Page_Count)==0U)
-        Meta->Page_Flags=Flags;
+    if(RME_A7M_PGT_PAGENUM(Meta->Dir_Page_Count)==0U)
+        Meta->Page_Flag=Flag;
     else
     {
-        if(Meta->Page_Flags!=Flags)
+        if(Meta->Page_Flag!=Flag)
             return RME_ERR_PGT_OPFAIL;
     }
 
     /* Register into the page table */
-    Table[Pos]=RME_A7M_PGTBL_PRESENT|RME_A7M_PGTBL_TERMINAL|
-               RME_ROUND_DOWN(Paddr,RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order));
+    Table[Pos]=RME_A7M_PGT_PRESENT|RME_A7M_PGT_TERMINAL|
+               RME_ROUND_DOWN(Paddr,RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order));
    
     /* If we are the top level or we have a top level, and we have static pages mapped in, do MPU updates */
-    if((Meta->Toplevel!=0U)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U))
+    if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
     {
-        if((Flags&RME_PGTBL_STATIC)!=0U)
+        if((Flag&RME_PGT_STATIC)!=0U)
         {
             /* Mapping static pages, update the MPU representation */
-            if(___RME_Pgtbl_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+            if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
             {
                 /* MPU update failed. Revert operations */
                 Table[Pos]=0U;
@@ -2395,52 +2396,52 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op,
         }
     }
     /* Modify count */
-    RME_A7M_PGTBL_INC_PAGENUM(Meta->Dir_Page_Count);
+    RME_A7M_PGT_INC_PAGENUM(Meta->Dir_Page_Count);
     
     return 0;
 }
-/* End Function:__RME_Pgtbl_Page_Map *****************************************/
+/* End Function:__RME_Pgt_Page_Map *****************************************/
 
-/* Begin Function:__RME_Pgtbl_Page_Unmap **************************************
+/* Begin Function:__RME_Pgt_Page_Unmap **************************************
 Description : Unmap a page from the page table.
-Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op,
+rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                  rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
-    struct __RME_A7M_Pgtbl_Meta* Meta;
+    struct __RME_A7M_Pgt_Meta* Meta;
         
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
-    if(RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order)>RME_PGTBL_NUM_8)
+    if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the metadata */
-    Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
+    Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
-        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
+        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
     else
-        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
 
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0U))
+    if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0)||((Table[Pos]&RME_A7M_PGT_TERMINAL)==0U))
         return RME_ERR_PGT_OPFAIL;
 
     Temp=Table[Pos];
     Table[Pos]=0U;
     /* If we are top-level or we have a top-level, do MPU updates */
-    if((Meta->Toplevel!=0U)||(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U))
+    if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
-        if(___RME_Pgtbl_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
         {
             /* Revert operations */
             Table[Pos]=Temp;
@@ -2448,62 +2449,62 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op,
         }
     }
     /* Modify count */
-    RME_A7M_PGTBL_DEC_PAGENUM(Meta->Dir_Page_Count);
+    RME_A7M_PGT_DEC_PAGENUM(Meta->Dir_Page_Count);
     
     return 0U;
 }
-/* End Function:__RME_Pgtbl_Page_Unmap ***************************************/
+/* End Function:__RME_Pgt_Page_Unmap ***************************************/
 
-/* Begin Function:__RME_Pgtbl_Pgdir_Map ***************************************
+/* Begin Function:__RME_Pgt_Pgdir_Map ***************************************
 Description : Map a page directory into the page table. This architecture does not
               support page directory flags.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
-              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
+Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
+              struct RME_Cap_Pgt* Pgt_Child - The child page table.
               rme_ptr_t Pos - The position in the destination page table.
-              rme_ptr_t Flags - This have no effect for MPU-based architectures
+              rme_ptr_t Flag - This have no effect for MPU-based architectures
                                (because page table addresses use up the whole word).
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent,
+rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos, 
-                                struct RME_Cap_Pgtbl* Pgtbl_Child,
-                                rme_ptr_t Flags)
+                                struct RME_Cap_Pgt* Pgt_Child,
+                                rme_ptr_t Flag)
 {
     rme_ptr_t* Parent_Table;
-    struct __RME_A7M_Pgtbl_Meta* Parent_Meta;
-    struct __RME_A7M_Pgtbl_Meta* Child_Meta;
+    struct __RME_A7M_Pgt_Meta* Parent_Meta;
+    struct __RME_A7M_Pgt_Meta* Child_Meta;
     
     /* Is the child a designated top level directory? If it is, we do not allow 
      * constructions. In Cortex-M, we only allow the designated top-level to be
      * the actual top-level. */
-    if(((Pgtbl_Child->Base_Addr)&RME_PGTBL_TOP)!=0U)
+    if(((Pgt_Child->Base)&RME_PGT_TOP)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the metadata */
-    Parent_Meta=RME_CAP_GETOBJ(Pgtbl_Parent,struct __RME_A7M_Pgtbl_Meta*);
-    Child_Meta=RME_CAP_GETOBJ(Pgtbl_Child,struct __RME_A7M_Pgtbl_Meta*);
+    Parent_Meta=RME_CAP_GETOBJ(Pgt_Parent,struct __RME_A7M_Pgt_Meta*);
+    Child_Meta=RME_CAP_GETOBJ(Pgt_Child,struct __RME_A7M_Pgt_Meta*);
     
     /* The parent table must have or be a top-directory */
-    if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)==0U))
+    if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base)&RME_PGT_TOP)==0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if the child already mapped somewhere, or have grandchild directories */
-    if(((Child_Meta->Toplevel)!=0U)||(RME_A7M_PGTBL_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
+    if(((Child_Meta->Toplevel)!=0U)||(RME_A7M_PGT_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* Where is the entry slot? */
-    if(((Parent_Meta->Base_Addr)&RME_PGTBL_TOP)!=0U)
-        Parent_Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
+    if(((Parent_Meta->Base)&RME_PGT_TOP)!=0U)
+        Parent_Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
-        Parent_Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
+        Parent_Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Parent_Meta);
     
     /* Check if anything already mapped in */
-    if((Parent_Table[Pos]&RME_A7M_PGTBL_PRESENT)!=0U)
+    if((Parent_Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* The address must be aligned to a word */
-    Parent_Table[Pos]=RME_A7M_PGTBL_PRESENT|RME_A7M_PGTBL_PGD_ADDR((rme_ptr_t)Child_Meta);
+    Parent_Table[Pos]=RME_A7M_PGT_PRESENT|RME_A7M_PGT_PGD_ADDR((rme_ptr_t)Child_Meta);
     
     /* Log the entry into the destination - if the parent is a top-level, then the top-level
      * is the parent; if the parent have a top-level, then the top-level is the parent's top-level */
@@ -2512,129 +2513,129 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent,
     else
         Child_Meta->Toplevel=Parent_Meta->Toplevel;
 
-    RME_A7M_PGTBL_INC_DIRNUM(Parent_Meta->Dir_Page_Count);
+    RME_A7M_PGT_INC_DIRNUM(Parent_Meta->Dir_Page_Count);
     
     /* Update MPU settings if there are static pages mapped into the source. If there
      * are any, update the MPU settings */
-    if((RME_A7M_PGTBL_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
-       (((Child_Meta->Page_Flags)&RME_PGTBL_STATIC)!=0U))
+    if((RME_A7M_PGT_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
+       (((Child_Meta->Page_Flag)&RME_PGT_STATIC)!=0U))
     {
-        if(___RME_Pgtbl_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
         {
             /* Mapping failed. Revert operations */
             Parent_Table[Pos]=0U;
             Child_Meta->Toplevel=0U;
-            RME_A7M_PGTBL_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
+            RME_A7M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
             return RME_ERR_PGT_OPFAIL;
         }
     }
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Pgdir_Map ****************************************/
+/* End Function:__RME_Pgt_Pgdir_Map ******************************************/
 
-/* Begin Function:__RME_Pgtbl_Pgdir_Unmap *************************************
+/* Begin Function:__RME_Pgt_Pgdir_Unmap ***************************************
 Description : Unmap a page directory from the page table.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table to unmap from.
+Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap from.
               rme_ptr_t Pos - The position in the page table.
-              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table to unmap.
+              struct RME_Cap_Pgt* Pgt_Child - The child page table to unmap.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent,
-                                  rme_ptr_t Pos, 
-                                  struct RME_Cap_Pgtbl* Pgtbl_Child)
+rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
+                                rme_ptr_t Pos, 
+                                struct RME_Cap_Pgt* Pgt_Child)
 {
     rme_ptr_t* Table;
-    struct __RME_A7M_Pgtbl_Meta* Parent_Meta;
-    struct __RME_A7M_Pgtbl_Meta* Child_Meta;
+    struct __RME_A7M_Pgt_Meta* Parent_Meta;
+    struct __RME_A7M_Pgt_Meta* Child_Meta;
     
     /* Get the metadata */
-    Parent_Meta=RME_CAP_GETOBJ(Pgtbl_Parent,struct __RME_A7M_Pgtbl_Meta*);
+    Parent_Meta=RME_CAP_GETOBJ(Pgt_Parent,struct __RME_A7M_Pgt_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Parent->Base_Addr)&RME_PGTBL_TOP)!=0U)
-        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
+    if(((Pgt_Parent->Base)&RME_PGT_TOP)!=0U)
+        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
-        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
+        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Parent_Meta);
 
     /* Check if we try to remove something nonexistent, or a page */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0U))
+    if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)||((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* See if the child page table is actually mapped there */
-    Child_Meta=(struct __RME_A7M_Pgtbl_Meta*)RME_A7M_PGTBL_PGD_ADDR(Table[Pos]);
-    if(Child_Meta!=RME_CAP_GETOBJ(Pgtbl_Child,struct __RME_A7M_Pgtbl_Meta*))
+    Child_Meta=(struct __RME_A7M_Pgt_Meta*)RME_A7M_PGT_PGD_ADDR(Table[Pos]);
+    if(Child_Meta!=RME_CAP_GETOBJ(Pgt_Child,struct __RME_A7M_Pgt_Meta*))
         return RME_ERR_PGT_OPFAIL;
 
     /* Check if the directory still have child directories */
-    if(RME_A7M_PGTBL_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
+    if(RME_A7M_PGT_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
-    if(RME_A7M_PGTBL_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
+    if(RME_A7M_PGT_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
     {
-        if(___RME_Pgtbl_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
             return RME_ERR_PGT_OPFAIL;
     }
 
     Table[Pos]=0U;
     Parent_Meta->Toplevel=0U;
-    RME_A7M_PGTBL_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
+    RME_A7M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Pgdir_Unmap **************************************/
+/* End Function:__RME_Pgt_Pgdir_Unmap ****************************************/
 
-/* Begin Function:__RME_Pgtbl_Lookup ******************************************
+/* Begin Function:__RME_Pgt_Lookup ********************************************
 Description : Lookup a page entry in a page directory.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page directory to lookup.
+Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
 Output      : rme_ptr_t* Paddr - The physical address of the page.
-              rme_ptr_t* Flags - The RME standard flags of the page.
+              rme_ptr_t* Flag - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op,
+rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Pos,
                              rme_ptr_t* Paddr,
-                             rme_ptr_t* Flags)
+                             rme_ptr_t* Flag)
 {
     rme_ptr_t* Table;
     
     /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Check if this is the top-level page table. Get the table */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0U)
-        Table=RME_A7M_PGTBL_TBL_TOP(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
+        Table=RME_A7M_PGT_TBL_TOP(RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*));
     else
-        Table=RME_A7M_PGTBL_TBL_NOM(RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*));
+        Table=RME_A7M_PGT_TBL_NOM(RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*));
     
     /* Start lookup */
-    if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)||
-       ((Table[Pos]&RME_A7M_PGTBL_TERMINAL)==0U))
+    if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)||
+       ((Table[Pos]&RME_A7M_PGT_TERMINAL)==0U))
         return RME_ERR_PGT_OPFAIL;
     
     /* This is a page. Return the physical address and flags */
     if(Paddr!=0)
-        *Paddr=RME_A7M_PGTBL_PTE_ADDR(Table[Pos]);
+        *Paddr=RME_A7M_PGT_PTE_ADDR(Table[Pos]);
     
-    if(Flags!=0)
-        *Flags=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Page_Flags;
+    if(Flag!=0)
+        *Flag=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Page_Flag;
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Lookup *******************************************/
+/* End Function:__RME_Pgt_Lookup *********************************************/
 
-/* Begin Function:__RME_Pgtbl_Walk ********************************************
+/* Begin Function:__RME_Pgt_Walk **********************************************
 Description : Walking function for the page table. This function just does page
               table lookups. The page table that is being walked must be the top-
               level page table. The output values are optional; only pass in pointers
               when you need that value.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page table to walk.
+Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to walk.
               rme_ptr_t Vaddr - The virtual address to look up.
-Output      : rme_ptr_t* Pgtbl - The pointer to the page table level.
+Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Map_Vaddr - The virtual address that starts mapping.
               rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Size_Order - The size order of the page.
@@ -2642,68 +2643,69 @@ Output      : rme_ptr_t* Pgtbl - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op,
-                           rme_ptr_t Vaddr,
-                           rme_ptr_t* Pgtbl,
-                           rme_ptr_t* Map_Vaddr,
-                           rme_ptr_t* Paddr, rme_ptr_t* Size_Order,
-                           rme_ptr_t* Num_Order,
-                           rme_ptr_t* Flags)
+rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
+                         rme_ptr_t Vaddr,
+                         rme_ptr_t* Pgt,
+                         rme_ptr_t* Map_Vaddr,
+                         rme_ptr_t* Paddr,
+                         rme_ptr_t* Size_Order,
+                         rme_ptr_t* Num_Order,
+                         rme_ptr_t* Flag)
 {
-    struct __RME_A7M_Pgtbl_Meta* Meta;
+    struct __RME_A7M_Pgt_Meta* Meta;
     rme_ptr_t* Table;
     rme_ptr_t Pos;
     
     /* Check if this is the top-level page table */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0U)
+    if(((Pgt_Op->Base)&RME_PGT_TOP)==0U)
         return RME_ERR_PGT_OPFAIL;
     
     /* Get the table and start lookup */
-    Meta=RME_CAP_GETOBJ(Pgtbl_Op, struct __RME_A7M_Pgtbl_Meta*);
-    Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Meta);
+    Meta=RME_CAP_GETOBJ(Pgt_Op, struct __RME_A7M_Pgt_Meta*);
+    Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
     
     /* Do lookup recursively */
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_A7M_PGTBL_START(Meta->Base_Addr))
+        if(Vaddr<RME_A7M_PGT_START(Meta->Base))
             return RME_ERR_PGT_OPFAIL;
         /* Calculate where is the entry */
-        Pos=(Vaddr-RME_A7M_PGTBL_START(Meta->Base_Addr))>>RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
+        Pos=(Vaddr-RME_A7M_PGT_START(Meta->Base))>>RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order);
         /* See if the entry is overrange */
-        if((Pos>>RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order))!=0U)
+        if((Pos>>RME_A7M_PGT_NUMORD(Meta->Size_Num_Order))!=0U)
             return RME_ERR_PGT_OPFAIL;
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
-        if((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0U)
+        if((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)
             return RME_ERR_PGT_OPFAIL;
-        if((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0U)
+        if((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U)
         {
             /* This is a page - we found it */
-            if(Pgtbl!=0U)
-                *Pgtbl=(rme_ptr_t)Meta;
+            if(Pgt!=0U)
+                *Pgt=(rme_ptr_t)Meta;
             if(Map_Vaddr!=0U)
-                *Map_Vaddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                *Map_Vaddr=RME_A7M_PGT_START(Meta->Base)+(Pos<<RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order));
             if(Paddr!=0U)
-                *Paddr=RME_A7M_PGTBL_START(Meta->Base_Addr)+(Pos<<RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order));
+                *Paddr=RME_A7M_PGT_START(Meta->Base)+(Pos<<RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order));
             if(Size_Order!=0U)
-                *Size_Order=RME_A7M_PGTBL_SIZEORD(Meta->Size_Num_Order);
+                *Size_Order=RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order);
             if(Num_Order!=0U)
-                *Num_Order=RME_A7M_PGTBL_NUMORD(Meta->Size_Num_Order);
-            if(Flags!=0U)
-                *Flags=Meta->Page_Flags;
+                *Num_Order=RME_A7M_PGT_NUMORD(Meta->Size_Num_Order);
+            if(Flag!=0U)
+                *Flag=Meta->Page_Flag;
             
             break;
         }
         else
         {
             /* This is a directory, we goto that directory to continue walking */
-            Meta=(struct __RME_A7M_Pgtbl_Meta*)RME_A7M_PGTBL_PGD_ADDR(Table[Pos]);
-            Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Meta);
+            Meta=(struct __RME_A7M_Pgt_Meta*)RME_A7M_PGT_PGD_ADDR(Table[Pos]);
+            Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
         }
     }
     return 0U;
 }
-/* End Function:__RME_Pgtbl_Walk *********************************************/
+/* End Function:__RME_Pgt_Walk ***********************************************/
 
 /* End Of File ***************************************************************/
 

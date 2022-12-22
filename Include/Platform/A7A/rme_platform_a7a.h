@@ -99,12 +99,12 @@ typedef rme_s32_t rme_ret_t;
 #define RME_VA_EQU_PA                   (RME_FALSE)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
-/* Captbl size limit - not restricted */
-#define RME_CAPTBL_LIMIT                0
+/* Cpt size limit - not restricted */
+#define RME_CPT_LIMIT                0
 /* Normal page directory size calculation macro */
-#define RME_PGTBL_SIZE_NOM(NUM_ORDER)   (1<<(NUM_ORDER))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)   (1<<(NUM_ORDER))
 /* Top-level page directory size calculation macro */
-#define RME_PGTBL_SIZE_TOP(NUM_ORDER)   RME_PGTBL_SIZE_NOM(NUM_ORDER)
+#define RME_PGT_SIZE_TOP(NUM_ORDER)   RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
 #define RME_KOTBL                       RME_Kotbl
 /* Compare-and-Swap(CAS) */
@@ -126,24 +126,24 @@ typedef rme_s32_t rme_ret_t;
 /* Cortex-A specific macros **************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CAPTBL                 0
+#define RME_BOOT_CPT                 0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGTBL                  1
+#define RME_BOOT_PGT                  1
 /* The init process */
-#define RME_BOOT_INIT_PROC              2
+#define RME_BOOT_INIT_PRC              2
 /* The init thread */
 #define RME_BOOT_INIT_THD               3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN              4
 /* The initial kernel memory capability */
-#define RME_BOOT_INIT_KMEM              5
+#define RME_BOOT_INIT_KOM              5
 /* The initial timer endpoint */
 #define RME_BOOT_INIT_TIMER             6
 /* The initial default endpoint for all other interrupts */
 #define RME_BOOT_INIT_INT               7
 
 /* Booting capability layout */
-#define RME_CAV7_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
+#define RME_CAV7_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_START))
 /* Kernel virtual address base - this is fixed */
 #define RME_CAV7_VA_BASE                 (0x80000000U)
 /* For Cortex-A:
@@ -151,12 +151,12 @@ typedef rme_s32_t rme_ret_t;
  * Refer to ARMv7-AR architecture reference manual (ARM) for details.
  * Physical address extension is NOT supported in RME */
 /* Get the actual table positions */
-#define RME_CAV7_PGTBL_TBL_NOM(X)        (X)
-#define RME_CAV7_PGTBL_TBL_TOP(X)        (X)
+#define RME_CAV7_PGT_TBL_NOM(X)        (X)
+#define RME_CAV7_PGT_TBL_TOP(X)        (X)
 
 /* Cortex-A (ARMv7) */
 #define RME_CAV7_PGREG_POS(TABLE)        (((union __RME_CAV7_Pgreg*)RME_CAV7_PGREG_START) \
-		                                  [(((rme_ptr_t)(TABLE))-RME_CAV7_VA_BASE)>>RME_PGTBL_SIZE_1K])
+		                                  [(((rme_ptr_t)(TABLE))-RME_CAV7_VA_BASE)>>RME_PGT_SIZE_1K])
 
 /* MMU definitions operation flags, assuming the following changes:
  * TTBCR=0 : TTBR1 not used,
@@ -210,24 +210,24 @@ typedef rme_s32_t rme_ret_t;
 #define RME_CAV7_MMU_4K_PAGE_USER_COMMON (RME_CAV7_MMU_4K_PAGE_PRESENT|RME_CAV7_MMU_4K_USER| \
                                           RME_CAV7_MMU_4K_SHAREABLE|RME_CAV7_MMU_4K_NOTGLOBAL)
 
-#define RME_CAV7_MMU_4G_PGTBL_ADDR(X)    ((X)&0xFFFFC000U)
-#define RME_CAV7_MMU_1M_PGTBL_ADDR(X)    ((X)&0xFFFFFC00U)
+#define RME_CAV7_MMU_4G_PGT_ADDR(X)    ((X)&0xFFFFC000U)
+#define RME_CAV7_MMU_1M_PGT_ADDR(X)    ((X)&0xFFFFFC00U)
 #define RME_CAV7_MMU_1M_PAGE_ADDR(X)     ((X)&0xFFF00000U)
 #define RME_CAV7_MMU_4K_PAGE_ADDR(X)     ((X)&0xFFFFF000U)
 
 #define RME_CAV7_PGFLG_1M_RME2NAT(X)     (RME_CAV7_Pgflg_1M_RME2NAT[X])
-#define RME_CAV7_PGFLG_1M_PREPROC(X)     ((((X)&RME_CAV7_MMU_1M_READONLY)>>12)| \
+#define RME_CAV7_PGFLG_1M_PREPRC(X)     ((((X)&RME_CAV7_MMU_1M_READONLY)>>12)| \
                                           (((X)&RME_CAV7_MMU_1M_EXECUTENEVER)>>2)| \
 		                                  (((X)&RME_CAV7_MMU_1M_CACHEABLE)>>2)| \
 										  (((X)&RME_CAV7_MMU_1M_BUFFERABLE)>>2))
-#define RME_CAV7_PGFLG_1M_NAT2RME(X)     (RME_CAV7_Pgflg_1M_NAT2RME[RME_CAV7_PGFLG_1M_PREPROC(X)])
+#define RME_CAV7_PGFLG_1M_NAT2RME(X)     (RME_CAV7_Pgflg_1M_NAT2RME[RME_CAV7_PGFLG_1M_PREPRC(X)])
 
 #define RME_CAV7_PGFLG_4K_RME2NAT(X)     (RME_CAV7_Pgflg_4K_RME2NAT[X])
-#define RME_CAV7_PGFLG_4K_PREPROC(X)     ((((X)&RME_CAV7_MMU_4K_READONLY)>>6)| \
+#define RME_CAV7_PGFLG_4K_PREPRC(X)     ((((X)&RME_CAV7_MMU_4K_READONLY)>>6)| \
 		                                  (((X)&RME_CAV7_MMU_4K_CACHEABLE)>>1)| \
 		                                  (((X)&RME_CAV7_MMU_4K_BUFFERABLE)>>1)| \
 										  (((X)&RME_CAV7_MMU_4K_EXECUTENEVER)>>0))
-#define RME_CAV7_PGFLG_4K_NAT2RME(X)     (RME_CAV7_Pgflg_4K_NAT2RME[RME_CAV7_PGFLG_4K_PREPROC(X)])
+#define RME_CAV7_PGFLG_4K_NAT2RME(X)     (RME_CAV7_Pgflg_4K_NAT2RME[RME_CAV7_PGFLG_4K_PREPRC(X)])
 
 /* Processor type definitions */
 #define RME_CAV7_CPU_CORTEX_A5           (0)
@@ -433,16 +433,16 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |----------16MB|-----|-----|-----|-----|
- * |Kernel&Globals|Kotbl|Pgreg|Kmem1|Kmem2|
+ * |Kernel&Globals|Kotbl|Pgreg|Kom1|Kom2|
  *  Kernel&Globals : Initial kernel text segment and all static variables.
  *                   Also includes per-CPU variables and all other stuff.
  *  Kotbl          : Kernel object registration table.
  *  Pgreg          : Page table registration table.
- *  Kmem1          : Kernel memory 1, linear mapping, allow creation of page tables.
- *  Kmem2          : Kernel memory 2, non-linear mapping, allow creation of all other stuff.
+ *  Kom1          : Kernel memory 1, linear mapping, allow creation of page tables.
+ *  Kom2          : Kernel memory 2, non-linear mapping, allow creation of all other stuff.
  *  All values are in bytes, and are virtual addresses. If running the kernel or creating
  *  page tables on on-chip SRAM is desired, then the VA2PA and PA2VA macros must consider
- *  that issue properly, and the Kmem1 description also needs to take care of that. */
+ *  that issue properly, and the Kom1 description also needs to take care of that. */
 struct RME_CAV7_Mem_Layout
 {
 	rme_ptr_t Kotbl_Start;
@@ -451,11 +451,11 @@ struct RME_CAV7_Mem_Layout
 	rme_ptr_t Pgreg_Start;
 	rme_ptr_t Pgreg_Size;
 
-	rme_ptr_t Kmem1_Start;
-	rme_ptr_t Kmem1_Size;
+	rme_ptr_t Kom1_Start;
+	rme_ptr_t Kom1_Size;
 
-	rme_ptr_t Kmem2_Start;
-	rme_ptr_t Kmem2_Size;
+	rme_ptr_t Kom2_Start;
+	rme_ptr_t Kom2_Size;
 };
 
 /* Interrupt flags - this type of flags will only appear on MPU-based systems */
@@ -510,7 +510,7 @@ union __RME_CAV7_Pgreg
 /* Translate the flags into Cortex-A specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
  * [MSB                                                                                         LSB]
- * RME_PGTBL_BUFFERABLE | RME_PGTBL_CACHEABLE | RME_PGTBL_EXECUTE | RME_PGTBL_WRITE | RME_PGTBL_READ
+ * RME_PGT_BUFFERABLE | RME_PGT_CACHEABLE | RME_PGT_EXECUTE | RME_PGT_WRITE | RME_PGT_READ
  * The C snippet to generate this (gcc x64):
 
 #include <stdio.h>
@@ -569,7 +569,7 @@ static const rme_ptr_t RME_CAV7_Pgflg_1M_RME2NAT[32]=
 /* Translate the flags into Cortex-A specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
  * [MSB                                                                                         LSB]
- * RME_PGTBL_BUFFERABLE | RME_PGTBL_CACHEABLE | RME_PGTBL_EXECUTE | RME_PGTBL_WRITE | RME_PGTBL_READ
+ * RME_PGT_BUFFERABLE | RME_PGT_CACHEABLE | RME_PGT_EXECUTE | RME_PGT_WRITE | RME_PGT_READ
  * The C snippet to generate this (gcc x64):
 
 #include <stdio.h>
@@ -742,7 +742,7 @@ EXTERN rme_ptr_t __RME_CAV7_Stack_Start;
 /* The CPU initialization counter */
 __EXTERN__ rme_ptr_t RME_CAV7_CPU_Cnt;
 /* The initial page table */
-EXTERN rme_ptr_t __RME_CAV7_Kern_Pgtbl;
+EXTERN rme_ptr_t __RME_CAV7_Kern_Pgt;
 /* The interrupt vector */
 EXTERN rme_ptr_t __RME_CAV7_Vector_Table;
 /* The memory layout struct - currently not used */
@@ -1039,18 +1039,18 @@ __EXTERN__ void __RME_CAV7_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_CAV7_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
-                                           struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
+__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
+__EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, 
+                                           struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */

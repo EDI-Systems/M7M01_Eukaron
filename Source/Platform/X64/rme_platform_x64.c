@@ -57,7 +57,7 @@ int main(rme_ptr_t MBInfo)
 {
     RME_X64_MBInfo=(struct multiboot_info*)(MBInfo+RME_X64_VA_BASE);
     /* The main function of the kernel - we will start our kernel boot here */
-    _RME_Kmain(RME_KMEM_STACK_ADDR);
+    _RME_Kmain(RME_KOM_STACK_ADDR);
     return 0;
 }
 /* End Function:main *********************************************************/
@@ -529,22 +529,22 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
     RME_Hex_Print(MMap_Cnt);
 
     /* At least 256MB memory required on x64 architecture */
-    RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGTBL_SIZE_256M));
+    RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGT_SIZE_256M));
 
     /* Kernel virtual memory layout */
     RME_X64_Layout.Kotbl_Start=(rme_ptr_t)RME_KOTBL;
     /* +1G in cases where we have > 3GB memory for covering the memory hole */
-    Info_Cnt=(MMap_Cnt>3*RME_POW2(RME_PGTBL_SIZE_1G))?(MMap_Cnt+RME_POW2(RME_PGTBL_SIZE_1G)):MMap_Cnt;
-    RME_X64_Layout.Kotbl_Size=((Info_Cnt>>RME_KMEM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
+    Info_Cnt=(MMap_Cnt>3*RME_POW2(RME_PGT_SIZE_1G))?(MMap_Cnt+RME_POW2(RME_PGT_SIZE_1G)):MMap_Cnt;
+    RME_X64_Layout.Kotbl_Size=((Info_Cnt>>RME_KOM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
 
     /* Calculate the size of page table registration table size - we always assume 4GB range */
-    Info_Cnt=(MMap_Cnt>RME_POW2(RME_PGTBL_SIZE_4G))?RME_POW2(RME_PGTBL_SIZE_4G):MMap_Cnt;
+    Info_Cnt=(MMap_Cnt>RME_POW2(RME_PGT_SIZE_4G))?RME_POW2(RME_PGT_SIZE_4G):MMap_Cnt;
     RME_X64_Layout.Pgreg_Start=RME_X64_Layout.Kotbl_Start+RME_X64_Layout.Kotbl_Size;
-    RME_X64_Layout.Pgreg_Size=((Info_Cnt>>RME_PGTBL_SIZE_4K)+1)*sizeof(struct __RME_X64_Pgreg);
+    RME_X64_Layout.Pgreg_Size=((Info_Cnt>>RME_PGT_SIZE_4K)+1)*sizeof(struct __RME_X64_Pgreg);
 
     /* Calculate the per-CPU data structure size - each CPU have two 4k pages */
-    RME_X64_Layout.PerCPU_Start=RME_ROUND_UP(RME_X64_Layout.Pgreg_Start+RME_X64_Layout.Pgreg_Size,RME_PGTBL_SIZE_4K);
-    RME_X64_Layout.PerCPU_Size=2*RME_POW2(RME_PGTBL_SIZE_4K)*RME_X64_Num_CPU;
+    RME_X64_Layout.PerCPU_Start=RME_ROUND_UP(RME_X64_Layout.Pgreg_Start+RME_X64_Layout.Pgreg_Size,RME_PGT_SIZE_4K);
+    RME_X64_Layout.PerCPU_Size=2*RME_POW2(RME_PGT_SIZE_4K)*RME_X64_Num_CPU;
 
     /* Now decide the size of the stack */
     RME_X64_Layout.Stack_Size=RME_X64_Num_CPU<<RME_X64_KSTACK_ORDER;
@@ -743,15 +743,15 @@ void __RME_X64_CPU_Local_Init(void)
     RME_X64_SET_IDT(IDT_Table, RME_X64_INT_SMP_SYSTICK, RME_X64_IDT_VECT, SysTick_SMP_Handler);
 
     /* Load the IDT */
-    Desc[0]=RME_POW2(RME_PGTBL_SIZE_4K)-1;
+    Desc[0]=RME_POW2(RME_PGT_SIZE_4K)-1;
     Desc[1]=(rme_ptr_t)IDT_Table;
     Desc[2]=((rme_ptr_t)IDT_Table)>>16;
     Desc[3]=((rme_ptr_t)IDT_Table)>>32;
     Desc[4]=((rme_ptr_t)IDT_Table)>>48;
     __RME_X64_IDT_Load((rme_ptr_t*)Desc);
 
-    GDT_Table=(rme_ptr_t*)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGTBL_SIZE_4K));
-    TSS_Table=(rme_ptr_t)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGTBL_SIZE_4K)+16*sizeof(rme_ptr_t));
+    GDT_Table=(rme_ptr_t*)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGT_SIZE_4K));
+    TSS_Table=(rme_ptr_t)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGT_SIZE_4K)+16*sizeof(rme_ptr_t));
 
     /* Dummy entry */
     GDT_Table[0]=0x0000000000000000ULL;
@@ -785,8 +785,8 @@ void __RME_X64_CPU_Local_Init(void)
 
     /* Initialize the RME per-cpu data here */
     CPU_Local=(struct RME_CPU_Local*)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+
-    		                          RME_POW2(RME_PGTBL_SIZE_4K)+
-									  RME_POW2(RME_PGTBL_SIZE_1K));
+    		                          RME_POW2(RME_PGT_SIZE_4K)+
+									  RME_POW2(RME_PGT_SIZE_1K));
     _RME_CPU_Local_Init(CPU_Local,RME_X64_CPU_Cnt);
 
     /* Initialize x64 specific CPU-local data structure */
@@ -818,8 +818,8 @@ Return      : None.
 struct RME_CPU_Local* __RME_X64_CPU_Local_Get_By_CPUID(rme_ptr_t CPUID)
 {
 	return (struct RME_CPU_Local*)(RME_X64_CPU_LOCAL_BASE(CPUID)+
-			                       RME_POW2(RME_PGTBL_SIZE_4K)+
-								   RME_POW2(RME_PGTBL_SIZE_1K));
+			                       RME_POW2(RME_PGT_SIZE_4K)+
+								   RME_POW2(RME_PGT_SIZE_1K));
 }
 /* End Function:__RME_X64_CPU_Local_Get_By_CPUID *****************************/
 
@@ -1096,7 +1096,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
 }
 /* End Function:__RME_Low_Level_Init *****************************************/
 
-/* Begin Function:__RME_Pgtbl_Kmem_Init ***************************************
+/* Begin Function:__RME_Pgt_Kom_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. Currently this have no consideration for >1TB
               RAM, and is not NUMA-aware.
@@ -1104,7 +1104,7 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
+rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
     rme_cnt_t PML4_Cnt;
     rme_cnt_t PDP_Cnt;
@@ -1144,15 +1144,15 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
         /* Can use 1GB pages */
         RME_DBG_S("\n\rThis CPU have 1GB superpage support");
         RME_X64_Kpgt.PDP[0][0]|=RME_X64_MMU_ADDR(0)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
-        RME_X64_Kpgt.PDP[0][1]|=RME_X64_MMU_ADDR(RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
-        RME_X64_Kpgt.PDP[0][2]|=RME_X64_MMU_ADDR(2*RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
+        RME_X64_Kpgt.PDP[0][1]|=RME_X64_MMU_ADDR(RME_POW2(RME_PGT_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
+        RME_X64_Kpgt.PDP[0][2]|=RME_X64_MMU_ADDR(2*RME_POW2(RME_PGT_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
         /* We need to mark the device hole as unbufferable */
-        RME_X64_Kpgt.PDP[0][3]|=RME_X64_MMU_ADDR(3*RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
+        RME_X64_Kpgt.PDP[0][3]|=RME_X64_MMU_ADDR(3*RME_POW2(RME_PGT_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
         RME_X64_Kpgt.PDP[0][3]|=RME_X64_MMU_PWT|RME_X64_MMU_PCD;
 
         /* Map the first 2GB to the last position too, where the kernel text segment is at */
         RME_X64_Kpgt.PDP[255][510]|=RME_X64_MMU_ADDR(0)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
-        RME_X64_Kpgt.PDP[255][511]|=RME_X64_MMU_ADDR(RME_POW2(RME_PGTBL_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
+        RME_X64_Kpgt.PDP[255][511]|=RME_X64_MMU_ADDR(RME_POW2(RME_PGT_SIZE_1G))|RME_X64_MMU_PDE_SUP|RME_X64_MMU_P;
     }
     else
     {
@@ -1173,30 +1173,30 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
     while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
     {
         /* See if this memory segment passes 16MB limit */
-        if((Mem->Start_Addr+Mem->Length)<=RME_POW2(RME_PGTBL_SIZE_16M))
+        if((Mem->Start_Addr+Mem->Length)<=RME_POW2(RME_PGT_SIZE_16M))
             Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
         else
             break;
     }
 
-    /* The first Kmem1 trunk must start at smaller or equal to 16MB */
-    RME_ASSERT(Mem->Start_Addr<=RME_POW2(RME_PGTBL_SIZE_16M));
+    /* The first Kom1 trunk must start at smaller or equal to 16MB */
+    RME_ASSERT(Mem->Start_Addr<=RME_POW2(RME_PGT_SIZE_16M));
     /* The raw sizes of kernel memory segment 1 - per CPU area is already aligned so no need to align again */
-    RME_X64_Layout.Kmem1_Start[0]=RME_X64_Layout.PerCPU_Start+RME_X64_Layout.PerCPU_Size;
-    RME_X64_Layout.Kmem1_Size[0]=Mem->Start_Addr+Mem->Length-RME_POW2(RME_PGTBL_SIZE_16M)-
-    		                     RME_X64_VA2PA(RME_X64_Layout.Kmem1_Start[0]);
+    RME_X64_Layout.Kom1_Start[0]=RME_X64_Layout.PerCPU_Start+RME_X64_Layout.PerCPU_Size;
+    RME_X64_Layout.Kom1_Size[0]=Mem->Start_Addr+Mem->Length-RME_POW2(RME_PGT_SIZE_16M)-
+    		                     RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]);
 
-    /* Add the rest of Kmem1 into the array */
+    /* Add the rest of Kom1 into the array */
     Addr_Cnt=1;
     while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
     {
-        /* Add all segments under 4GB to Kmem1 */
+        /* Add all segments under 4GB to Kom1 */
         Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
-        /* If detected anything above 4GB, then this is not Kmem1, exiting */
-        if(Mem->Start_Addr>=RME_POW2(RME_PGTBL_SIZE_4G))
+        /* If detected anything above 4GB, then this is not Kom1, exiting */
+        if(Mem->Start_Addr>=RME_POW2(RME_PGT_SIZE_4G))
             break;
         /* If this memory trunk have less than 4MB, drop it */
-        if(Mem->Length<RME_POW2(RME_PGTBL_SIZE_4M))
+        if(Mem->Length<RME_POW2(RME_PGT_SIZE_4M))
         {
             RME_DBG_S("\n\rAbandoning physical memory below 4G: addr 0x");
             RME_DBG_U(Mem->Start_Addr);
@@ -1204,25 +1204,25 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
             RME_DBG_U(Mem->Length);
             continue;
         }
-        if(Addr_Cnt>=RME_X64_KMEM1_MAXSEGS)
+        if(Addr_Cnt>=RME_X64_KOM1_MAXSEGS)
         {
             RME_DBG_S("\r\nThe memory under 4G is too fragmented. Aborting.");
             RME_ASSERT(0);
         }
-        RME_X64_Layout.Kmem1_Start[Addr_Cnt]=RME_X64_PA2VA(RME_ROUND_UP(Mem->Start_Addr,RME_PGTBL_SIZE_2M));
-        RME_X64_Layout.Kmem1_Size[Addr_Cnt]=RME_ROUND_DOWN(Mem->Length,RME_PGTBL_SIZE_2M);
+        RME_X64_Layout.Kom1_Start[Addr_Cnt]=RME_X64_PA2VA(RME_ROUND_UP(Mem->Start_Addr,RME_PGT_SIZE_2M));
+        RME_X64_Layout.Kom1_Size[Addr_Cnt]=RME_ROUND_DOWN(Mem->Length,RME_PGT_SIZE_2M);
         Addr_Cnt++;
     }
-    RME_X64_Layout.Kmem1_Trunks=Addr_Cnt;
+    RME_X64_Layout.Kom1_Trunks=Addr_Cnt;
 
     /* This is the hole */
-    RME_X64_Layout.Hole_Start=RME_X64_Layout.Kmem1_Start[Addr_Cnt-1]+RME_X64_Layout.Kmem1_Size[Addr_Cnt-1];
-    RME_X64_Layout.Hole_Size=RME_POW2(RME_PGTBL_SIZE_4G)-RME_X64_VA2PA(RME_X64_Layout.Hole_Start);
+    RME_X64_Layout.Hole_Start=RME_X64_Layout.Kom1_Start[Addr_Cnt-1]+RME_X64_Layout.Kom1_Size[Addr_Cnt-1];
+    RME_X64_Layout.Hole_Size=RME_POW2(RME_PGT_SIZE_4G)-RME_X64_VA2PA(RME_X64_Layout.Hole_Start);
 
     /* Create kernel page mappings for memory above 4GB - we assume only one segment below 4GB */
-    RME_X64_Layout.Kpgtbl_Start=RME_X64_Layout.Kmem1_Start[0];
-    RME_X64_Layout.Kmem2_Start=RME_X64_PA2VA(RME_POW2(RME_PGTBL_SIZE_4G));
-    RME_X64_Layout.Kmem2_Size=0;
+    RME_X64_Layout.Kpgtbl_Start=RME_X64_Layout.Kom1_Start[0];
+    RME_X64_Layout.Kom2_Start=RME_X64_PA2VA(RME_POW2(RME_PGT_SIZE_4G));
+    RME_X64_Layout.Kom2_Size=0;
 
     /* We have filled the first 4 1GB superpages */
     PML4_Cnt=0;
@@ -1231,7 +1231,7 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
     while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
     {
         /* Throw away small segments */
-        if(Mem->Length<2*RME_POW2(RME_PGTBL_SIZE_2M))
+        if(Mem->Length<2*RME_POW2(RME_PGT_SIZE_2M))
         {
             RME_DBG_S("\n\rAbandoning physical memory above 4G: addr 0x");
             RME_DBG_U(Mem->Start_Addr);
@@ -1242,11 +1242,11 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
         }
 
         /* Align the memory segment to 2MB */
-        Mem->Start_Addr=RME_ROUND_UP(Mem->Start_Addr,RME_PGTBL_SIZE_2M);
-        Mem->Length=RME_ROUND_DOWN(Mem->Length-1,RME_PGTBL_SIZE_2M);
+        Mem->Start_Addr=RME_ROUND_UP(Mem->Start_Addr,RME_PGT_SIZE_2M);
+        Mem->Length=RME_ROUND_DOWN(Mem->Length-1,RME_PGT_SIZE_2M);
 
         /* Add these pages into the kernel at addresses above 4GB offset as 2MB pages */
-        for(Addr_Cnt=0;Addr_Cnt<Mem->Length;Addr_Cnt+=RME_POW2(RME_PGTBL_SIZE_2M))
+        for(Addr_Cnt=0;Addr_Cnt<Mem->Length;Addr_Cnt+=RME_POW2(RME_PGT_SIZE_2M))
         {
             PDE_Cnt++;
             if(PDE_Cnt==512)
@@ -1259,13 +1259,13 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
                     PML4_Cnt++;
                 }
                 /* Map this PDE into the PDP */
-                RME_X64_Kpgt.PDP[PML4_Cnt][PDP_Cnt]|=RME_X64_MMU_ADDR(RME_X64_VA2PA(RME_X64_Layout.Kmem1_Start[0]))|RME_X64_MMU_P;
+                RME_X64_Kpgt.PDP[PML4_Cnt][PDP_Cnt]|=RME_X64_MMU_ADDR(RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]))|RME_X64_MMU_P;
             }
 
-            ((rme_ptr_t*)(RME_X64_Layout.Kmem1_Start[0]))[0]=RME_X64_MMU_ADDR(Mem->Start_Addr+Addr_Cnt)|RME_X64_MMU_KERN_PDE;
-            RME_X64_Layout.Kmem1_Start[0]+=sizeof(rme_ptr_t);
-            RME_X64_Layout.Kmem1_Size[0]-=sizeof(rme_ptr_t);
-            RME_X64_Layout.Kmem2_Size+=RME_POW2(RME_PGTBL_SIZE_2M);
+            ((rme_ptr_t*)(RME_X64_Layout.Kom1_Start[0]))[0]=RME_X64_MMU_ADDR(Mem->Start_Addr+Addr_Cnt)|RME_X64_MMU_KERN_PDE;
+            RME_X64_Layout.Kom1_Start[0]+=sizeof(rme_ptr_t);
+            RME_X64_Layout.Kom1_Size[0]-=sizeof(rme_ptr_t);
+            RME_X64_Layout.Kom2_Size+=RME_POW2(RME_PGT_SIZE_2M);
         }
 
         Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
@@ -1275,27 +1275,27 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
     for(PML4_Cnt=0;PML4_Cnt<256;PML4_Cnt++)
         ((rme_ptr_t*)RME_X64_PA2VA(0x101000))[PML4_Cnt+256]=RME_X64_Kpgt.PML4[PML4_Cnt];
 
-    /* Page table allocation finished. Now need to align Kmem1 to 2MB page boundary */
-    RME_X64_Layout.Kmem1_Start[0]=RME_ROUND_UP(RME_X64_Layout.Kmem1_Start[0],RME_PGTBL_SIZE_2M);
-    RME_X64_Layout.Kmem1_Size[0]=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Size[0]-1,RME_PGTBL_SIZE_2M);
+    /* Page table allocation finished. Now need to align Kom1 to 2MB page boundary */
+    RME_X64_Layout.Kom1_Start[0]=RME_ROUND_UP(RME_X64_Layout.Kom1_Start[0],RME_PGT_SIZE_2M);
+    RME_X64_Layout.Kom1_Size[0]=RME_ROUND_DOWN(RME_X64_Layout.Kom1_Size[0]-1,RME_PGT_SIZE_2M);
 
     /* All memory is mapped. Now figure out the size of kernel stacks */
-    RME_X64_Layout.Kpgtbl_Size=RME_X64_Layout.Kmem1_Start[0]-RME_X64_Layout.Kpgtbl_Start;
+    RME_X64_Layout.Kpgtbl_Size=RME_X64_Layout.Kom1_Start[0]-RME_X64_Layout.Kpgtbl_Start;
 
-    /* See if we are allocating the stack from Kmem2 or Kmem1 */
-    if(RME_X64_Layout.Kmem2_Size==0)
+    /* See if we are allocating the stack from Kom2 or Kom1 */
+    if(RME_X64_Layout.Kom2_Size==0)
     {
-        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem1_Start[0]+RME_X64_Layout.Kmem1_Size[0]-1,RME_X64_KSTACK_ORDER);
+        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kom1_Start[0]+RME_X64_Layout.Kom1_Size[0]-1,RME_X64_KSTACK_ORDER);
         RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
-        RME_X64_Layout.Kmem1_Size[0]=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem1_Start[0];
+        RME_X64_Layout.Kom1_Size[0]=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kom1_Start[0];
     }
 
 
     else
     {
-        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size-1,RME_X64_KSTACK_ORDER);
+        RME_X64_Layout.Stack_Start=RME_ROUND_DOWN(RME_X64_Layout.Kom2_Start+RME_X64_Layout.Kom2_Size-1,RME_X64_KSTACK_ORDER);
         RME_X64_Layout.Stack_Start-=RME_X64_Layout.Stack_Size;
-        RME_X64_Layout.Kmem2_Size=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kmem2_Start;
+        RME_X64_Layout.Kom2_Size=RME_X64_Layout.Stack_Start-RME_X64_Layout.Kom2_Start;
     }
 
     /* Now report all mapping info */
@@ -1315,25 +1315,25 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
     RME_DBG_U(RME_X64_Layout.Kpgtbl_Start);
     RME_DBG_S("\n\rKpgtbl_Size:     0x");
     RME_DBG_U(RME_X64_Layout.Kpgtbl_Size);
-    for(Addr_Cnt=0;Addr_Cnt<RME_X64_Layout.Kmem1_Trunks;Addr_Cnt++)
+    for(Addr_Cnt=0;Addr_Cnt<RME_X64_Layout.Kom1_Trunks;Addr_Cnt++)
     {
-        RME_DBG_S("\n\rKmem1_Start[");
+        RME_DBG_S("\n\rKom1_Start[");
         RME_DBG_I(Addr_Cnt);
         RME_DBG_S("]:  0x");
-        RME_DBG_U(RME_X64_Layout.Kmem1_Start[Addr_Cnt]);
-        RME_DBG_S("\n\rKmem1_Size[");
+        RME_DBG_U(RME_X64_Layout.Kom1_Start[Addr_Cnt]);
+        RME_DBG_S("\n\rKom1_Size[");
         RME_DBG_I(Addr_Cnt);
         RME_DBG_S("]:   0x");
-        RME_DBG_U(RME_X64_Layout.Kmem1_Size[Addr_Cnt]);
+        RME_DBG_U(RME_X64_Layout.Kom1_Size[Addr_Cnt]);
     }
     RME_DBG_S("\n\rHole_Start:      0x");
     RME_DBG_U(RME_X64_Layout.Hole_Start);
     RME_DBG_S("\n\rHole_Size:       0x");
     RME_DBG_U(RME_X64_Layout.Hole_Size);
-    RME_DBG_S("\n\rKmem2_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Kmem2_Start);
-    RME_DBG_S("\n\rKmem2_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Kmem2_Size);
+    RME_DBG_S("\n\rKom2_Start:     0x");
+    RME_DBG_U(RME_X64_Layout.Kom2_Start);
+    RME_DBG_S("\n\rKom2_Size:      0x");
+    RME_DBG_U(RME_X64_Layout.Kom2_Size);
     RME_DBG_S("\n\rStack_Start:     0x");
     RME_DBG_U(RME_X64_Layout.Stack_Start);
     RME_DBG_S("\n\rStack_Size:      0x");
@@ -1341,7 +1341,7 @@ rme_ptr_t __RME_Pgtbl_Kmem_Init(void)
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Kmem_Init ****************************************/
+/* End Function:__RME_Pgt_Kom_Init ****************************************/
 
 /* Begin Function:__RME_SMP_Low_Level_Init ************************************
 Description : Low-level initialization for all other cores.
@@ -1374,7 +1374,7 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
     RME_ASSERT(CPU_Local->Vect_Sig!=0);
 
     /* Change page tables */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
+    __RME_Pgt_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Prc->Pgt,rme_ptr_t));
     /* Boot into the init thread - never returns */
     __RME_Enter_User_Mode(0, RME_X64_USTACK(CPU_Local->CPUID), CPU_Local->CPUID);
 
@@ -1392,10 +1392,10 @@ rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
     rme_cnt_t Count;
-    rme_cnt_t Kmem1_Cnt;
+    rme_cnt_t Kom1_Cnt;
     rme_ptr_t Phys_Addr;
     rme_ptr_t Page_Ptr;
-    struct RME_Cap_Captbl* Captbl;
+    struct RME_Cap_Cpt* Cpt;
     struct RME_CPU_Local* CPU_Local;
 
     /* Initialize our own CPU-local data structures */
@@ -1413,115 +1413,115 @@ rme_ptr_t __RME_Boot(void)
      * the booting processor finish all its work. */
     __RME_X64_SMP_Init();
 
-    /* Create all initial tables in Kmem1, which is sure to be present. We reserve 16
+    /* Create all initial tables in Kom1, which is sure to be present. We reserve 16
      * pages at the start to load the init process */
-    Cur_Addr=RME_X64_Layout.Kmem1_Start[0]+16*RME_POW2(RME_PGTBL_SIZE_2M);
+    Cur_Addr=RME_X64_Layout.Kom1_Start[0]+16*RME_POW2(RME_PGT_SIZE_2M);
     RME_DBG_S("\r\nKotbl registration start offset: 0x");
-    RME_DBG_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
+    RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
 
     /* Create the capability table for the init process - always 16 */
-    Captbl=(struct RME_Cap_Captbl*)Cur_Addr;
-    RME_ASSERT(_RME_Captbl_Boot_Init(RME_BOOT_CAPTBL,Cur_Addr,16)==RME_BOOT_CAPTBL);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(16));
+    Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,16)==RME_BOOT_CPT);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(16));
 
     /* Create the capability table for initial page tables - now we are only
      * adding 2MB pages. There will be 1 PML4, 16 PDP, and 16*512=8192 PGD.
      * This should provide support for up to 4TB of memory, which will be sufficient
      * for at least a decade. These data structures will eat 32MB of memory, which
      * is fine */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_PGTBL, Cur_Addr, 1+16+8192)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(1+16+8192));
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_PGT, Cur_Addr, 1+16+8192)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(1+16+8192));
 
     /* Align the address to 4096 to prepare for page table creation */
     Cur_Addr=RME_ROUND_UP(Cur_Addr,12);
     /* Create PML4 */
-    RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PML4,
-                                   Cur_Addr, 0, RME_PGTBL_TOP, RME_PGTBL_SIZE_512G, RME_PGTBL_NUM_512)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_TOP(RME_PGTBL_NUM_512));
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PML4,
+                                   Cur_Addr, 0, RME_PGT_TOP, RME_PGT_SIZE_512G, RME_PGT_NUM_512)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
     /* Create all our 16 PDPs, and cons them into the PML4 */
     for(Count=0;Count<16;Count++)
     {
-        RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PDP(Count),
-                                       Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_1G, RME_PGTBL_NUM_512)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
-        RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4), Count,
-                                       RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count)), RME_PGTBL_ALL_PERM)==0);
+        RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDP(Count),
+                                       Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_1G, RME_PGT_NUM_512)==0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+        RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4), Count,
+                                       RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count)), RME_PGT_ALL_PERM)==0);
     }
 
     /* Create 8192 PDEs, and cons them into their respective PDPs */
     for(Count=0;Count<8192;Count++)
     {
-        RME_ASSERT(_RME_Pgtbl_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGTBL, RME_BOOT_PDE(Count),
-                                       Cur_Addr, 0, RME_PGTBL_NOM, RME_PGTBL_SIZE_2M, RME_PGTBL_NUM_512)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_PGTBL_SIZE_NOM(RME_PGTBL_NUM_512));
-        RME_ASSERT(_RME_Pgtbl_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
-                                       RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Count)), RME_PGTBL_ALL_PERM)==0);
+        RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDE(Count),
+                                       Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_2M, RME_PGT_NUM_512)==0);
+        Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+        RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
+                                       RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDE(Count)), RME_PGT_ALL_PERM)==0);
     }
 
-    /* Map all the Kmem1 that we have into it */
+    /* Map all the Kom1 that we have into it */
     Page_Ptr=0;
-    for(Kmem1_Cnt=0;Kmem1_Cnt<RME_X64_Layout.Kmem1_Trunks;Kmem1_Cnt++)
+    for(Kom1_Cnt=0;Kom1_Cnt<RME_X64_Layout.Kom1_Trunks;Kom1_Cnt++)
     {
-        for(Count=0;Count<RME_X64_Layout.Kmem1_Size[Kmem1_Cnt];Count+=RME_POW2(RME_PGTBL_SIZE_2M))
+        for(Count=0;Count<RME_X64_Layout.Kom1_Size[Kom1_Cnt];Count+=RME_POW2(RME_PGT_SIZE_2M))
         {
-            Phys_Addr=RME_X64_VA2PA(RME_X64_Layout.Kmem1_Start[Kmem1_Cnt])+Count;
-            RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Page_Ptr>>9)),
-                                           Phys_Addr, Page_Ptr&0x1FF, RME_PGTBL_ALL_PERM)==0);
+            Phys_Addr=RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[Kom1_Cnt])+Count;
+            RME_ASSERT(_RME_Pgt_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDE(Page_Ptr>>9)),
+                                           Phys_Addr, Page_Ptr&0x1FF, RME_PGT_ALL_PERM)==0);
             Page_Ptr++;
         }
     }
-    RME_DBG_S("\r\nKmem1 pages: 0x");
+    RME_DBG_S("\r\nKom1 pages: 0x");
     RME_DBG_U(Page_Ptr);
     RME_DBG_S(", [0x0, 0x");
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M)-1);
+    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
     RME_DBG_S("]");
 
-    /* Map the Kmem2 in - don't want lookups, we know where they are. Offset by 2048 because they are mapped above 4G */
-    RME_DBG_S("\r\nKmem2 pages: 0x");
-    RME_DBG_U(RME_X64_Layout.Kmem2_Size/RME_POW2(RME_PGTBL_SIZE_2M));
+    /* Map the Kom2 in - don't want lookups, we know where they are. Offset by 2048 because they are mapped above 4G */
+    RME_DBG_S("\r\nKom2 pages: 0x");
+    RME_DBG_U(RME_X64_Layout.Kom2_Size/RME_POW2(RME_PGT_SIZE_2M));
     RME_DBG_S(", [0x");
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M));
+    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M));
     RME_DBG_S(", 0x");
-    for(Count=2048;Count<(RME_X64_Layout.Kmem2_Size/RME_POW2(RME_PGTBL_SIZE_2M)+2048);Count++)
+    for(Count=2048;Count<(RME_X64_Layout.Kom2_Size/RME_POW2(RME_PGT_SIZE_2M)+2048);Count++)
     {
         Phys_Addr=RME_X64_PA2VA(RME_X64_MMU_ADDR(RME_X64_Kpgt.PDP[Count>>18][(Count>>9)&0x1FF]));
         Phys_Addr=RME_X64_MMU_ADDR(((rme_ptr_t*)Phys_Addr)[Count&0x1FF]);
-        RME_ASSERT(_RME_Pgtbl_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PDE(Page_Ptr>>9)),
-                                       Phys_Addr, Page_Ptr&0x1FF, RME_PGTBL_ALL_PERM)==0);
+        RME_ASSERT(_RME_Pgt_Boot_Add(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDE(Page_Ptr>>9)),
+                                       Phys_Addr, Page_Ptr&0x1FF, RME_PGT_ALL_PERM)==0);
         Page_Ptr++;
     }
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGTBL_SIZE_2M)+RME_POW2(RME_PGTBL_SIZE_2M)-1);
+    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
     RME_DBG_S("]");
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Proc_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC,
-                                  RME_BOOT_CAPTBL, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4))==0);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC,
+                                  RME_BOOT_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4))==0);
 
     /* Create the initial kernel function capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KERN)==0);
 
-    /* Create a capability table for initial kernel memory capabilities. We need a few for Kmem1, and another one for Kmem2 */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_KMEM, Cur_Addr, RME_X64_KMEM1_MAXSEGS+1)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_KMEM1_MAXSEGS+1));
-    /* Create Kmem1 capabilities - can create page tables here */
-    for(Count=0;Count<RME_X64_Layout.Kmem1_Trunks;Count++)
+    /* Create a capability table for initial kernel memory capabilities. We need a few for Kom1, and another one for Kom2 */
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_KOM, Cur_Addr, RME_X64_KOM1_MAXSEGS+1)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
+    /* Create Kom1 capabilities - can create page tables here */
+    for(Count=0;Count<RME_X64_Layout.Kom1_Trunks;Count++)
     {
-        RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT,
-                                      RME_BOOT_TBL_KMEM, Count,
-                                      RME_X64_Layout.Kmem1_Start[Count],
-                                      RME_X64_Layout.Kmem1_Start[Count]+RME_X64_Layout.Kmem1_Size[Count],
-                                      RME_KMEM_FLAG_ALL)==0);
+        RME_ASSERT(_RME_Kom_Boot_Crt(RME_X64_CPT,
+                                      RME_BOOT_TBL_KOM, Count,
+                                      RME_X64_Layout.Kom1_Start[Count],
+                                      RME_X64_Layout.Kom1_Start[Count]+RME_X64_Layout.Kom1_Size[Count],
+                                      RME_KOM_FLAG_ALL)==0);
     }
-    /* Create Kmem2 capability - cannot create page tables here */
-    RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT,
-                                  RME_BOOT_TBL_KMEM, RME_X64_KMEM1_MAXSEGS,
-                                  RME_X64_Layout.Kmem2_Start,
-                                  RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size,
-                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_THD|RME_KMEM_FLAG_INV)==0);
+    /* Create Kom2 capability - cannot create page tables here */
+    RME_ASSERT(_RME_Kom_Boot_Crt(RME_X64_CPT,
+                                  RME_BOOT_TBL_KOM, RME_X64_KOM1_MAXSEGS,
+                                  RME_X64_Layout.Kom2_Start,
+                                  RME_X64_Layout.Kom2_Start+RME_X64_Layout.Kom2_Size,
+                                  RME_KOM_FLAG_CPT|RME_KOM_FLAG_THD|RME_KOM_FLAG_INV)==0);
 
     /* Create the initial kernel endpoints for timer ticks */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_Num_CPU));
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
@@ -1530,8 +1530,8 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Create the initial kernel endpoints for all other interrupts */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_Num_CPU));
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
@@ -1540,18 +1540,18 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CAPTBL_SIZE(RME_X64_Num_CPU));
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
+    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-        RME_ASSERT(_RME_Thd_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PROC, Cur_Addr, 0, CPU_Local)>=0);
+        RME_ASSERT(_RME_Thd_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PRC, Cur_Addr, 0, CPU_Local)>=0);
         Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
     }
 
     RME_DBG_S("\r\nKotbl registration end offset: 0x");
-    RME_DBG_U(((Cur_Addr-RME_KMEM_VA_START)>>RME_KMEM_SLOT_ORDER)/8);
-    RME_DBG_S("\r\nKmem1 frontier: 0x");
+    RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
+    RME_DBG_S("\r\nKom1 frontier: 0x");
     RME_DBG_U(Cur_Addr);
 
     /* Print sizes and halt */
@@ -1565,12 +1565,12 @@ rme_ptr_t __RME_Boot(void)
     __RME_X64_Timer_Init();
     //__RME_X64_IOAPIC_Int_Enable(2,0);
     /* Change page tables */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
+    __RME_Pgt_Set(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Cur_Thd)->Sched.Prc->Pgt,rme_ptr_t));
 
 
     /* Load the init process to address 0x00 - It should be smaller than 2MB */
     extern const unsigned char UVM_Init[];
-    _RME_Memcpy(0,(void*)UVM_Init,RME_POW2(RME_PGTBL_SIZE_2M));
+    _RME_Memcpy(0,(void*)UVM_Init,RME_POW2(RME_PGT_SIZE_2M));
 
 
     /* Now other non-booting processors may proceed and go into their threads */
@@ -1798,7 +1798,7 @@ void write_string( int colour, const char *string, rme_ptr_t pos)
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
-Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The sub function ID.
@@ -1807,7 +1807,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
 Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Cpt* Cpt, struct RME_Reg_Struct* Reg,
                                   rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
     /* Now always call the HALT */
@@ -1920,30 +1920,30 @@ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
 }
 /* End Function:__RME_X64_Generic_Handler ************************************/
 
-/* Begin Function:__RME_Pgtbl_Set *********************************************
+/* Begin Function:__RME_Pgt_Set *********************************************
 Description : Set the processor's page table.
-Input       : rme_ptr_t Pgtbl - The virtual address of the page table.
+Input       : rme_ptr_t Pgt - The virtual address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
+void __RME_Pgt_Set(rme_ptr_t Pgt)
 {
-    __RME_X64_Pgtbl_Set(RME_X64_VA2PA(Pgtbl)|RME_X64_PGREG_POS(Pgtbl).PCID);
+    __RME_X64_Pgt_Set(RME_X64_VA2PA(Pgt)|RME_X64_PGREG_POS(Pgt).PCID);
 }
-/* End Function:__RME_Pgtbl_Set **********************************************/
+/* End Function:__RME_Pgt_Set **********************************************/
 
-/* Begin Function:__RME_Pgtbl_Check *******************************************
+/* Begin Function:__RME_Pgt_Check *******************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
 Input       : rme_ptr_t Base_Addr - The start mapping address.
-              rme_ptr_t Top_Flag - The top-level flag,
+              rme_ptr_t Is_Top - The top-level flag,
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag,
+rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top,
                             rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     /* Is the table address aligned to 4kB? */
@@ -1951,42 +1951,42 @@ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag,
         return RME_ERR_PGT_OPFAIL;
 
     /* Is the size order allowed? */
-    if((Size_Order!=RME_PGTBL_SIZE_512G)&&(Size_Order!=RME_PGTBL_SIZE_1G)&&
-       (Size_Order!=RME_PGTBL_SIZE_2M)&&(Size_Order!=RME_PGTBL_SIZE_4K))
+    if((Size_Order!=RME_PGT_SIZE_512G)&&(Size_Order!=RME_PGT_SIZE_1G)&&
+       (Size_Order!=RME_PGT_SIZE_2M)&&(Size_Order!=RME_PGT_SIZE_4K))
         return RME_ERR_PGT_OPFAIL;
 
     /* Is the top-level relationship correct? */
-    if(((Size_Order==RME_PGTBL_SIZE_512G)^(Top_Flag!=0))!=0)
+    if(((Size_Order==RME_PGT_SIZE_512G)^(Is_Top!=0))!=0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Is the number order allowed? */
-    if(Num_Order!=RME_PGTBL_NUM_512)
+    if(Num_Order!=RME_PGT_NUM_512)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Check ********************************************/
+/* End Function:__RME_Pgt_Check ********************************************/
 
-/* Begin Function:__RME_Pgtbl_Init ********************************************
+/* Begin Function:__RME_Pgt_Init ********************************************
 Description : Initialize the page table data structure, according to the capability.
-Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
+rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_cnt_t Count;
     rme_ptr_t* Ptr;
     
     /* Get the actual table */
-    Ptr=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Hopefully the compiler optimize this to rep stos */
     for(Count=0;Count<256;Count++)
         Ptr[Count]=0;
 
     /* Hopefully the compiler optimize this to rep movs */
-    if((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)
+    if((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)
     {
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
@@ -2005,19 +2005,19 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Init *********************************************/
+/* End Function:__RME_Pgt_Init *********************************************/
 
-/* Begin Function:__RME_Pgtbl_Del_Check ***************************************
+/* Begin Function:__RME_Pgt_Del_Check ***************************************
 Description : Check if the page table can be deleted.
-Input       : struct RME_Cap_Pgtbl Pgtbl_Op* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
+rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t* Table;
 
-    Table=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Check if it is mapped into other page tables. If yes, then it cannot be deleted.
      * also, it must not contain mappings of lower levels, or it is not deletable. */
@@ -2026,12 +2026,12 @@ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
 
     return RME_ERR_PGT_OPFAIL;
 }
-/* End Function:__RME_Pgtbl_Del_Check ****************************************/
+/* End Function:__RME_Pgt_Del_Check ****************************************/
 
-/* Begin Function:__RME_Pgtbl_Page_Map ****************************************
+/* Begin Function:__RME_Pgt_Page_Map ****************************************
 Description : Map a page into the page table. This architecture requires that the mapping is
               always at least readable.
-Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate on.
               rme_ptr_t Paddr - The physical address to map to. If we are unmapping, this have no effect.
               rme_ptr_t Pos - The position in the page table.
               rme_ptr_t Flags - The RME standard page attributes. Need to translate them into
@@ -2039,24 +2039,24 @@ Input       : struct RME_Cap_Pgtbl* - The cap ability to the page table to opera
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
+rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
     rme_ptr_t* Table;
     rme_ptr_t X64_Flags;
 
     /* It should at least be readable */
-    if((Flags&RME_PGTBL_READ)==0)
+    if((Flags&RME_PGT_READ)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Table=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Generate flags */
-    if(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)
+    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
         X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
     else
         X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_US;
@@ -2067,26 +2067,26 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Page_Map *****************************************/
+/* End Function:__RME_Pgt_Page_Map *****************************************/
 
-/* Begin Function:__RME_Pgtbl_Page_Unmap **************************************
+/* Begin Function:__RME_Pgt_Page_Unmap **************************************
 Description : Unmap a page from the page table.
-Input       : struct RME_Cap_Pgtbl* - The capability to the page table to operate on.
+Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
+rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Table=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Make sure that there is something */
     Temp=Table[Pos];
@@ -2094,7 +2094,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this a page directory? We cannot unmap page directories like this */
-    if((RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)!=RME_PGTBL_SIZE_4K)&&((Temp&RME_X64_MMU_PDE_SUP)==0))
+    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_X64_MMU_PDE_SUP)==0))
         return RME_ERR_PGT_OPFAIL;
 
     /* Try to unmap it. Use CAS just in case */
@@ -2103,35 +2103,35 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Page_Unmap ***************************************/
+/* End Function:__RME_Pgt_Page_Unmap ***************************************/
 
-/* Begin Function:__RME_Pgtbl_Pgdir_Map ***************************************
+/* Begin Function:__RME_Pgt_Pgdir_Map ***************************************
 Description : Map a page directory into the page table.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table.
-              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table.
+Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
+              struct RME_Cap_Pgt* Pgt_Child - The child page table.
               rme_ptr_t Pos - The position in the destination page table.
               rme_ptr_t Flags - The RME standard flags for the child page table.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
-                                struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags)
+rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
+                                struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
     rme_ptr_t X64_Flags;
 
     /* It should at least be readable */
-    if((Flags&RME_PGTBL_READ)==0)
+    if((Flags&RME_PGT_READ)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Parent->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgt_Parent->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Parent_Table=RME_CAP_GETOBJ(Pgtbl_Parent,rme_ptr_t*);
-    Child_Table=RME_CAP_GETOBJ(Pgtbl_Child,rme_ptr_t*);
+    Parent_Table=RME_CAP_GETOBJ(Pgt_Parent,rme_ptr_t*);
+    Child_Table=RME_CAP_GETOBJ(Pgt_Child,rme_ptr_t*);
 
     /* Generate the content */
     X64_Flags=RME_X64_MMU_ADDR(RME_X64_VA2PA(Child_Table))|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
@@ -2146,29 +2146,29 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Pgdir_Map ****************************************/
+/* End Function:__RME_Pgt_Pgdir_Map ****************************************/
 
-/* Begin Function:__RME_Pgtbl_Pgdir_Unmap *************************************
+/* Begin Function:__RME_Pgt_Pgdir_Unmap *************************************
 Description : Unmap a page directory from the page table.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table to unmap from.
+Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap from.
               rme_ptr_t Pos - The position in the page table.
-              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table to unmap.
+              struct RME_Cap_Pgt* Pgt_Child - The child page table to unmap.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
-                                  struct RME_Cap_Pgtbl* Pgtbl_Child)
+rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
+                                  struct RME_Cap_Pgt* Pgt_Child)
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Parent->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgt_Parent->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Parent_Table=RME_CAP_GETOBJ(Pgtbl_Parent,rme_ptr_t*);
+    Parent_Table=RME_CAP_GETOBJ(Pgt_Parent,rme_ptr_t*);
 
     /* Make sure that there is something */
     Temp=Parent_Table[Pos];
@@ -2176,7 +2176,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this a page? We cannot unmap pages like this */
-    if((RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)==RME_PGTBL_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
+    if((RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)==RME_PGT_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this child table mapped here? - check that in the future */
@@ -2192,32 +2192,32 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Pgdir_Unmap **************************************/
+/* End Function:__RME_Pgt_Pgdir_Unmap **************************************/
 
-/* Begin Function:__RME_Pgtbl_Lookup ********************************************
+/* Begin Function:__RME_Pgt_Lookup ********************************************
 Description : Lookup a page entry in a page directory.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page directory to lookup.
+Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
 Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags)
+rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
 
     /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Table=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
     /* Get the position requested - atomic read */
     Temp=Table[Pos];
 
     /* Start lookup - is this a terminal page, or? */
-    if(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)
+    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
     {
         if((Temp&RME_X64_MMU_P)==0)
             return RME_ERR_PGT_OPFAIL;
@@ -2237,17 +2237,17 @@ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Lookup *******************************************/
+/* End Function:__RME_Pgt_Lookup *******************************************/
 
-/* Begin Function:__RME_Pgtbl_Walk ********************************************
+/* Begin Function:__RME_Pgt_Walk ********************************************
 Description : Walking function for the page table. This function just does page
               table lookups. The page table that is being walked must be the top-
               level page table. The output values are optional; only pass in pointers
               when you need that value.
               Walking kernel page tables is prohibited.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page table to walk.
+Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to walk.
               rme_ptr_t Vaddr - The virtual address to look up.
-Output      : rme_ptr_t* Pgtbl - The pointer to the page table level.
+Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Map_Vaddr - The virtual address that starts mapping.
               rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Size_Order - The size order of the page.
@@ -2255,7 +2255,7 @@ Output      : rme_ptr_t* Pgtbl - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
+rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                            rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags)
 {
     rme_ptr_t* Table;
@@ -2268,7 +2268,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
     rme_ptr_t No_Execute;
 
     /* Check if this is the top-level page table */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0)
+    if(((Pgt_Op->Base_Addr)&RME_PGT_TOP)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we attempting a kernel or non-canonical lookup? If yes, stop immediately */
@@ -2276,10 +2276,10 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table and start lookup */
-    Table=RME_CAP_GETOBJ(Pgtbl_Op, rme_ptr_t*);
+    Table=RME_CAP_GETOBJ(Pgt_Op, rme_ptr_t*);
 
     /* Do lookup recursively */
-    Size_Cnt=RME_PGTBL_SIZE_512G;
+    Size_Cnt=RME_PGT_SIZE_512G;
     Flags_Accum=0xFFF;
     No_Execute=0;
     while(1)
@@ -2291,11 +2291,11 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
         if((Temp&RME_X64_MMU_P)==0)
             return RME_ERR_PGT_OPFAIL;
-        if(((Temp&RME_X64_MMU_PDE_SUP)!=0)||(Size_Cnt==RME_PGTBL_SIZE_4K))
+        if(((Temp&RME_X64_MMU_PDE_SUP)!=0)||(Size_Cnt==RME_PGT_SIZE_4K))
         {
             /* This is a page - we found it */
-            if(Pgtbl!=0)
-                *Pgtbl=(rme_ptr_t)Table;
+            if(Pgt!=0)
+                *Pgt=(rme_ptr_t)Table;
             if(Map_Vaddr!=0)
                 *Map_Vaddr=RME_ROUND_DOWN(Vaddr,Size_Cnt);
             if(Paddr!=0)
@@ -2303,7 +2303,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
             if(Size_Order!=0)
                 *Size_Order=Size_Cnt;
             if(Num_Order!=0)
-                *Num_Order=RME_PGTBL_NUM_512;
+                *Num_Order=RME_PGT_NUM_512;
             if(Flags!=0)
                 *Flags=RME_X64_PGFLG_NAT2RME(No_Execute|(Temp&Flags_Accum));
 
@@ -2318,12 +2318,12 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
         }
 
         /* The size order always decreases by 512 */
-        Size_Cnt-=RME_PGTBL_SIZE_512B;
+        Size_Cnt-=RME_PGT_SIZE_512B;
     }
 
     return 0;
 }
-/* End Function:__RME_Pgtbl_Walk *********************************************/
+/* End Function:__RME_Pgt_Walk *********************************************/
 
 /* End Of File ***************************************************************/
 

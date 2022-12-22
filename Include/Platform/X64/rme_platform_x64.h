@@ -110,18 +110,18 @@ typedef rme_s64_t rme_ret_t;
 #define RME_VA_EQU_PA                        (RME_FALSE)
 /* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
 #define RME_QUIE_TIME                        10
-/* Captbl size limit - not restricted, user-level decides this */
-#define RME_CAPTBL_LIMIT                     0
+/* Cpt size limit - not restricted, user-level decides this */
+#define RME_CPT_LIMIT                     0
 /* Normal page directory size calculation macro */
-#define RME_PGTBL_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
 /* Top-level page directory size calculation macro */
-#define RME_PGTBL_SIZE_TOP(NUM_ORDER)        RME_PGTBL_SIZE_NOM(NUM_ORDER)
+#define RME_PGT_SIZE_TOP(NUM_ORDER)        RME_PGT_SIZE_NOM(NUM_ORDER)
 /* Initial stack size and address */
-#define RME_KMEM_STACK_ADDR                  ((rme_ptr_t)__RME_X64_Kern_Boot_Stack)
+#define RME_KOM_STACK_ADDR                  ((rme_ptr_t)__RME_X64_Kern_Boot_Stack)
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START                    0xFFFF800000000000ULL
+#define RME_KOM_VA_START                    0xFFFF800000000000ULL
 /* The size of the kernel object virtual memory - dummy, we will detect the actual values */
-#define RME_KMEM_SIZE                        0x1000
+#define RME_KOM_SIZE                        0x1000
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
 #define RME_HYP_VA_START                     0
 /* The size of the hypervisor reserved virtual memory */
@@ -203,29 +203,29 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 /* X64 specific macros *******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CAPTBL                      0
+#define RME_BOOT_CPT                      0
 /* The top-level page table of the init process - an array */
-#define RME_BOOT_TBL_PGTBL                   1
+#define RME_BOOT_TBL_PGT                   1
 /* The init process */
-#define RME_BOOT_INIT_PROC                   2
+#define RME_BOOT_INIT_PRC                   2
 /* The init thread - this is a per-core array */
 #define RME_BOOT_TBL_THD                     3
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KERN                   4
 /* The initial kernel memory capability - this is a per-NUMA node array */
-#define RME_BOOT_TBL_KMEM                    5
+#define RME_BOOT_TBL_KOM                    5
 /* The initial timer endpoint - this is a per-core array */
 #define RME_BOOT_TBL_TIMER                   6
 /* The initial default endpoint for all other interrupts - this is a per-core array */
 #define RME_BOOT_TBL_INT                     7
 
-/* The initial page table indices in the RME_BOOT_TBL_PGTBL */
+/* The initial page table indices in the RME_BOOT_TBL_PGT */
 #define RME_BOOT_PML4                        0
 #define RME_BOOT_PDP(X)                      (RME_BOOT_PML4+1+(X))
 #define RME_BOOT_PDE(X)                      (RME_BOOT_PDP(16)+(X))
 
 /* Booting capability layout */
-#define RME_X64_CPT                          (Captbl)
+#define RME_X64_CPT                          (Cpt)
 /* Kernel VA mapping base address - PML5 currently unsupported */
 #define RME_X64_VA_BASE                      (0xFFFF800000000000ULL)
 #define RME_X64_TEXT_VA_BASE                 (0xFFFFFFFF80000000ULL)
@@ -239,14 +239,14 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 /* Convert PA-VA and VA-PA in the text memory (16MB - 2GB )*/
 #define RME_X64_TEXT_PA2VA(PA)               (((rme_ptr_t)(PA))+RME_X64_TEXT_VA_BASE)
 #define RME_X64_TEXT_VA2PA(VA)               (((rme_ptr_t)(VA))-RME_X64_TEXT_VA_BASE)
-/* How many segments under 4G are allowed for Kmem1 - If this exceeded the kernel will just hang */
-#define RME_X64_KMEM1_MAXSEGS                32
+/* How many segments under 4G are allowed for Kom1 - If this exceeded the kernel will just hang */
+#define RME_X64_KOM1_MAXSEGS                32
 
 /* Kernel stact size per CPU - currently set to 1MB */
 #define RME_X64_KSTACK_ORDER                 (20)
 /* Get the actual table positions */
-#define RME_X64_PGTBL_TBL_NOM(X)             (X)
-#define RME_X64_PGTBL_TBL_TOP(X)             (X)
+#define RME_X64_PGT_TBL_NOM(X)             (X)
+#define RME_X64_PGT_TBL_TOP(X)             (X)
 
 /* Device types */
 #define RME_X64_MADT_LAPIC                   0
@@ -298,10 +298,10 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 #define RME_X64_CR3_PCD                      (1<<4)
 #define RME_X64_CR3_PWT                      (1<<3)
 
-#define RME_X64_PGREG_POS(TABLE)             (((struct __RME_X64_Pgreg*)RME_X64_Layout.Pgreg_Start)[RME_X64_VA2PA(TABLE)>>RME_PGTBL_SIZE_4K])
+#define RME_X64_PGREG_POS(TABLE)             (((struct __RME_X64_Pgreg*)RME_X64_Layout.Pgreg_Start)[RME_X64_VA2PA(TABLE)>>RME_PGT_SIZE_4K])
 
 /* Aggregate the X64 flags and prepare for translation - NX, PCD, PWT, RW */
-#define RME_X64_PGFLG_RME2NAT(FLAGS)         (RME_X64_Pgflg_RME2NAT[(FLAGS)&(~RME_PGTBL_STATIC)])
+#define RME_X64_PGFLG_RME2NAT(FLAGS)         (RME_X64_Pgflg_RME2NAT[(FLAGS)&(~RME_PGT_STATIC)])
 #define RME_X64_PGFLG_NAT2RME(FLAGS)         (RME_X64_Pgflg_NAT2RME[(((FLAGS)>>63)<<3)|(((FLAGS)&0x18)>>2)|(((FLAGS)&0x02)>>1)])
 
 /* Hardware port definitions */
@@ -555,9 +555,9 @@ while(0)
 /* Get kernel stack addresses */
 #define RME_X64_KSTACK(CPU)                (RME_X64_Layout.Stack_Start+((1+(CPU))<<RME_X64_KSTACK_ORDER))
 /* Get boot-time user stack addresses */
-#define RME_X64_USTACK(CPU)                (RME_POW2(RME_PGTBL_SIZE_2M)+((CPU)+1)*RME_POW2(RME_PGTBL_SIZE_2K))
+#define RME_X64_USTACK(CPU)                (RME_POW2(RME_PGT_SIZE_2M)+((CPU)+1)*RME_POW2(RME_PGT_SIZE_2K))
 /* The base of CPU-local data area */
-#define RME_X64_CPU_LOCAL_BASE(CPU)        (RME_X64_Layout.PerCPU_Start+(CPU)*2*RME_POW2(RME_PGTBL_SIZE_4K))
+#define RME_X64_CPU_LOCAL_BASE(CPU)        (RME_X64_Layout.PerCPU_Start+(CPU)*2*RME_POW2(RME_PGT_SIZE_4K))
 /* Microsecond delay function - not needed in most cases */
 #define RME_X64_UDELAY(US)
 /*****************************************************************************/
@@ -835,16 +835,16 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |0--640k|----------16MB|-----|-----|------|------|-----|3.25G-4G|-----|-----|
- * |Vectors|Kernel&Globals|Kotbl|Pgreg|PerCPU|Kpgtbl|Kmem1|  Hole  |Kmem2|Stack|
+ * |Vectors|Kernel&Globals|Kotbl|Pgreg|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
  *  Vectors        : Interrupt vectors.
  *  Kernel&Globals : Initial kernel text segment and all static variables.
  *  Kotbl          : Kernel object registration table.
  *  PerCPU         : Per-CPU data structures.
  *  Kpgtbl         : Kernel page tables.
  *  Pgreg          : Page table registration table.
- *  Kmem1          : Kernel memory 1, linear mapping, allow creation of page tables.
+ *  Kom1          : Kernel memory 1, linear mapping, allow creation of page tables.
  *  Hole           : Memory hole present at 3.25G-4G. For PCI devices.
- *  Kmem2          : Kernel memory 2, nonlinear mapping, no page table creation allowed.
+ *  Kom2          : Kernel memory 2, nonlinear mapping, no page table creation allowed.
  *  Stacks         : Kernel stacks, per-CPU.
  *  All values are in bytes, and are virtual addresses.
  */
@@ -863,15 +863,15 @@ struct RME_X64_Layout
 	rme_ptr_t Kpgtbl_Size;
 
 	/* We allow max. 32 trunks under 4G */
-	rme_ptr_t Kmem1_Trunks;
-	rme_ptr_t Kmem1_Start[RME_X64_KMEM1_MAXSEGS];
-	rme_ptr_t Kmem1_Size[RME_X64_KMEM1_MAXSEGS];
+	rme_ptr_t Kom1_Trunks;
+	rme_ptr_t Kom1_Start[RME_X64_KOM1_MAXSEGS];
+	rme_ptr_t Kom1_Size[RME_X64_KOM1_MAXSEGS];
 
 	rme_ptr_t Hole_Start;
 	rme_ptr_t Hole_Size;
 
-	rme_ptr_t Kmem2_Start;
-	rme_ptr_t Kmem2_Size;
+	rme_ptr_t Kom2_Start;
+	rme_ptr_t Kom2_Size;
 
 	rme_ptr_t Stack_Start;
 	rme_ptr_t Stack_Size;
@@ -898,7 +898,7 @@ struct __RME_X64_Pgreg
 };
 
 /* The first two levels of the kernel page table. The third level will be constructed on the fly */
-struct __RME_X64_Kern_Pgtbl
+struct __RME_X64_Kern_Pgt
 {
 	rme_ptr_t Dummy[256];
 	rme_ptr_t PML4[256];
@@ -952,7 +952,7 @@ static volatile rme_ptr_t RME_X64_PCID_Inc;
 /* Translate the flags into X64 specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
  * [MSB                                                                                         LSB]
- * RME_PGTBL_BUFFERABLE | RME_PGTBL_CACHEABLE | RME_PGTBL_EXECUTE | RME_PGTBL_WRITE | RME_PGTBL_READ
+ * RME_PGT_BUFFERABLE | RME_PGT_CACHEABLE | RME_PGT_EXECUTE | RME_PGT_WRITE | RME_PGT_READ
  * The C snippet to generate this (gcc x64):
 
 #include <stdio.h>
@@ -1150,7 +1150,7 @@ static void __RME_X64_Timer_Init(void);
 
 /*****************************************************************************/
 EXTERN struct RME_X64_IDT_Entry RME_X64_IDT_Table[256];
-EXTERN struct __RME_X64_Kern_Pgtbl RME_X64_Kpgt;
+EXTERN struct __RME_X64_Kern_Pgt RME_X64_Kpgt;
 EXTERN rme_ptr_t __RME_X64_Kern_Boot_Stack[0];
 /*****************************************************************************/
 
@@ -1167,7 +1167,7 @@ EXTERN void __RME_X64_GDT_Load(rme_ptr_t* GDTR);
 EXTERN void __RME_X64_IDT_Load(rme_ptr_t* IDTR);
 EXTERN void __RME_X64_TSS_Load(rme_ptr_t TSS);
 EXTERN rme_ptr_t __RME_X64_CPUID_Get(rme_ptr_t EAX, rme_ptr_t* EBX, rme_ptr_t* ECX, rme_ptr_t* EDX);
-EXTERN void __RME_X64_Pgtbl_Set(rme_ptr_t Pgtbl);
+EXTERN void __RME_X64_Pgt_Set(rme_ptr_t Pgt);
 /* Boot glue */
 EXTERN void __RME_X64_SMP_Boot_32(void);
 /* Vectors */
@@ -1484,25 +1484,25 @@ __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_S
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 __EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Kernel function handler */
-__EXTERN__ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+__EXTERN__ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Cpt* Cpt, struct RME_Reg_Struct* Reg,
                                              rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
 __EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Reason);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
-                                           struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, struct RME_Cap_Pgtbl* Pgtbl_Child);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,
+__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
+__EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
+                                           struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, struct RME_Cap_Pgt* Pgt_Child);
+__EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
+__EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */

@@ -77,12 +77,12 @@ void InterruptInit(void)
 	Function:	InterruptInstall
 	Purpose:	Install a service handler for an interrupt
 	Arguments:	int irqNum       - number of interrupt
-				isrhnd_t isrProc - pointer to service routine
+				isrhnd_t isrPrc - pointer to service routine
 				int prio         - priority (1-255)
 				int arg          - argument for service routine
 	Return:		void
 ---------------------------------------------------------------------*/
-void InterruptInstall(int irqNum, isrhnd_t isrProc, int prio, int arg)
+void InterruptInstall(int irqNum, isrhnd_t isrPrc, int prio, int arg)
 {
 	unsigned int coreId = _mfcr(CPU_CORE_ID) & IFX_CPU_CORE_ID_CORE_ID_MSK;
 
@@ -92,7 +92,7 @@ void InterruptInstall(int irqNum, isrhnd_t isrProc, int prio, int arg)
 	}
 
 	/* install the service routine */
-	_install_int_handler(prio, isrProc, arg);
+	_install_int_handler(prio, isrPrc, arg);
 
 	/* set processor and priority values */
 	tabSRC[irqNum].B.TOS  = coreId;

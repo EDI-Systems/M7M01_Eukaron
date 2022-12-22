@@ -14,31 +14,31 @@ Description: The configuration file for STM32F767IG.
 #define RME_RVM_GEN_ENABLE                              RME_FALSE
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START                               (0x20003000)
+#define RME_KOM_VA_START                               (0x20003000)
 /* The size of the kernel object virtual memory */
-#define RME_KMEM_SIZE                                   (0xD000)
+#define RME_KOM_SIZE                                   (0xD000)
 /* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
 #define RME_HYP_VA_START                                (0x20020000)
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                                    (0x60000)
 /* Kernel stack address - we have 4kB stack */
-#define RME_KMEM_STACK_BASE                             (0x20000FF0)
-#define RME_KMEM_STACK_SIZE                             (0x1000)
+#define RME_KOM_STACK_BASE                             (0x20000FF0)
+#define RME_KOM_STACK_SIZE                             (0x1000)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO                            (32)
 /* Size of capability table */
 #if(RME_GEN_ENABLE==RME_TRUE)
-#define RME_BOOT_CAPTBL_SIZE                            (18)
+#define RME_BOOT_CPT_SIZE                            (18)
 #else
-#define RME_BOOT_CAPTBL_SIZE                            (18)
+#define RME_BOOT_CPT_SIZE                            (18)
 #endif
 /* Shared vector flag region address - always 512B memory for ARMv7-M */
 #define RME_A7M_VECT_FLAG_ADDR                          (0x2000FC00)
 /* Shared interrupt flag region address - always 512B memory for ARMv7-M */
 #define RME_A7M_EVT_FLAG_ADDR                           (0x2000FE00)
 /* Initial kernel object frontier limit */
-#define RME_A7M_KMEM_BOOT_FRONTIER                      (0x20003400)
+#define RME_A7M_KOM_BOOT_FRONTIER                      (0x20003400)
 /* Init process's first thread's entry point address */
 #define RME_A7M_INIT_ENTRY                              (0x08010001)
 /* Init process's first thread's stack address */
@@ -59,7 +59,7 @@ Description: The configuration file for STM32F767IG.
 
 /* Fixed *********************************************************************/
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER                             (4)
+#define RME_KOM_SLOT_ORDER                             (4)
 /* Number of MPU regions available */
 #define RME_A7M_MPU_REGIONS                             (8)
 /* What is the FPU type? */

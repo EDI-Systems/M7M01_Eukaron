@@ -6,26 +6,26 @@ Licence     : LGPL v3+; see COPYING for details.
 Description : The configuration file for XC7Z020, with 1MB memory.
               Kernel : 0x80100000 - 0x80EFFFFF.
               Pgreg  : 0x80F00000 - 0x80FFFFFF.
-              Kmem1  : 0x81000000 - 0xC0FFFFFF.
-              Kmem2  : None.
+              Kom1  : 0x81000000 - 0xC0FFFFFF.
+              Kom2  : None.
               Periph : 0xC1000000 - 0xFFFFFFFF.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
 /* The HAL library */
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START            0x81000000U
+#define RME_KOM_VA_START            0x81000000U
 /* The size of the kernel object virtual memory - the excess 16MB is for mapping
  * in extra memory, like on-chip SRAM, if they are to be used */
-#define RME_KMEM_SIZE                0x40000000U
+#define RME_KOM_SIZE                0x40000000U
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
 #define RME_HYP_VA_START             0x0U
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                 0x0U
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER          4U
+#define RME_KOM_SLOT_ORDER          4U
 /* Kernel stack size and address */
-#define RME_KMEM_STACK_ADDR          (((rme_ptr_t)&__RME_CAV7_Stack_Start)+0x10000U)
+#define RME_KOM_STACK_ADDR          (((rme_ptr_t)&__RME_CAV7_Stack_Start)+0x10000U)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32U
@@ -37,7 +37,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_CAV7_INT_FLAG_ADDR       0x10008000U
 /* Initial kenel object frontier limit */
-#define RME_CAV7_KMEM_BOOT_FRONTIER  0x10003000U
+#define RME_CAV7_KOM_BOOT_FRONTIER  0x10003000U
 /* Init process's first thread's entry point address */
 #define RME_CAV7_INIT_ENTRY          0x08004001U
 /* Init process's first thread's stack address */
@@ -73,11 +73,11 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_CAV7_PGREG_START         0x80F00000U
 #define REM_CAV7_PGREG_SIZE          0x100000U
 /* Kernel memory 1 - creating page tables on these memories is allowed */
-#define RME_CAV7_KMEM1_START         0x81000000U
-#define RME_CAV7_KMEM1_SIZE          0x40000000U
+#define RME_CAV7_KOM1_START         0x81000000U
+#define RME_CAV7_KOM1_SIZE          0x40000000U
 /* Kernel memory 2 - creating page tables on these memories are not allowed */
-#define RME_CAV7_KMEM2_START         0x0U
-#define RME_CAV7_KMEM2_SIZE          0x0U
+#define RME_CAV7_KOM2_START         0x0U
+#define RME_CAV7_KOM2_SIZE          0x0U
 
 /* Initial page table contents - They must contain only sections and supersections.
  * The initial page table will be generated according to this. Also, the kernel will

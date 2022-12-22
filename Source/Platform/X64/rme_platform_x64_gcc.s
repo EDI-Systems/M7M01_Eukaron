@@ -116,7 +116,7 @@ AVX-512 registers:
     /* HALT processor to wait for interrupt */
     .global             __RME_X64_Halt
     /* Load page table */
-    .global             __RME_X64_Pgtbl_Set
+    .global             __RME_X64_Pgt_Set
     /* Acknowledge LAPIC interrupt */
     .global             __RME_X64_LAPIC_Ack
 
@@ -532,16 +532,16 @@ __RME_X64_Write_Release:
     RETQ
 /* End Function:__RME_X64_Write_Release **************************************/
 
-/* Begin Function:__RME_X64_Pgtbl_Set *****************************************
+/* Begin Function:__RME_X64_Pgt_Set *****************************************
 Description : Set the processor's page table.
-Input       : ptr_t Pgtbl - The physical address of the page table.
+Input       : ptr_t Pgt - The physical address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_X64_Pgtbl_Set:
+__RME_X64_Pgt_Set:
     MOV                 %RDI,%CR3
     RETQ
-/* End Function:__RME_X64_Pgtbl_Set ******************************************/
+/* End Function:__RME_X64_Pgt_Set ******************************************/
 
 /* Begin Function:__RME_Disable_Int *******************************************
 Description : The function for disabling all interrupts.

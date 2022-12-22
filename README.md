@@ -78,21 +78,21 @@ This software is an official work of EDI, and thus belongs to the **public domai
 |RME_SVC_THD_SCHED_FREE |6     |Free a thread from a CPU core                                     |
 |RME_SVC_THD_TIME_XFER  |7     |Transfer time to a thread                                         |
 |RME_SVC_THD_SWT        |8     |Switch to another thread                                          |
-|RME_SVC_CAPTBL_CRT     |9     |Create a capability table                                         |
-|RME_SVC_CAPTBL_DEL     |10    |Delete a capability table                                         |
-|RME_SVC_CAPTBL_FRZ     |11    |Freeze a capability                                               |
-|RME_SVC_CAPTBL_ADD     |12    |Delegate a capability                                             |
-|RME_SVC_CAPTBL_REM     |13    |Remove a capability                                               |
-|RME_SVC_PGTBL_CRT      |14    |Create a page table                                               |
-|RME_SVC_PGTBL_DEL      |15    |Delete a page table                                               |
-|RME_SVC_PGTBL_ADD      |16    |Add a page to a page table                                        |
-|RME_SVC_PGTBL_REM      |17    |Remove a page from a page table                                   |
-|RME_SVC_PGTBL_CON      |18    |Construct a page table into another                               |
-|RME_SVC_PGTBL_DES      |19    |Destruct a page table from another                                |
-|RME_SVC_PROC_CRT       |20    |Create a process                                                  |
-|RME_SVC_PROC_DEL       |21    |Delete a process                                                  |
-|RME_SVC_PROC_CPT       |22    |Change a process's capability table                               |
-|RME_SVC_PROC_PGT       |23    |Change a process's page table                                     |
+|RME_SVC_CPT_CRT     |9     |Create a capability table                                         |
+|RME_SVC_CPT_DEL     |10    |Delete a capability table                                         |
+|RME_SVC_CPT_FRZ     |11    |Freeze a capability                                               |
+|RME_SVC_CPT_ADD     |12    |Delegate a capability                                             |
+|RME_SVC_CPT_REM     |13    |Remove a capability                                               |
+|RME_SVC_PGT_CRT      |14    |Create a page table                                               |
+|RME_SVC_PGT_DEL      |15    |Delete a page table                                               |
+|RME_SVC_PGT_ADD      |16    |Add a page to a page table                                        |
+|RME_SVC_PGT_REM      |17    |Remove a page from a page table                                   |
+|RME_SVC_PGT_CON      |18    |Construct a page table into another                               |
+|RME_SVC_PGT_DES      |19    |Destruct a page table from another                                |
+|RME_SVC_PRC_CRT       |20    |Create a process                                                  |
+|RME_SVC_PRC_DEL       |21    |Delete a process                                                  |
+|RME_SVC_PRC_CPT       |22    |Change a process's capability table                               |
+|RME_SVC_PRC_PGT       |23    |Change a process's page table                                     |
 |RME_SVC_THD_CRT        |24    |Create a thread                                                   |
 |RME_SVC_THD_DEL        |25    |Delete a thread                                                   |
 |RME_SVC_THD_EXEC_SET   |26    |Set entry and stack of a thread                                   |

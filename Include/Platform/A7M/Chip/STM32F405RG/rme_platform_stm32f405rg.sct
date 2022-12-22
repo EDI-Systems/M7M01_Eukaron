@@ -62,37 +62,37 @@ INIT 0x8008000 0x8000
 }
 ; End Segment:INIT ************************************************************
 
-; Begin Segment:Proc **********************************************************
+; Begin Segment:Prc **********************************************************
 ; Description : The .text segment of the virtual machines. All virtual machines
 ; needs to be placed here; If you don't want to convert them to C and compile to
 ; a whole image, flash them to this address.
 ; *****************************************************************************
-Proc1 0x8010000 0x8000
+Prc1 0x8010000 0x8000
 {
     ; Init process code segment
-    Proc1_CODE 0x8010000 0x8000
+    Prc1_CODE 0x8010000 0x8000
     {
-        Proc1.o                         (+RO)
+        Prc1.o                         (+RO)
     }
 }
 ; End Segment:VM **************************************************************
 
-; Begin Segment:Proc **********************************************************
+; Begin Segment:Prc **********************************************************
 ; Description : The .text segment of the virtual machines. All virtual machines
 ; needs to be placed here; If you don't want to convert them to C and compile to
 ; a whole image, flash them to this address.
 ; *****************************************************************************
-Proc2 0x8018000 0x8000
+Prc2 0x8018000 0x8000
 {
     ; Init process code segment
-    Proc2_CODE 0x8018000 0x8000
+    Prc2_CODE 0x8018000 0x8000
     {
-        Proc2.o                         (+RO)
+        Prc2.o                         (+RO)
     }
 }
 ; End Segment:VM **************************************************************
 
-; Begin Segment:Proc **********************************************************
+; Begin Segment:Prc **********************************************************
 ; Description : The .text segment of the virtual machines. All virtual machines
 ; needs to be placed here; If you don't want to convert them to C and compile to
 ; a whole image, flash them to this address.

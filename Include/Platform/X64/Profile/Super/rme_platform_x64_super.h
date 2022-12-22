@@ -9,7 +9,7 @@ Description: The configuration file for X64 supercomputer profile.
 /* Defines *******************************************************************/
 
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER          4
+#define RME_KOM_SLOT_ORDER          4
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 64 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         64

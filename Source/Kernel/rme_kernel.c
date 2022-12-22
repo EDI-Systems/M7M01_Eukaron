@@ -23,8 +23,9 @@ of capability-based systems is not well understood.
    table, thus requiring the capability to the capability table.
 
 Remember we do not check our master table to see if it is frozen, or if it is
-captbl, or something, because if the master table's cap is not explicitly passed
-in, we do not operate on it at all; If it is explicitly passed in, it will be checked.
+captbl, or something, because if the master table's cap is not explicitly 
+passed in, we do not operate on it at all; If it is explicitly passed in, it
+will be checked.
 
 There are 4 basic types of operations, as listed below:
 Operation                     What it does
@@ -33,7 +34,7 @@ Create/Add-Dst                CAS the slot to CREATING state.
                               Update timestamp.
                               Create kernel object.
                               Atomically update header to complete creation.
-Use/Add_Src                   Use the kernel object, have a worst-case execution time.
+Use/Add-Src                   Use the kernel object, have a WCET.
 Freeze                        Check timestamp for create-freeze QUIESCENCE.
                               Update timestamp.
                               CAS the slot to FROZEN state.
@@ -46,7 +47,8 @@ Delete/Removal                Check FROZEN.
 Hazard Table: (Operation 2 follows Operation 1)
 Operation 1    Operation 2    Reason why it is safe
 -------------------------------------------------------------------------------------------
-Create         Create         Only one creation will be successful, because CREATING slot is done by CAS.
+Create         Create         Only one creation will be successful, because CREATING slot
+                              is done by CAS.
 Create         Delete         Create only set the CREATING. Delete will require a TYPE data, which will
                               only be set after the creation completes. ABA problem cannot occur because
                               of create-freeze quiescence.
@@ -184,7 +186,7 @@ rme_ret_t RME_Kmain(void)
     /* Hardware low-level init */
     __RME_Low_Level_Init();
     /* Initialize the kernel page tables */
-    __RME_Pgtbl_Kmem_Init();
+    __RME_Pgt_Kom_Init();
     
     /* Initialize the kernel object allocation table - default init */
     _RME_Kotbl_Init(RME_KOTBL_WORD_NUM);
@@ -213,17 +215,17 @@ rme_ret_t __RME_Low_Level_Check(void)
     RME_ASSERT(RME_WORD_BITS==RME_POW2(RME_WORD_ORDER));
     /* Check if the struct sizes are correct */
     RME_ASSERT(sizeof(struct RME_Cap_Struct)==RME_CAP_SIZE);
-    RME_ASSERT(sizeof(struct RME_Cap_Captbl)==RME_CAP_SIZE);
-    RME_ASSERT(sizeof(struct RME_Cap_Pgtbl)==RME_CAP_SIZE);
-    RME_ASSERT(sizeof(struct RME_Cap_Proc)==RME_CAP_SIZE);
+    RME_ASSERT(sizeof(struct RME_Cap_Cpt)==RME_CAP_SIZE);
+    RME_ASSERT(sizeof(struct RME_Cap_Pgt)==RME_CAP_SIZE);
+    RME_ASSERT(sizeof(struct RME_Cap_Prc)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Thd)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Sig)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Inv)==RME_CAP_SIZE);
-    RME_ASSERT(sizeof(struct RME_Cap_Kern)==RME_CAP_SIZE);
-    RME_ASSERT(sizeof(struct RME_Cap_Kmem)==RME_CAP_SIZE);
+    RME_ASSERT(sizeof(struct RME_Cap_Kfn)==RME_CAP_SIZE);
+    RME_ASSERT(sizeof(struct RME_Cap_Kom)==RME_CAP_SIZE);
     /* Check if the other configurations are correct */
     /* Kernel memory allocation minimal size aligned to word boundary */
-    RME_ASSERT(RME_KMEM_SLOT_ORDER>=RME_WORD_ORDER-3U);
+    RME_ASSERT(RME_KOM_SLOT_ORDER>=RME_WORD_ORDER-3U);
     /* Make sure the number of priorities does not exceed half-word boundary */
     RME_ASSERT(RME_PREEMPT_PRIO_NUM<=RME_POW2(RME_WORD_BITS>>1));
     return 0;
@@ -263,7 +265,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     rme_ptr_t Svc_Num;
     volatile struct RME_Thd_Struct* Thd_Cur;
     volatile struct RME_Inv_Struct* Inv_Top;
-    struct RME_Cap_Captbl* Captbl;
+    struct RME_Cap_Cpt* Cpt;
 
     /* Get the system call parameters from the system call */
     __RME_Get_Syscall_Param(Reg, &Svc, &Capid, Param);
@@ -292,13 +294,13 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     {
         RME_COVERAGE_MARKER();
         
-        Captbl=Thd_Cur->Sched.Proc->Captbl;
+        Cpt=Thd_Cur->Sched.Prc->Cpt;
     }
     else
     {
         RME_COVERAGE_MARKER();
         
-        Captbl=Inv_Top->Proc->Captbl;
+        Cpt=Inv_Top->Prc->Cpt;
     }
 
     /* Fast path - synchronous invocation activation */
@@ -306,7 +308,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     {
         RME_COVERAGE_MARKER();
         
-        Retval=_RME_Inv_Act(Captbl,
+        Retval=_RME_Inv_Act(Cpt,
                             Reg,                                            /* volatile struct RME_Reg_Struct* Reg */
                             (rme_cid_t)Param[0],                            /* rme_cid_t Cap_Inv */
                             Param[1]);                                      /* rme_ptr_t Param */
@@ -330,7 +332,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Snd(Captbl,
+            Retval=_RME_Sig_Snd(Cpt,
                                 Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             RME_SWITCH_RETURN(Reg, Retval);
@@ -340,7 +342,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Rcv(Captbl,
+            Retval=_RME_Sig_Rcv(Cpt,
                                 Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Sig */
                                 Param[1]);                                  /* rme_ptr_t Option */
@@ -351,13 +353,13 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Kern_Act(Captbl,
-                                 Reg,                                       /* volatile struct RME_Reg_Struct* Reg */
-                                 (rme_cid_t)Capid,                          /* rme_cid_t Cap_Kern */
-                                 RME_PARAM_D0(Param[0]),                    /* rme_ptr_t Func_ID */
-                                 RME_PARAM_D1(Param[0]),                    /* rme_ptr_t Sub_ID */
-                                 Param[1],                                  /* rme_ptr_t Param1 */
-                                 Param[2]);                                 /* rme_ptr_t Param2 */
+            Retval=_RME_Kfn_Act(Cpt,
+                                Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Kfn */
+                                RME_PARAM_D0(Param[0]),                     /* rme_ptr_t Func_ID */
+                                RME_PARAM_D1(Param[0]),                     /* rme_ptr_t Sub_ID */
+                                Param[1],                                   /* rme_ptr_t Param1 */
+                                Param[2]);                                  /* rme_ptr_t Param2 */
             RME_SWITCH_RETURN(Reg, Retval);
         }
         /* Changing thread priority (up to three threads at once) */
@@ -365,7 +367,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Prio(Captbl,
+            Retval=_RME_Thd_Sched_Prio(Cpt,
                                        Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
                                        Capid,                               /* rme_ptr_t Number */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Thd0 */
@@ -374,36 +376,36 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
                                        RME_PARAM_D1(Param[1]),              /* rme_ptr_t Prio1 */
                                        (rme_cid_t)RME_PARAM_D0(Param[2]),   /* rme_cid_t Cap_Thd2 */
                                        RME_PARAM_D1(Param[2]));             /* rme_ptr_t Prio2 */
-            RME_SWITCH_RETURN(Reg,Retval);
+            RME_SWITCH_RETURN(Reg, Retval);
         }
         /* Free a thread from some core */
         case RME_SVC_THD_SCHED_FREE:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Free(Captbl,
+            Retval=_RME_Thd_Sched_Free(Cpt,
                                        Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
                                        (rme_cid_t)Param[0]);                /* rme_cid_t Cap_Thd */
-            RME_SWITCH_RETURN(Reg,Retval);
+            RME_SWITCH_RETURN(Reg, Retval);
         }
         /* Transfer time to a thread */
         case RME_SVC_THD_TIME_XFER:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Time_Xfer(Captbl,
+            Retval=_RME_Thd_Time_Xfer(Cpt,
                                       Reg,                                  /* volatile struct RME_Reg_Struct* Reg */
                                       (rme_cid_t)Param[0],                  /* rme_cid_t Cap_Thd_Dst */
                                       (rme_cid_t)Param[1],                  /* rme_cid_t Cap_Thd_Src */
                                       Param[2]);                            /* rme_ptr_t Time */
-            RME_SWITCH_RETURN(Reg,Retval);
+            RME_SWITCH_RETURN(Reg, Retval);
         }
         /* Switch to another thread */
         case RME_SVC_THD_SWT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Swt(Captbl,
+            Retval=_RME_Thd_Swt(Cpt,
                                 Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Thd */
                                 Param[1]);                                  /* rme_ptr_t Full_Yield */
@@ -420,162 +422,162 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     switch(Svc_Num)
     {
         /* Capability table */
-        case RME_SVC_CAPTBL_CRT:
+        case RME_SVC_CPT_CRT:
         {
             RME_COVERAGE_MARKER();
-            Retval=_RME_Captbl_Crt(Captbl,
-                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Crt */
-                                   (rme_cid_t)RME_PARAM_D1(Param[0]),       /* rme_cid_t Cap_Kmem */
-                                   (rme_cid_t)RME_PARAM_D0(Param[0]),       /* rme_cid_t Cap_Crt */
-                                   Param[1],                                /* rme_ptr_t Raddr */
-                                   Param[2]);                               /* rme_ptr_t Entry_Num */
+            Retval=_RME_Cpt_Crt(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Crt */
+                                (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
+                                (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Crt */
+                                Param[1],                                   /* rme_ptr_t Raddr */
+                                Param[2]);                                  /* rme_ptr_t Entry_Num */
             break;
         }
-        case RME_SVC_CAPTBL_DEL:
+        case RME_SVC_CPT_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Del(Captbl,
-                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Del */
-                                   (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Cpt_Del(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Del */
+                                (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Cpt */
             break;
         }
-        case RME_SVC_CAPTBL_FRZ:
+        case RME_SVC_CPT_FRZ:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Frz(Captbl,
-                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Frz */
-                                   (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Frz */
+            Retval=_RME_Cpt_Frz(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Frz */
+                                (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Frz */
             break;
         }
-        case RME_SVC_CAPTBL_ADD:
+        case RME_SVC_CPT_ADD:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Add(Captbl,
-                                   (rme_cid_t)RME_PARAM_D1(Param[0]),       /* rme_cid_t Cap_Captbl_Dst */
+            Retval=_RME_Cpt_Add(Cpt,
+                                   (rme_cid_t)RME_PARAM_D1(Param[0]),       /* rme_cid_t Cap_Cpt_Dst */
                                    (rme_cid_t)RME_PARAM_D0(Param[0]),       /* rme_cid_t Cap_Dst */
-                                   (rme_cid_t)RME_PARAM_D1(Param[1]),       /* rme_cid_t Cap_Captbl_Src */
+                                   (rme_cid_t)RME_PARAM_D1(Param[1]),       /* rme_cid_t Cap_Cpt_Src */
                                    (rme_cid_t)RME_PARAM_D0(Param[1]),       /* rme_cid_t Cap_Src */
-                                   Param[2],                                /* rme_ptr_t Flags */
-                                   RME_PARAM_KM(Svc,Capid));                /* rme_ptr_t Ext_Flags */
+                                   Param[2],                                /* rme_ptr_t Flag */
+                                   RME_PARAM_KM(Svc,Capid));                /* rme_ptr_t Ext_Flag */
             break;
         }
-        case RME_SVC_CAPTBL_REM:
+        case RME_SVC_CPT_REM:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Captbl_Rem(Captbl,
-                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Captbl_Rem */
+            Retval=_RME_Cpt_Rem(Cpt,
+                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Cpt_Rem */
                                    (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Rem */
             break;
         }
         
         /* Page table */
-        case RME_SVC_PGTBL_CRT:
+        case RME_SVC_PGT_CRT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Crt(Captbl,
-                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Captbl */
-                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Kmem */
-                                  (rme_cid_t)RME_PARAM_Q1(Param[0]),        /* rme_cid_t Cap_Pgtbl */
+            Retval=_RME_Pgt_Crt(Cpt,
+                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Cpt */
+                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Kom */
+                                  (rme_cid_t)RME_PARAM_Q1(Param[0]),        /* rme_cid_t Cap_Pgt */
                                   Param[1],                                 /* rme_ptr_t Raddr */
-                                  Param[2]&(RME_ALLBITS<<1),                /* rme_ptr_t Base_Addr */
-                                  RME_PARAM_PT(Param[2]),                   /* rme_ptr_t Top_Flag */
+                                  Param[2]&(RME_ALLBITS<<1),                /* rme_ptr_t Base */
+                                  RME_PARAM_PT(Param[2]),                   /* rme_ptr_t Is_Top */
                                   RME_PARAM_Q0(Param[0]),                   /* rme_ptr_t Size_Order */
                                   RME_PARAM_PC(Svc));                       /* rme_ptr_t Num_Order */
             break;
         }
-        case RME_SVC_PGTBL_DEL:
+        case RME_SVC_PGT_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Del(Captbl,
-                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Captbl */
-                                  (rme_cid_t)Param[0]);                     /* rme_cid_t Cap_Pgtbl */
+            Retval=_RME_Pgt_Del(Cpt,
+                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Cpt */
+                                  (rme_cid_t)Param[0]);                     /* rme_cid_t Cap_Pgt */
             break;
         }
-        case RME_SVC_PGTBL_ADD:
+        case RME_SVC_PGT_ADD:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Add(Captbl,
-                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgtbl_Dst */
+            Retval=_RME_Pgt_Add(Cpt,
+                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgt_Dst */
                                   RME_PARAM_D0(Param[0]),                   /* rme_ptr_t Pos_Dst */
-                                  Capid,                                    /* rme_ptr_t Flags_Dst */
-                                  (rme_cid_t)RME_PARAM_D1(Param[1]),        /* rme_cid_t Cap_Pgtbl_Src */
+                                  Capid,                                    /* rme_ptr_t Flag_Dst */
+                                  (rme_cid_t)RME_PARAM_D1(Param[1]),        /* rme_cid_t Cap_Pgt_Src */
                                   RME_PARAM_D0(Param[1]),                   /* rme_ptr_t Pos_Src */
                                   Param[2]);                                /* rme_ptr_t Index */
             break;
         }
-        case RME_SVC_PGTBL_REM:
+        case RME_SVC_PGT_REM:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Rem(Captbl,
-                                  (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgtbl */
+            Retval=_RME_Pgt_Rem(Cpt,
+                                  (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgt */
                                   Param[1]);                                /* rme_ptr_t Pos */
             break;
         }
-        case RME_SVC_PGTBL_CON:
+        case RME_SVC_PGT_CON:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Con(Captbl,
-                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgtbl_Parent */
+            Retval=_RME_Pgt_Con(Cpt,
+                                  (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgt_Parent */
                                   Param[1],                                 /* rme_ptr_t Pos */
-                                  (rme_cid_t)RME_PARAM_D0(Param[0]),        /* rme_cid_t Cap_Pgtbl_Child */
-                                  Param[2]);                                /* rme_ptr_t Flags_Child */
+                                  (rme_cid_t)RME_PARAM_D0(Param[0]),        /* rme_cid_t Cap_Pgt_Child */
+                                  Param[2]);                                /* rme_ptr_t Flag_Child */
             break;
         }
-        case RME_SVC_PGTBL_DES:
+        case RME_SVC_PGT_DES:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Pgtbl_Des(Captbl,
-                                  (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgtbl_Parent */
+            Retval=_RME_Pgt_Des(Cpt,
+                                  (rme_cid_t)Param[0],                      /* rme_cid_t Cap_Pgt_Parent */
                                   Param[1],                                 /* rme_ptr_t Pos */
-                                  (rme_cid_t)Param[2]);                     /* rme_cid_t Cap_Pgtbl_Child */
+                                  (rme_cid_t)Param[2]);                     /* rme_cid_t Cap_Pgt_Child */
             break;
         }
         
         /* Process */
-        case RME_SVC_PROC_CRT:
+        case RME_SVC_PRC_CRT:
         {
-            Retval=_RME_Proc_Crt(Captbl,
-                                 (rme_cid_t)Capid,                          /* rme_cid_t Cap_Captbl_Crt */
-                                 (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
-                                 (rme_cid_t)Param[1],                       /* rme_cid_t Cap_Captbl */
-                                 (rme_cid_t)Param[2]);                      /* rme_cid_t Cap_Pgtbl */
+            Retval=_RME_Prc_Crt(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Crt */
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
+                                (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Param[2]);                       /* rme_cid_t Cap_Pgt */
             break;
         }
-        case RME_SVC_PROC_DEL:
+        case RME_SVC_PRC_DEL:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Del(Captbl,
-                                 (rme_cid_t)Capid,                          /* rme_cid_t Cap_Captbl */
-                                 (rme_cid_t)Param[0]);                      /* rme_cid_t Cap_Proc */
+            Retval=_RME_Prc_Del(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Prc */
             break;
         }
-        case RME_SVC_PROC_CPT:
+        case RME_SVC_PRC_CPT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Cpt(Captbl,
-                                 (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
-                                 (rme_cid_t)Param[1]);                      /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Prc_Cpt(Cpt,
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
+                                (rme_cid_t)Param[1]);                       /* rme_cid_t Cap_Cpt */
             break;
         }
-        case RME_SVC_PROC_PGT:
+        case RME_SVC_PRC_PGT:
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Proc_Pgt(Captbl,
-                                 (rme_cid_t)Param[0],                       /* rme_cid_t Cap_Proc */
-                                 (rme_cid_t)Param[1]);                      /* rme_cid_t Cap_Pgtbl */
+            Retval=_RME_Prc_Pgt(Cpt,
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
+                                (rme_cid_t)Param[1]);                       /* rme_cid_t Cap_Pgt */
             break;
         }
         
@@ -584,12 +586,12 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Crt(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
-                                (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kmem */
+            Retval=_RME_Thd_Crt(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Thd */
-                                (rme_cid_t)RME_PARAM_D1(Param[1]),          /* rme_cid_t Cap_Proc */
-                                RME_PARAM_D0(Param[1]),                     /* rme_ptr_t Max_Prio */
+                                (rme_cid_t)RME_PARAM_D1(Param[1]),          /* rme_cid_t Cap_Prc */
+                                RME_PARAM_D0(Param[1]),                     /* rme_ptr_t Prio_Max */
                                 Param[2]);                                  /* rme_ptr_t Raddr */
             break;
         }
@@ -597,8 +599,8 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Del(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Thd_Del(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Thd */
             break;
         }
@@ -606,7 +608,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Exec_Set(Captbl,
+            Retval=_RME_Thd_Exec_Set(Cpt,
                                      (rme_cid_t)Capid,                      /* rme_cid_t Cap_Thd */
                                      Param[0],                              /* rme_ptr_t Entry */
                                      Param[1],                              /* rme_ptr_t Stack */
@@ -619,7 +621,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             /* This in theory may switch the context of itself, and in that case, we're assuming
              * that the return value register (of itself) will always be rewritten. This is mostly
              * used by hypervisors, so this is not an issue. */
-            Retval=_RME_Thd_Hyp_Set(Captbl,
+            Retval=_RME_Thd_Hyp_Set(Cpt,
                                     (rme_cid_t)Capid,                       /* rme_cid_t Cap_Thd */
                                     Param[0],                               /* rme_ptr_t Kaddr */
                                     Param[1],                               /* rme_ptr_t Entry */
@@ -630,7 +632,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Bind(Captbl,
+            Retval=_RME_Thd_Sched_Bind(Cpt,
                                        (rme_cid_t)Capid,                    /* rme_cid_t Cap_Thd */
                                        (rme_cid_t)RME_PARAM_D1(Param[0]),   /* rme_cid_t Cap_Thd_Sched */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Sig */
@@ -642,8 +644,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Thd_Sched_Rcv(Captbl,
-                                      Reg,                                  /* volatile struct RME_Reg_Struct* Reg */
+            Retval=_RME_Thd_Sched_Rcv(Cpt,
                                       (rme_cid_t)Param[0]);                 /* rme_cid_t Cap_Thd */
             break;
         }
@@ -653,8 +654,8 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Crt(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Sig_Crt(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
@@ -662,8 +663,8 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Sig_Del(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Sig_Del(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
@@ -673,11 +674,11 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Crt(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
-                                (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kmem */
+            Retval=_RME_Inv_Crt(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Inv */
-                                (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Proc */
+                                (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Prc */
                                 Param[2]);                                  /* rme_ptr_t Raddr */
             break;
         }
@@ -685,8 +686,8 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Del(Captbl,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Captbl */
+            Retval=_RME_Inv_Del(Cpt,
+                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Inv */
             break;
         }
@@ -694,11 +695,11 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=_RME_Inv_Set(Captbl,
+            Retval=_RME_Inv_Set(Cpt,
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Inv */
                                 Param[1],                                   /* rme_ptr_t Entry */
                                 Param[2],                                   /* rme_ptr_t Stack */
-                                RME_PARAM_D1(Param[0]));                    /* rme_ptr_t Fault_Ret_Flag */
+                                RME_PARAM_D1(Param[0]));                    /* rme_ptr_t Is_Exc_Ret */
             break;
         }
         /* This is an error */
@@ -1044,23 +1045,26 @@ rme_cnt_t RME_Str_Print(rme_s8_t* String)
 #endif
 /* End Function:RME_Str_Print ************************************************/
 
-/* Begin Function:_RME_Captbl_Boot_Init ***************************************
-Description : Create the first boot-time capability table. This will be the first
-              capability table created in the system. This function must be called
-              at system startup first before setting up any other kernel objects.
+/* Begin Function:_RME_Cpt_Boot_Init ******************************************
+Description : Create the first capability table in the system, at boot-time. 
+              This function must be called at system startup before setting up
+              any other kernel objects.
               This function does not require a kernel memory capability.
-Input       : rme_cid_t Cap_Captbl - The capability slot that you want this newly created
-                                     capability table capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the capability table kernel object.
-              rme_ptr_t Entry_Num - The number of capabilities in the capability table.
+Input       : rme_cid_t Cap_Cpt - The capability slot that you want this newly
+                                  created capability table capability to be in.
+                                  1-Level.
+              rme_ptr_t Vaddr - The kernel virtual address to store the
+                                capability table.
+              rme_ptr_t Entry_Num - The number of capability entries in the
+                                    capability table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl,
-                                rme_ptr_t Vaddr,
-                                rme_ptr_t Entry_Num)
+rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
+                             rme_ptr_t Vaddr,
+                             rme_ptr_t Entry_Num)
 {
     rme_ptr_t Count;
-    struct RME_Cap_Captbl* Captbl;
+    struct RME_Cap_Cpt* Cpt;
 
     /* See if the entry number is too big */
     if((Entry_Num==0U)||(Entry_Num>RME_CAPID_2L))
@@ -1075,7 +1079,7 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl,
     }
     
     /* Try to populate the area */
-    if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
+    if(_RME_Kotbl_Mark(Vaddr, RME_CPT_SIZE(Entry_Num))!=0)
     {
         RME_COVERAGE_MARKER();
         
@@ -1090,47 +1094,51 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl,
     for(Count=0U;Count<Entry_Num;Count++)
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
 
-    Captbl=&(((struct RME_Cap_Captbl*)Vaddr)[Cap_Captbl]);
+    Cpt=&(((struct RME_Cap_Cpt*)Vaddr)[Cap_Cpt]);
     
     /* Header init */
-    Captbl->Head.Root_Ref=1U;
-    Captbl->Head.Object=Vaddr;
-    Captbl->Head.Flags=RME_CAPTBL_FLAG_ALL;
+    Cpt->Head.Root_Ref=1U;
+    Cpt->Head.Object=Vaddr;
+    Cpt->Head.Flag=RME_CPT_FLAG_ALL;
     
     /* Info init */
-    Captbl->Entry_Num=Entry_Num;
+    Cpt->Entry_Num=Entry_Num;
 
     /* At last, write into slot the correct information, and set status to VALID */
-    RME_WRITE_RELEASE(&(Captbl->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CAPTBL, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Cpt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CPT, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
-    return Cap_Captbl;
+    return Cap_Cpt;
 }
-/* End Function:_RME_Captbl_Boot_Init ****************************************/
+/* End Function:_RME_Cpt_Boot_Init *******************************************/
 
-/* Begin Function:_RME_Captbl_Boot_Crt ****************************************
-Description : Create a boot-time capability table at the memory segment designated.
-              This function does not ask require a kernel memory capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
-                                         the cap to new captbl. 2-Level.
-              rme_cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the capability table kernel object.
+/* Begin Function:_RME_Cpt_Boot_Crt *******************************************
+Description : Create a boot-time capability table at the designated memory
+              address.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Crt - The capability table that contains the 
+                                      newly created cap to captbl.
+                                      2-Level.
+              rme_cid_t Cap_Crt - The capability slot that you want this newly
+                                  created capability table capability to be in.
+                                  1-Level.
+              rme_ptr_t Vaddr - The kernel virtual address to store the 
+                                capability table.
               rme_ptr_t Entry_Num - The number of capabilities in the capability table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                               rme_cid_t Cap_Captbl_Crt,
-                               rme_cid_t Cap_Crt,
-                               rme_ptr_t Vaddr,
-                               rme_ptr_t Entry_Num)
+rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt_Crt,
+                            rme_cid_t Cap_Crt,
+                            rme_ptr_t Vaddr,
+                            rme_ptr_t Entry_Num)
 {
     rme_ptr_t Count;
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Captbl* Captbl_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Cpt* Cpt_Crt;
     rme_ptr_t Type_Stat;
     
-    /* See if the entry number is too big - this is not restricted by RME_CAPTBL_LIMIT */
+    /* See if the entry number is too big - this is not restricted by RME_CPT_LIMIT */
     if((Entry_Num==0U)||(Entry_Num>RME_CAPID_2L))
     {
         RME_COVERAGE_MARKER();
@@ -1143,22 +1151,22 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Crt, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
 
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Crt, struct RME_Cap_Captbl*, Captbl_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Crt, struct RME_Cap_Cpt*, Cpt_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Captbl_Crt);
+    RME_CPT_OCCUPY(Cpt_Crt);
 
     /* Try to mark this area as populated */
-    if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
+    if(_RME_Kotbl_Mark(Vaddr, RME_CPT_SIZE(Entry_Num))!=0)
     {
         RME_COVERAGE_MARKER();
         
         /* Abort the creation process */
-        RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat), 0U);
         return RME_ERR_CAP_KOTBL;
     }
     else
@@ -1171,42 +1179,48 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
 
     /* Header init */
-    Captbl_Crt->Head.Root_Ref=0U;
-    Captbl_Crt->Head.Object=Vaddr;
-    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_ALL;
+    Cpt_Crt->Head.Root_Ref=0U;
+    Cpt_Crt->Head.Object=Vaddr;
+    Cpt_Crt->Head.Flag=RME_CPT_FLAG_ALL;
     /* Info init */
-    Captbl_Crt->Entry_Num=Entry_Num;
+    Cpt_Crt->Entry_Num=Entry_Num;
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CAPTBL, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CPT, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Captbl_Boot_Crt *****************************************/
+/* End Function:_RME_Cpt_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Captbl_Crt *********************************************
+/* Begin Function:_RME_Cpt_Crt ************************************************
 Description : Create a capability table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Crt - The capability to the captbl that may contain
-                                         the cap to new captbl. 2-Level.
-              rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
-              rme_cid_t Cap_Crt - The cap position to hold the new cap. 1-Level.
-              rme_ptr_t Raddr - The relative virtual address to store the capability table.
-              rme_ptr_t Entry_Num - The number of capabilities in the capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Crt - The capability table that contains the 
+                                      newly created cap to captbl.
+                                      2-Level.
+              rme_cid_t Cap_Kom - The kernel memory capability.
+                                  2-Level.
+              rme_cid_t Cap_Crt - The capability slot that you want this newly
+                                  created capability table capability to be in.
+                                  1-Level.
+              rme_ptr_t Raddr - The relative virtual address to store the 
+                                capability table.
+              rme_ptr_t Entry_Num - The number of entries in that capability
+                                    table.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl,
-                          rme_cid_t Cap_Captbl_Crt,
-                          rme_cid_t Cap_Kmem,
-                          rme_cid_t Cap_Crt,
-                          rme_ptr_t Raddr,
-                          rme_ptr_t Entry_Num)
+rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Crt,
+                       rme_cid_t Cap_Kom,
+                       rme_cid_t Cap_Crt,
+                       rme_ptr_t Raddr,
+                       rme_ptr_t Entry_Num)
 {
     rme_ptr_t Count;
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Kmem* Kmem_Op;
-    struct RME_Cap_Captbl* Captbl_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Kom* Kom_Op;
+    struct RME_Cap_Cpt* Cpt_Crt;
     rme_ptr_t Type_Stat;
     rme_ptr_t Vaddr;
 
@@ -1223,8 +1237,8 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Are we overrunning the size limit? */
-#if(RME_CAPTBL_LIMIT!=0U)
-    if(Entry_Num>RME_CAPTBL_LIMIT)
+#if(RME_CPT_LIMIT!=0U)
+    if(Entry_Num>RME_CPT_LIMIT)
     {
         RME_COVERAGE_MARKER();
         
@@ -1237,25 +1251,25 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl,
 #endif
 
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Crt, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Kmem, RME_CAP_TYPE_KMEM, struct RME_Cap_Kmem*, Kmem_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Kom, RME_CAP_TYPE_KOM, struct RME_Cap_Kom*, Kom_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op, RME_KMEM_FLAG_CAPTBL, Raddr, Vaddr, RME_CAPTBL_SIZE(Entry_Num));
+    RME_KOM_CHECK(Kom_Op, RME_KOM_FLAG_CPT, Raddr, Vaddr, RME_CPT_SIZE(Entry_Num));
 
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Crt, struct RME_Cap_Captbl*, Captbl_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Crt, struct RME_Cap_Cpt*, Cpt_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Captbl_Crt);
+    RME_CPT_OCCUPY(Cpt_Crt);
 
     /* Try to mark this area as populated */
-    if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0U)
+    if(_RME_Kotbl_Mark(Vaddr, RME_CPT_SIZE(Entry_Num))!=0U)
     {
         RME_COVERAGE_MARKER();
         
         /* Failure. Set the Type_Stat back to 0 and abort the creation process */
-        RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat), 0U);
         return RME_ERR_CAP_KOTBL;
     }
     else
@@ -1268,37 +1282,40 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl,
         RME_CAP_CLEAR(&(((struct RME_Cap_Struct*)Vaddr)[Count]));
 
     /* Header init */
-    Captbl_Crt->Head.Root_Ref=0U;
-    Captbl_Crt->Head.Object=Vaddr;
-    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_ALL;
+    Cpt_Crt->Head.Root_Ref=0U;
+    Cpt_Crt->Head.Object=Vaddr;
+    Cpt_Crt->Head.Flag=RME_CPT_FLAG_ALL;
     
     /* Info init */
-    Captbl_Crt->Entry_Num=Entry_Num;
+    Cpt_Crt->Entry_Num=Entry_Num;
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CAPTBL, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_CPT, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Captbl_Crt **********************************************/
+/* End Function:_RME_Cpt_Crt *************************************************/
 
-/* Begin Function:_RME_Captbl_Del *********************************************
+/* Begin Function:_RME_Cpt_Del ************************************************
 Description : Delete a layer of capability table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Del - The capability table containing the cap to
-                                         captbl for deletion. 2-Level.
-              rme_cid_t Cap_Del - The capability to the captbl being deleted. 1-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Del - The capability table that contains the
+                                      cap to captbl.
+                                      2-Level.
+              rme_cid_t Cap_Del - The capability to the capability table to be
+                                  deleted.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl,
-                          rme_cid_t Cap_Captbl_Del,
-                          rme_cid_t Cap_Del)
+rme_ret_t _RME_Cpt_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Del,
+                       rme_cid_t Cap_Del)
 {
     rme_ptr_t Count;
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Captbl* Captbl_Del;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Cpt* Cpt_Del;
     struct RME_Cap_Struct* Table;
     rme_ptr_t Type_Stat;
     /* These are used for deletion */
@@ -1306,27 +1323,27 @@ rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Size;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Del, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Del, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Del, struct RME_Cap_Captbl*, Captbl_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Del, struct RME_Cap_Cpt*, Cpt_Del);
     /* Delete check */
-    RME_CAP_DEL_CHECK(Captbl_Del, Type_Stat, RME_CAP_TYPE_CAPTBL);
+    RME_CAP_DEL_CHECK(Cpt_Del, Type_Stat, RME_CAP_TYPE_CPT);
     
     /* Is there any capability in this capability table? If yes, we cannot destroy it.
      * We will check every slot to make sure nothing is there. This is surely,
      * predictable but not so perfect. So, if the time of such operations is to be 
      * bounded, the user must control the number of entries in the table */
-    Table=RME_CAP_GETOBJ(Captbl_Del, struct RME_Cap_Struct*);
-    for(Count=0U;Count<Captbl_Del->Entry_Num;Count++)
+    Table=RME_CAP_GETOBJ(Cpt_Del, struct RME_Cap_Struct*);
+    for(Count=0U;Count<Cpt_Del->Entry_Num;Count++)
     {
         if(Table[Count].Head.Type_Stat!=0U)
         {
             RME_COVERAGE_MARKER();
             
-            RME_CAP_DEFROST(Captbl_Del, Type_Stat);
+            RME_CAP_DEFROST(Cpt_Del, Type_Stat);
             return RME_ERR_CAP_EXIST;
         }
         else
@@ -1336,43 +1353,45 @@ rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Remember these two variables for deletion */
-    Object=RME_CAP_GETOBJ(Captbl_Del, rme_ptr_t);
-    Size=RME_CAPTBL_SIZE(Captbl_Del->Entry_Num);
+    Object=RME_CAP_GETOBJ(Cpt_Del, rme_ptr_t);
+    Size=RME_CPT_SIZE(Cpt_Del->Entry_Num);
 
     /* Now we can safely delete the cap */
-    RME_CAP_DELETE(Captbl_Del, Type_Stat);
+    RME_CAP_DELETE(Cpt_Del, Type_Stat);
 
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object, Size)!=0);
     
     return 0;
 }
-/* End Function:_RME_Captbl_Del **********************************************/
+/* End Function:_RME_Cpt_Del *************************************************/
 
-/* Begin Function:_RME_Captbl_Frz *********************************************
+/* Begin Function:_RME_Cpt_Frz ************************************************
 Description : Freeze a capability in the capability table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Frz  - The capability table containing the cap to
-                                          captbl for this operation. 2-Level.
-              rme_cid_t Cap_Frz - The cap to the kernel object being freezed. 1-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Frz  - The capability table containing the cap
+                                       to captbl for this operation.
+                                       2-Level.
+              rme_cid_t Cap_Frz - The cap to the kernel object being freezed.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl,
-                          rme_cid_t Cap_Captbl_Frz,
-                          rme_cid_t Cap_Frz)
+rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Frz,
+                       rme_cid_t Cap_Frz)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Struct* Capobj_Frz;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Frz, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Frz, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_FRZ);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_FRZ);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Frz, struct RME_Cap_Struct*, Capobj_Frz);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Frz, struct RME_Cap_Struct*, Capobj_Frz);
     
     /* Check if anything is there. If nothing there, the Type_Stat must be 0. 
      * Need a read acquire barrier here to avoid stale reads below. */
@@ -1441,52 +1460,56 @@ rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl,
 
     return 0;
 }
-/* End Function:_RME_Captbl_Frz **********************************************/
+/* End Function:_RME_Cpt_Frz *************************************************/
 
-/* Begin Function:_RME_Captbl_Add *********************************************
-Description : Add one capability into the capability table. This is doing capability delegation.
-Input       : struct RME_Cap_Captbl* Captbl - The capability to the master capability table.
-              rme_cid_t Cap_Captbl_Dst - The capability to the destination capability table. 2-Level.
-              rme_cid_t Cap_Dst - The capability slot you want to add to. 1-Level.
-              rme_cid_t Cap_Captbl_Src - The capability to the source capability table. 2-Level.
-              rme_cid_t Cap_Src - The capability in the source capability table to delegate. 1-Level.
-              rme_ptr_t Flags - The flags to delegate. The flags can restrict which operations
-                                are possible on the cap. If the cap delegated is a page table, we also
-                                pass the range information in this field.
-              rme_ptr_t Ext_Flags - The extended flags, only effective for kernel memory capability.
+/* Begin Function:_RME_Cpt_Add ************************************************
+Description : Delegate capability from one capability table to another.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Dst - The capability to the destination 
+                                      capability table.
+                                      2-Level.
+              rme_cid_t Cap_Dst - The capability slot you want to add to.
+                                  1-Level.
+              rme_cid_t Cap_Cpt_Src - The capability to the source capability
+                                      table.
+                                      2-Level.
+              rme_cid_t Cap_Src - The capability in the source capability table
+                                  to delegate.
+                                  1-Level.
+              rme_ptr_t Flag - The flags for the capability.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
-                          rme_cid_t Cap_Captbl_Dst,
-                          rme_cid_t Cap_Dst, 
-                          rme_cid_t Cap_Captbl_Src,
-                          rme_cid_t Cap_Src,
-                          rme_ptr_t Flags,
-                          rme_ptr_t Ext_Flags)
+rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Dst,
+                       rme_cid_t Cap_Dst, 
+                       rme_cid_t Cap_Cpt_Src,
+                       rme_cid_t Cap_Src,
+                       rme_ptr_t Flag,
+                       rme_ptr_t Ext_Flag)
 {
-    struct RME_Cap_Captbl* Captbl_Dst;
-    struct RME_Cap_Captbl* Captbl_Src;
+    struct RME_Cap_Cpt* Cpt_Dst;
+    struct RME_Cap_Cpt* Cpt_Src;
     struct RME_Cap_Struct* Capobj_Dst;
     struct RME_Cap_Struct* Capobj_Src;
     rme_ptr_t Type_Stat;
     rme_ptr_t Src_Type;
     
     /* These variables are only used for kernel memory checks */
-    rme_ptr_t Kmem_End;
-    rme_ptr_t Kmem_Start;
-    rme_ptr_t Kmem_Flags;
+    rme_ptr_t Kom_End;
+    rme_ptr_t Kom_Start;
+    rme_ptr_t Kom_Flag;
 
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Dst, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Dst, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Src, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Src, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Dst, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Dst, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Src, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Src, Type_Stat);
     /* Check if both captbls are not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Dst, RME_CAPTBL_FLAG_ADD_DST);
-    RME_CAP_CHECK(Captbl_Src, RME_CAPTBL_FLAG_ADD_SRC);
+    RME_CAP_CHECK(Cpt_Dst, RME_CPT_FLAG_ADD_DST);
+    RME_CAP_CHECK(Cpt_Src, RME_CPT_FLAG_ADD_SRC);
     
     /* Get the cap slots */
-    RME_CAPTBL_GETSLOT(Captbl_Dst, Cap_Dst, struct RME_Cap_Struct*, Capobj_Dst);
-    RME_CAPTBL_GETSLOT(Captbl_Src, Cap_Src, struct RME_Cap_Struct*, Capobj_Src);
+    RME_CPT_GETSLOT(Cpt_Dst, Cap_Dst, struct RME_Cap_Struct*, Capobj_Dst);
+    RME_CPT_GETSLOT(Cpt_Src, Cap_Src, struct RME_Cap_Struct*, Capobj_Src);
     
     /* Atomic read - Read barrier to avoid premature checking of the rest */
     Type_Stat=RME_READ_ACQUIRE(&(Capobj_Src->Head.Type_Stat));
@@ -1514,18 +1537,18 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Dewarn some compilers that complain about uninitialized variables */
-    Kmem_End=0U;
-    Kmem_Start=0U;
-    Kmem_Flags=0U;
+    Kom_End=0U;
+    Kom_Start=0U;
+    Kom_Flag=0U;
     
     /* Is there a flag conflict? - For page tables, we have different checking mechanisms */
     Src_Type=RME_CAP_TYPE(Type_Stat);
-    if(Src_Type==RME_CAP_TYPE_PGTBL)
+    if(Src_Type==RME_CAP_TYPE_PGT)
     {
         RME_COVERAGE_MARKER();
         
         /* Check the delegation range */
-        if(RME_PGTBL_FLAG_HIGH(Flags)>RME_PGTBL_FLAG_HIGH(Capobj_Src->Head.Flags))
+        if(RME_PGT_FLAG_HIGH(Flag)>RME_PGT_FLAG_HIGH(Capobj_Src->Head.Flag))
         {
             RME_COVERAGE_MARKER();
         
@@ -1535,7 +1558,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if(RME_PGTBL_FLAG_LOW(Flags)<RME_PGTBL_FLAG_LOW(Capobj_Src->Head.Flags))
+        if(RME_PGT_FLAG_LOW(Flag)<RME_PGT_FLAG_LOW(Capobj_Src->Head.Flag))
         {
             RME_COVERAGE_MARKER();
             
@@ -1545,7 +1568,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if(RME_PGTBL_FLAG_HIGH(Flags)<RME_PGTBL_FLAG_LOW(Flags))
+        if(RME_PGT_FLAG_HIGH(Flag)<RME_PGT_FLAG_LOW(Flag))
         {
             RME_COVERAGE_MARKER();
             
@@ -1556,7 +1579,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
             RME_COVERAGE_MARKER();
         }
         /* Check the flags - if there are extra ones, or all zero */
-        if(RME_PGTBL_FLAG_FLAGS(Flags)==0U)
+        if(RME_PGT_FLAG_FLAGS(Flag)==0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1566,7 +1589,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if((RME_PGTBL_FLAG_FLAGS(Flags)&(~RME_PGTBL_FLAG_FLAGS(Capobj_Src->Head.Flags)))!=0U)
+        if((RME_PGT_FLAG_FLAGS(Flag)&(~RME_PGT_FLAG_FLAGS(Capobj_Src->Head.Flag)))!=0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1577,13 +1600,13 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
             RME_COVERAGE_MARKER();
         }
     }
-    else if(Src_Type==RME_CAP_TYPE_KERN)
+    else if(Src_Type==RME_CAP_TYPE_KFN)
     {
         RME_COVERAGE_MARKER();
         
         /* Kernel capabilities only have ranges, no flags - check the delegation range */
         /* Check the delegation range */
-        if(RME_KERN_FLAG_HIGH(Flags)>RME_KERN_FLAG_HIGH(Capobj_Src->Head.Flags))
+        if(RME_KFN_FLAG_HIGH(Flag)>RME_KFN_FLAG_HIGH(Capobj_Src->Head.Flag))
         {
             RME_COVERAGE_MARKER();
             
@@ -1593,7 +1616,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if(RME_KERN_FLAG_LOW(Flags)<RME_KERN_FLAG_LOW(Capobj_Src->Head.Flags))
+        if(RME_KFN_FLAG_LOW(Flag)<RME_KFN_FLAG_LOW(Capobj_Src->Head.Flag))
         {
             RME_COVERAGE_MARKER();
             
@@ -1603,7 +1626,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if(RME_KERN_FLAG_HIGH(Flags)<RME_KERN_FLAG_LOW(Flags))
+        if(RME_KFN_FLAG_HIGH(Flag)<RME_KFN_FLAG_LOW(Flag))
         {
             RME_COVERAGE_MARKER();
             
@@ -1614,20 +1637,20 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
             RME_COVERAGE_MARKER();
         }
     }
-    else if(Src_Type==RME_CAP_TYPE_KMEM)
+    else if(Src_Type==RME_CAP_TYPE_KOM)
     {
         RME_COVERAGE_MARKER();
         
-        Kmem_End=RME_KMEM_FLAG_HIGH(Flags, Ext_Flags);
-        Kmem_Start=RME_KMEM_FLAG_LOW(Flags, Ext_Flags);
-        Kmem_Flags=RME_KMEM_FLAG_FLAGS(Ext_Flags);
+        Kom_End=RME_KOM_FLAG_HIGH(Flag, Ext_Flag);
+        Kom_Start=RME_KOM_FLAG_LOW(Flag, Ext_Flag);
+        Kom_Flag=RME_KOM_FLAG_KOM(Ext_Flag);
         
         /* Round start and end to the slot boundary, if we are using slots bigger than 64 bytes */
-#if(RME_KMEM_SLOT_ORDER>6U)
-        Kmem_End=RME_ROUND_DOWN(Kmem_End, RME_KMEM_SLOT_ORDER);
-        Kmem_Start=RME_ROUND_UP(Kmem_Start, RME_KMEM_SLOT_ORDER);
+#if(RME_KOM_SLOT_ORDER>6U)
+        Kom_End=RME_ROUND_DOWN(Kom_End, RME_KOM_SLOT_ORDER);
+        Kom_Start=RME_ROUND_UP(Kom_Start, RME_KOM_SLOT_ORDER);
 #endif
-        if(Kmem_End<=Kmem_Start)
+        if(Kom_End<=Kom_Start)
         {
             RME_COVERAGE_MARKER();
             
@@ -1639,8 +1662,8 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         }
 
         /* Convert relative addresses to absolute addresses and check for overflow */
-        Kmem_Start+=((struct RME_Cap_Kmem*)Capobj_Src)->Start;
-        if(Kmem_Start<((struct RME_Cap_Kmem*)Capobj_Src)->Start)
+        Kom_Start+=((struct RME_Cap_Kom*)Capobj_Src)->Start;
+        if(Kom_Start<((struct RME_Cap_Kom*)Capobj_Src)->Start)
         {
             RME_COVERAGE_MARKER();
             
@@ -1650,8 +1673,8 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        Kmem_End+=((struct RME_Cap_Kmem*)Capobj_Src)->Start;
-        if(Kmem_End<((struct RME_Cap_Kmem*)Capobj_Src)->Start)
+        Kom_End+=((struct RME_Cap_Kom*)Capobj_Src)->Start;
+        if(Kom_End<((struct RME_Cap_Kom*)Capobj_Src)->Start)
         {
             RME_COVERAGE_MARKER();
             
@@ -1663,7 +1686,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         }
 
         /* Check the ranges of kernel memory */
-        if(((struct RME_Cap_Kmem*)Capobj_Src)->Start>Kmem_Start)
+        if(((struct RME_Cap_Kom*)Capobj_Src)->Start>Kom_Start)
         {
             RME_COVERAGE_MARKER();
             
@@ -1673,7 +1696,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if(((struct RME_Cap_Kmem*)Capobj_Src)->End<(Kmem_End-1U))
+        if(((struct RME_Cap_Kom*)Capobj_Src)->End<(Kom_End-1U))
         {
             RME_COVERAGE_MARKER();
             
@@ -1685,7 +1708,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         }
         
         /* Check the flags - if there are extra ones, or all zero */
-        if(Kmem_Flags==0U)
+        if(Kom_Flag==0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1695,7 +1718,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if((Kmem_Flags&(~(Capobj_Src->Head.Flags)))!=0U)
+        if((Kom_Flag&(~(Capobj_Src->Head.Flag)))!=0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1712,7 +1735,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
         
         /* Check the flags - if there are extra ones, or all zero */
-        if(Flags==0U)
+        if(Flag==0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1722,7 +1745,7 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
         }
-        if((Flags&(~(Capobj_Src->Head.Flags)))!=0U)
+        if((Flag&(~(Capobj_Src->Head.Flag)))!=0U)
         {
             RME_COVERAGE_MARKER();
             
@@ -1747,35 +1770,35 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Try to take the empty slot */
-    RME_CAPTBL_OCCUPY(Capobj_Dst);
+    RME_CPT_OCCUPY(Capobj_Dst);
     
     /* All done, we replicate the cap with flags */
-    if(Src_Type==RME_CAP_TYPE_KMEM)
+    if(Src_Type==RME_CAP_TYPE_KOM)
     {
         RME_COVERAGE_MARKER();
             
-        RME_CAP_COPY(Capobj_Dst, Capobj_Src, Kmem_Flags);
+        RME_CAP_COPY(Capobj_Dst, Capobj_Src, Kom_Flag);
         /* If this is a kernel memory cap, we need to write the range information as well.
          * This range information is absolute address */
-        ((struct RME_Cap_Kmem*)Capobj_Dst)->Start=Kmem_Start;
-        /* Internally, the end is stored in a full inclusive encoding for Kmem_End */
-        ((struct RME_Cap_Kmem*)Capobj_Dst)->End=Kmem_End-1U;
+        ((struct RME_Cap_Kom*)Capobj_Dst)->Start=Kom_Start;
+        /* Internally, the end is stored in a full inclusive encoding for Kom_End */
+        ((struct RME_Cap_Kom*)Capobj_Dst)->End=Kom_End-1U;
     }
     else
     {
         RME_COVERAGE_MARKER();
         
-        RME_CAP_COPY(Capobj_Dst, Capobj_Src, Flags);
+        RME_CAP_COPY(Capobj_Dst, Capobj_Src, Flag);
     }
     
     /* Set the parent and increase reference count - if this is actually needed. The only 
-     * two case where this is not needed are KERN and KMEM. These two capability types are
+     * two case where this is not needed are KERN and KOM. These two capability types are
      * standalone on their own and do not need to reference their parent, nor will they 
      * update the parent's reference count. This design decision comes from the fact that
      * these two capability types are always created on boot and delegated everywhere, and
      * they don't actually have an object. If we use refcnt on these, we may cause scalability
      * issues. The parent cap for these two can't be deleted, anyway, so this is fine. */
-    if((Src_Type!=RME_CAP_TYPE_KMEM)&&(Src_Type!=RME_CAP_TYPE_KERN))
+    if((Src_Type!=RME_CAP_TYPE_KOM)&&(Src_Type!=RME_CAP_TYPE_KFN))
     {
         RME_COVERAGE_MARKER();
         
@@ -1796,23 +1819,25 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
 
     return 0;
 }
-/* End Function:_RME_Captbl_Add **********************************************/
+/* End Function:_RME_Cpt_Add *************************************************/
 
-/* Begin Function:_RME_Captbl_Rem *********************************************
-Description : Remove one capability from the capability table. This function reverts
-              the delegation.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Rem - The capability to the capability table to 
-                                         remove from. 2-Level.
-              rme_cid_t Cap_Rem - The capability slot you want to remove. 1-Level.
+/* Begin Function:_RME_Cpt_Rem ************************************************
+Description : Remove one capability from the capability table. This function
+              reverts the delegation.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Rem - The capability to the capability table to
+                                      remove from.
+                                      2-Level.
+              rme_cid_t Cap_Rem - The capability slot you want to remove.
+                                  1-Level.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl,
-                          rme_cid_t Cap_Captbl_Rem,
-                          rme_cid_t Cap_Rem)
+rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Rem,
+                       rme_cid_t Cap_Rem)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Struct* Capobj_Rem;
     rme_ptr_t Type_Stat;
     rme_ptr_t Rem_Type;
@@ -1820,18 +1845,18 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl,
     struct RME_Cap_Struct* Capobj_Root;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Rem, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Rem, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_REM);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_REM);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Rem, struct RME_Cap_Struct*, Capobj_Rem);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Rem, struct RME_Cap_Struct*, Capobj_Rem);
     /* Removal check */
     RME_CAP_REM_CHECK(Capobj_Rem, Type_Stat);
     
-    /* If we are KERN or KMEM, we don't care about parent or refcnt */
+    /* If we are KFN or KOM, we don't care about parent or refcnt */
     Rem_Type=RME_CAP_TYPE(Type_Stat);
-    if((Rem_Type!=RME_CAP_TYPE_KMEM)&&(Rem_Type!=RME_CAP_TYPE_KERN))
+    if((Rem_Type!=RME_CAP_TYPE_KOM)&&(Rem_Type!=RME_CAP_TYPE_KFN))
     {
         RME_COVERAGE_MARKER();
         
@@ -1855,42 +1880,44 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl,
     
     return 0;
 }
-/* End Function:_RME_Captbl_Rem **********************************************/
+/* End Function:_RME_Cpt_Rem *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Boot_Crt *****************************************
-Description : Create a boot-time page table, and put that capability into a designated
-              capability table. The function will check if the memory region is large
-              enough, and how it has been typed; if the function found out that it is
-              impossible to create a page table due to some error, it will return an
-              error.
+/* Begin Function:_RME_Pgt_Boot_Crt *******************************************
+Description : Create a boot-time page table.
               This function does not require a kernel memory capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
-                                     to new captbl. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
-                                    page table capability to be in. 1-Level.
-              rme_ptr_t Vaddr - The virtual address to store the page table kernel object.
-              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
-                                    This address must be aligned to the total size of the table.
-              rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
-                                   map all the kernel page directories into this one.
-              rme_ptr_t Size_Order - The size order of the page table. The size refers to
-                                     the size of each page in the page directory.
-              rme_ptr_t Num_Order - The number order of entries in the page table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability table that contains the newly
+                                  created cap to pgtbl.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability slot that you want this newly
+                                  created page table capability to be in.
+                                  1-Level.
+              rme_ptr_t Vaddr - The virtual address to store the page table.
+              rme_ptr_t Base - The virtual address to start mapping for this
+                               page table. This address must be aligned to the
+                               total size of the table.
+              rme_ptr_t Is_Top - Whether this page table is the top-level. If
+                                 it is, we will map all the kernel page
+                                 directories into it.
+              rme_ptr_t Size_Order - The size order of the page table. The size
+                                     refers to the size of each page in the
+                                     page directory.
+              rme_ptr_t Num_Order - The number order of entries in the page
+                                    table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                              rme_cid_t Cap_Captbl,
-                              rme_cid_t Cap_Pgtbl,
-                              rme_ptr_t Vaddr,
-                              rme_ptr_t Base_Addr,
-                              rme_ptr_t Top_Flag,
-                              rme_ptr_t Size_Order,
-                              rme_ptr_t Num_Order)
+rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt,
+                            rme_cid_t Cap_Pgt,
+                            rme_ptr_t Vaddr,
+                            rme_ptr_t Base,
+                            rme_ptr_t Is_Top,
+                            rme_ptr_t Size_Order,
+                            rme_ptr_t Num_Order)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Pgt* Pgt_Crt;
     rme_ptr_t Type_Stat;
     rme_ptr_t Table_Size;
     
@@ -1908,12 +1935,12 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    if(__RME_Pgt_Check(Base, Is_Top, Size_Order, Num_Order, Vaddr)!=0)
     {
         RME_COVERAGE_MARKER();
         
@@ -1925,7 +1952,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Check if the base address is properly aligned to the total order of the page table */
-    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
+    if((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -1937,22 +1964,22 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Pgtbl, struct RME_Cap_Pgtbl*, Pgtbl_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Pgt, struct RME_Cap_Pgt*, Pgt_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Pgtbl_Crt);
+    RME_CPT_OCCUPY(Pgt_Crt);
 
     /* Are we creating the top level? */
-    if(Top_Flag!=0U)
+    if(Is_Top!=0U)
     {
         RME_COVERAGE_MARKER();
         
-        Table_Size=RME_PGTBL_SIZE_TOP(Num_Order);
+        Table_Size=RME_PGT_SIZE_TOP(Num_Order);
     }
     else
     {
         RME_COVERAGE_MARKER();
         
-        Table_Size=RME_PGTBL_SIZE_NOM(Num_Order);
+        Table_Size=RME_PGT_SIZE_NOM(Num_Order);
     }
     
     /* Try to populate the area */
@@ -1960,7 +1987,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
     
-        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
         return RME_ERR_CAP_KOTBL;
     }
     else
@@ -1969,19 +1996,19 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Header init */
-    Pgtbl_Crt->Head.Root_Ref=0U;
-    Pgtbl_Crt->Head.Object=Vaddr;
+    Pgt_Crt->Head.Root_Ref=0U;
+    Pgt_Crt->Head.Object=Vaddr;
     /* Set the property of the page table to only act as source and creating process */
-    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|RME_PGTBL_FLAG_ADD_SRC|
-                          RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT;
+    Pgt_Crt->Head.Flag=RME_PGT_FLAG_FULL_RANGE|RME_PGT_FLAG_ADD_SRC|
+                       RME_PGT_FLAG_PRC_CRT|RME_PGT_FLAG_PRC_PGT;
     
     /* Info init */
-    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
-    Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order, Num_Order);
-    Pgtbl_Crt->ASID=0U;
+    Pgt_Crt->Base=Base|Is_Top;
+    Pgt_Crt->Size_Num_Order=RME_PGT_ORDER(Size_Order, Num_Order);
+    Pgt_Crt->ASID=0U;
 
     /* Object init - need to add all kernel pages if they are top-level */
-    if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0U)
+    if(__RME_Pgt_Init(Pgt_Crt)!=0U)
     {
         RME_COVERAGE_MARKER();
         
@@ -1989,7 +2016,7 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, Table_Size)==0);
 
         /* Unsuccessful. Revert operations */
-        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
         return RME_ERR_PGT_HW;
     }
     else
@@ -1998,49 +2025,48 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PGTBL, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PGT, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Boot_Crt ******************************************/
+/* End Function:_RME_Pgt_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Pgtbl_Boot_Add *****************************************
-Description : This function is used to initialize the initial user memory mappings.
-              This function is exclusively used to set up the Init process's memory
-              mappings in the booting process. After the system boots, it is no longer
-              possible to fabricate pages like this.
-              Additionally, this function will set the cap to page table's property
-              as unremovable. This means that it is not allowed to remove any pages
-              in the directory. Additionally, it will set the reference count of the
-              capability as 1, thus making the capability to the initial page table
-              virtually undeletable.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl - The capability to the page table. 2-Level.
+/* Begin Function:_RME_Pgt_Boot_Add *******************************************
+Description : This function is exclusively used to set up the Init process's
+              memory mappings in the booting process. When the system has
+              booted, it won't possible to fabricate pages like this.
+              Additionally, this function will set the cap to page table's 
+              property as unremovable. This means that it is not allowed to
+              remove any pages in the directory. It will set the reference
+              count of the capability as 1, thus making the capability to the
+              initial page table undeletable.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt - The capability to the page table.
+                                  2-Level.
               rme_ptr_t Paddr - The physical address to map from.
-              rme_ptr_t Pos - The virtual address position to map to. This position is
-                              a index in the user memory.
-              rme_ptr_t Flags - The flags for the user page.
+              rme_ptr_t Pos - The page table position to map to.
+              rme_ptr_t Flag - The flags for the user page.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl,
-                              rme_cid_t Cap_Pgtbl, 
-                              rme_ptr_t Paddr,
-                              rme_ptr_t Pos,
-                              rme_ptr_t Flags)
+rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Pgt, 
+                            rme_ptr_t Paddr,
+                            rme_ptr_t Pos,
+                            rme_ptr_t Flag)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Op;
+    struct RME_Cap_Pgt* Pgt_Op;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen, but don't check their properties */
-    RME_CAP_CHECK(Pgtbl_Op, 0U);
+    RME_CAP_CHECK(Pgt_Op, 0U);
 
 #if(RME_VA_EQU_PA==1U)
     /* Check if we force identical mapping */
-    if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Base_Addr)))
+    if(Paddr!=((Pos<<RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order))+RME_PGT_START(Pgt_Op->Base)))
     {
         RME_COVERAGE_MARKER();
         
@@ -2053,8 +2079,8 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl,
 #endif
 
     /* See if the mapping range and the granularity is allowed */
-    if(((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0U)||
-       ((Paddr&RME_MASK_END(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)-1U))!=0U))
+    if(((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)||
+       ((Paddr&RME_MASK_END(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)-1U))!=0U))
     {
         RME_COVERAGE_MARKER();
         
@@ -2067,7 +2093,7 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgtbl_Page_Map(Pgtbl_Op, Paddr, Pos, Flags)!=0)
+    if(__RME_Pgt_Page_Map(Pgt_Op, Paddr, Pos, Flag)!=0)
     {
         RME_COVERAGE_MARKER();
         
@@ -2080,30 +2106,32 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl,
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Boot_Add ******************************************/
+/* End Function:_RME_Pgt_Boot_Add ********************************************/
 
-/* Begin Function:_RME_Pgtbl_Boot_Con *****************************************
-Description : At boot-time, map a child page table from the parent page table. 
-              In other words, we are doing the construction of a page table tree.
-              This operation is only used at boot-time and does not check for flags.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
-              rme_ptr_t Pos - The virtual address to position map the child page table to.
-              rme_cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
-              rme_ptr_t Flags_Child - The flags for the child page table mapping. This restricts
-                                      the access permissions of all the memory under this mapping.
+/* Begin Function:_RME_Pgt_Boot_Con *******************************************
+Description : Map a child page table from the parent page table at boot-time.
+              This does not check flags.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt_Parent - The capability to the parent page 
+                                         table.
+                                         2-Level.
+              rme_ptr_t Pos - The parent page table position to map the child
+                              page table to.
+              rme_cid_t Cap_Pgt_Child - The capability to the child page table.
+                                        2-Level.
+              rme_ptr_t Flag_Child - Mapping flags.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
-                              rme_cid_t Cap_Pgtbl_Parent,
-                              rme_ptr_t Pos,
-                              rme_cid_t Cap_Pgtbl_Child,
-                              rme_ptr_t Flags_Child)
+rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Pgt_Parent,
+                            rme_ptr_t Pos,
+                            rme_cid_t Cap_Pgt_Child,
+                            rme_ptr_t Flag_Child)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Parent;
-    struct RME_Cap_Pgtbl* Pgtbl_Child;
-    struct RME_Cap_Pgtbl* Child_Root;
+    struct RME_Cap_Pgt* Pgt_Parent;
+    struct RME_Cap_Pgt* Pgt_Child;
+    struct RME_Cap_Pgt* Child_Root;
     rme_ptr_t Type_Stat;
 
     /* The total size order of the child table */
@@ -2115,14 +2143,14 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 #endif
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Parent, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Parent, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Child, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Child, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Parent, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Parent, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Child, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Child, Type_Stat);
     /* Check if both page table caps are not frozen but don't check flags */
-    RME_CAP_CHECK(Pgtbl_Parent, 0U);
-    RME_CAP_CHECK(Pgtbl_Child, 0U);
+    RME_CAP_CHECK(Pgt_Parent, 0U);
+    RME_CAP_CHECK(Pgt_Child, 0U);
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
     {
         RME_COVERAGE_MARKER();
         
@@ -2134,9 +2162,9 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the child table falls within one slot of the parent table */
-    Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
-                   RME_PGTBL_SIZEORD(Pgtbl_Child->Size_Num_Order);
-    if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
+    Child_Size_Ord=RME_PGT_NUMORD(Pgt_Child->Size_Num_Order)+
+                   RME_PGT_SIZEORD(Pgt_Child->Size_Num_Order);
+    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)<Child_Size_Ord)
     {
         RME_COVERAGE_MARKER();
         
@@ -2149,9 +2177,9 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     
 #if(RME_VA_EQU_PA==1U)
     /* Check if the virtual address mapping is correct */
-    Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
-    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
+    Parent_Map_Addr=(Pos<<RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order))+
+                    RME_PGT_START(Pgt_Parent->Base);
+    if(Pgt_Child->Base<Parent_Map_Addr)
     {
         RME_COVERAGE_MARKER();
         
@@ -2162,13 +2190,13 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order));
     
     /* If this is zero, then we are sure that overflow won't happen because start
      * address is always aligned to the total order of the child page table */
     if(Parend_End_Addr!=0U)
     {
-        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        if((Pgt_Child->Base+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
         {
             RME_COVERAGE_MARKER();
 
@@ -2187,7 +2215,7 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0U)
+    if(__RME_Pgt_Pgdir_Map(Pgt_Parent, Pos, Pgt_Child, Flag_Child)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2199,51 +2227,54 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Convert to root */
-    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child, struct RME_Cap_Pgtbl*);
+    Child_Root=RME_CAP_CONV_ROOT(Pgt_Child, struct RME_Cap_Pgt*);
     
     /* Increase refcnt */
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), 1);
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Boot_Con ******************************************/
+/* End Function:_RME_Pgt_Boot_Con ********************************************/
 
-/* Begin Function:_RME_Pgtbl_Crt **********************************************
-Description : Create a layer of page table, and put that capability into a designated
-              capability table. The function will check if the memory region is large
-              enough, and how it has been typed; if the function found out that it is
-              impossible to create a page table due to some error, it will return an
-              error.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
-                                     to new captbl. 2-Level.
-              rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
-                                    page table capability to be in. 1-Level.
-              rme_ptr_t Raddr - The relative virtual address to store the page table kernel object.
-              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
-                                    This address must be aligned to the total size of the table.
-              rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
-                                   map all the kernel page directories into this one.
-              rme_ptr_t Size_Order - The size order of the page table. The size refers to
-                                     the size of each page in the page directory.
-              rme_ptr_t Num_Order - The number order of entries in the page table.
+/* Begin Function:_RME_Pgt_Crt ************************************************
+Description : Create a page table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability table that contains the newly
+                                  created cap to pgtbl.
+                                  2-Level.
+              rme_cid_t Cap_Kom - The kernel memory capability.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability slot that you want this newly
+                                  created page table capability to be in.
+                                  1-Level.
+              rme_ptr_t Raddr - The relative virtual address to store the page
+                                table kernel object.
+              rme_ptr_t Base - The virtual address to start mapping for this
+                               page table. This address must be aligned to the
+                               total size of the table.
+              rme_ptr_t Is_Top - Whether this page table is the top-level. If
+                                 it is, we will map all the kernel page 
+                                 directories into this one.
+              rme_ptr_t Size_Order - The size order of the page table. The size
+                                     refers to the size of each page in the 
+                                     page directory.
+              rme_ptr_t Num_Order - The number order of entries in the table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
-                         rme_cid_t Cap_Captbl,
-                         rme_cid_t Cap_Kmem,
-                         rme_cid_t Cap_Pgtbl,
-                         rme_ptr_t Raddr,
-                         rme_ptr_t Base_Addr,
-                         rme_ptr_t Top_Flag,
-                         rme_ptr_t Size_Order,
-                         rme_ptr_t Num_Order)
+rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Kom,
+                       rme_cid_t Cap_Pgt,
+                       rme_ptr_t Raddr,
+                       rme_ptr_t Base,
+                       rme_ptr_t Is_Top,
+                       rme_ptr_t Size_Order,
+                       rme_ptr_t Num_Order)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Kmem* Kmem_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Kom* Kom_Op;
+    struct RME_Cap_Pgt* Pgt_Crt;
     rme_ptr_t Type_Stat;
     rme_ptr_t Vaddr;
     rme_ptr_t Table_Size;
@@ -2262,30 +2293,30 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Kmem, RME_CAP_TYPE_KMEM, struct RME_Cap_Kmem*, Kmem_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Kom, RME_CAP_TYPE_KOM, struct RME_Cap_Kom*, Kom_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     
     /* Are we creating the top-level? */
-    if(Top_Flag!=0U)
+    if(Is_Top!=0U)
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGTBL_SIZE_TOP(Num_Order);
+        Table_Size=RME_PGT_SIZE_TOP(Num_Order);
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGTBL_SIZE_NOM(Num_Order);
+        Table_Size=RME_PGT_SIZE_NOM(Num_Order);
     }
     
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op, RME_KMEM_FLAG_PGTBL, Raddr, Vaddr, Table_Size);
+    RME_KOM_CHECK(Kom_Op, RME_KOM_FLAG_PGT, Raddr, Vaddr, Table_Size);
 
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0U)
+    if(__RME_Pgt_Check(Base, Is_Top, Size_Order, Num_Order, Vaddr)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2297,7 +2328,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Check if the start address is properly aligned to the total order of the page table */
-    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
+    if((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2309,16 +2340,16 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Pgtbl, struct RME_Cap_Pgtbl*, Pgtbl_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Pgt, struct RME_Cap_Pgt*, Pgt_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Pgtbl_Crt);
+    RME_CPT_OCCUPY(Pgt_Crt);
 
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, Table_Size)!=0)
     {
         RME_COVERAGE_MARKER();
 
-        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
         return RME_ERR_CAP_KOTBL;
     }
     else
@@ -2327,17 +2358,17 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Header init */
-    Pgtbl_Crt->Head.Root_Ref=0U;
-    Pgtbl_Crt->Head.Object=Vaddr;
-    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|RME_PGTBL_FLAG_ALL;
+    Pgt_Crt->Head.Root_Ref=0U;
+    Pgt_Crt->Head.Object=Vaddr;
+    Pgt_Crt->Head.Flag=RME_PGT_FLAG_FULL_RANGE|RME_PGT_FLAG_ALL;
     
     /* Info init */
-    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
-    Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order, Num_Order);
-    Pgtbl_Crt->ASID=0U;
+    Pgt_Crt->Base=Base|Is_Top;
+    Pgt_Crt->Size_Num_Order=RME_PGT_ORDER(Size_Order, Num_Order);
+    Pgt_Crt->ASID=0U;
     
     /* Object init - need to add all kernel pages if they are top-level */
-    if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0U)
+    if(__RME_Pgt_Init(Pgt_Crt)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2345,7 +2376,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, Table_Size)==0);
         
         /* Unsuccessful. Revert operations */
-        RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat),0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),0U);
         return RME_ERR_PGT_HW;
     }
     else
@@ -2354,57 +2385,56 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Creation complete */
-    RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PGTBL, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PGT, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Crt ***********************************************/
+/* End Function:_RME_Pgt_Crt *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Del **********************************************
-Description : Delete a layer of page table. We do not care if the childs are all
-              deleted. For MPU based environments, it is required that all the 
-              mapped child page tables are deconstructed from the master table
-              before we can destroy the master table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
-                                     to new captbl. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
-                                    page table capability to be in. 1-Level.
+/* Begin Function:_RME_Pgt_Del ************************************************
+Description : Delete a page table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the captbl that may contain
+                                  the cap to new captbl.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability slot that you want this newly
+                                  created page table capability to be in.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,
-                         rme_cid_t Cap_Captbl,
-                         rme_cid_t Cap_Pgtbl)
+rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Pgt)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_Del;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Pgt* Pgt_Del;
     rme_ptr_t Type_Stat;
     /* These are used for deletion */
     rme_ptr_t Object;
     rme_ptr_t Table_Size;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Pgtbl, struct RME_Cap_Pgtbl*, Pgtbl_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Pgt, struct RME_Cap_Pgt*, Pgt_Del);
     /* Delete check */
-    RME_CAP_DEL_CHECK(Pgtbl_Del, Type_Stat, RME_CAP_TYPE_PGTBL);
+    RME_CAP_DEL_CHECK(Pgt_Del, Type_Stat, RME_CAP_TYPE_PGT);
     
     /* Hardware related deletion check passed down to the HAL. The driver should make
      * sure that it does not reference any lower level tables. If the driver layer does
      * not conform to this, the deletion of page table is not guaranteed to main kernel
      * consistency, and such consistency must be maintained by the user-level. It is 
      * recommended that the driver layer enforce such consistency. */
-    if(__RME_Pgtbl_Del_Check(Pgtbl_Del)!=0U)
+    if(__RME_Pgt_Del_Check(Pgt_Del)!=0U)
     {
         RME_COVERAGE_MARKER();
 
-        RME_CAP_DEFROST(Pgtbl_Del,Type_Stat);
+        RME_CAP_DEFROST(Pgt_Del,Type_Stat);
         return RME_ERR_PGT_HW;
     }
     else
@@ -2413,75 +2443,82 @@ rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Remember these two variables for deletion */
-    Object=RME_CAP_GETOBJ(Pgtbl_Del,rme_ptr_t);
-    if(((Pgtbl_Del->Base_Addr)&RME_PGTBL_TOP)!=0U)
+    Object=RME_CAP_GETOBJ(Pgt_Del, rme_ptr_t);
+    if(((Pgt_Del->Base)&RME_PGT_TOP)!=0U)
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGTBL_SIZE_TOP(RME_PGTBL_NUMORD(Pgtbl_Del->Size_Num_Order));
+        Table_Size=RME_PGT_SIZE_TOP(RME_PGT_NUMORD(Pgt_Del->Size_Num_Order));
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGTBL_SIZE_NOM(RME_PGTBL_NUMORD(Pgtbl_Del->Size_Num_Order));
+        Table_Size=RME_PGT_SIZE_NOM(RME_PGT_NUMORD(Pgt_Del->Size_Num_Order));
     }
     
     /* Now we can safely delete the cap */
-    RME_CAP_DELETE(Pgtbl_Del,Type_Stat);
+    RME_CAP_DELETE(Pgt_Del, Type_Stat);
 
     /* Try to erase the area - This must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object, Table_Size));
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Del ***********************************************/
+/* End Function:_RME_Pgt_Del *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Add **********************************************
-Description : Delegate a page from one page table to another. This is the only way
-              to add pages to new page tables after the system boots.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl_Dst - The capability to the destination page directory. 2-Level.
-              rme_ptr_t Pos_Dst - The position to delegate to in the destination page directory.
-              rme_ptr_t Flags_Dst - The page access permission for the destination page. This is
-                                    not to be confused with the flags for the capabilities for
-                                    page tables!
-              rme_cid_t Cap_Pgtbl_Src - The capability to the source page directory. 2-Level.
-              rme_ptr_t Pos_Dst - The position to delegate from in the source page directory.
-              rme_ptr_t Index - The index of the physical address frame to delegate.
-                                For example, if the destination directory's page size is 1/4
-                                of that of the source directory, index=0 will delegate the first
-                                1/4, index=1 will delegate the second 1/4, index=2 will delegate
-                                the third 1/4, and index=3 will delegate the last 1/4.
+/* Begin Function:_RME_Pgt_Add ************************************************
+Description : Delegate a page from one page table to another. This is the only
+              way to add pages to new page tables after the system boots.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt_Dst - The capability to the destination page
+                                      directory.
+                                      2-Level.
+              rme_ptr_t Pos_Dst - The position to delegate to in the
+                                  destination page directory.
+              rme_ptr_t Flag_Dst - The page access permission for the
+                                   destination page.
+              rme_cid_t Cap_Pgt_Src - The capability to the source page 
+                                      directory.
+                                      2-Level.
+              rme_ptr_t Pos_Dst - The position to delegate from in the source
+                                  page directory.
+              rme_ptr_t Index - The index of the physical address frame to
+                                delegate. For example, if the destination
+                                directory's page size is 1/4 of that of the
+                                source directory, index=0 will delegate the
+                                first 1/4, index=1 will delegate the second
+                                1/4, index=2 will delegate the third 1/4, and
+                                index=3 will delegate the last 1/4.
                                 All other index values are illegal.
 Output      : None.
-Return      : rme_ret_t - If the unmapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl, 
-                         rme_cid_t Cap_Pgtbl_Dst,
-                         rme_ptr_t Pos_Dst,
-                         rme_ptr_t Flags_Dst,
-                         rme_cid_t Cap_Pgtbl_Src,
-                         rme_ptr_t Pos_Src,
-                         rme_ptr_t Index)
+rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt, 
+                       rme_cid_t Cap_Pgt_Dst,
+                       rme_ptr_t Pos_Dst,
+                       rme_ptr_t Flag_Dst,
+                       rme_cid_t Cap_Pgt_Src,
+                       rme_ptr_t Pos_Src,
+                       rme_ptr_t Index)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Src;
-    struct RME_Cap_Pgtbl* Pgtbl_Dst;
+    struct RME_Cap_Pgt* Pgt_Src;
+    struct RME_Cap_Pgt* Pgt_Dst;
     rme_ptr_t Paddr_Dst;
     rme_ptr_t Paddr_Src;
-    rme_ptr_t Flags_Src;
+    rme_ptr_t Flag_Src;
     rme_ptr_t Type_Stat;
     rme_ptr_t Src_Page_Size;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Dst, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Dst, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Src, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Src, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Dst, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Dst, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Src, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Src, Type_Stat);
     /* Check if both page table caps are not frozen and allows such operations */
-    RME_CAP_CHECK(Pgtbl_Dst, RME_PGTBL_FLAG_ADD_DST);
-    RME_CAP_CHECK(Pgtbl_Src, RME_PGTBL_FLAG_ADD_SRC);
+    RME_CAP_CHECK(Pgt_Dst, RME_PGT_FLAG_ADD_DST);
+    RME_CAP_CHECK(Pgt_Src, RME_PGT_FLAG_ADD_SRC);
     /* Check the operation range - This is page table specific */
-    if((Pos_Dst>RME_PGTBL_FLAG_HIGH(Pgtbl_Dst->Head.Flags))||(Pos_Dst<RME_PGTBL_FLAG_LOW(Pgtbl_Dst->Head.Flags))||
-       (Pos_Src>RME_PGTBL_FLAG_HIGH(Pgtbl_Src->Head.Flags))||(Pos_Src<RME_PGTBL_FLAG_LOW(Pgtbl_Src->Head.Flags)))
+    if((Pos_Dst>RME_PGT_FLAG_HIGH(Pgt_Dst->Head.Flag))||(Pos_Dst<RME_PGT_FLAG_LOW(Pgt_Dst->Head.Flag))||
+       (Pos_Src>RME_PGT_FLAG_HIGH(Pgt_Src->Head.Flag))||(Pos_Src<RME_PGT_FLAG_LOW(Pgt_Src->Head.Flag)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2493,7 +2530,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
             
     /* See if the size order relationship is correct */
-    if(RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)>RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order))
+    if(RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order)>RME_PGT_SIZEORD(Pgt_Src->Size_Num_Order))
     {
         RME_COVERAGE_MARKER();
 
@@ -2505,8 +2542,8 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the position indices are out of range */
-    if(((Pos_Dst>>RME_PGTBL_NUMORD(Pgtbl_Dst->Size_Num_Order))!=0U)||
-       ((Pos_Src>>RME_PGTBL_NUMORD(Pgtbl_Src->Size_Num_Order))!=0U))
+    if(((Pos_Dst>>RME_PGT_NUMORD(Pgt_Dst->Size_Num_Order))!=0U)||
+       ((Pos_Src>>RME_PGT_NUMORD(Pgt_Src->Size_Num_Order))!=0U))
     {
         RME_COVERAGE_MARKER();
 
@@ -2518,10 +2555,10 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the source subposition index is out of range */
-    Src_Page_Size=RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order));
+    Src_Page_Size=RME_POW2(RME_PGT_SIZEORD(Pgt_Src->Size_Num_Order));
     if(Src_Page_Size!=0U)
     {
-        if(Src_Page_Size<=(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)))
+        if(Src_Page_Size<=(Index<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order)))
         {
             RME_COVERAGE_MARKER();
 
@@ -2538,7 +2575,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the physical address and RME standard flags of that source page */
-    if(__RME_Pgtbl_Lookup(Pgtbl_Src, Pos_Src, &Paddr_Src, &Flags_Src)!=0U)
+    if(__RME_Pgt_Lookup(Pgt_Src, Pos_Src, &Paddr_Src, &Flag_Src)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2550,11 +2587,11 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Calculate the destination physical address */
-    Paddr_Dst=Paddr_Src+(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order));
+    Paddr_Dst=Paddr_Src+(Index<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order));
 #if(RME_VA_EQU_PA==1U)
     /* Check if we force identical mapping. No need to check granularity here */
-    if(Paddr_Dst!=((Pos_Dst<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order))+
-                   RME_PGTBL_START(Pgtbl_Dst->Base_Addr)))
+    if(Paddr_Dst!=((Pos_Dst<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order))+
+                   RME_PGT_START(Pgt_Dst->Base)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2566,7 +2603,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     }
 #endif
     /* Analyze the flags - we do not allow expansion of access permissions */
-    if(((Flags_Dst)&(~Flags_Src))!=0U)
+    if(((Flag_Dst)&(~Flag_Src))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2579,7 +2616,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgtbl_Page_Map(Pgtbl_Dst, Paddr_Dst, Pos_Dst, Flags_Dst)!=0U)
+    if(__RME_Pgt_Page_Map(Pgt_Dst, Paddr_Dst, Pos_Dst, Flag_Dst)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2592,30 +2629,32 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Add ***********************************************/
+/* End Function:_RME_Pgt_Add *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Rem **********************************************
-Description : Remove a page from the page table. We are doing unmapping of a page.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl - The capability to the page table. 2-Level.
-              rme_ptr_t Pos - The virtual address position to unmap from.
+/* Begin Function:_RME_Pgt_Rem ************************************************
+Description : Remove a page from the page table. We are doing unmapping of a
+              page.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt - The capability to the page table.
+                                  2-Level.
+              rme_ptr_t Pos - The page table position to unmap from.
 Output      : None.
-Return      : rme_ret_t - If the unmapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl,
-                         rme_cid_t Cap_Pgtbl,
-                         rme_ptr_t Pos)
+rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Pgt,
+                       rme_ptr_t Pos)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Rem;
+    struct RME_Cap_Pgt* Pgt_Rem;
     rme_ptr_t Type_Stat;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Pgtbl*, Pgtbl_Rem, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_CPT, struct RME_Cap_Pgt*, Pgt_Rem, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Pgtbl_Rem, RME_PGTBL_FLAG_REM);
+    RME_CAP_CHECK(Pgt_Rem, RME_PGT_FLAG_REM);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Rem->Head.Flags))||
-       (Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Rem->Head.Flags)))
+    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Rem->Head.Flag))||
+       (Pos<RME_PGT_FLAG_LOW(Pgt_Rem->Head.Flag)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2627,7 +2666,7 @@ rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Rem->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Rem->Size_Num_Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2640,7 +2679,7 @@ rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgtbl_Page_Unmap(Pgtbl_Rem, Pos)!=0U)
+    if(__RME_Pgt_Page_Unmap(Pgt_Rem, Pos)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2653,29 +2692,32 @@ rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl,
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Rem ***********************************************/
+/* End Function:_RME_Pgt_Rem *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Con **********************************************
-Description : Map a child page table from the parent page table. Basically, we 
-              are doing the construction of a page table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
-              rme_ptr_t Pos - The virtual address to position map the child page table to.
-              rme_cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
-              rme_ptr_t Flags_Child - The flags for the child page table mapping. This restricts
-                                      the access permissions of all the memory under this mapping.
+/* Begin Function:_RME_Pgt_Con ************************************************
+Description : Map a child page table into the parent page table, to construct
+              an address space tree.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt_Parent - The capability to the parent page 
+                                         table.
+                                         2-Level.
+              rme_ptr_t Pos - The parent page table position to map the child
+                              page table to.
+              rme_cid_t Cap_Pgt_Child - The capability to the child page table.
+                                        2-Level.
+              rme_ptr_t Flag_Child - Mapping flags.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
-                         rme_cid_t Cap_Pgtbl_Parent,
-                         rme_ptr_t Pos,
-                         rme_cid_t Cap_Pgtbl_Child,
-                         rme_ptr_t Flags_Child)
+rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Pgt_Parent,
+                       rme_ptr_t Pos,
+                       rme_cid_t Cap_Pgt_Child,
+                       rme_ptr_t Flag_Child)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Parent;
-    struct RME_Cap_Pgtbl* Pgtbl_Child;
-    struct RME_Cap_Pgtbl* Child_Root;
+    struct RME_Cap_Pgt* Pgt_Parent;
+    struct RME_Cap_Pgt* Pgt_Child;
+    struct RME_Cap_Pgt* Child_Root;
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==1U)
@@ -2686,14 +2728,14 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Parent, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Parent, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Child, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Child, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Parent, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Parent, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Child, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Child, Type_Stat);
     /* Check if both page table caps are not frozen and allows such operations */
-    RME_CAP_CHECK(Pgtbl_Parent, RME_PGTBL_FLAG_CON_PARENT);
-    RME_CAP_CHECK(Pgtbl_Child, RME_PGTBL_FLAG_CHILD);
+    RME_CAP_CHECK(Pgt_Parent, RME_PGT_FLAG_CON_PARENT);
+    RME_CAP_CHECK(Pgt_Child, RME_PGT_FLAG_CHILD);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Parent->Head.Flags))||
-       (Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Parent->Head.Flags)))
+    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||
+       (Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2705,7 +2747,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2717,12 +2759,12 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the child table falls within one slot of the parent table */
-    Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
-                   RME_PGTBL_SIZEORD(Pgtbl_Child->Size_Num_Order);
+    Child_Size_Ord=RME_PGT_NUMORD(Pgt_Child->Size_Num_Order)+
+                   RME_PGT_SIZEORD(Pgt_Child->Size_Num_Order);
 
 #if(RME_VA_EQU_PA==1U)
     /* Path-compression option available */
-    if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
+    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)<Child_Size_Ord)
     {
         RME_COVERAGE_MARKER();
 
@@ -2734,9 +2776,9 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Check if the virtual address mapping is correct */
-    Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
-    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
+    Parent_Map_Addr=(Pos<<RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order))+
+                    RME_PGT_START(Pgt_Parent->Base);
+    if(Pgt_Child->Base<Parent_Map_Addr)
     {
         RME_COVERAGE_MARKER();
 
@@ -2747,13 +2789,13 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order));
     
     /* If this is zero, then we are sure that overflow won't happen because start
      * address is always aligned to the total order of the child page table */
     if(Parend_End_Addr!=0U)
     {
-        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        if((Pgt_Child->Base+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
         {
             RME_COVERAGE_MARKER();
 
@@ -2770,7 +2812,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     }
 #else
     /* If this is the case, then we force no path compression */
-    if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)!=Child_Size_Ord)
+    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)!=Child_Size_Ord)
     {
         RME_COVERAGE_MARKER();
 
@@ -2784,7 +2826,7 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0U)
+    if(__RME_Pgt_Pgdir_Map(Pgt_Parent, Pos, Pgt_Child, Flag_Child)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2796,44 +2838,48 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Convert to root */
-    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child, struct RME_Cap_Pgtbl*);
+    Child_Root=RME_CAP_CONV_ROOT(Pgt_Child, struct RME_Cap_Pgt*);
     
     /* Increase refcnt */
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), 1);
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Con ***********************************************/
+/* End Function:_RME_Pgt_Con *************************************************/
 
-/* Begin Function:_RME_Pgtbl_Des **********************************************
-Description : Unmap a child page table from the parent page table. Basically, we 
-              are doing the destruction of a page table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
-              rme_ptr_t Pos - The virtual address to position unmap the child page
-                              table from. The child page table must be there.
-              rme_cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
+/* Begin Function:_RME_Pgt_Des ************************************************
+Description : Unmap a child page table from the parent page table, destructing
+              the address space tree.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Pgt_Parent - The capability to the parent page
+                                         table.
+                                         2-Level.
+              rme_ptr_t Pos - The parent page table position to position unmap
+                              the child page table from. The child page table
+                              must be there for the destruction to succeed.
+              rme_cid_t Cap_Pgt_Child - The capability to the child page table.
+                                        2-Level.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, 
-                         rme_cid_t Cap_Pgtbl_Parent,
-                         rme_ptr_t Pos,
-                         rme_cid_t Cap_Pgtbl_Child)
+rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt, 
+                       rme_cid_t Cap_Pgt_Parent,
+                       rme_ptr_t Pos,
+                       rme_cid_t Cap_Pgt_Child)
 {
-    struct RME_Cap_Pgtbl* Pgtbl_Parent;
-    struct RME_Cap_Pgtbl* Pgtbl_Child;
-    struct RME_Cap_Pgtbl* Child_Root;
+    struct RME_Cap_Pgt* Pgt_Parent;
+    struct RME_Cap_Pgt* Pgt_Child;
+    struct RME_Cap_Pgt* Child_Root;
     rme_ptr_t Type_Stat;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Parent, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Pgtbl*, Pgtbl_Parent, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl_Child, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Pgtbl*, Pgtbl_Child, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Parent, RME_CAP_TYPE_CPT, struct RME_Cap_Pgt*, Pgt_Parent, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt_Child, RME_CAP_TYPE_CPT, struct RME_Cap_Pgt*, Pgt_Child, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Pgtbl_Parent, RME_PGTBL_FLAG_DES_PARENT);
-    RME_CAP_CHECK(Pgtbl_Child, RME_PGTBL_FLAG_CHILD);
+    RME_CAP_CHECK(Pgt_Parent, RME_PGT_FLAG_DES_PARENT);
+    RME_CAP_CHECK(Pgt_Child, RME_PGT_FLAG_CHILD);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Parent->Head.Flags))||(Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Parent->Head.Flags)))
+    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||(Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag)))
     {
         RME_COVERAGE_MARKER();
 
@@ -2845,7 +2891,7 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2860,7 +2906,7 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl,
      * Under multi-core, HAL should use CAS to avoid a conflict. Also,
      * the HAL needs to guarantee that the Child is actually mapped there,
      * and use that as the old value in CAS */
-    if(__RME_Pgtbl_Pgdir_Unmap(Pgtbl_Parent, Pos, Pgtbl_Child)!=0U)
+    if(__RME_Pgt_Pgdir_Unmap(Pgt_Parent, Pos, Pgt_Child)!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2872,19 +2918,20 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Decrease the child table's reference count */
-    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child, struct RME_Cap_Pgtbl*);
+    Child_Root=RME_CAP_CONV_ROOT(Pgt_Child, struct RME_Cap_Pgt*);
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), -1);
 
     return 0;
 }
-/* End Function:_RME_Pgtbl_Des ***********************************************/
+/* End Function:_RME_Pgt_Des *************************************************/
 
 /* Begin Function:_RME_Kotbl_Init *********************************************
-Description : Initialize the kernel object table according to the size of the table.
+Description : Initialize the kernel object table according to the total kernel
+              memory size, which decides the number of words in the table.
 Input       : rme_ptr_t Words - the number of words in the table.
 Output      : None.
-Return      : rme_ret_t - If the number of words are is not sufficient to hold all
-                          kernel memory, -1; else 0.
+Return      : rme_ret_t - If the number of words are is not sufficient to hold 
+                          all kernel memory, -1; else 0.
 ******************************************************************************/
 rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words)
 {
@@ -2917,7 +2964,7 @@ Description : Populate the kernel object bitmap contiguously.
 Input       : rme_ptr_t Kaddr - The kernel virtual address.
               rme_ptr_t Size - The size of the memory to populate.
 Output      : None.
-Return      : rme_ret_t - If the operation is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
                           rme_ptr_t Size)
@@ -2937,7 +2984,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
     rme_ptr_t End_Mask;
 
     /* Check if the marking is well aligned */
-    if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1U))!=0U)
+    if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -2949,15 +2996,15 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
     }
     
     /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
-    /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
+    /* if((Kaddr<RME_KOM_VA_START)||((Kaddr+Size)>(RME_KOM_VA_START+RME_KOM_SIZE)))
         return RME_ERR_KOT_BMP; */
     
-    /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
-    Start=(Kaddr-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
+    /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
+    Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
-    End=(Kaddr+Size-1U-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
+    End=(Kaddr+Size-1U-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
     End=End>>RME_WORD_ORDER;
     
@@ -3039,7 +3086,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
                 {
                     RME_COVERAGE_MARKER();
                     
-                    Undo=1;
+                    Undo=1U;
                     break;
                 }
                 else
@@ -3112,7 +3159,7 @@ Description : Depopulate the kernel object bitmap contiguously. We do not need
 Input       : rme_ptr_t Kaddr - The kernel virtual address.
               rme_ptr_t Size - The size of the memory to depopulate.
 Output      : None.
-Return      : rme_ret_t - If the operation is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
                            rme_ptr_t Size)
@@ -3128,7 +3175,7 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
     rme_ptr_t Count;
 
     /* Check if the marking is well aligned */
-    if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1U))!=0U)
+    if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -3140,15 +3187,15 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
     }
     
     /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
-    /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
+    /* if((Kaddr<RME_KOM_VA_START)||((Kaddr+Size)>(RME_KOM_VA_START+RME_KOM_SIZE)))
         return RME_ERR_KOT_BMP; */
     
-    /* Round the marking to RME_KMEM_SLOT_ORDER boundary, and rely on compiler for optimization */
-    Start=(Kaddr-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
+    /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
+    Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
-    End=(Kaddr+Size-1-RME_KMEM_VA_BASE)>>RME_KMEM_SLOT_ORDER;
+    End=(Kaddr+Size-1-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
     End=End>>RME_WORD_ORDER;
     
@@ -3228,78 +3275,82 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
 }
 /* End Function:_RME_Kotbl_Erase *********************************************/
 
-/* Begin Function:_RME_Kmem_Boot_Crt ******************************************
-Description : This function is used to create boot-time kernel memory capability.
-              This kind of capability that does not have a kernel object. Kernel
-              memory capabilities are the capabilities that allow you to create
-              specific types of kernel objects in a specific kernel memory range.
-              The initial kernel memory capability's content is supplied by the
-              kernel according to the initial memory setup macros.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
-                                     to kernel function. 2-Level.
-              rme_cid_t Cap_Kmem - The capability to the kernel memory. 1-Level.
-              rme_ptr_t Start - The start address of the kernel memory, aligned to kotbl granularity.
-              rme_ptr_t End - The end address of the kernel memory, aligned to kotbl granularity, then -1.
-              rme_ptr_t Flags - The operation flags for this kernel memory. Set acoording to your needs.
+/* Begin Function:_RME_Kom_Boot_Crt *******************************************
+Description : Create boot-time kernel memory capability. Kernel memory allow
+              you to create specific types of kernel objects in a specific 
+              kernel memory range. The initial kernel memory capability's
+              content is supplied by the kernel according to config.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the captbl that may contain
+                                  the cap to kernel function.
+                                  2-Level.
+              rme_cid_t Cap_Kom - The capability to the kernel memory.
+                                  1-Level.
+              rme_ptr_t Start - The start address of the kernel memory, aligned
+                                to kotbl granularity.
+              rme_ptr_t End - The end address of the kernel memory, aligned to
+                              kotbl granularity, then -1.
+              rme_ptr_t Flag - The operation flags for this kernel memory. Set
+                               acoording to your needs.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Kmem_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                             rme_cid_t Cap_Captbl,
-                             rme_cid_t Cap_Kmem,
-                             rme_ptr_t Start,
-                             rme_ptr_t End,
-                             rme_ptr_t Flags)
+rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt,
+                            rme_cid_t Cap_Kom,
+                            rme_ptr_t Start,
+                            rme_ptr_t End,
+                            rme_ptr_t Flag)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Kmem* Kmem_Crt;
-    rme_ptr_t Kmem_Start;
-    rme_ptr_t Kmem_End;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Kom* Kom_Crt;
+    rme_ptr_t Kom_Start;
+    rme_ptr_t Kom_End;
     rme_ptr_t Type_Stat;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Kmem, struct RME_Cap_Kmem*, Kmem_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Kom, struct RME_Cap_Kom*, Kom_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Kmem_Crt);
+    RME_CPT_OCCUPY(Kom_Crt);
     
     /* Align addresses */
-#if(RME_KMEM_SLOT_ORDER>6U)
-    Kmem_End=RME_ROUND_DOWN(End+1, RME_KMEM_SLOT_ORDER);
-    Kmem_Start=RME_ROUND_UP(Start, RME_KMEM_SLOT_ORDER);
+#if(RME_KOM_SLOT_ORDER>6U)
+    Kom_End=RME_ROUND_DOWN(End+1, RME_KOM_SLOT_ORDER);
+    Kom_Start=RME_ROUND_UP(Start, RME_KOM_SLOT_ORDER);
 #else
-    Kmem_End=RME_ROUND_DOWN(End+1U, 6U);
-    Kmem_Start=RME_ROUND_UP(Start, 6U);
+    Kom_End=RME_ROUND_DOWN(End+1U, 6U);
+    Kom_Start=RME_ROUND_UP(Start, 6U);
 #endif
 
     /* Must at least allow creation of something */
-    RME_ASSERT(Flags!=0U);
+    RME_ASSERT(Flag!=0U);
 
     /* Header init */
-    Kmem_Crt->Head.Root_Ref=1U;
-    Kmem_Crt->Head.Object=0U;
-    Kmem_Crt->Head.Flags=Flags;
+    Kom_Crt->Head.Root_Ref=1U;
+    Kom_Crt->Head.Object=0U;
+    Kom_Crt->Head.Flag=Flag;
     
     /* Info init */
-    Kmem_Crt->Start=Kmem_Start;
-    Kmem_Crt->End=Kmem_End-1U;
+    Kom_Crt->Start=Kom_Start;
+    Kom_Crt->End=Kom_End-1U;
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Kmem_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_KMEM, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Kom_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_KOM, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Kmem_Boot_Crt *******************************************/
+/* End Function:_RME_Kom_Boot_Crt ********************************************/
 
 /* Begin Function:_RME_CPU_Local_Init *****************************************
 Description : Initialize the CPU-local data structure.
-Input       : volatile struct RME_CPU_Local* CPU_Local - The pointer to the data structure.
+Input       : volatile struct RME_CPU_Local* CPU_Local - The pointer to the
+                                                         data structure.
               rme_ptr_t CPUID - The CPUID of the CPU.
 Output      : None.
 Return      : None.
@@ -3338,8 +3389,8 @@ void __RME_List_Crt(volatile struct RME_List* Head)
 
 /* Begin Function:__RME_List_Del **********************************************
 Description : Delete a node from the doubly-linked list.
-Input       : volatile struct RME_List* Prev - The prevoius node of the target node.
-              volatile struct RME_List* Next - The next node of the target node.
+Input       : volatile struct RME_List* Prev - The previous node.
+              volatile struct RME_List* Next - The next node.
 Output      : None.
 Return      : None.
 ******************************************************************************/
@@ -3370,21 +3421,22 @@ void __RME_List_Ins(volatile struct RME_List* New,
 /* End Function:__RME_List_Ins ***********************************************/
 
 /* Begin Function:__RME_Thd_Fatal *********************************************
-Description : The fatal fault handler of RME. This handler will be called by the 
-              ISR that handles the faults. This indicates that a fatal fault
-              has happened and we need to see if this thread is in a synchronous
-              invocation. If yes, we stop the synchronous invocation immediately,
-              and return a fault value to the old register set. If not, we just
-              kill the thread. If the thread is killed, a timeout notification will
-              be sent to its parent, and if we try to delegate time to it, the time
-              delegation will just fail. A thread execution set is required to clear
-              the fatal fault status of the thread.
-              Some processors may raise some faults that are difficult to attribute to
-              a particular thread, either due to the fact that they are asynchronous, or
-              they are derived from exception entry. A good example is Cortex-M: its
-              autostacking feature derives fault from exception entry, and some of its
-              bus faults are asynchronous and can cross context boundaries. RME requires
-              that all these exceptions be dropped rather than handled; or there will be
+Description : The fatal fault handler of RME. This handler will be called by
+              the ISR that handles the exceptions. This indicates that a fatal
+              exception has happened and we need to see if this thread is in a
+              synchronous invocation. If yes, we stop the invocation, and
+              possibly return a fault value to the old register set. If not, we
+              just kill the thread. If the thread is killed, a notification
+              will be sent to its scheduler, and if we try to delegate time to
+              it, the time delegation will just fail. A thread execution set is
+              required to clear the exception pending status of the thread.
+              Some processors may raise some exceptions that are difficult to
+              attribute to a particular thread, either due to the fact that
+              they are asynchronous, or they are derived from exception entry.
+              A good example is ARMv7-M: its autostacking feature derives fault
+              from exception entry, and some of its bus faults are asynchronous
+              and can cross context boundaries. RME requires that all these
+              exceptions be dropped rather than handled; or there will be 
               integrity and availability compromises.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
@@ -3411,7 +3463,7 @@ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg)
         Thd_Cur->Sched.Slice=0U;
         
         /* Set the fault flag and reason of the fault */
-        Thd_Cur->Sched.State=RME_THD_FAULT;
+        Thd_Cur->Sched.State=RME_THD_EXC_PEND;
         _RME_Run_Del(Thd_Cur);
         
         /* Send a scheduler notification to its parent */
@@ -3430,9 +3482,9 @@ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg)
 /* End Function:__RME_Thd_Fatal **********************************************/
 
 /* Begin Function:_RME_Run_Ins ************************************************
-Description : Insert a thread into the runqueue. In this function we do not check
-              if the thread is on the current core, or is runnable, because it 
-              should have been checked by someone else.
+Description : Insert a thread into the runqueue. In this function we do not
+              check if the thread is on the current core, or is runnable,
+              because it should have been checked by someone else.
 Input       : volatile struct RME_Thd_Struct* Thd - The thread to insert.
               rme_ptr_t CPUID - The cpu to consult.
 Output      : None.
@@ -3497,7 +3549,8 @@ rme_ret_t _RME_Run_Del(volatile struct RME_Thd_Struct* Thd)
 
 /* Begin Function:_RME_Run_High ***********************************************
 Description : Find the thread with the highest priority on the core.
-Input       : volatile struct RME_CPU_Local* CPU_Local - The CPU-local data structure.
+Input       : volatile struct RME_CPU_Local* CPU_Local - The CPU-local data
+                                                         structure.
 Output      : None.
 Return      : volatile struct RME_Thd_Struct* - The thread returned.
 ******************************************************************************/
@@ -3536,10 +3589,11 @@ volatile struct RME_Thd_Struct* _RME_Run_High(volatile struct RME_CPU_Local* CPU
 /* Begin Function:_RME_Run_Notif **********************************************
 Description : Send a notification to the thread's parent, to notify that this 
               thread is currently out of time, or have a fault.
-              This function includes kernel send, so we need to call _RME_Kern_High
-              after this. The only exception being the _RME_Thd_Swt system call, in
-              which we use a more optimized routine.
-Input       : volatile struct RME_Thd_Struct* Thd - The thread to send notification for.
+              This function includes kernel send, so we need to call 
+              _RME_Kern_High after this. The only exception being the
+              _RME_Thd_Swt system call, which we use a more optimized routine.
+Input       : volatile struct RME_Thd_Struct* Thd - The thread to send
+                                                    notification for.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
@@ -3590,10 +3644,10 @@ rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
                        volatile struct RME_Thd_Struct* Thd_New)
 {
     volatile struct RME_Inv_Struct* Inv_Top_Cur;
-    volatile struct RME_Cap_Pgtbl* Pgtbl_Cur;
+    volatile struct RME_Cap_Pgt* Pgt_Cur;
     volatile struct RME_Reg_Struct* Reg_Cur;
     volatile struct RME_Inv_Struct* Inv_Top_New;
-    volatile struct RME_Cap_Pgtbl* Pgtbl_New;
+    volatile struct RME_Cap_Pgt* Pgt_New;
     volatile struct RME_Reg_Struct* Reg_New;
     
     Reg_Cur=&(Thd_Cur->Reg_Cur->Reg);
@@ -3617,33 +3671,33 @@ rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
     {
         RME_COVERAGE_MARKER();
 
-        Pgtbl_Cur=Thd_Cur->Sched.Proc->Pgtbl;
+        Pgt_Cur=Thd_Cur->Sched.Prc->Pgt;
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Pgtbl_Cur=Inv_Top_Cur->Proc->Pgtbl;
+        Pgt_Cur=Inv_Top_Cur->Prc->Pgt;
     }
     
     if(Inv_Top_New==RME_NULL)
     {
         RME_COVERAGE_MARKER();
 
-        Pgtbl_New=Thd_New->Sched.Proc->Pgtbl;
+        Pgt_New=Thd_New->Sched.Prc->Pgt;
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Pgtbl_New=Inv_Top_New->Proc->Pgtbl;
+        Pgt_New=Inv_Top_New->Prc->Pgt;
     }
     
-    if(RME_CAP_GETOBJ(Pgtbl_Cur, rme_ptr_t)!=RME_CAP_GETOBJ(Pgtbl_New, rme_ptr_t))
+    if(RME_CAP_GETOBJ(Pgt_Cur, rme_ptr_t)!=RME_CAP_GETOBJ(Pgt_New, rme_ptr_t))
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Pgtbl_New, rme_ptr_t));
+        __RME_Pgt_Set(RME_CAP_GETOBJ(Pgt_New, rme_ptr_t));
     }
     else
     {
@@ -3654,208 +3708,221 @@ rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
 }
 /* End Function:_RME_Run_Swt *************************************************/
 
-/* Begin Function:_RME_Proc_Boot_Crt ******************************************
-Description : Create a process. A process is in fact a protection domain associated
-              with a set of capabilities.
-              This function does not require a kernel memory capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Crt - The capability to the capability table to use
-                                         for this process. 2-Level.
-              rme_cid_t Cap_Proc - The capability slot that you want this newly created
-                                   process capability to be in. 1-Level.
-              rme_cid_t Cap_Captbl - The capability to the capability table to use for
-                                     this process. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability to the page table to use for this process.
-                                    2-Level.
+/* Begin Function:_RME_Prc_Boot_Crt *******************************************
+Description : Create a process. A process is in fact a protection domain
+              associated with a set of capabilities.
+              This function does not require a kernel memory capability, and is
+              only used to create the first process at boot-time.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Crt - The capability to the capability table to
+                                      put this process capability in.
+                                      2-Level.
+              rme_cid_t Cap_Prc - The capability slot that you want this newly
+                                  created process capability to be in.
+                                  1-Level.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this process.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability to the page table to use for
+                                  this process.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                             rme_cid_t Cap_Captbl_Crt,
-                             rme_cid_t Cap_Proc,
-                             rme_cid_t Cap_Captbl,
-                             rme_cid_t Cap_Pgtbl)
+rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt_Crt,
+                            rme_cid_t Cap_Prc,
+                            rme_cid_t Cap_Cpt,
+                            rme_cid_t Cap_Pgt)
 {
-    struct RME_Cap_Captbl* Captbl_Crt;
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_Op;
-    struct RME_Cap_Proc* Proc_Crt;
+    struct RME_Cap_Cpt* Cpt_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Pgt* Pgt_Op;
+    struct RME_Cap_Prc* Prc_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Crt, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Crt, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Crt, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);
     /* Check if the captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Crt, RME_CAPTBL_FLAG_CRT);
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_PROC_CRT);
-    RME_CAP_CHECK(Pgtbl_Op, RME_PGTBL_FLAG_PROC_CRT);
+    RME_CAP_CHECK(Cpt_Crt, RME_CPT_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_PRC_CRT);
+    RME_CAP_CHECK(Pgt_Op, RME_PGT_FLAG_PRC_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Crt, Cap_Proc, struct RME_Cap_Proc*, Proc_Crt);
+    RME_CPT_GETSLOT(Cpt_Crt, Cap_Prc, struct RME_Cap_Prc*, Prc_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Proc_Crt);
+    RME_CPT_OCCUPY(Prc_Crt);
 
     /* Header init */
-    Proc_Crt->Head.Root_Ref=1U;
-    Proc_Crt->Head.Object=0U;
-    Proc_Crt->Head.Flags=RME_PROC_FLAG_INV|RME_PROC_FLAG_THD;
+    Prc_Crt->Head.Root_Ref=1U;
+    Prc_Crt->Head.Object=0U;
+    Prc_Crt->Head.Flag=RME_PRC_FLAG_INV|RME_PRC_FLAG_THD;
 
     /* Info init */
-    Proc_Crt->Captbl=RME_CAP_CONV_ROOT(Captbl_Op, struct RME_Cap_Captbl*);
-    Proc_Crt->Pgtbl=RME_CAP_CONV_ROOT(Pgtbl_Op, struct RME_Cap_Pgtbl*);
+    Prc_Crt->Cpt=RME_CAP_CONV_ROOT(Cpt_Op, struct RME_Cap_Cpt*);
+    Prc_Crt->Pgt=RME_CAP_CONV_ROOT(Pgt_Op, struct RME_Cap_Pgt*);
     
     /* Reference objects */
-    RME_FETCH_ADD(&(Proc_Crt->Captbl->Head.Root_Ref), 1U);
-    RME_FETCH_ADD(&(Proc_Crt->Pgtbl->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Crt->Cpt->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Crt->Pgt->Head.Root_Ref), 1U);
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PROC, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Prc_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PRC, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Proc_Boot_Crt *******************************************/
+/* End Function:_RME_Prc_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Proc_Crt ***********************************************
-Description : Create a process. A process is in fact a protection domain associated
-              with a set of capabilities.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl_Crt - The capability to the capability table to place
-                                         this process capability in. 2-Level.
-              rme_cid_t Cap_Proc - The capability slot that you want this newly created
-                                   process capability to be in. 1-Level.
-              rme_cid_t Cap_Captbl - The capability to the capability table to use for
-                                     this process. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability to the page table to use for this process.
-                                    2-Level.
+/* Begin Function:_RME_Prc_Crt ************************************************
+Description : Create a process. A process is in fact a protection domain
+              associated with a set of capabilities.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt_Crt - The capability to the capability table to
+                                      put this process capability in.
+                                      2-Level.
+              rme_cid_t Cap_Prc - The capability slot that you want this newly
+                                  created process capability to be in.
+                                  1-Level.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this process.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability to the page table to use for
+                                  this process.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl,
-                        rme_cid_t Cap_Captbl_Crt,
-                        rme_cid_t Cap_Proc,
-                        rme_cid_t Cap_Captbl,
-                        rme_cid_t Cap_Pgtbl)
+rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Crt,
+                       rme_cid_t Cap_Prc,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Pgt)
 {
-    struct RME_Cap_Captbl* Captbl_Crt;
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_Op;
-    struct RME_Cap_Proc* Proc_Crt;
+    struct RME_Cap_Cpt* Cpt_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Pgt* Pgt_Op;
+    struct RME_Cap_Prc* Prc_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl_Crt, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Crt, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Crt, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);
     /* Check if the captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Crt, RME_CAPTBL_FLAG_CRT);
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_PROC_CRT);
-    RME_CAP_CHECK(Pgtbl_Op, RME_PGTBL_FLAG_PROC_CRT);
+    RME_CAP_CHECK(Cpt_Crt, RME_CPT_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_PRC_CRT);
+    RME_CAP_CHECK(Pgt_Op, RME_PGT_FLAG_PRC_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Crt, Cap_Proc, struct RME_Cap_Proc*, Proc_Crt);
+    RME_CPT_GETSLOT(Cpt_Crt, Cap_Prc, struct RME_Cap_Prc*, Prc_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Proc_Crt);
+    RME_CPT_OCCUPY(Prc_Crt);
     
     /* Header init */
-    Proc_Crt->Head.Root_Ref=0U;
-    Proc_Crt->Head.Object=0U;
-    Proc_Crt->Head.Flags=RME_PROC_FLAG_ALL;
+    Prc_Crt->Head.Root_Ref=0U;
+    Prc_Crt->Head.Object=0U;
+    Prc_Crt->Head.Flag=RME_PRC_FLAG_ALL;
     
     /* Info init */
-    Proc_Crt->Captbl=RME_CAP_CONV_ROOT(Captbl_Op, struct RME_Cap_Captbl*);
-    Proc_Crt->Pgtbl=RME_CAP_CONV_ROOT(Pgtbl_Op, struct RME_Cap_Pgtbl*);
+    Prc_Crt->Cpt=RME_CAP_CONV_ROOT(Cpt_Op, struct RME_Cap_Cpt*);
+    Prc_Crt->Pgt=RME_CAP_CONV_ROOT(Pgt_Op, struct RME_Cap_Pgt*);
     
     /* Reference caps */
-    RME_FETCH_ADD(&(Proc_Crt->Captbl->Head.Root_Ref), 1U);
-    RME_FETCH_ADD(&(Proc_Crt->Pgtbl->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Crt->Cpt->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Crt->Pgt->Head.Root_Ref), 1U);
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PROC,RME_CAP_STAT_VALID,RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Prc_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_PRC,RME_CAP_STAT_VALID,RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Proc_Crt ************************************************/
+/* End Function:_RME_Prc_Crt *************************************************/
 
-/* Begin Function:_RME_Proc_Del ***********************************************
+/* Begin Function:_RME_Prc_Del ************************************************
 Description : Delete a process.
-Input       : struct RME_Cap_Captbl* Captbl - The capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table. 2-Level.
-              rme_cid_t Cap_Proc - The capability to the process. 1-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table.
+                                  2-Level.
+              rme_cid_t Cap_Prc - The capability to the process.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl,
-                        rme_cid_t Cap_Captbl,
-                        rme_cid_t Cap_Proc)
+rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Prc)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Proc* Proc_Del;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Prc* Prc_Del;
     rme_ptr_t Type_Stat;
     /* For deletion use */
-    struct RME_Cap_Captbl* Proc_Captbl;
-    struct RME_Cap_Pgtbl* Proc_Pgtbl;
+    struct RME_Cap_Cpt* Prc_Cpt;
+    struct RME_Cap_Pgt* Prc_Pgt;
 
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
 
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Proc, struct RME_Cap_Proc*, Proc_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Prc, struct RME_Cap_Prc*, Prc_Del);
     /* Delete check */
-    RME_CAP_DEL_CHECK(Proc_Del, Type_Stat, RME_CAP_TYPE_PROC);
+    RME_CAP_DEL_CHECK(Prc_Del, Type_Stat, RME_CAP_TYPE_PRC);
 
     /* Remember for deletion */
-    Proc_Captbl=Proc_Del->Captbl;
-    Proc_Pgtbl=Proc_Del->Pgtbl;
+    Prc_Cpt=Prc_Del->Cpt;
+    Prc_Pgt=Prc_Del->Pgt;
 
     /* Now we can safely delete the cap */
-    RME_CAP_DELETE(Proc_Del, Type_Stat);
+    RME_CAP_DELETE(Prc_Del, Type_Stat);
 
     /* Dereference caps */
-    RME_FETCH_ADD(&(Proc_Captbl->Head.Root_Ref), -1);
-    RME_FETCH_ADD(&(Proc_Pgtbl->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref), -1);
     
     return 0;
 }
-/* End Function:_RME_Proc_Del ************************************************/
+/* End Function:_RME_Prc_Del *************************************************/
 
-/* Begin Function:_RME_Proc_Cpt ***********************************************
+/* Begin Function:_RME_Prc_Cpt ************************************************
 Description : Change a process's capability table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Proc - The capability to the process that have been created
-                                   already. 2-Level.
-              rme_cid_t Cap_Captbl - The capability to the capability table to use for
-                                     this process. 2-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Prc - The capability to the process that have been
+                                  created already.
+                                  2-Level.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this process.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl,
-                        rme_cid_t Cap_Proc,
-                        rme_cid_t Cap_Captbl)
+rme_ret_t _RME_Prc_Cpt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Prc,
+                       rme_cid_t Cap_Cpt)
 {
-    struct RME_Cap_Proc* Proc_Op;
-    struct RME_Cap_Captbl* Captbl_New;
-    struct RME_Cap_Captbl* Captbl_Old;
+    struct RME_Cap_Prc* Prc_Op;
+    struct RME_Cap_Cpt* Cpt_New;
+    struct RME_Cap_Cpt* Cpt_Old;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Proc, RME_CAP_TYPE_PROC, struct RME_Cap_Proc*, Proc_Op, Type_Stat); 
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_New, Type_Stat);     
+    RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, struct RME_Cap_Prc*, Prc_Op, Type_Stat); 
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_New, Type_Stat);     
     /* Check if the target caps is not frozen and allows such operations */
-    RME_CAP_CHECK(Proc_Op, RME_PROC_FLAG_CPT);
-    RME_CAP_CHECK(Captbl_New, RME_CAPTBL_FLAG_PROC_CPT);
+    RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_CPT);
+    RME_CAP_CHECK(Cpt_New, RME_CPT_FLAG_PRC_CPT);
     
     /* Convert to root */
-    Captbl_New=RME_CAP_CONV_ROOT(Captbl_New, struct RME_Cap_Captbl*);
+    Cpt_New=RME_CAP_CONV_ROOT(Cpt_New, struct RME_Cap_Cpt*);
     
     /* Commit the change */
-    Captbl_Old=Proc_Op->Captbl;
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Proc_Op->Captbl)),
-                     (rme_ptr_t)Captbl_Old, (rme_ptr_t)Captbl_New)==RME_CASFAIL)
+    Cpt_Old=Prc_Op->Cpt;
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Cpt)),
+                     (rme_ptr_t)Cpt_Old, (rme_ptr_t)Cpt_New)==RME_CASFAIL)
     {
         RME_COVERAGE_MARKER();
         
@@ -3867,48 +3934,50 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Reference new captbl */
-    RME_FETCH_ADD(&(Captbl_New->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Cpt_New->Head.Root_Ref), 1U);
 
     /* Dereference the old table */
-    RME_FETCH_ADD(&(Captbl_Old->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Cpt_Old->Head.Root_Ref), -1);
 
     return 0;
 }
-/* End Function:_RME_Proc_Cpt ************************************************/
+/* End Function:_RME_Prc_Cpt *************************************************/
 
-/* Begin Function:_RME_Proc_Pgt ***********************************************
+/* Begin Function:_RME_Prc_Pgt ************************************************
 Description : Change a process's page table.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Proc - The capability slot that you want this newly created
-                                   process capability to be in. 2-Level.
-              rme_cid_t Cap_Pgtbl - The capability to the page table to use for this
-                                    process. 2-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Prc - The capability to the process that have been
+                                  created already.
+                                  2-Level.
+              rme_cid_t Cap_Pgt - The capability to the page table to use for
+                                  this process.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl,
-                        rme_cid_t Cap_Proc,
-                        rme_cid_t Cap_Pgtbl)
+rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
+                        rme_cid_t Cap_Prc,
+                        rme_cid_t Cap_Pgt)
 {
-    struct RME_Cap_Proc* Proc_Op;
-    struct RME_Cap_Pgtbl* Pgtbl_New;
-    struct RME_Cap_Pgtbl* Pgtbl_Old;
+    struct RME_Cap_Prc* Prc_Op;
+    struct RME_Cap_Pgt* Pgt_New;
+    struct RME_Cap_Pgt* Pgt_Old;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Proc, RME_CAP_TYPE_PROC, struct RME_Cap_Proc*, Proc_Op, Type_Stat); 
-    RME_CAPTBL_GETCAP(Captbl, Cap_Pgtbl, RME_CAP_TYPE_PGTBL, struct RME_Cap_Pgtbl*, Pgtbl_New, Type_Stat);     
+    RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, struct RME_Cap_Prc*, Prc_Op, Type_Stat); 
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_New, Type_Stat);     
     /* Check if the target caps is not frozen and allows such operations */
-    RME_CAP_CHECK(Proc_Op, RME_PROC_FLAG_PGT);
-    RME_CAP_CHECK(Pgtbl_New, RME_PGTBL_FLAG_PROC_PGT);
+    RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_PGT);
+    RME_CAP_CHECK(Pgt_New, RME_PGT_FLAG_PRC_PGT);
     
     /* Convert to root */
-    Pgtbl_New=RME_CAP_CONV_ROOT(Pgtbl_New, struct RME_Cap_Pgtbl*);
+    Pgt_New=RME_CAP_CONV_ROOT(Pgt_New, struct RME_Cap_Pgt*);
     
     /* Actually commit the change */
-    Pgtbl_Old=Proc_Op->Pgtbl;
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Proc_Op->Captbl)),
-                     (rme_ptr_t)Pgtbl_Old, (rme_ptr_t)Pgtbl_New)==RME_CASFAIL)
+    Pgt_Old=Prc_Op->Pgt;
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Cpt)),
+                     (rme_ptr_t)Pgt_Old, (rme_ptr_t)Pgt_New)==RME_CASFAIL)
     {
         RME_COVERAGE_MARKER();
         
@@ -3920,46 +3989,51 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Reference new pgtbl */
-    RME_FETCH_ADD(&(Pgtbl_New->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Pgt_New->Head.Root_Ref), 1U);
     
     /* Dereference the old table */
-    RME_FETCH_ADD(&(Pgtbl_Old->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Pgt_Old->Head.Root_Ref), -1);
     
     return 0;
 }
-/* End Function:_RME_Proc_Pgt ************************************************/
+/* End Function:_RME_Prc_Pgt *************************************************/
 
 /* Begin Function:_RME_Thd_Boot_Crt *******************************************
 Description : Create a boot-time thread. The boot-time thread is per-core, and
               will have infinite budget, and has no parent. This function
               allows creation of a thread on behalf of other processors,
               by passing a CPUID parameter. Therefore, it is recommended to
-              create the threads sequentially during boot-up; if you create threads
-              in parallel, be sure to only create the thread on your local core.
+              create the threads sequentially during boot-up; if you create
+              threads in parallel, be sure to only create the thread on your
+              local core.
               This function does not require a kernel memory capability, and 
               the initial threads' maximum priority will be set by the system.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table. 2-Level.
-              rme_cid_t Cap_Thd - The capability slot that you want this newly created
-                                  thread capability to be in. 1-Level.
-              rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
-              rme_ptr_t Vaddr - The virtual address to store the thread kernel object.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table.
+                                  2-Level.
+              rme_cid_t Cap_Thd - The capability slot that you want this newly
+                                  created thread capability to be in.
+                                  1-Level.
+              rme_cid_t Cap_Prc - The capability to the process that it is in.
+                                  2-Level.
+              rme_ptr_t Vaddr - The virtual address to store the thread.
               rme_ptr_t Prio - The priority level of the thread.
-              volatile struct RME_CPU_Local* CPU_Local - The CPU-local data structure of
-                                                         the CPU to bind this thread to.
+              volatile struct RME_CPU_Local* CPU_Local - The CPU-local data
+                                                         structure of the CPU
+                                                         to bind the thread to.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                            rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt,
                             rme_cid_t Cap_Thd,
-                            rme_cid_t Cap_Proc,
+                            rme_cid_t Cap_Prc,
                             rme_ptr_t Vaddr,
                             rme_ptr_t Prio,
                             volatile struct RME_CPU_Local* CPU_Local)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    volatile struct RME_Cap_Proc* Proc_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
+    volatile struct RME_Cap_Prc* Prc_Op;
     volatile struct RME_Cap_Thd* Thd_Crt;
     volatile struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Type_Stat;
@@ -3977,16 +4051,16 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat); 
-    RME_CAPTBL_GETCAP(Captbl, Cap_Proc, RME_CAP_TYPE_PROC, volatile struct RME_Cap_Proc*, Proc_Op, Type_Stat);   
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat); 
+    RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, volatile struct RME_Cap_Prc*, Prc_Op, Type_Stat);   
     /* Check if the target caps is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
-    RME_CAP_CHECK(Proc_Op, RME_PROC_FLAG_THD);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
+    RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_THD);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Thd, volatile struct RME_Cap_Thd*, Thd_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Thd, volatile struct RME_Cap_Thd*, Thd_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Thd_Crt);
+    RME_CPT_OCCUPY(Thd_Crt);
      
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0)
@@ -4007,7 +4081,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     Thd_Struct->Sched.TID=0U;
     Thd_Struct->Sched.Slice=RME_THD_INIT_TIME;
     Thd_Struct->Sched.State=RME_THD_RUNNING;
-    Thd_Struct->Sched.Proc=RME_CAP_CONV_ROOT(Proc_Op, volatile struct RME_Cap_Proc*);
+    Thd_Struct->Sched.Prc=RME_CAP_CONV_ROOT(Prc_Op, volatile struct RME_Cap_Prc*);
     Thd_Struct->Sched.Signal=0U;
     Thd_Struct->Sched.Prio=Prio;
     Thd_Struct->Sched.Prio_Max=RME_PREEMPT_PRIO_NUM-1U;
@@ -4020,7 +4094,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     __RME_List_Crt(&(Thd_Struct->Sched.Notif));
     __RME_List_Crt(&(Thd_Struct->Sched.Event));
     /* RME_List_Crt(&(Thd_Struct->Sched.Run)); */
-    Thd_Struct->Sched.Proc=Proc_Op;
+    Thd_Struct->Sched.Prc=Prc_Op;
     /* Point its pointer to itself - this will never be a hypervisor thread */
     Thd_Struct->Reg_Cur=&(Thd_Struct->Reg_Def);
     /* Initialize the invocation stack */
@@ -4032,12 +4106,12 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
     /* This can only be a parent, and not a child, and cannot be freed. Additionally,
      * this should not be blocked on any endpoint. Any attempt to block this thread will fail.
      * Setting execution information for this is also prohibited. */
-    Thd_Crt->Head.Flags=RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_PARENT|
-                        RME_THD_FLAG_XFER_DST|RME_THD_FLAG_XFER_SRC|
-                        RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT;
+    Thd_Crt->Head.Flag=RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_PARENT|
+                       RME_THD_FLAG_XFER_DST|RME_THD_FLAG_XFER_SRC|
+                       RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT;
 
     /* Referece objects */
-    RME_FETCH_ADD(&(Thd_Struct->Sched.Proc->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Thd_Struct->Sched.Prc->Head.Root_Ref), 1U);
     
     /* Insert this into the runqueue, and set current thread to it */
     _RME_Run_Ins(Thd_Struct);
@@ -4052,32 +4126,36 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Boot_Crt ********************************************/
 
 /* Begin Function:_RME_Thd_Crt ************************************************
-Description : Create a thread. A thread is the minimal kernel-aware execution unit.
-              When the thread is created, there are no time associated with it.
-              This can be called on any core.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table. 2-Level.
-              rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
-              rme_cid_t Cap_Thd - The capability slot that you want this newly created
-                                  thread capability to be in. 1-Level.
-              rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
-              rme_ptr_t Max_Prio - The maximum priority allowed for this thread. Once set,
-                                   this cannot be changed.
-              rme_ptr_t Raddr - The relative virtual address to store the thread kernel object.
+Description : Create a thread. A thread is the minimal kernel-level execution
+              unit.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table.
+                                  2-Level.
+              rme_cid_t Cap_Kom - The kernel memory capability.
+                                  2-Level.
+              rme_cid_t Cap_Thd - The capability slot that you want this newly
+                                  created thread capability to be in.
+                                  1-Level.
+              rme_cid_t Cap_Prc - The capability to the process that it is in.
+                                  2-Level.
+              rme_ptr_t Prio_Max - The maximum priority allowed for this
+                                   thread. Once set, this cannot be changed.
+              rme_ptr_t Raddr - The relative virtual address to store the
+                                thread kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
-                       rme_cid_t Cap_Kmem,
+rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Kom,
                        rme_cid_t Cap_Thd,
-                       rme_cid_t Cap_Proc,
-                       rme_ptr_t Max_Prio,
+                       rme_cid_t Cap_Prc,
+                       rme_ptr_t Prio_Max,
                        rme_ptr_t Raddr)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Proc* Proc_Op;
-    struct RME_Cap_Kmem* Kmem_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Prc* Prc_Op;
+    struct RME_Cap_Kom* Kom_Op;
     struct RME_Cap_Thd* Thd_Crt;
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Type_Stat;
@@ -4085,7 +4163,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     
     /* See if the maximum priority relationship is correct - a thread can
      * never create a thread with higher maximum priority */
-    if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Max_Prio)
+    if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Prio_Max)
     {
         RME_COVERAGE_MARKER();
 
@@ -4097,19 +4175,19 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat); 
-    RME_CAPTBL_GETCAP(Captbl, Cap_Kmem, RME_CAP_TYPE_KMEM, struct RME_Cap_Kmem*, Kmem_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Proc, RME_CAP_TYPE_PROC, struct RME_Cap_Proc*, Proc_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat); 
+    RME_CPT_GETCAP(Cpt, Cap_Kom, RME_CAP_TYPE_KOM, struct RME_Cap_Kom*, Kom_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, struct RME_Cap_Prc*, Prc_Op, Type_Stat);
     /* Check if the target caps is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
-    RME_CAP_CHECK(Proc_Op, RME_PROC_FLAG_THD);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
+    RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_THD);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op, RME_KMEM_FLAG_THD, Raddr, Vaddr, RME_THD_SIZE);
+    RME_KOM_CHECK(Kom_Op, RME_KOM_FLAG_THD, Raddr, Vaddr, RME_THD_SIZE);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Thd, struct RME_Cap_Thd*, Thd_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Thd, struct RME_Cap_Thd*, Thd_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Thd_Crt);
+    RME_CPT_OCCUPY(Thd_Crt);
      
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0U)
@@ -4130,9 +4208,9 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     Thd_Struct->Sched.TID=0U;
     Thd_Struct->Sched.Slice=0U;
     Thd_Struct->Sched.State=RME_THD_TIMEOUT;
-    Thd_Struct->Sched.Proc=RME_CAP_CONV_ROOT(Proc_Op, struct RME_Cap_Proc*);
+    Thd_Struct->Sched.Prc=RME_CAP_CONV_ROOT(Prc_Op, struct RME_Cap_Prc*);
     Thd_Struct->Sched.Signal=0U;
-    Thd_Struct->Sched.Prio_Max=Max_Prio;
+    Thd_Struct->Sched.Prio_Max=Prio_Max;
     Thd_Struct->Sched.Sched_Ref=0U;
     Thd_Struct->Sched.Sched_Sig=0U;
     /* Currently the thread is not binded to any particular CPU */
@@ -4149,10 +4227,10 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
     /* Header init */
     Thd_Crt->Head.Root_Ref=0U;
     Thd_Crt->Head.Object=Vaddr;
-    Thd_Crt->Head.Flags=RME_THD_FLAG_ALL;
+    Thd_Crt->Head.Flag=RME_THD_FLAG_ALL;
 
     /* Reference object */
-    RME_FETCH_ADD(&(Thd_Struct->Sched.Proc->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Thd_Struct->Sched.Prc->Head.Root_Ref), 1U);
     
     /* Establish cap */
     RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Stat),
@@ -4163,18 +4241,20 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Crt *************************************************/
 
 /* Begin Function:_RME_Thd_Del ************************************************
-Description : Delete a thread. This can be called on any core.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table. 
-              rme_cid_t Cap_Captbl - The capability to the capability table. 2-Level.
-              rme_cid_t Cap_Thd - The capability to the thread in the captbl. 1-Level.
+Description : Delete a thread.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table. 
+              rme_cid_t Cap_Cpt - The capability to the capability table.
+                                  2-Level.
+              rme_cid_t Cap_Thd - The capability to the thread in the captbl.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Thd)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Thd* Thd_Del;
     rme_ptr_t Type_Stat;
     /* These are for deletion */
@@ -4182,12 +4262,12 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
     volatile struct RME_Inv_Struct* Inv_Struct;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Thd, struct RME_Cap_Thd*, Thd_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Thd, struct RME_Cap_Thd*, Thd_Del);
     /* Delete check */
     RME_CAP_DEL_CHECK(Thd_Del, Type_Stat, RME_CAP_TYPE_THD);
     
@@ -4222,7 +4302,7 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Dereference the process */
-    RME_FETCH_ADD(&(Thd_Struct->Sched.Proc->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Thd_Struct->Sched.Prc->Head.Root_Ref), -1);
     
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((rme_ptr_t)Thd_Struct,RME_THD_SIZE)!=0U);
@@ -4232,18 +4312,18 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Del *************************************************/
 
 /* Begin Function:_RME_Thd_Exec_Set *******************************************
-Description : Set a thread's entry point and stack. The register sets will be 
-              reinitialized with these contents. Only when the thread has exited,
-              or just after created should we change these values.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
-              rme_ptr_t Entry - The entry of the thread. An address.
-              rme_ptr_t Stack - The stack address to use for execution. An address.
+Description : Set a thread's entry point and stack. The registers will be
+              initialized with these contents.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Thd - The capability to the thread.
+                                  2-Level.
+              rme_ptr_t Entry - The entry address of the thread.
+              rme_ptr_t Stack - The stack address to use for execution.
               rme_ptr_t Param - The parameter to pass to the thread.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Thd,
                             rme_ptr_t Entry,
                             rme_ptr_t Stack,
@@ -4254,7 +4334,7 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_EXEC_SET);
     
@@ -4272,7 +4352,7 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if there is a fault pending. If yes, we clear it */
-    if(Thd_Struct->Sched.State==RME_THD_FAULT)
+    if(Thd_Struct->Sched.State==RME_THD_EXC_PEND)
     {
         RME_COVERAGE_MARKER();
 
@@ -4304,21 +4384,22 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Exec_Set ********************************************/
 
 /* Begin Function:_RME_Thd_Hyp_Set ********************************************
-Description : Set the thread as hypervisor-managed. This means that the thread's
-              register set will be saved to somewhere that is indicated by the user,
-              instead of in the kernel data structures. This also has the ability
-              to set execution context (like Exec_Set) when the Entry and Stack
-              are both non-zero, after it have switched the register set address.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
-              rme_ptr_t Kaddr - The kernel-accessible designated hypervisor virtual
-                                address to save the register set to.
-              rme_ptr_t Entry - The entry of the thread. An address.
-              rme_ptr_t Stack - The stack address to use for execution. An address.
+Description : Set the thread as hypervisor-managed. This means that the thread
+              register set will be saved to somewhere that is indicated by the
+              user, instead of the kernel data structures. This also has the
+              ability to set execution context (like Exec_Set) when the Entry
+              and Stack are both non-null.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Thd - The capability to the thread.
+                                  2-Level.
+              rme_ptr_t Kaddr - The kernel-accessible virtual memory address
+                                for this thread's register sets.
+              rme_ptr_t Entry - The entry address of the thread.
+              rme_ptr_t Stack - The stack address to use for execution.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Cpt* Cpt,
                            rme_cid_t Cap_Thd,
                            rme_ptr_t Kaddr,
                            rme_ptr_t Entry,
@@ -4329,7 +4410,7 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     if((Entry!=RME_NULL)&&(Stack!=RME_NULL))
     {
@@ -4380,12 +4461,12 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
 
-            return RME_ERR_PTH_PGTBL;
+            return RME_ERR_PTH_PGT;
         }
     }
     
     /* See if there is a fault pending. If yes, we clear it */
-    if(Thd_Struct->Sched.State==RME_THD_FAULT)
+    if(Thd_Struct->Sched.State==RME_THD_EXC_PEND)
     {
         RME_COVERAGE_MARKER();
 
@@ -4417,32 +4498,37 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Hyp_Set *********************************************/
 
 /* Begin Function:_RME_Thd_Sched_Bind *****************************************
-Description : Set a thread's priority level, and its scheduler thread. When there
-              is any state change on this thread, a notification will be sent to
-              scheduler thread. If the state of the thread changes for multiple
-              times, then only the most recent state will be in the scheduler's 
-              receive queue.
-              The scheduler and the threads that it schedule must be on the same
-              core. When a thread wants to go from one core to another, its notification
-              to the scheduler must all be processed, and it must have no scheduler
-              notifications in itself (That is, unbinded). 
-              This must be called on the same core with the Cap_Thd_Sched, and the
-              Cap_Thd itself must be free.
-              It is impossible to set a thread's priority beyond its maximum priority. 
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
-              rme_cid_t Cap_Thd_Sched - The scheduler thread. 2-Level.
-              rme_cid_t Cap_Sig - The signal endpoint for scheduler notifications. This signal
-                                  endpoint will be sent to whenever this thread has a fault, or
-                                  timeouts. This is purely optional; if it is not needed, pass
-                                  in RME_CAPID_NULL which is a number smaller than zero.
-              rme_tid_t TID - The thread ID. This is user-supplied, and the kernel will not
-                              check whether there are two threads that have the same TID.
+Description : Set a thread's priority level, and its scheduler thread. When
+              there are any state changes on this thread, a notification will
+              be sent to its scheduler thread. If the state of the thread
+              changes for multiple times, then only the most recent state will
+              be reflected in the scheduler's receive queue.
+              The scheduler and the threads that it schedule must be on the
+              same core. When a thread wants to go from one core to another,
+              its notification to the scheduler must all be processed, and it
+              must have no scheduler notifications in itself. 
+              This must be called on the same core with the Cap_Thd_Sched, and
+              the Cap_Thd itself must be free.
+              It is impossible to set a thread's priority beyond its maximum
+              priority.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Thd - The capability to the thread.
+                                  2-Level.
+              rme_cid_t Cap_Thd_Sched - The scheduler thread.
+                                        2-Level.
+              rme_cid_t Cap_Sig - The signal endpoint for scheduler
+                                  notifications. This signal endpoint will be
+                                  sent to whenever this thread has a fault, or
+                                  timeouts. This is purely optional; if it is
+                                  not needed, pass in RME_CAPID_NULL.
+              rme_tid_t TID - The thread ID. This is user-supplied, and the
+                              kernel will not check whether there are two
+                              threads that have the same TID.
               rme_ptr_t Prio - The priority level, higher is more critical.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Thd,
                               rme_cid_t Cap_Thd_Sched,
                               rme_cid_t Cap_Sig,
@@ -4459,8 +4545,8 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
 
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Sched, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Sched, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd_Sched, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Sched, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_SCHED_CHILD);
     RME_CAP_CHECK(Thd_Sched, RME_THD_FLAG_SCHED_PARENT);
@@ -4470,7 +4556,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
 
-        RME_CAPTBL_GETCAP(Captbl, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);
+        RME_CPT_GETCAP(Cpt, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);
         RME_CAP_CHECK(Sig_Op, RME_SIG_FLAG_SCHED);
     }
     else
@@ -4481,7 +4567,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Check the TID passed in to see whether it is good */
-    if((((rme_ptr_t)TID)>=RME_THD_FAULT_FLAG)||(TID<0))
+    if((((rme_ptr_t)TID)>=RME_THD_EXC_FLAG)||(TID<0))
     {
         RME_COVERAGE_MARKER();
 
@@ -4590,26 +4676,29 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Thd_Sched_Bind ******************************************/
 
 /* Begin Function:_RME_Thd_Sched_Prio *****************************************
-Description : Change a thread's priority level. This can only be called from the
-              core that have the thread binded. To facilitate scheduling, this
-              system call allows up to 3 thread's priority changes per call. This
-              system call is 
-              This system call can cause a potential context switch.
-              It is impossible to set a thread's priority beyond its maximum priority. 
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Description : Change a thread's priority level. This can only be called from
+              the core that have the thread binded. To facilitate scheduling,
+              this system call allows up to 3 thread's priority changes per
+              call. This system call can cause a potential context switch.
+              It is impossible to set a thread's priority beyond its maximum
+              priority. 
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Number - The number of threads to adjust priority.
                                  Allowed values are 1, 2 and 3.
-              rme_cid_t Cap_Thd0 - The capability to the thread. 2-Level.
+              rme_cid_t Cap_Thd0 - The capability to the first thread.
+                                   2-Level.
               rme_ptr_t Prio0 - The priority level, higher is more critical.
-              rme_cid_t Cap_Thd1 - The capability to the thread. 2-Level.
+              rme_cid_t Cap_Thd1 - The capability to the second thread.
+                                   2-Level.
               rme_ptr_t Prio1 - The priority level, higher is more critical.
-              rme_cid_t Cap_Thd2 - The capability to the thread. 2-Level.
+              rme_cid_t Cap_Thd2 - The capability to the third thread.
+                                   2-Level.
               rme_ptr_t Prio2 - The priority level, higher is more critical.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                               volatile struct RME_Reg_Struct* Reg,
                               rme_ptr_t Number,
                               rme_cid_t Cap_Thd0,
@@ -4649,7 +4738,7 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
     for(Count=0U;Count<Number;Count++)
     {
         /* Get the capability slot */
-        RME_CAPTBL_GETCAP(Captbl, Cap_Thd[Count], RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op[Count], Type_Stat);
+        RME_CPT_GETCAP(Cpt, Cap_Thd[Count], RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op[Count], Type_Stat);
         /* Check if the target cap is not frozen and allows such operations */
         RME_CAP_CHECK(Thd_Op[Count], RME_THD_FLAG_SCHED_PRIO);
         
@@ -4735,15 +4824,16 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
 
 /* Begin Function:_RME_Thd_Sched_Free *****************************************
 Description : Free a thread from its current binding. This function can only be
-              executed from the same core with the thread.
+              executed from the same core on with the thread.
               This system call can cause a potential context switch.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level.
+              rme_cid_t Cap_Thd - The capability to the thread.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
+rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt, 
                               volatile struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Thd)
 {
@@ -4754,7 +4844,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_SCHED_FREE);
     
@@ -4858,7 +4948,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
         CPU_Local->Thd_Cur=_RME_Run_High(CPU_Local);
         _RME_Run_Ins(CPU_Local->Thd_Cur);
         (CPU_Local->Thd_Cur)->Sched.State=RME_THD_RUNNING;
-        _RME_Run_Swt(Reg,Thd_Struct,CPU_Local->Thd_Cur);
+        _RME_Run_Swt(Reg, Thd_Struct, CPU_Local->Thd_Cur);
     }
     else
     {
@@ -4866,7 +4956,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Set the state to unbinded so other cores can bind */
-    RME_WRITE_RELEASE((volatile rme_ptr_t*)&(Thd_Struct->Sched.CPU_Local),(rme_ptr_t)RME_THD_UNBINDED);
+    RME_WRITE_RELEASE((volatile rme_ptr_t*)&(Thd_Struct->Sched.CPU_Local), (rme_ptr_t)RME_THD_UNBINDED);
 
     return 0;
 }
@@ -4875,20 +4965,17 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
 /* Begin Function:_RME_Thd_Sched_Rcv ******************************************
 Description : Try to receive a notification from the scheduler queue. This
               can only be called from the same core the thread is on.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Thd - The capability to the scheduler thread. We are going
-                                  to get timeout or fault notifications for the threads
-                                  that it is responsible for scheduling. This capability
-                                  must point to a thread on the same core. 2-Level.
-Output      : volatile struct RME_Reg_Struct* Reg - The current thread's register set, 
-                                                    with the architecture-specific reason
-                                                    of the fault populated to the invocation
-                                                    return value position of it.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Thd - The capability to the scheduler thread. We
+                                  are going to get timeout or exception
+                                  notifications for the threads that it is
+                                  responsible for scheduling. This capability
+                                  must point to a thread on the same core.
+                                  2-Level.
+Output      : None.
 Return      : rme_ret_t - If successful, the thread ID; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
-                             volatile struct RME_Reg_Struct* Reg,
+rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
                              rme_cid_t Cap_Thd)
 {
     struct RME_Cap_Thd* Thd_Op;
@@ -4897,7 +4984,7 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op, RME_THD_FLAG_SCHED_RCV);
     
@@ -4919,7 +5006,6 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
 
-        /* Check the blocking flag to see whether we need to block the thread */
         return RME_ERR_PTH_NOTIF;
     }
     else
@@ -4933,12 +5019,12 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
     /* We need to do this because we are using this to detect whether the notification is sent */
     __RME_List_Crt(&(Thd_Child->Sched.Notif));
     
-    /* See if the child is in a faulty state. If yes, we return a fault notification with that TID */
-    if(Thd_Child->Sched.State==RME_THD_FAULT)
+    /* See if the child has an exception. If yes, we return an exception flag with its TID */
+    if(Thd_Child->Sched.State==RME_THD_EXC_PEND)
     {
         RME_COVERAGE_MARKER();
-        /* Return the TID with the fault flag set */
-        return (rme_ret_t)(Thd_Child->Sched.TID|RME_THD_FAULT_FLAG);
+        
+        return (rme_ret_t)(Thd_Child->Sched.TID|RME_THD_EXC_FLAG);
     }
     else
     {
@@ -4952,26 +5038,34 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl,
 
 /* Begin Function:_RME_Thd_Time_Xfer ******************************************
 Description : Transfer time from one thread to another. This can only be called
-              from the core that the thread is on, and the the two threads involved
-              in the time transfer must be on the same core.
-              If the time transfered is more than or equal to what the source have,
-              the source will be out of time or blocked. If the source is both out of
-              time and blocked, we do not send the notification; Instead, we send the
-              notification when the receive endpoint actually receive something.
-              It is possible to transfer time to threads have a lower priority, and it
-              is also possible to transfer time to threads that have a higher priority.
-              In the latter case, and if the source is currently running, a preemption
-              will directly occur.
+              from the core that the thread is on, and the the two threads
+              involved in the time transfer must be on the same core.
+              If the time transfered is more than or equal to what the source
+              have, the source will be out of time or blocked. If the source is
+              both out of time and blocked, we do not send the notification;
+              Instead, we send the notification when the receive endpoint
+              actually receive something.
+              It is possible to transfer time to threads have a lower priority,
+              and it is also possible to transfer time to threads that have a
+              higher priority. In the latter case, and if the source is
+              currently running, a preemption will occur.
               There are 3 kinds of threads in the system:
-              1. Init threads - They are created at boot-time and have infinite budget.
-              2. Infinite threads - They are created later but have infinite budget.
-              3. Normal threads - They are created later and have a finite budget.
+              1. Init threads - They are created at boot-time and have infinite
+                                budget.
+              2. Infinite threads - They are created later but have infinite
+                                    budget.
+              3. Normal threads - They are created later and have a finite
+                                  budget.
               There are 3 kinds of transfer in the system:
               1. Normal transfers - They transfer a finite budget.
-              2. Infinite transfers - They attempt to transfer an infinite budget but will
-                 not revoke the timeslices of the source if the source have infinite budget.
-              3. Revoking transfers - They attempt to transfer an infinite budget but will
-                 revoke the timeslices of the source if the source is an infinite thread.
+              2. Infinite transfers - They attempt to transfer an infinite
+                                      budget but will not revoke the timeslices
+                                      of the source if the source have infinite
+                                      budget.
+              3. Revoking transfers - They attempt to transfer an infinite
+                                      budget but will revoke the timeslices of
+                                      the source if the source is an infinite
+                                      thread.
               Normal budget transferring rules:
               -----------------------------------------------------------------
                 Nom   |   From   |     Init     |   Infinite   |    Normal
@@ -5008,19 +5102,22 @@ Description : Transfer time from one thread to another. This can only be called
               S:Source will definitely timeout.
               A:Destination accept if not overflow.
               I:Destination will definitely become an infinite thread.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Thd_Dst - The destination thread. 2-Level.
-              rme_cid_t Cap_Thd_Src - The source thread. 2-Level.
-              rme_ptr_t Time - The time to transfer, in slices, for normal transfers.
-                               A slice is the minimal amount of time transfered in the
-                               system usually on the order of 100us or 1ms.
-                               Use RME_THD_INIT_TIME for revoking transfer.
-                               Use RME_THD_INF_TIME for infinite trasnfer.
+              rme_cid_t Cap_Thd_Dst - The destination thread.
+                                      2-Level.
+              rme_cid_t Cap_Thd_Src - The source thread.
+                                      2-Level.
+              rme_ptr_t Time - The time to transfer, in slices. A slice is the
+                               minimal amount of time transfered in the system
+                               usually on the order of 100us or 1ms.
+                               Use RVM_THD_INIT_TIME for revoking transfer.
+                               Use RVM_THD_INF_TIME for infinite trasnfer.
 Output      : None.
-Return      : rme_ret_t - If successful, the destination time amount; or an error code.
+Return      : rme_ret_t - If successful, the destination time amount; or an
+                          error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
                              volatile struct RME_Reg_Struct* Reg,
                              rme_cid_t Cap_Thd_Dst,
                              rme_cid_t Cap_Thd_Src,
@@ -5047,8 +5144,8 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Dst, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Dst_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Thd_Src, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Src_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd_Dst, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Dst_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Thd_Src, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Src_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Dst_Op, RME_THD_FLAG_XFER_DST);
     RME_CAP_CHECK(Thd_Src_Op, RME_THD_FLAG_XFER_SRC);
@@ -5067,7 +5164,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED, or even FAULT */
+    /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED, or even EXC_PEND */
     if(Thd_Src->Sched.Slice==0U)
     {
         RME_COVERAGE_MARKER();
@@ -5093,11 +5190,11 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl,
     }
     
     /* See if the destination is in a fault. If yes, cancel the transfer */
-    if(Thd_Dst->Sched.State==RME_THD_FAULT)
+    if(Thd_Dst->Sched.State==RME_THD_EXC_PEND)
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_PTH_FAULT;
+        return RME_ERR_PTH_EXC;
     }
     else
     {
@@ -5265,43 +5362,46 @@ Description : Switch to another thread. The thread to switch to must have the sa
               the kernel wiull let it preempt the current thread. 
               If trying to switch to a lower priority thread, this is impossible
               because the current thread just preempts it after the thread switch.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table. 
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table. 
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Thd - The capability to the thread. 2-Level. If this is
-                                  smaller than zero, the kernel will pickup whatever
-                                  thread that have the highest priority and have time
-                                  to run. 
-              rme_ptr_t Full_Yield - This is a flag to indicate whether this is a 
-                                     full yield. If it is, the kernel will kill all
-                                     the time allocated for this thread. Full yield
-                                     only works for threads that have non-infinite
-                                     timeslices.
+              rme_cid_t Cap_Thd - The capability to the thread. If this is -1,
+                                  the kernel will pickup whatever thread that
+                                  has the highest priority and time to run. 
+                                  2-Level. 
+              rme_ptr_t Full_Yield - This is a flag to indicate whether this
+                                     is a full yield. If it is, the kernel will
+                                     discard all the time alloted on this
+                                     thread. This only works for threads that
+                                     have a finite budget.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
                        volatile struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Thd,
                        rme_ptr_t Full_Yield)
 {
-    struct RME_Cap_Thd* Next_Thd_Cap;
-    volatile struct RME_Thd_Struct* Next_Thd;
-    volatile struct RME_Thd_Struct* High_Thd;
+    struct RME_Cap_Thd* Thd_Cap_New;
+    volatile struct RME_Thd_Struct* Thd_New;
+    volatile struct RME_Thd_Struct* Thd_High;
     volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_Thd_Struct* Thd_Cur;
     rme_ptr_t Type_Stat;
 
+    CPU_Local=RME_CPU_LOCAL();
+    Thd_Cur=CPU_Local->Thd_Cur;
+    
     /* See if the scheduler is given the right to pick a thread to run */
-    CPU_Local=RME_CPU_LOCAL();                                                   
     if(Cap_Thd<RME_CAPID_NULL)
     {
         RME_COVERAGE_MARKER();
         
-        RME_CAPTBL_GETCAP(Captbl, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Next_Thd_Cap, Type_Stat);
+        RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Cap_New, Type_Stat);
         /* Check if the target cap is not frozen and allows such operations */
-        RME_CAP_CHECK(Next_Thd_Cap, RME_THD_FLAG_SWT);
+        RME_CAP_CHECK(Thd_Cap_New, RME_THD_FLAG_SWT);
         /* See if we can do operation on this core */
-        Next_Thd=RME_CAP_GETOBJ(Next_Thd_Cap, struct RME_Thd_Struct*);
-        if(Next_Thd->Sched.CPU_Local!=CPU_Local)
+        Thd_New=RME_CAP_GETOBJ(Thd_Cap_New, struct RME_Thd_Struct*);
+        if(Thd_New->Sched.CPU_Local!=CPU_Local)
         {
             RME_COVERAGE_MARKER();
 
@@ -5313,7 +5413,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         }
             
         /* See if we can yield to the thread */
-        if(CPU_Local->Thd_Cur->Sched.Prio!=Next_Thd->Sched.Prio)
+        if(Thd_Cur->Sched.Prio!=Thd_New->Sched.Prio)
         {
             RME_COVERAGE_MARKER();
 
@@ -5325,7 +5425,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         }
             
         /* See if the state will allow us to do this */
-        if((Next_Thd->Sched.State==RME_THD_BLOCKED)||(Next_Thd->Sched.State==RME_THD_TIMEOUT))
+        if((Thd_New->Sched.State==RME_THD_BLOCKED)||(Thd_New->Sched.State==RME_THD_TIMEOUT))
         {
             RME_COVERAGE_MARKER();
 
@@ -5337,11 +5437,11 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         }
             
         /* See if the target is in a fault state */
-        if(Next_Thd->Sched.State==RME_THD_FAULT)
+        if(Thd_New->Sched.State==RME_THD_EXC_PEND)
         {
             RME_COVERAGE_MARKER();
 
-            return RME_ERR_PTH_FAULT;
+            return RME_ERR_PTH_EXC;
         }
         else
         {
@@ -5349,27 +5449,26 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         }
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
+        if((Full_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
-            _RME_Run_Del(CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.Slice=0U;
-            CPU_Local->Thd_Cur->Sched.State=RME_THD_TIMEOUT;
+            _RME_Run_Del(Thd_Cur);
+            Thd_Cur->Sched.Slice=0U;
+            Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this. This function includes kernel send as well, but
              * we don't need to call _RME_Kern_High after this because we are using optimized
              * logic for this context switch. For all other cases, _RME_Kern_High must be called. */
-            _RME_Run_Notif(CPU_Local->Thd_Cur);
-            /* See if the next thread is on the same priority level with the designated thread.
-             * because we have sent a notification, we are not sure about this now. Additionally,
-             * if the next thread is the current thread, we are forced to switch to someone else,
-             * because our timeslice have certainly exhausted. */
-            High_Thd=_RME_Run_High(CPU_Local);
-            if((High_Thd->Sched.Prio>Next_Thd->Sched.Prio)||(CPU_Local->Thd_Cur==Next_Thd))
+            _RME_Run_Notif(Thd_Cur);
+            /* Because we have sent a notification, we could have poked a thread at higher priority.
+             * Additionally, if the new thread is the current thread, we are forced to switch to
+             * someone else, because our timeslice have certainly exhausted. */
+            Thd_High=_RME_Run_High(CPU_Local);
+            if((Thd_High->Sched.Prio>Thd_New->Sched.Prio)||(Thd_Cur==Thd_New))
             {
                 RME_COVERAGE_MARKER();
 
-                Next_Thd=High_Thd;
+                Thd_New=Thd_High;
             }
             else
             {
@@ -5380,7 +5479,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         {
             RME_COVERAGE_MARKER();
             
-            CPU_Local->Thd_Cur->Sched.State=RME_THD_READY;
+            Thd_Cur->Sched.State=RME_THD_READY;
         }
     }
     else
@@ -5388,39 +5487,39 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(CPU_Local->Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
+        if((Full_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
-            _RME_Run_Del(CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.Slice=0U;
-            CPU_Local->Thd_Cur->Sched.State=RME_THD_TIMEOUT;
+            _RME_Run_Del(Thd_Cur);
+            Thd_Cur->Sched.Slice=0U;
+            Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
-            _RME_Run_Notif(CPU_Local->Thd_Cur);
+            _RME_Run_Notif(Thd_Cur);
         }
         else
         {
             RME_COVERAGE_MARKER();
             
-            /* This operation is just to make sure that there are any other thread
+            /* This operation is just to make sure that if there are any other thread
              * at the same priority level, we're not switching to ourself */
-            _RME_Run_Del(CPU_Local->Thd_Cur);
-            _RME_Run_Ins(CPU_Local->Thd_Cur);
-            CPU_Local->Thd_Cur->Sched.State=RME_THD_READY;
+            _RME_Run_Del(Thd_Cur);
+            _RME_Run_Ins(Thd_Cur);
+            Thd_Cur->Sched.State=RME_THD_READY;
         }
         
-        Next_Thd=_RME_Run_High(CPU_Local);
+        Thd_New=_RME_Run_High(CPU_Local);
     }
     
     /* Now that we are successful, save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg, 0);
 
-    /* Set the next thread's state first */
-    Next_Thd->Sched.State=RME_THD_RUNNING;
+    /* Set the new thread's state first */
+    Thd_New->Sched.State=RME_THD_RUNNING;
     /* Here we do not need to call _RME_Kern_High because we have picked the
      * highest priority thread according to the logic above. We just check if
      * it happens to be ourself so we can return from the fast path. */
-    if(CPU_Local->Thd_Cur==Next_Thd)
+    if(Thd_Cur==Thd_New)
     {
         RME_COVERAGE_MARKER();
         
@@ -5432,51 +5531,52 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
     }
             
     /* We have a solid context switch */
-    _RME_Run_Swt(Reg, CPU_Local->Thd_Cur, Next_Thd);
-    CPU_Local->Thd_Cur=Next_Thd;
+    _RME_Run_Swt(Reg, Thd_Cur, Thd_New);
+    CPU_Local->Thd_Cur=Thd_New;
 
     return 0;
 }
 /* End Function:_RME_Thd_Swt *************************************************/
 
 /* Begin Function:_RME_Sig_Boot_Crt *******************************************
-Description : Create a boot-time kernel signal capability. This is not a system 
-              call, and is only used at boot-time to create endpoints that are
-              related directly to hardware interrupts.
+Description : Create a boot-time kernel signal endpoint. This is only used at
+              boot-time to create endpoints that are related directly to 
+              hardware interrupts.
               This function does not require a kernel memory capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table to use
-                                     for this signal. 2-Level.
-              rme_cid_t Cap_Sig - The capability slot that you want this newly created
-                                  signal capability to be in. 1-Level.
-
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this signal.
+                                  2-Level.
+              rme_cid_t Cap_Sig - The capability slot that you want this newly
+                                  created signal capability to be in.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                            rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt,
                             rme_cid_t Cap_Sig)
 {
-    struct RME_Cap_Captbl* Captbl_Crt;
+    struct RME_Cap_Cpt* Cpt_Crt;
     struct RME_Cap_Sig* Sig_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Crt, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Crt, Type_Stat);
     /* Check if the captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Crt, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Crt, RME_CPT_FLAG_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Crt, Cap_Sig, struct RME_Cap_Sig*, Sig_Crt);
+    RME_CPT_GETSLOT(Cpt_Crt, Cap_Sig, struct RME_Cap_Sig*, Sig_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Sig_Crt);
+    RME_CPT_OCCUPY(Sig_Crt);
 
     /* Header init */
     Sig_Crt->Head.Root_Ref=1U;
     Sig_Crt->Head.Object=0U;
     /* Receive only because this is from kernel. Kernel send does not check flags anyway */
-    Sig_Crt->Head.Flags=RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|
-                        RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
+    Sig_Crt->Head.Flag=RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|
+                       RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
     
     /* Info init */
     Sig_Crt->Sig_Num=0U;
@@ -5491,37 +5591,39 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Sig_Boot_Crt ********************************************/
 
 /* Begin Function:_RME_Sig_Crt ************************************************
-Description : Create a signal capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table to
-                                     use for this signal. 2-Level.
-              rme_cid_t Cap_Inv - The capability slot that you want this newly
-                                  created signal capability to be in. 1-Level.
+Description : Create a signal endpoint.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this signal.
+                                  2-Level.
+              rme_cid_t Cap_Sig - The capability slot that you want this newly
+                                  created signal capability to be in.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Sig_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Sig)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Sig* Sig_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Sig, struct RME_Cap_Sig*,Sig_Crt);
+    RME_CPT_GETSLOT(Cpt_Op,Cap_Sig, struct RME_Cap_Sig*,Sig_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Sig_Crt);
+    RME_CPT_OCCUPY(Sig_Crt);
 
     /* Header init */
     Sig_Crt->Head.Root_Ref=0U;
     Sig_Crt->Head.Object=0U;
-    Sig_Crt->Head.Flags=RME_SIG_FLAG_ALL;
+    Sig_Crt->Head.Flag=RME_SIG_FLAG_ALL;
     
     /* Info init */
     Sig_Crt->Sig_Num=0U;
@@ -5536,29 +5638,31 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Sig_Crt *************************************************/
 
 /* Begin Function:_RME_Sig_Del ************************************************
-Description : Delete a signal capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table to delete from.
-                                     2-Level.
-              rme_cid_t Cap_Sig - The capability to the signal. 1-Level.
+Description : Delete a signal endpoint.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table to
+                                  delete from.
+                                  2-Level.
+              rme_cid_t Cap_Sig - The capability to the signal.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Sig)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Sig* Sig_Del;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Sig, struct RME_Cap_Sig*, Sig_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Sig, struct RME_Cap_Sig*, Sig_Del);
     /* Delete check */
     RME_CAP_DEL_CHECK(Sig_Del, Type_Stat, RME_CAP_TYPE_SIG);
 
@@ -5583,11 +5687,12 @@ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Sig_Del *************************************************/
 
 /* Begin Function:_RME_Kern_High **********************************************
-Description : Pick the thread with the highest priority to run. Always call this
-              after you finish all your kernel sending stuff in the interrupt
-              handler, or the kernel send will not be correct.
+Description : Pick the thread with the highest priority to run. Always call
+              this after you finish all your kernel sending stuff in the
+              interrupt handler, or the kernel send will not be correct.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-              volatile struct RME_CPU_Local* CPU_Local - The CPU-local data structure.
+              volatile struct RME_CPU_Local* CPU_Local - The CPU-local data
+                                                         structure.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
@@ -5655,30 +5760,28 @@ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
 /* End Function:_RME_Kern_High ***********************************************/
 
 /* Begin Function:_RME_Kern_Snd ***********************************************
-Description : Try to send a signal to an endpoint from kernel. This is intended to
-              be called in the interrupt routines in the kernel, and this is not a
-              system call. The capability passed in must be the root capability, and
-              this function will not check whether it really is.
+Description : Try to send a signal to an endpoint from kernel. This is intended
+              to be called in the interrupt routines in the kernel, and this is
+              not a system call. The capability passed in must be the root
+              capability, and this function will not check whether it really is.
 Input       : volatile struct RME_Cap_Sig* Cap_Sig - The signal root capability.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
 {
-    volatile struct RME_Thd_Struct* Thd_Struct;
+    volatile struct RME_Thd_Struct* Thd_Sig;
     rme_ptr_t Unblock;
     
-    /* See if we can receive on that endpoint - if someone blocks, we must
-     * wait for it to unblock before we can proceed */
-    Thd_Struct=Cap_Sig->Thd;
+    Thd_Sig=Cap_Sig->Thd;
     
     /* If and only if we are calling from the same core as the blocked thread do
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
-    if(Thd_Struct!=RME_NULL)
+    if(Thd_Sig!=RME_NULL)
     {
         RME_COVERAGE_MARKER();
 
-        if(Thd_Struct->Sched.CPU_Local==RME_CPU_LOCAL())
+        if(Thd_Sig->Sched.CPU_Local==RME_CPU_LOCAL())
         {
             RME_COVERAGE_MARKER();
 
@@ -5706,9 +5809,9 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this */
-        __RME_Set_Syscall_Retval(&(Thd_Struct->Reg_Cur->Reg), 1);
+        __RME_Set_Syscall_Retval(&(Thd_Sig->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
-        if(Thd_Struct->Sched.Slice!=0U)
+        if(Thd_Sig->Sched.Slice!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -5716,8 +5819,8 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
              * immediately; this is because we may send to a myriad of endpoints in one
              * interrupt, and we hope to perform the context switch only once when exiting
              * that handler. We can save many register push/pops! */
-            _RME_Run_Ins(Thd_Struct);
-            Thd_Struct->Sched.State=RME_THD_READY;
+            _RME_Run_Ins(Thd_Sig);
+            Thd_Sig->Sched.State=RME_THD_READY;
         }
         else
         {
@@ -5728,7 +5831,7 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
              * here because we will have notified it when we transferred all the
              * timeslices away. We just silently change the state of this thread
              * to TIMEOUT. Same for the next function. */
-            Thd_Struct->Sched.State=RME_THD_TIMEOUT;
+            Thd_Sig->Sched.State=RME_THD_TIMEOUT;
         }
         
         /* Clear the blocking status of the endpoint up - we don't need a write release barrier
@@ -5759,15 +5862,16 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
 /* End Function:_RME_Kern_Snd ************************************************/
 
 /* Begin Function:_RME_Sig_Snd ************************************************
-Description : Try to send a signal from user level. This system call can cause
+Description : Try to send to a signal endpoint. This system call can cause
               a potential context switch.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Sig - The capability to the signal. 2-Level.
+              rme_cid_t Cap_Sig - The capability to the signal.
+                                  2-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, 
+rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt, 
                        volatile struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Sig)
 {
@@ -5780,7 +5884,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Sig_Op, RME_SIG_FLAG_SND);
     
@@ -5889,32 +5993,25 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Sig_Snd *************************************************/
 
 /* Begin Function:_RME_Sig_Rcv ************************************************
-Description : Try to receive a signal capability. The rules for the signal capability
-              is:
-              1.If a receive endpoint have many send endpoints, everyone can send to it,
-                and sending to it will increase the signal count by 1.
-              2.If some thread blocks on a receive endpoint, the wakeup is only possible
-                from the same core that thread is on.
-              3.It is not recommended to let 2 cores operate on the rcv endpoint simutaneously.
+Description : Try to receive from a signal endpoint. The rules for signal
+              endpoint receive is:
+              1.If a receive endpoint have many send endpoints, everyone can
+                send to it, and sending to it will increase the count by 1.
+              2.If some thread blocks on a receive endpoint, the wakeup is only
+                possible from the same core that thread is on.
+              3.It is not recommended to let 2 cores operate on the rcv endpoint
+                simutaneously.
               This system call can potentially trigger a context switch.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Sig - The capability to the signal. 2-Level.
-              rme_ptr_t Option - The option to the receive. There are 4 operations
-                                 available on one endpoint:
-                                 0 - Blocking single receive. This will possibly block
-                                     and will receive a single signal.
-                                 1 - Blocking multi receive. This will possibly lock
-                                     and will receive all signals on that endpoint.
-                                 2 - Non-blocking single receive. This will return immediately
-                                     on failure and will receive a single signal.
-                                 3 - Non-blocking multi receive. This will return immediately
-                                     on failure and will receive all signals on that endpoint.
+              rme_cid_t Cap_Sig - The capability to the signal.
+                                  2-Level.
+              rme_ptr_t Option - The receive option.
 Output      : None.
-Return      : rme_ret_t - If successful, a non-negative number containing the number of signals
-                          received will be returned; else an error code.
+Return      : rme_ret_t - If successful, a non-negative number containing the 
+                          number of signals received; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
                        volatile struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Sig,
                        rme_ptr_t Option)
@@ -5928,7 +6025,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Sig, RME_CAP_TYPE_SIG, struct RME_Cap_Sig*, Sig_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
     switch(Option)
     {
@@ -6097,48 +6194,50 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Sig_Rcv *************************************************/
 
 /* Begin Function:_RME_Inv_Crt ************************************************
-Description : Create an invocation capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table to use
-                                     for this process. 2-Level.
-              rme_cid_t Cap_Kmem - The kernel memory capability. 2-Level.
-              rme_cid_t Cap_Inv - The capability slot that you want this newly created
-                                  invocation capability to be in. 1-Level.
-              rme_cid_t Cap_Proc - The capability to the process that it is in. 2-Level.
-              rme_ptr_t Raddr - The relative virtual address to store the invocation port
-                                kernel object.
+Description : Create an invocation stub.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table to use
+                                  for this process.
+                                  2-Level.
+              rme_cid_t Cap_Inv - The capability slot that you want this newly
+                                  created invocation capability to be in.
+                                  1-Level.
+              rme_cid_t Cap_Prc - The capability to the process that it is in.
+                                  2-Level.
+              rme_ptr_t Raddr - The relative virtual address to store the
+                                invocation port kernel object.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
-                       rme_cid_t Cap_Kmem,
+rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
+                       rme_cid_t Cap_Kom,
                        rme_cid_t Cap_Inv,
-                       rme_cid_t Cap_Proc,
+                       rme_cid_t Cap_Prc,
                        rme_ptr_t Raddr)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Proc* Proc_Op;
-    struct RME_Cap_Kmem* Kmem_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Prc* Prc_Op;
+    struct RME_Cap_Kom* Kom_Op;
     struct RME_Cap_Inv* Inv_Crt;
     struct RME_Inv_Struct* Inv_Struct;
     rme_ptr_t Type_Stat;
     rme_ptr_t Vaddr;
     
     /* Get the capability slots */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Proc, RME_CAP_TYPE_PROC, struct RME_Cap_Proc*, Proc_Op, Type_Stat);
-    RME_CAPTBL_GETCAP(Captbl, Cap_Kmem, RME_CAP_TYPE_KMEM, struct RME_Cap_Kmem*, Kmem_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, struct RME_Cap_Prc*, Prc_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Kom, RME_CAP_TYPE_KOM, struct RME_Cap_Kom*, Kom_Op, Type_Stat);
     /* Check if the captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
-    RME_CAP_CHECK(Proc_Op, RME_PROC_FLAG_INV);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
+    RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_INV);
     /* See if the creation is valid for this kmem range */
-    RME_KMEM_CHECK(Kmem_Op, RME_KMEM_FLAG_INV, Raddr, Vaddr, RME_INV_SIZE);
+    RME_KOM_CHECK(Kom_Op, RME_KOM_FLAG_INV, Raddr, Vaddr, RME_INV_SIZE);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Inv, struct RME_Cap_Inv*, Inv_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Inv, struct RME_Cap_Inv*, Inv_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Inv_Crt);
+    RME_CPT_OCCUPY(Inv_Crt);
     
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_INV_SIZE)!=0)
@@ -6155,18 +6254,18 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl,
     
     /* Object init */
     Inv_Struct=(struct RME_Inv_Struct*)Vaddr;
-    Inv_Struct->Proc=RME_CAP_CONV_ROOT(Proc_Op, struct RME_Cap_Proc*);
+    Inv_Struct->Prc=RME_CAP_CONV_ROOT(Prc_Op, struct RME_Cap_Prc*);
     Inv_Struct->Active=0U;
-    /* By default we do not return on fault */
-    Inv_Struct->Fault_Ret_Flag=0U;
+    /* By default we do not return on exception */
+    Inv_Struct->Is_Exc_Ret=0U;
     
     /* Header init */
     Inv_Crt->Head.Root_Ref=0U;
     Inv_Crt->Head.Object=Vaddr;
-    Inv_Crt->Head.Flags=RME_INV_FLAG_ALL;
+    Inv_Crt->Head.Flag=RME_INV_FLAG_ALL;
     
     /* Reference object */
-    RME_FETCH_ADD(&(Inv_Struct->Proc->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Inv_Struct->Prc->Head.Root_Ref), 1U);
     
     /* Establish cap */
     RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Stat),
@@ -6177,31 +6276,33 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl,
 /* End Function:_RME_Inv_Crt *************************************************/
 
 /* Begin Function:_RME_Inv_Del ************************************************
-Description : Delete an invocation capability.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the capability table to delete from.
-                                     2-Level.
-              rme_cid_t Cap_Inv - The capability to the invocation stub. 1-Level.
+Description : Delete an invocation stub.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the capability table to
+                                  delete from.
+                                  2-Level.
+              rme_cid_t Cap_Inv - The capability to the invocation stub.
+                                  1-Level.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl,
-                       rme_cid_t Cap_Captbl,
+rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Inv)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
+    struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Inv* Inv_Del;
     rme_ptr_t Type_Stat;
     /* These are for deletion */
     struct RME_Inv_Struct* Inv_Struct;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_DEL);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_DEL);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Inv, struct RME_Cap_Inv*, Inv_Del);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Inv, struct RME_Cap_Inv*, Inv_Del);
     /* Delete check */
     RME_CAP_DEL_CHECK(Inv_Del, Type_Stat, RME_CAP_TYPE_INV);
     
@@ -6225,7 +6326,7 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl,
     RME_CAP_DELETE(Inv_Del, Type_Stat);
     
     /* Dereference the process */
-    RME_FETCH_ADD(&(Inv_Struct->Proc->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Inv_Struct->Prc->Head.Root_Ref), -1);
     
     /* Try to clear the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase((rme_ptr_t)Inv_Struct, RME_INV_SIZE)!=0);
@@ -6237,27 +6338,30 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl,
 /* Begin Function:_RME_Inv_Set ************************************************
 Description : Set an invocation stub's entry point and stack. The registers will
               be initialized with these contents.
-Input       : struct RME_Cap_Captbl* Captbl - The capability table.
-              rme_cid_t Cap_Inv - The capability to the invocation stub. 2-Level.
+Input       : struct RME_Cap_Cpt* Cpt - The capability table.
+              rme_cid_t Cap_Inv - The capability to the invocation stub.
+                                  2-Level.
               rme_ptr_t Entry - The entry of the thread.
               rme_ptr_t Stack - The stack address to use for execution.
-              rme_ptr_t Fault_Ret_Flag - If there is an error in this invocation, we return
-                                         immediately, or we wait for fault handling?
+              rme_ptr_t Is_Exc_Ret - If there is an exception in this
+                                     invocation, return immediately, or wait
+                                     for fault handling?
+                                     If 1, we return directly on fault.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl,
+rme_ret_t _RME_Inv_Set(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Inv,
                        rme_ptr_t Entry,
                        rme_ptr_t Stack,
-                       rme_ptr_t Fault_Ret_Flag)
+                       rme_ptr_t Is_Exc_Ret)
 {
     struct RME_Cap_Inv* Inv_Op;
     struct RME_Inv_Struct* Inv_Struct;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Inv, RME_CAP_TYPE_INV, struct RME_Cap_Inv*, Inv_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Inv, RME_CAP_TYPE_INV, struct RME_Cap_Inv*, Inv_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Inv_Op, RME_INV_FLAG_SET);
     
@@ -6265,21 +6369,23 @@ rme_ret_t _RME_Inv_Set(struct RME_Cap_Captbl* Captbl,
     Inv_Struct=RME_CAP_GETOBJ(Inv_Op, struct RME_Inv_Struct*);
     Inv_Struct->Entry=Entry;
     Inv_Struct->Stack=Stack;
-    Inv_Struct->Fault_Ret_Flag=Fault_Ret_Flag;
+    Inv_Struct->Is_Exc_Ret=Is_Exc_Ret;
     
     return 0;
 }
 /* End Function:_RME_Inv_Set *************************************************/
 
 /* Begin Function:_RME_Inv_Act ************************************************
-Description : Activate an invocation capability. That means, do the invocation.
-Input       : struct RME_Cap_Captbl* Captbl - The capability table.
+Description : Call the invocation stub. One parameter is guaranteed; however, 
+              some platforms may provide more than that.
+Input       : struct RME_Cap_Cpt* Cpt - The capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Inv - The capability slot to the invocation stub. 2-Level.
+              rme_cid_t Cap_Inv - The invocation stub.
+                                  2-Level.
               rme_ptr_t Param - The parameter for the call.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl, 
+rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt, 
                        volatile struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Inv,
                        rme_ptr_t Param)
@@ -6291,7 +6397,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Type_Stat;
 
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Inv, RME_CAP_TYPE_INV, struct RME_Cap_Inv*, Inv_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Inv, RME_CAP_TYPE_INV, struct RME_Cap_Inv*, Inv_Op, Type_Stat);
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Inv_Op, RME_INV_FLAG_ACT);
 
@@ -6337,7 +6443,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     
     /* We are assuming that we are always invoking into a new process (why use synchronous
      * invocation if you don't do so?). So we always switch page tables regardless. */
-    __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl, rme_ptr_t));
+    __RME_Pgt_Set(RME_CAP_GETOBJ(Inv_Struct->Prc->Pgt, rme_ptr_t));
     
     return 0;
 }
@@ -6349,13 +6455,13 @@ Description : Return from the invocation function, and set the return value to
               table to work.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Retval - The return value of this synchronous invocation.
-              rme_ptr_t Fault_Flag - Are we attempting a return from fault?
+              rme_ptr_t Is_Exc - Are we attempting a return from exception?
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
                        rme_ptr_t Retval,
-                       rme_ptr_t Fault_Flag)
+                       rme_ptr_t Is_Exc)
 {
     volatile struct RME_Thd_Struct* Thd_Struct;
     volatile struct RME_Inv_Struct* Inv_Struct;
@@ -6375,7 +6481,7 @@ rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
     }
 
     /* Is this return forced by a fault? If yes, check if we allow that */
-    if(RME_UNLIKELY((Fault_Flag!=0U)&&(Inv_Struct->Fault_Ret_Flag==0U)))
+    if(RME_UNLIKELY((Is_Exc!=0U)&&(Inv_Struct->Is_Exc_Ret==0U)))
     {
         RME_COVERAGE_MARKER();
 
@@ -6399,7 +6505,7 @@ rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
     RME_WRITE_RELEASE(&(Inv_Struct->Active), 0U);
 
     /* Decide the system call's return value */
-    if(RME_UNLIKELY(Fault_Flag!=0U))
+    if(RME_UNLIKELY(Is_Exc!=0U))
     {
         RME_COVERAGE_MARKER();
 
@@ -6418,97 +6524,101 @@ rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl, rme_ptr_t));
+        __RME_Pgt_Set(RME_CAP_GETOBJ(Inv_Struct->Prc->Pgt, rme_ptr_t));
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Pgtbl_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl, rme_ptr_t));
+        __RME_Pgt_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Prc->Pgt, rme_ptr_t));
     }
     
     return 0;
 }
 /* End Function:_RME_Inv_Ret *************************************************/
 
-/* Begin Function:_RME_Kern_Boot_Crt ******************************************
+/* Begin Function:_RME_Kfn_Boot_Crt *******************************************
 Description : This function is used to create boot-time kernel call capability.
-              This kind of capability that does not have a kernel object. Kernel
-              function capabilities are the capabilities that allow you to execute
-              functions in kernel mode. These functions must be defined in the 
-              CPU driver platform file.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
-              rme_cid_t Cap_Captbl - The capability to the captbl that may contain the cap
-                                     to kernel function. 2-Level.
-              rme_cid_t Cap_Kern - The capability to the kernel function. 1-Level.
+              This kind of capability that does not have a kernel object.
+              Kernel function capabilities allow you to execute user-defined 
+              functions in kernel mode. These functions must be defined in the
+              platform extensions.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
+              rme_cid_t Cap_Cpt - The capability to the captbl that may contain
+                                  the cap to kernel function.
+                                  2-Level.
+              rme_cid_t Cap_Kfn - The capability to the kernel function.
+                                  1-Level.
 Output      : None.
-Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
+Return      : rme_ret_t - If successful, 0; or error code.
 ******************************************************************************/
-rme_ret_t _RME_Kern_Boot_Crt(struct RME_Cap_Captbl* Captbl,
-                             rme_cid_t Cap_Captbl,
-                             rme_cid_t Cap_Kern)
+rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt,
+                            rme_cid_t Cap_Kfn)
 {
-    struct RME_Cap_Captbl* Captbl_Op;
-    struct RME_Cap_Kern* Kern_Crt;
+    struct RME_Cap_Cpt* Cpt_Op;
+    struct RME_Cap_Kfn* Kfn_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the cap location that we care about */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Captbl, RME_CAP_TYPE_CAPTBL, struct RME_Cap_Captbl*, Captbl_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
-    RME_CAP_CHECK(Captbl_Op, RME_CAPTBL_FLAG_CRT);
+    RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_CRT);
     
     /* Get the cap slot */
-    RME_CAPTBL_GETSLOT(Captbl_Op, Cap_Kern, struct RME_Cap_Kern*, Kern_Crt);
+    RME_CPT_GETSLOT(Cpt_Op, Cap_Kfn, struct RME_Cap_Kfn*, Kfn_Crt);
     /* Take the slot if possible */
-    RME_CAPTBL_OCCUPY(Kern_Crt);
+    RME_CPT_OCCUPY(Kfn_Crt);
     
     /* Header init */
-    Kern_Crt->Head.Root_Ref=1U;
-    Kern_Crt->Head.Object=0U;
-    Kern_Crt->Head.Flags=RME_KERN_FLAG_FULL_RANGE;
+    Kfn_Crt->Head.Root_Ref=1U;
+    Kfn_Crt->Head.Object=0U;
+    Kfn_Crt->Head.Flag=RME_KFN_FLAG_FULL_RANGE;
     
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Kern_Crt->Head.Type_Stat),
-                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_KERN, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
+    RME_WRITE_RELEASE(&(Kfn_Crt->Head.Type_Stat),
+                      RME_CAP_TYPE_STAT(RME_CAP_TYPE_KFN, RME_CAP_STAT_VALID, RME_CAP_ATTR_ROOT));
 
     return 0;
 }
-/* End Function:_RME_Kern_Boot_Crt *******************************************/
+/* End Function:_RME_Kfn_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Kern_Act ***********************************************
+/* Begin Function:_RME_Kfn_Act ************************************************
 Description : Activate a kernel function.
-Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_cid_t Cap_Kern - The capability to the kernel capability. 2-Level.
+              rme_cid_t Cap_Kfn - The capability to the kernel capability.
+                                  2-Level.
               rme_ptr_t Func_ID - The function ID to invoke.
               rme_ptr_t Sub_ID - The subfunction ID to invoke.
               rme_ptr_t Param1 - The first parameter.
               rme_ptr_t Param2 - The second parameter.
 Output      : None.
-Return      : rme_ret_t - If the call is successful, it will return whatever the 
-                          function returned(It is expected that these functions shall
-                          never return an negative value); else error code. If the 
-                          kernel function ever succeeds, it is responsible for setting
-                          the return value. On failure, a context switch shall never
-                          happen.
+Return      : rme_ret_t - If the call is successful, it will return whatever
+                          the 
+                          function returned (It is expected that they shall
+                          never return an negative value); or an error code.
+                          If the kernel function ever causes a context switch,
+                          it is responsible for setting the return value. On 
+                          failure, no context switch is allowed.
 ******************************************************************************/
-rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl,
-                        volatile struct RME_Reg_Struct* Reg,
-                        rme_cid_t Cap_Kern,
-                        rme_ptr_t Func_ID,
-                        rme_ptr_t Sub_ID,
-                        rme_ptr_t Param1,
-                        rme_ptr_t Param2)
+rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
+                       volatile struct RME_Reg_Struct* Reg,
+                       rme_cid_t Cap_Kfn,
+                       rme_ptr_t Func_ID,
+                       rme_ptr_t Sub_ID,
+                       rme_ptr_t Param1,
+                       rme_ptr_t Param2)
 {
-    struct RME_Cap_Kern* Kern_Op;
+    struct RME_Cap_Kfn* Kfn_Op;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl, Cap_Kern, RME_CAP_TYPE_KERN, struct RME_Cap_Kern*, Kern_Op, Type_Stat);    
+    RME_CPT_GETCAP(Cpt, Cap_Kfn, RME_CAP_TYPE_KFN, struct RME_Cap_Kfn*, Kfn_Op, Type_Stat);    
 
     /* Check if the range of calling is allowed - This is kernel function specific */
-    if((Func_ID>RME_KERN_FLAG_HIGH(Kern_Op->Head.Flags))||
-       (Func_ID<RME_KERN_FLAG_LOW(Kern_Op->Head.Flags)))
+    if((Func_ID>RME_KFN_FLAG_HIGH(Kfn_Op->Head.Flag))||
+       (Func_ID<RME_KFN_FLAG_LOW(Kfn_Op->Head.Flag)))
     {
         RME_COVERAGE_MARKER();
 
@@ -6520,9 +6630,9 @@ rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl,
     }
 
     /* Return whatever the function returns */
-    return __RME_Kern_Func_Handler(Captbl, Reg, Func_ID, Sub_ID, Param1, Param2);
+    return __RME_Kfn_Handler(Cpt, Reg, Func_ID, Sub_ID, Param1, Param2);
 }
-/* End Function:_RME_Kern_Act ************************************************/
+/* End Function:_RME_Kfn_Act *************************************************/
 
 /* End Of File ***************************************************************/
 

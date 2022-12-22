@@ -102,7 +102,7 @@ The ARM Cortex-A also include various FPU implementations.
     /* HALT processor to wait for interrupt */
     .global             __RME_CAV7_Halt
     /* Load page table */
-    .global             __RME_CAV7_Pgtbl_Set
+    .global             __RME_CAV7_Pgt_Set
     /* Get register values */
     .global             __RME_CAV7_CPSR_Get
     .global             __RME_CAV7_SPSR_Get
@@ -337,7 +337,7 @@ The ARM Cortex-A also include various FPU implementations.
     /* Booting specific stuff */
     .global             __RME_CAV7_Stack_Start
     /* Initial page table */
-    .global             __RME_CAV7_Kern_Pgtbl
+    .global             __RME_CAV7_Kern_Pgt
     /* Vector table */
     .global             __RME_CAV7_Vector_Table
     /* Fault handlers and user handlers are exported on their spot */
@@ -452,7 +452,7 @@ clear_done:
      * R8: Write index register
      * R9: Write content register */
     LDR                 R0,=RME_CAV7_Mem_Info
-    LDR                 R1,=__RME_CAV7_Kern_Pgtbl
+    LDR                 R1,=__RME_CAV7_Kern_Pgt
     LDR                 R2,=__va_offset__
     /* Calculate the actual address */
     SUB                 R0,R0,R2
@@ -491,7 +491,7 @@ fill_pgtbl:
     LDR                 R0,=0x006C006C
     CP15_SET_INIT       CRN=C10 OP1=0 CRM=C2 OP2=1 /* NMRR */
     /* Set base address */
-    LDR                 R0,=__RME_CAV7_Kern_Pgtbl
+    LDR                 R0,=__RME_CAV7_Kern_Pgt
     LDR                 R1,=__va_offset__
     SUB                 R0,R0,R1
     CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=0 /* TTBR0 */
@@ -523,7 +523,7 @@ __RME_CAV7_Stack_End:
  * by the configuration file, because there's no generic way to detect memory on
  * these devices. */
     .align              14
-__RME_CAV7_Kern_Pgtbl:
+__RME_CAV7_Kern_Pgt:
     .space              16384
 /* Vectors *******************************************************************/
     .align              8
@@ -918,7 +918,7 @@ __RME_CAV7_HACR_Set:
 /* Translation table base register 0 - 32bit. We do not support PAE of any kind.
  * This operation also sets the page table of this architecture */
 __RME_CAV7_TTBR0_Set:
-__RME_CAV7_Pgtbl_Set:
+__RME_CAV7_Pgt_Set:
     CP15_SET            CRN=C2 OP1=0 CRM=C0 OP2=0
 /* Translation table base register 1 - 32bit. We do not support PAE of any kind */
 __RME_CAV7_TTBR1_Set:

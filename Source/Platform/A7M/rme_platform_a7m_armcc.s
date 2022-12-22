@@ -71,7 +71,7 @@ DUMMY_STACK
     ;The system tick handler of RME. This will be defined in C language.
     IMPORT              _RME_Tick_Handler
     ;The memory management fault handler of RME. This will be defined in C language.
-    IMPORT              __RME_A7M_Fault_Handler
+    IMPORT              __RME_A7M_Exc_Handler
     ;The generic interrupt handler for all other vectors.
     IMPORT              __RME_A7M_Vect_Handler
 ;/* End Imports **************************************************************/
@@ -1096,7 +1096,7 @@ UsageFault_Handler
     PUSH                {R0}
     
     MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
-    BL                  __RME_A7M_Fault_Handler
+    BL                  __RME_A7M_Exc_Handler
     
     POP                 {R0}
     MSR                 PSP, R0

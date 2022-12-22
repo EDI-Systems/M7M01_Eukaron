@@ -15,9 +15,9 @@ Description: The configuration file for STM32F405RG.
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_BASE                                (0x10002000U)
+#define RME_KOM_VA_BASE                                (0x10002000U)
 /* The size of the kernel object virtual memory */
-#define RME_KMEM_VA_SIZE                                (0x6000U)
+#define RME_KOM_VA_SIZE                                (0x6000U)
 /* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
 #define RME_HYP_VA_BASE                                 (0x20000000U)
 /* The size of the hypervisor reserved virtual memory */
@@ -30,9 +30,9 @@ Description: The configuration file for STM32F405RG.
 #define RME_PREEMPT_PRIO_NUM                            (32U)
 /* Size of capability table */
 #if(RME_RVM_GEN_ENABLE==1U)
-#define RME_BOOT_CAPTBL_SIZE                            (18U)
+#define RME_BOOT_CPT_SIZE                            (18U)
 #else
-#define RME_BOOT_CAPTBL_SIZE                            (18U)
+#define RME_BOOT_CPT_SIZE                            (18U)
 #endif
 
 /* Physical vector flag area base and its size */
@@ -42,7 +42,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_RVM_VIRT_EVENT_BASE                         (0x10007E00U)
 #define RME_RVM_VIRT_EVENT_SIZE                         (0x200U)
 /* Initial kenel object frontier limit */
-#define RME_RVM_KMEM_BOOT_FRONTIER                      (0x10003000U)
+#define RME_RVM_KOM_BOOT_FRONTIER                      (0x10003000U)
 
 /* Init process's first thread's entry point address */
 #define RME_A7M_INIT_ENTRY                              (0x08004001U)
@@ -63,7 +63,7 @@ Description: The configuration file for STM32F405RG.
 
 /* Fixed *********************************************************************/
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER                             (4U)
+#define RME_KOM_SLOT_ORDER                             (4U)
 /* Number of MPU regions available */
 #define RME_A7M_MPU_REGIONS                             (8U)
 /* What is the FPU type? */

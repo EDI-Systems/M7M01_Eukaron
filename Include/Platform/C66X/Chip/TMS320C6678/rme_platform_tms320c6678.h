@@ -10,17 +10,17 @@ Description: The configuration file for TMS320C6678.
 /* Number of CPUs in the system */
 #define RME_C66X_CPU_NUM             8
 /* The virtual memory start address for the kernel objects */
-#define RME_KMEM_VA_START            0x80100000
+#define RME_KOM_VA_START            0x80100000
 /* The size of the kernel object virtual memory */
-#define RME_KMEM_SIZE                0x03F00000
+#define RME_KOM_SIZE                0x03F00000
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
 #define RME_HYP_VA_START             0x84000000
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                 0x000C0000
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KMEM_SLOT_ORDER          4
+#define RME_KOM_SLOT_ORDER          4
 /* Kernel stack size and address */
-#define RME_KMEM_STACK_ADDR          ((rme_ptr_t)&(__RME_C66X_Stack[4096]))
+#define RME_KOM_STACK_ADDR          ((rme_ptr_t)&(__RME_C66X_Stack[4096]))
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32
@@ -28,7 +28,7 @@ Description: The configuration file for TMS320C6678.
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_C66X_INT_FLAG_ADDR        0x83FC0000
 /* Initial kenel object frontier limit */
-#define RME_C66X_KMEM_BOOT_FRONTIER   0x80101000
+#define RME_C66X_KOM_BOOT_FRONTIER   0x80101000
 /* Init process's initial thread entry point address */
 #define RME_C66X_INIT_ENTRY           0x84000000
 /* What is the tick interval value? - 10ms per tick */
