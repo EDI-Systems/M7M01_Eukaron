@@ -74,7 +74,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 
 /* This is the special one used for delegation, and used for kernel memory
  * capability only because it is very complicated. Other capabilities will not use this */
-#define RME_PARAM_KM(SVC,CAPID)                     (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CAPID))
+#define RME_PARAM_KM(SVC,CID)                     (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CID))
 /* This is the special one used for page table top-level flags */
 #define RME_PARAM_PT(X)                             ((X)&0x01U)
 /* The page table creation extra parameter packed in the svc number */
@@ -260,11 +260,11 @@ while(0)
  * [15 Reserved][14 High Table(Master)  8][7  2L(1)][6   Low Table(Child) 0]
  * 64-bit systems: Capid range 0x0000 - 0x7FFF
  * [31 Reserved][30 High Table(Master) 16][15 2L(1)][14  Low Table(Child) 0] */
-#define RME_CAPID_NULL                              (1<<(sizeof(rme_ptr_t)*4U-1U))
+#define RME_CID_NULL                                (1<<(sizeof(rme_ptr_t)*4U-1U))
 /* See if the capid is a 2-level representation */
-#define RME_CAPID_2L                                (1<<(sizeof(rme_ptr_t)*2U-1U))
+#define RME_CID_2L                                  (1<<(sizeof(rme_ptr_t)*2U-1U))
 /* Make 2-level capability */
-#define RME_CAPID(X,Y)                              (((X)<<(sizeof(rme_ptr_t)*2U))|(Y)|RME_CAPID_2L)
+#define RME_CID(X,Y)                                (((X)<<(sizeof(rme_ptr_t)*2U))|(Y)|RME_CID_2L)
 /* High-level capability table capability position */
 #define RME_CAP_H(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))>>(sizeof(rme_ptr_t)*2U)))
 /* Low-level capability table capability position */
@@ -306,7 +306,7 @@ do \
 { \
     /* See if this capability allows such operations */ \
     if(RME_UNLIKELY(((CAP)->Head.Flag&(FLAG))!=(FLAG))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
 } \
 while(0)
 
@@ -322,19 +322,19 @@ do \
 { \
     /* See if the creation of such capability is allowed */ \
     if(RME_UNLIKELY(((CAP)->Head.Flag&(FLAG))!=(FLAG))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
     /* Convert relative address to virtual address */ \
     (VADDR)=(RADDR)+(CAP)->Start; \
     /* Check start boundary and its possible wraparound */ \
     if(RME_UNLIKELY((VADDR)<(RADDR))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
     if(RME_UNLIKELY(((CAP)->Start>(VADDR)))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
     /* Check end boundary and its possible wraparound */ \
     if(RME_UNLIKELY((((VADDR)+(SIZE))<(VADDR)))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
     if(RME_UNLIKELY((CAP)->End<((VADDR)+(SIZE)))) \
-        return RME_ERR_CAP_FLAG; \
+        return RME_ERR_CPT_FLAG; \
 } \
 while(0)
 
@@ -366,20 +366,20 @@ do \
     (TEMP)=RME_READ_ACQUIRE(&((CAP)->Head.Type_Stat)); \
     /* See if the slot is frozen */ \
     if(RME_UNLIKELY(RME_CAP_STAT(TEMP)!=RME_CAP_STAT_FROZEN)) \
-        return RME_ERR_CAP_FROZEN; \
+        return RME_ERR_CPT_FROZEN; \
     /* See if the cap type is correct. Only deletion checks type, while removing does not */ \
     if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(TYPE))) \
-        return RME_ERR_CAP_TYPE; \
+        return RME_ERR_CPT_TYPE; \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0U)) \
-        return RME_ERR_CAP_QUIE; \
+        return RME_ERR_CPT_QUIE; \
     /* To use deletion, we must be an unreferenced root */ \
     if(RME_UNLIKELY(((CAP)->Head.Root_Ref)!=0U)) \
     { \
         /* Defrost the cap if it is a root (likely), and return */ \
         if(RME_LIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
             RME_CAP_DEFROST(CAP,TEMP); \
-        return RME_ERR_CAP_REFCNT; \
+        return RME_ERR_CPT_REFCNT; \
     } \
     /* The only case where the Root_Ref is 0 is that this is a unreferenced root cap */ \
     RME_ASSERT(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT); \
@@ -398,13 +398,13 @@ do \
     (TEMP)=RME_READ_ACQUIRE(&((CAP)->Head.Type_Stat)); \
     /* See if the slot is frozen */ \
     if(RME_UNLIKELY(RME_CAP_STAT(TEMP)!=RME_CAP_STAT_FROZEN)) \
-        return RME_ERR_CAP_FROZEN; \
+        return RME_ERR_CPT_FROZEN; \
     /* See if the slot is quiescent */ \
     if(RME_UNLIKELY(RME_CAP_QUIE((CAP)->Head.Timestamp)==0U)) \
-        return RME_ERR_CAP_QUIE; \
+        return RME_ERR_CPT_QUIE; \
     /* To use removal, we must be a leaf */ \
     if(RME_UNLIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
-        return RME_ERR_CAP_ROOT; \
+        return RME_ERR_CPT_ROOT; \
 } \
 while(0)
 
@@ -416,7 +416,7 @@ do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
     if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), (TEMP), 0U)==RME_CASFAIL)) \
-        return RME_ERR_CAP_NULL; \
+        return RME_ERR_CPT_NULL; \
 } \
 while(0)
 
@@ -432,7 +432,7 @@ do \
     /* Check if anything is there. If there is nothing there, the Type_Ref must be 0 */ \
     if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), 0U, \
                                   RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP, RME_CAP_STAT_CREATING, RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
-        return RME_ERR_CAP_EXIST; \
+        return RME_ERR_CPT_EXIST; \
     /* We have taken the slot. Now log the quiescence counter in. No barrier needed as our atomics are serializing */ \
     (CAP)->Head.Timestamp=RME_Timestamp; \
 } \
@@ -450,7 +450,7 @@ do \
 { \
     /* Check if the captbl is over range */ \
     if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CPT)->Entry_Num))) \
-        return RME_ERR_CAP_RANGE; \
+        return RME_ERR_CPT_RANGE; \
     /* Get the slot position */ \
     (PARAM)=&(RME_CAP_GETOBJ((CPT),TYPE)[(CAP_NUM)]); \
 } \
@@ -474,51 +474,51 @@ while(0)
 do \
 { \
     /* See if this is a 2-level cap */ \
-    if(((CAP_NUM)&RME_CAPID_2L)==0U) \
+    if(((CAP_NUM)&RME_CID_2L)==0U) \
     { \
         /* Check if the captbl is over range */ \
         if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CPT)->Entry_Num))) \
-            return RME_ERR_CAP_RANGE; \
+            return RME_ERR_CPT_RANGE; \
         /* Get the cap slot and check the type */ \
-        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT,struct RME_Cap_Struct*)[(CAP_NUM)]); \
+        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT, struct RME_Cap_Struct*)[(CAP_NUM)]); \
         /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
         (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Stat)); \
         /* See if the capability is frozen */ \
         if(RME_UNLIKELY(RME_CAP_STAT(TEMP)==RME_CAP_STAT_FROZEN)) \
-            return RME_ERR_CAP_FROZEN; \
+            return RME_ERR_CPT_FROZEN; \
         /* See if the type is correct */ \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(CAP_TYPE))) \
-            return RME_ERR_CAP_TYPE; \
+            return RME_ERR_CPT_TYPE; \
     } \
     /* Yes, this is a 2-level cap */ \
     else \
     { \
         /* Check if the cap to potential captbl is over range */ \
         if(RME_UNLIKELY(RME_CAP_H(CAP_NUM)>=((CPT)->Entry_Num))) \
-            return RME_ERR_CAP_RANGE; \
+            return RME_ERR_CPT_RANGE; \
         /* Get the cap slot */ \
-        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT,struct RME_Cap_Cpt*)[RME_CAP_H(CAP_NUM)]); \
+        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT, struct RME_Cap_Cpt*)[RME_CAP_H(CAP_NUM)]); \
         /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
         (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Stat)); \
         /* See if the capability table is frozen for deletion or removal */ \
         if(RME_UNLIKELY(RME_CAP_STAT(TEMP)==RME_CAP_STAT_FROZEN)) \
-            return RME_ERR_CAP_FROZEN; \
+            return RME_ERR_CPT_FROZEN; \
         /* See if this is a captbl */ \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=RME_CAP_TYPE_CPT)) \
-            return RME_ERR_CAP_TYPE; \
+            return RME_ERR_CPT_TYPE; \
         /* Check if the 2nd-layer captbl is over range */ \
         if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((volatile struct RME_Cap_Cpt*)(PARAM))->Entry_Num))) \
-            return RME_ERR_CAP_RANGE; \
+            return RME_ERR_CPT_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
         /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
         (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Stat)); \
         /* See if the capability is frozen */ \
         if(RME_UNLIKELY(RME_CAP_STAT(TEMP)==RME_CAP_STAT_FROZEN)) \
-            return RME_ERR_CAP_FROZEN; \
+            return RME_ERR_CPT_FROZEN; \
         /* See if the type is correct */ \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=(CAP_TYPE))) \
-            return RME_ERR_CAP_TYPE; \
+            return RME_ERR_CPT_TYPE; \
     } \
 } \
 while(0)

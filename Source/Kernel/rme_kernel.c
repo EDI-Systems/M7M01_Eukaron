@@ -259,7 +259,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     /* What's the system call number and major capability ID? */
     rme_ptr_t Svc;
-    rme_ptr_t Capid;
+    rme_ptr_t Cid;
     rme_ptr_t Param[3];
     rme_ret_t Retval;
     rme_ptr_t Svc_Num;
@@ -268,7 +268,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     struct RME_Cap_Cpt* Cpt;
 
     /* Get the system call parameters from the system call */
-    __RME_Get_Syscall_Param(Reg, &Svc, &Capid, Param);
+    __RME_Get_Syscall_Param(Reg, &Svc, &Cid, Param);
     Svc_Num=Svc&0x3FU;
     
     /* Fast path - synchronous invocation returning */
@@ -278,8 +278,8 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         
         Retval=_RME_Inv_Ret(Reg,                                            /* volatile struct RME_Reg_Struct* Reg */
                             Param[0],                                       /* rme_ptr_t Retval */
-                            0U);                                            /* rme_ptr_t Fault_Flag */
-        RME_SWITCH_RETURN(Reg,Retval);
+                            0U);                                            /* rme_ptr_t Is_Exc */
+        RME_SWITCH_RETURN(Reg, Retval);
     }
     else
     {
@@ -355,7 +355,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             
             Retval=_RME_Kfn_Act(Cpt,
                                 Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Kfn */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Kfn */
                                 RME_PARAM_D0(Param[0]),                     /* rme_ptr_t Func_ID */
                                 RME_PARAM_D1(Param[0]),                     /* rme_ptr_t Sub_ID */
                                 Param[1],                                   /* rme_ptr_t Param1 */
@@ -369,7 +369,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             
             Retval=_RME_Thd_Sched_Prio(Cpt,
                                        Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
-                                       Capid,                               /* rme_ptr_t Number */
+                                       Cid,                                 /* rme_ptr_t Number */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Thd0 */
                                        RME_PARAM_D1(Param[0]),              /* rme_ptr_t Prio0 */
                                        (rme_cid_t)RME_PARAM_D0(Param[1]),   /* rme_cid_t Cap_Thd1 */
@@ -426,7 +426,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             Retval=_RME_Cpt_Crt(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Crt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Crt */
                                 (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Crt */
                                 Param[1],                                   /* rme_ptr_t Raddr */
@@ -438,7 +438,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Cpt_Del(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Del */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Del */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Cpt */
             break;
         }
@@ -447,7 +447,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Cpt_Frz(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Frz */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Frz */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Frz */
             break;
         }
@@ -461,7 +461,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
                                    (rme_cid_t)RME_PARAM_D1(Param[1]),       /* rme_cid_t Cap_Cpt_Src */
                                    (rme_cid_t)RME_PARAM_D0(Param[1]),       /* rme_cid_t Cap_Src */
                                    Param[2],                                /* rme_ptr_t Flag */
-                                   RME_PARAM_KM(Svc,Capid));                /* rme_ptr_t Ext_Flag */
+                                   RME_PARAM_KM(Svc, Cid));                 /* rme_ptr_t Ext_Flag */
             break;
         }
         case RME_SVC_CPT_REM:
@@ -469,7 +469,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Cpt_Rem(Cpt,
-                                   (rme_cid_t)Capid,                        /* rme_cid_t Cap_Cpt_Rem */
+                                   (rme_cid_t)Cid,                          /* rme_cid_t Cap_Cpt_Rem */
                                    (rme_cid_t)Param[0]);                    /* rme_cid_t Cap_Rem */
             break;
         }
@@ -480,7 +480,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Pgt_Crt(Cpt,
-                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Cpt */
+                                  (rme_cid_t)Cid,                           /* rme_cid_t Cap_Cpt */
                                   (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Kom */
                                   (rme_cid_t)RME_PARAM_Q1(Param[0]),        /* rme_cid_t Cap_Pgt */
                                   Param[1],                                 /* rme_ptr_t Raddr */
@@ -495,7 +495,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Pgt_Del(Cpt,
-                                  (rme_cid_t)Capid,                         /* rme_cid_t Cap_Cpt */
+                                  (rme_cid_t)Cid,                           /* rme_cid_t Cap_Cpt */
                                   (rme_cid_t)Param[0]);                     /* rme_cid_t Cap_Pgt */
             break;
         }
@@ -506,7 +506,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             Retval=_RME_Pgt_Add(Cpt,
                                   (rme_cid_t)RME_PARAM_D1(Param[0]),        /* rme_cid_t Cap_Pgt_Dst */
                                   RME_PARAM_D0(Param[0]),                   /* rme_ptr_t Pos_Dst */
-                                  Capid,                                    /* rme_ptr_t Flag_Dst */
+                                  Cid,                                      /* rme_ptr_t Flag_Dst */
                                   (rme_cid_t)RME_PARAM_D1(Param[1]),        /* rme_cid_t Cap_Pgt_Src */
                                   RME_PARAM_D0(Param[1]),                   /* rme_ptr_t Pos_Src */
                                   Param[2]);                                /* rme_ptr_t Index */
@@ -547,7 +547,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         case RME_SVC_PRC_CRT:
         {
             Retval=_RME_Prc_Crt(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt_Crt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Crt */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
                                 (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[2]);                       /* rme_cid_t Cap_Pgt */
@@ -558,7 +558,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Prc_Del(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Prc */
             break;
         }
@@ -587,7 +587,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Thd_Crt(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Thd */
                                 (rme_cid_t)RME_PARAM_D1(Param[1]),          /* rme_cid_t Cap_Prc */
@@ -600,7 +600,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Thd_Del(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Thd */
             break;
         }
@@ -609,7 +609,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Thd_Exec_Set(Cpt,
-                                     (rme_cid_t)Capid,                      /* rme_cid_t Cap_Thd */
+                                     (rme_cid_t)Cid,                        /* rme_cid_t Cap_Thd */
                                      Param[0],                              /* rme_ptr_t Entry */
                                      Param[1],                              /* rme_ptr_t Stack */
                                      Param[2]);                             /* rme_ptr_t Param */
@@ -622,7 +622,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
              * that the return value register (of itself) will always be rewritten. This is mostly
              * used by hypervisors, so this is not an issue. */
             Retval=_RME_Thd_Hyp_Set(Cpt,
-                                    (rme_cid_t)Capid,                       /* rme_cid_t Cap_Thd */
+                                    (rme_cid_t)Cid,                         /* rme_cid_t Cap_Thd */
                                     Param[0],                               /* rme_ptr_t Kaddr */
                                     Param[1],                               /* rme_ptr_t Entry */
                                     Param[2]);                              /* rme_ptr_t Stack */
@@ -633,7 +633,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Thd_Sched_Bind(Cpt,
-                                       (rme_cid_t)Capid,                    /* rme_cid_t Cap_Thd */
+                                       (rme_cid_t)Cid,                      /* rme_cid_t Cap_Thd */
                                        (rme_cid_t)RME_PARAM_D1(Param[0]),   /* rme_cid_t Cap_Thd_Sched */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Sig */
                                        (rme_tid_t)Param[1],                 /* rme_tid_t TID */
@@ -655,7 +655,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Sig_Crt(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
@@ -664,7 +664,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Sig_Del(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
             break;
         }
@@ -675,7 +675,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Inv_Crt(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
                                 (rme_cid_t)RME_PARAM_D0(Param[0]),          /* rme_cid_t Cap_Inv */
                                 (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Prc */
@@ -687,7 +687,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Inv_Del(Cpt,
-                                (rme_cid_t)Capid,                           /* rme_cid_t Cap_Cpt */
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Inv */
             break;
         }
@@ -707,7 +707,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             RME_COVERAGE_MARKER();
             
-            Retval=RME_ERR_CAP_NULL;
+            Retval=RME_ERR_CPT_NULL;
             break;
         }
     }
@@ -1067,11 +1067,11 @@ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
     struct RME_Cap_Cpt* Cpt;
 
     /* See if the entry number is too big */
-    if((Entry_Num==0U)||(Entry_Num>RME_CAPID_2L))
+    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_RANGE;
+        return RME_ERR_CPT_RANGE;
     }
     else
     {
@@ -1083,7 +1083,7 @@ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -1139,11 +1139,11 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     
     /* See if the entry number is too big - this is not restricted by RME_CPT_LIMIT */
-    if((Entry_Num==0U)||(Entry_Num>RME_CAPID_2L))
+    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_RANGE;
+        return RME_ERR_CPT_RANGE;
     }
     else
     {
@@ -1167,7 +1167,7 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
         
         /* Abort the creation process */
         RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -1225,11 +1225,11 @@ rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Vaddr;
 
     /* See if the entry number is too big */
-    if((Entry_Num==0U)||(Entry_Num>RME_CAPID_2L))
+    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_RANGE;
+        return RME_ERR_CPT_RANGE;
     }
     else
     {
@@ -1242,7 +1242,7 @@ rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_RANGE;
+        return RME_ERR_CPT_RANGE;
     }
     else
     {
@@ -1270,7 +1270,7 @@ rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
         
         /* Failure. Set the Type_Stat back to 0 and abort the creation process */
         RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -1344,7 +1344,7 @@ rme_ret_t _RME_Cpt_Del(struct RME_Cap_Cpt* Cpt,
             RME_COVERAGE_MARKER();
             
             RME_CAP_DEFROST(Cpt_Del, Type_Stat);
-            return RME_ERR_CAP_EXIST;
+            return RME_ERR_CPT_EXIST;
         }
         else
         {
@@ -1401,7 +1401,7 @@ rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_NULL;
+        return RME_ERR_CPT_NULL;
     }
     else
     {
@@ -1415,7 +1415,7 @@ rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_REFCNT;
+            return RME_ERR_CPT_REFCNT;
         }
         else
         {
@@ -1432,7 +1432,7 @@ rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_FROZEN;
+        return RME_ERR_CPT_FROZEN;
     }
     else
     {
@@ -1444,7 +1444,7 @@ rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_QUIE;
+        return RME_ERR_CPT_QUIE;
     }
     else
     {
@@ -1518,7 +1518,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_FROZEN;
+        return RME_ERR_CPT_FROZEN;
     }
     else
     {
@@ -1529,7 +1529,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
-        return RME_ERR_CAP_NULL;
+        return RME_ERR_CPT_NULL;
     }
     else
     {
@@ -1552,7 +1552,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
         
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1562,7 +1562,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1572,7 +1572,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1583,7 +1583,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1593,7 +1593,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1610,7 +1610,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1620,7 +1620,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1630,7 +1630,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1654,7 +1654,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1667,7 +1667,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1678,7 +1678,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1690,7 +1690,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1700,7 +1700,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1712,7 +1712,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1722,7 +1722,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1739,7 +1739,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1749,7 +1749,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
             
-            return RME_ERR_CAP_FLAG;
+            return RME_ERR_CPT_FLAG;
         }
         else
         {
@@ -1762,7 +1762,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
             
-        return RME_ERR_CAP_EXIST;
+        return RME_ERR_CPT_EXIST;
     }
     else
     {
@@ -1988,7 +1988,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
     
         RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -2350,7 +2350,7 @@ rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
 
         RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -2522,7 +2522,7 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_CAP_FLAG;
+        return RME_ERR_CPT_FLAG;
     }
     else
     {
@@ -2658,7 +2658,7 @@ rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_CAP_FLAG;
+        return RME_ERR_CPT_FLAG;
     }
     else
     {
@@ -2739,7 +2739,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_CAP_FLAG;
+        return RME_ERR_CPT_FLAG;
     }
     else
     {
@@ -2883,7 +2883,7 @@ rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_CAP_FLAG;
+        return RME_ERR_CPT_FLAG;
     }
     else
     {
@@ -3457,7 +3457,12 @@ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg)
         Thd_Cur=CPU_Local->Thd_Cur;
         
         /* Are we attempting to kill the init threads? If yes, panic */
-        RME_ASSERT(Thd_Cur->Sched.Slice!=RME_THD_INIT_TIME);
+        if(Thd_Cur->Sched.Slice==RME_THD_INIT_TIME)
+        {
+            RME_DBG_S("Attempted to kill init thread.");
+            RME_ASSERT(0U);
+            while(1U);
+        }
         
         /* Deprive it of all its timeslices */
         Thd_Cur->Sched.Slice=0U;
@@ -4068,7 +4073,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
 
         RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -4195,7 +4200,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
 
         RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -4520,7 +4525,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
                                   notifications. This signal endpoint will be
                                   sent to whenever this thread has a fault, or
                                   timeouts. This is purely optional; if it is
-                                  not needed, pass in RME_CAPID_NULL.
+                                  not needed, pass in RME_CID_NULL.
               rme_tid_t TID - The thread ID. This is user-supplied, and the
                               kernel will not check whether there are two
                               threads that have the same TID.
@@ -4552,7 +4557,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Thd_Sched, RME_THD_FLAG_SCHED_PARENT);
     
     /* See if we need the signal endpoint for this operation */
-    if(Cap_Sig<RME_CAPID_NULL)
+    if(Cap_Sig<RME_CID_NULL)
     {
         RME_COVERAGE_MARKER();
 
@@ -5392,7 +5397,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
     Thd_Cur=CPU_Local->Thd_Cur;
     
     /* See if the scheduler is given the right to pick a thread to run */
-    if(Cap_Thd<RME_CAPID_NULL)
+    if(Cap_Thd<RME_CID_NULL)
     {
         RME_COVERAGE_MARKER();
         
@@ -6245,7 +6250,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
 
         RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Stat), 0U);
-        return RME_ERR_CAP_KOTBL;
+        return RME_ERR_CPT_KOTBL;
     }
     else
     {
@@ -6622,7 +6627,7 @@ rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        return RME_ERR_CAP_FLAG;
+        return RME_ERR_CPT_FLAG;
     }
     else
     {

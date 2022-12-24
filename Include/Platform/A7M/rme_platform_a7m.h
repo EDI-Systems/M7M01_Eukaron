@@ -346,9 +346,9 @@ typedef rme_s32_t rme_ret_t;
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM               (5U)
 /* The initial timer endpoint */
-#define RME_BOOT_INIT_TIMER             (6U)
+#define RME_BOOT_INIT_TIM               (6U)
 /* The initial default endpoint for all other vectors */
-#define RME_BOOT_INIT_VECT              (7U)
+#define RME_BOOT_INIT_VCT               (7U)
 /* Booting capability layout */
 #define RME_A7M_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 
@@ -670,7 +670,7 @@ struct __RME_A7M_MPU_Data
     /* Bitmap showing whether these are static or not */
     rme_ptr_t Static;
     /* The MPU data itself. For ARMv7-M, the number of regions shall not exceed 32 */
-    struct __RME_A7M_MPU_Entry Data[RME_A7M_MPU_REGIONS];
+    struct __RME_A7M_MPU_Entry Data[RME_A7M_REGION_NUM];
 };
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_STRUCTS__ */
@@ -705,6 +705,14 @@ struct __RME_A7M_MPU_Data
 static void __RME_A7M_Set_Flag(rme_ptr_t Base,
                                rme_ptr_t Size,
                                rme_ptr_t Pos);
+#if(RME_RVM_GEN_ENABLE==1U)
+EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
+#endif
+#if(RME_RVM_GEN_ENABLE==1U)
+EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
+                                   rme_ptr_t Cap_Front,
+                                   rme_ptr_t Kom_Front);
+#endif
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,

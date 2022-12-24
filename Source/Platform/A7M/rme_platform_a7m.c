@@ -351,33 +351,30 @@ void __RME_A7M_Set_Flag(rme_ptr_t Base,
 }
 /* End Function:__RME_A7M_Set_Flag *******************************************/
 
-/* Begin Function:__RME_A7M_Vect_Handler **************************************
+/* Begin Function:__RME_A7M_Vct_Handler **************************************
 Description : The generic interrupt handler of RME for ARMv7-M.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-              rme_ptr_t Vect_Num - The vector number. For ARMv7-M, this is in accordance
+              rme_ptr_t Vct_Num - The vector number. For ARMv7-M, this is in accordance
                                    with the ARMv7-M architecture reference manual.
 Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ptr_t RME_Boot_Vect_Handler(rme_ptr_t Vect_Num);
-#endif
-void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
+void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
      * this due to some reason), we skip the flag marshalling & sending process */
-    if(RME_Boot_Vect_Handler(Vect_Num)!=0U)
+    if(RME_Boot_Vct_Handler(Vct_Num)!=0U)
         return;
 #endif
     
-    __RME_A7M_Set_Flag(RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE, Vect_Num);
+    __RME_A7M_Set_Flag(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, Vct_Num);
     
     _RME_Kern_Snd(RME_A7M_Local.Sig_Vect);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A7M_Local);
 }
-/* End Function:__RME_A7M_Vect_Handler ***************************************/
+/* End Function:__RME_A7M_Vct_Handler ***************************************/
 
 /* Begin Function:__RME_A7M_Pgt_Entry_Mod ***********************************
 Description : Consult or modify the page table attributes. ARMv7-M only allows 
@@ -512,7 +509,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     if(Evt_Num>=RME_A7M_MAX_EVTS)
         return RME_ERR_KFN_FAIL;
 
-    __RME_A7M_Set_Flag(RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE, Evt_Num);
+    __RME_A7M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
     
     if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vect)!=0U)
         return RME_ERR_KFN_FAIL;
@@ -1566,9 +1563,6 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ptr_t RME_Boot_Vect_Init(struct RME_Cap_Cpt* Cpt, rme_ptr_t Cap_Front, rme_ptr_t Kom_Front);
-#endif
 rme_ptr_t __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
@@ -1619,16 +1613,16 @@ rme_ptr_t __RME_Boot(void)
                                  RME_KOM_FLAG_ALL)==0U);
     
     /* Create the initial kernel endpoint for timer ticks */
-    RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_TIMER)==0);
+    RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIM]);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_TIM)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_VECT)==0);
+    RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_VCT)==0);
     
     /* Clean up the region for vectors and events */
-    _RME_Clear((void*)RME_RVM_PHYS_VECT_BASE, RME_RVM_PHYS_VECT_SIZE);
-    _RME_Clear((void*)RME_RVM_VIRT_EVENT_BASE, RME_RVM_VIRT_EVENT_SIZE);
+    _RME_Clear((void*)RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE);
+    _RME_Clear((void*)RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE);
     
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_THD,
@@ -1644,14 +1638,14 @@ rme_ptr_t __RME_Boot(void)
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
-    Cur_Addr=RME_Boot_Vect_Init(RME_A7M_CPT, RME_BOOT_INIT_VECT+1U, Cur_Addr);
+    Cur_Addr=RME_Boot_Vct_Init(RME_A7M_CPT, RME_BOOT_INIT_VCT+1U, Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
 #if(RME_RVM_GEN_ENABLE==1U)
-    RME_ASSERT(Cur_Addr==RME_RVM_KOM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr==RME_RVM_KOM_BOOT_FRONT);
 #else
-    RME_ASSERT(Cur_Addr<RME_RVM_KOM_BOOT_FRONTIER);
+    RME_ASSERT(Cur_Addr<RME_RVM_KOM_BOOT_FRONT);
 #endif
 
     /* Enable the MPU & interrupt */
@@ -1688,17 +1682,17 @@ void __RME_A7M_Reboot(void)
 Description : Get the system call parameters from the stack frame.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
-              rme_ptr_t* Capid - The capability ID number.
+              rme_ptr_t* Cid - The capability ID number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
 void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg, 
                              rme_ptr_t* Svc,
-                             rme_ptr_t* Capid,
+                             rme_ptr_t* Cid,
                              rme_ptr_t* Param)
 {
     *Svc=(Reg->R4)>>16;
-    *Capid=(Reg->R4)&0xFFFFU;
+    *Cid=(Reg->R4)&0xFFFFU;
     Param[0U]=Reg->R5;
     Param[1U]=Reg->R6;
     Param[2U]=Reg->R7;
@@ -1954,7 +1948,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     {
         ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0U;
         
-        for(Count=0;Count<RME_A7M_MPU_REGIONS;Count++)
+        for(Count=0;Count<RME_A7M_REGION_NUM;Count++)
         {
             ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
             ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
@@ -2106,7 +2100,7 @@ rme_ptr_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU,
 {
     rme_ptr_t Count;
     
-    for(Count=0;Count<RME_A7M_MPU_REGIONS;Count++)
+    for(Count=0;Count<RME_A7M_REGION_NUM;Count++)
     {
         if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0U)
         {
@@ -2153,16 +2147,16 @@ rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU,
     /* The number of empty slots available */
     rme_ptr_t Empty_Cnt;
     /* The empty slots */
-    rme_u8_t Empty[RME_A7M_MPU_REGIONS];
+    rme_u8_t Empty[RME_A7M_REGION_NUM];
     /* The number of dynamic slots available */
     rme_ptr_t Dynamic_Cnt;
     /* The dynamic slots */
-    rme_u8_t Dynamic[RME_A7M_MPU_REGIONS];
+    rme_u8_t Dynamic[RME_A7M_REGION_NUM];
     
     /* Set these values to some overrange value */
     Empty_Cnt=0U;
     Dynamic_Cnt=0U;
-    for(Count=0U;Count<RME_A7M_MPU_REGIONS;Count++)
+    for(Count=0U;Count<RME_A7M_REGION_NUM;Count++)
     {
         if((Top_MPU->Data[Count].MPU_RASR&RME_A7M_MPU_SZENABLE)!=0U)
         {

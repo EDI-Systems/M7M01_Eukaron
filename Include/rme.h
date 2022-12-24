@@ -13,27 +13,27 @@ Description : The header of the RME RTOS. This header defines the error codes,
 
 /* Errors ********************************************************************/
 /* The base of capability table error */
-#define RME_ERR_CAP                     (0)
+#define RME_ERR_CPT                     (0)
 /* The capability is empty */
-#define RME_ERR_CAP_NULL                ((-1)+RME_ERR_CAP)
+#define RME_ERR_CPT_NULL                ((-1)+RME_ERR_CPT)
 /* The capability type is wrong */
-#define RME_ERR_CAP_TYPE                ((-2)+RME_ERR_CAP)
+#define RME_ERR_CPT_TYPE                ((-2)+RME_ERR_CPT)
 /* The range of the capability is wrong */
-#define RME_ERR_CAP_RANGE               ((-3)+RME_ERR_CAP)
+#define RME_ERR_CPT_RANGE               ((-3)+RME_ERR_CPT)
 /* The kernel object table operation of the capability is wrong */
-#define RME_ERR_CAP_KOTBL               ((-4)+RME_ERR_CAP)
+#define RME_ERR_CPT_KOTBL               ((-4)+RME_ERR_CPT)
 /* The capability number already exists, or not exist, depending on the function */
-#define RME_ERR_CAP_EXIST               ((-5)+RME_ERR_CAP)
+#define RME_ERR_CPT_EXIST               ((-5)+RME_ERR_CPT)
 /* When freezing capabilities, the refcnt is not zero, or when delegating, refcnt overflowed */
-#define RME_ERR_CAP_REFCNT              ((-6)+RME_ERR_CAP)
+#define RME_ERR_CPT_REFCNT              ((-6)+RME_ERR_CPT)
 /* The flags of the fine-grain-controlled capability is not correct */
-#define RME_ERR_CAP_FLAG                ((-7)+RME_ERR_CAP)
+#define RME_ERR_CPT_FLAG                ((-7)+RME_ERR_CPT)
 /* Something involved is not quiescent */
-#define RME_ERR_CAP_QUIE                ((-8)+RME_ERR_CAP)
+#define RME_ERR_CPT_QUIE                ((-8)+RME_ERR_CPT)
 /* Something involved is frozen */
-#define RME_ERR_CAP_FROZEN              ((-9)+RME_ERR_CAP)
+#define RME_ERR_CPT_FROZEN              ((-9)+RME_ERR_CPT)
 /* The capability is a root one and therefore cannot use removal */
-#define RME_ERR_CAP_ROOT                ((-10)+RME_ERR_CAP)
+#define RME_ERR_CPT_ROOT                ((-10)+RME_ERR_CPT)
 
 /* The base of page table errors */
 #define RME_ERR_PGT                     (-100)
