@@ -74,7 +74,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 
 /* This is the special one used for delegation, and used for kernel memory
  * capability only because it is very complicated. Other capabilities will not use this */
-#define RME_PARAM_KM(SVC,CID)                     (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CID))
+#define RME_PARAM_KM(SVC, CID)                      (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CID))
 /* This is the special one used for page table top-level flags */
 #define RME_PARAM_PT(X)                             ((X)&0x01U)
 /* The page table creation extra parameter packed in the svc number */
@@ -87,7 +87,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 do \
 { \
     if(RME_UNLIKELY((RETVAL)<0)) \
-        __RME_Set_Syscall_Retval((REG),(RETVAL)); \
+        __RME_Syscall_Retval_Set((REG),(RETVAL)); \
     \
     return; \
 } \
@@ -101,7 +101,7 @@ while(0)
 /* Debugging */
 #define RME_DEBUG_PRINT_MAX                         (256U)
 /* Printk macros */
-#define RME_DBG_I(INT)                              RME_Int_Print(INT)
+#define RME_DBG_I(INT)                              RME_Int_Print((rvm_cnt_t)(INT))
 #define RME_DBG_U(UINT)                             RME_Hex_Print((rme_ptr_t)(UINT))
 #define RME_DBG_S(STR)                              RME_Str_Print((rme_s8_t*)(STR))
 #else
@@ -525,7 +525,7 @@ while(0)
 
 /* Page Table ****************************************************************/
 /* Driver layer error reporting macro */
-#define RME_ERR_PGT_OPFAIL                          ((rme_ptr_t)(-1))
+#define RME_ERR_PGT_FAIL                            ((rme_ptr_t)(-1))
 
 /* Page table flag arrangement
 * 32-bit systems: Maximum page table size 2^12 = 4096
@@ -581,10 +581,8 @@ while(0)
 #define RME_THD_BLOCKED                             (2U)
 /* The thread just ran out of time */
 #define RME_THD_TIMEOUT                             (3U)
-/* The thread is blocked on the sched rcv endpoint */
-#define RME_THD_SCHED_BLOCKED                       (4U)
 /* The thread is stopped due to an unhandled exception */
-#define RME_THD_EXC_PEND                            (5U)
+#define RME_THD_EXC_PEND                            (4U)
 
 /* Priority level bitmap */
 #define RME_PRIO_WORD_NUM                           (RME_PREEMPT_PRIO_NUM>>RME_WORD_ORDER)
@@ -830,7 +828,7 @@ struct RME_Inv_Struct
     /* The process pointer */
     struct RME_Cap_Prc* Prc;
     /* Is the invocation currently active? If yes, we cannot delete */
-    struct RME_Thd_Struct* Active;
+    struct RME_Thd_Struct* Thd_Act;
     /* The entry and stack of the invocation */
     rme_ptr_t Entry;
     rme_ptr_t Stack;
@@ -855,9 +853,9 @@ struct RME_CPU_Local
     /* The current thread on the CPU */
     volatile struct RME_Thd_Struct* Thd_Cur;
     /* The tick timer signal endpoint */
-    volatile struct RME_Cap_Sig* Sig_Tick;
+    volatile struct RME_Cap_Sig* Sig_Tim;
     /* The vector signal endpoint */
-    volatile struct RME_Cap_Sig* Sig_Vect;
+    volatile struct RME_Cap_Sig* Sig_Vct;
     /* The runqueue and bitmap */
     volatile struct RME_Run_Struct Run;
 };
@@ -1036,7 +1034,7 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
 static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
                               volatile struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Thd,
-                              rme_ptr_t Yield);
+                              rme_ptr_t Is_Yield);
                               
 /* Signal and Invocation *****************************************************/
 /* Signal system calls */
@@ -1112,8 +1110,8 @@ __EXTERN__ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Increase counter */
 __EXTERN__ rme_ptr_t _RME_Timestamp_Inc(rme_cnt_t Value);
 /* Timer interrupt handler */
-__EXTERN__ void _RME_Tick_SMP_Handler(volatile struct RME_Reg_Struct* Reg);
-__EXTERN__ void _RME_Tick_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Tim_SMP_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Memory helpers */
 __EXTERN__ void _RME_Clear(volatile void* Addr,
                            rme_ptr_t Size);

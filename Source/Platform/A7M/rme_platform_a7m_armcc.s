@@ -37,9 +37,9 @@ DUMMY_STACK
 
 ;/* Begin Exports ************************************************************/
     ;Disable all interrupts
-    EXPORT              __RME_Disable_Int
+    EXPORT              __RME_Int_Disable
     ;Enable all interrupts
-    EXPORT              __RME_Enable_Int
+    EXPORT              __RME_Int_Enable
     ;A full barrier
     EXPORT              __RME_A7M_Barrier
     ;Wait until interrupts happen
@@ -47,7 +47,7 @@ DUMMY_STACK
     ;Get the MSB in a word
     EXPORT              __RME_A7M_MSB_Get
     ;Entering of the user mode
-    EXPORT              __RME_Enter_User_Mode
+    EXPORT              __RME_User_Enter
     ;Clear FPU register contents
     EXPORT              ___RME_A7M_Thd_Cop_Clear
     ;The FPU register save routine
@@ -69,11 +69,11 @@ DUMMY_STACK
     ;The system call handler of RME. This will be defined in C language.
     IMPORT              _RME_Svc_Handler
     ;The system tick handler of RME. This will be defined in C language.
-    IMPORT              _RME_Tick_Handler
+    IMPORT              _RME_Tim_Handler
     ;The memory management fault handler of RME. This will be defined in C language.
     IMPORT              __RME_A7M_Exc_Handler
     ;The generic interrupt handler for all other vectors.
-    IMPORT              __RME_A7M_Vect_Handler
+    IMPORT              __RME_A7M_Vct_Handler
 ;/* End Imports **************************************************************/
 
 ;/* Begin Vector Table *******************************************************/
@@ -910,8 +910,8 @@ IRQ239_Handler
     MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
     MRS                 R1, xPSR            ; Pass in the interrupt number
     UBFX                R1, R1, #0, #9      ; Extract the interrupt number bitfield
-    SUB                 R1, #16             ; The IRQ0's starting number is 16. we subtract it here
-    BL                  __RME_A7M_Vect_Handler
+    SUB                 R1, #16             ; The external IRQ0's starting number is 16; subtract it here
+    BL                  __RME_A7M_Vct_Handler
     
     POP                 {R0}
     MSR                 PSP, R0
@@ -922,29 +922,29 @@ IRQ239_Handler
     ENDP
 ;/* End Handlers *************************************************************/
 
-;/* Begin Function:__RME_Disable_Int ******************************************
+;/* Begin Function:__RME_Int_Disable ******************************************
 ;Description : The function for disabling all interrupts.
 ;Input       : None.
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/    
-__RME_Disable_Int
+__RME_Int_Disable
     ;Disable all interrupts (I is primask, F is faultmask.)
     CPSID               I 
     BX                  LR                                                 
-;/* End Function:__RME_Disable_Int *******************************************/
+;/* End Function:__RME_Int_Disable *******************************************/
 
-;/* Begin Function:__RME_Enable_Int *******************************************
+;/* Begin Function:__RME_Int_Enable *******************************************
 ;Description : The function for enabling all interrupts.
 ;Input       : None.
 ;Output      : None.    
 ;Return      : None.
 ;*****************************************************************************/
-__RME_Enable_Int
+__RME_Int_Enable
     ;Enable all interrupts.
     CPSIE               I 
     BX                  LR
-;/* End Function:__RME_Enable_Int ********************************************/
+;/* End Function:__RME_Int_Enable ********************************************/
 
 ;/* Begin Function:__RME_A7M_Barrier ******************************************
 ;Description : A full data/instruction barrier.
@@ -1003,7 +1003,7 @@ __RME_A7M_MSB_Get
     BX                  LR
 ;/* End Function:__RME_A7M_MSB_Get *******************************************/
 
-;/* Begin Function:__RME_Enter_User_Mode **************************************
+;/* Begin Function:__RME_User_Enter *******************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
 ;              booting. The function shall never return. This function should only
 ;              be used to boot the first process in the system.
@@ -1013,7 +1013,7 @@ __RME_A7M_MSB_Get
 ;Output      : None.
 ;Return      : None.
 ;*****************************************************************************/
-__RME_Enter_User_Mode
+__RME_User_Enter
     MSR                 PSP, R1             ; Set the stack pointer
     MOV                 R4, #0x03           ; Unprevileged thread mode
     MSR                 CONTROL, R4
@@ -1021,7 +1021,7 @@ __RME_Enter_User_Mode
     MOV                 R0, R2              ; Save CPUID(always 0) to R0
     BLX                 R1                  ; Branch to our target
     B                   .                   ; Capture faults
-;/* End Function:__RME_Enter_User_Mode ***************************************/
+;/* End Function:__RME_User_Enter ********************************************/
 
 ;/* Begin Function:SysTick_Handler ********************************************
 ;Description : The System Tick Timer handler routine. This will in fact call a
@@ -1037,7 +1037,7 @@ SysTick_Handler
     PUSH                {R0}
     
     MOV                 R0, SP              ; Pass in the pt_regs parameter, and call the handler.
-    BL                  _RME_Tick_Handler
+    BL                  _RME_Tim_Handler
     
     POP                 {R0}
     MSR                 PSP, R0

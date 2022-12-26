@@ -701,18 +701,18 @@ struct __RME_A7M_MPU_Data
 /* End Private Global Variables **********************************************/
 
 /* Private C Function Prototypes *********************************************/
+/* Generator *****************************************************************/
+#if(RME_RVM_GEN_ENABLE==1U)
+EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
+EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
+                                   rme_ptr_t Cap_Front,
+                                   rme_ptr_t Kom_Front);
+EXTERN void RME_Reboot_Failsafe(void);
+#endif
 /* Vector Flags **************************************************************/
 static void __RME_A7M_Set_Flag(rme_ptr_t Base,
                                rme_ptr_t Size,
                                rme_ptr_t Pos);
-#if(RME_RVM_GEN_ENABLE==1U)
-EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
-#endif
-#if(RME_RVM_GEN_ENABLE==1U)
-EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
-                                   rme_ptr_t Cap_Front,
-                                   rme_ptr_t Kom_Front);
-#endif
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,
@@ -797,8 +797,8 @@ __EXTERN__ volatile struct RME_CPU_Local RME_A7M_Local;
 /* Public C Function Prototypes **********************************************/
 /* Generic *******************************************************************/
 /* Interrupts */
-EXTERN void __RME_Disable_Int(void);
-EXTERN void __RME_Enable_Int(void);
+EXTERN void __RME_Int_Disable(void);
+EXTERN void __RME_Int_Enable(void);
 EXTERN void __RME_A7M_Barrier(void);
 EXTERN void __RME_A7M_Wait_Int(void);
 /* MSB counting */
@@ -822,8 +822,8 @@ __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 /* Fault handler */
 __EXTERN__ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg,
-                                       rme_ptr_t Vect_Num);
+__EXTERN__ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg,
+                                      rme_ptr_t Vect_Num);
 /* Kernel function handler */
 __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        volatile struct RME_Reg_Struct* Reg,
@@ -841,9 +841,9 @@ __EXTERN__ void __RME_A7M_Reboot(void);
 __EXTERN__ void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
                                             rme_ptr_t Prio);
 __EXTERN__ void __RME_A7M_Cache_Init(void);
-EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr,
-                                  rme_ptr_t Stack_Addr,
-                                  rme_ptr_t CPUID);
+EXTERN void __RME_User_Enter(rme_ptr_t Entry,
+                             rme_ptr_t Stack,
+                             rme_ptr_t CPUID);
 
 /* Register Manipulation *****************************************************/
 /* Coprocessor */
@@ -851,11 +851,11 @@ EXTERN void ___RME_A7M_Thd_Cop_Clear(void);
 EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_Cop_Struct* Cop);
 EXTERN void ___RME_A7M_Thd_Cop_Load(volatile struct RME_Cop_Struct* Cop);
 /* Syscall parameter */
-__EXTERN__ void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Syscall_Param_Get(volatile struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Svc,
                                         rme_ptr_t* Capid,
                                         rme_ptr_t* Param);
-__EXTERN__ void __RME_Set_Syscall_Retval(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Syscall_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
 /* Thread register sets */
 __EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry,
@@ -875,7 +875,7 @@ __EXTERN__ void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
                                    volatile struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
                                       volatile struct RME_Iret_Struct* Ret);
-__EXTERN__ void __RME_Set_Inv_Retval(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                                      rme_ret_t Retval);
 
 /* Page Table ****************************************************************/

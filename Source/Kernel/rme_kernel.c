@@ -180,7 +180,7 @@ Return      : rme_ret_t - This function never returns.
 rme_ret_t RME_Kmain(void)
 {
     /* Disable all interrupts first */
-    __RME_Disable_Int();
+    __RME_Int_Disable();
     /* Some low-level checks to make sure the correctness of the core */
     __RME_Low_Level_Check();
     /* Hardware low-level init */
@@ -268,7 +268,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     struct RME_Cap_Cpt* Cpt;
 
     /* Get the system call parameters from the system call */
-    __RME_Get_Syscall_Param(Reg, &Svc, &Cid, Param);
+    __RME_Syscall_Param_Get(Reg, &Svc, &Cid, Param);
     Svc_Num=Svc&0x3FU;
     
     /* Fast path - synchronous invocation returning */
@@ -713,7 +713,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     }
     
     /* We set the registers and return */
-    __RME_Set_Syscall_Retval(Reg, Retval);
+    __RME_Syscall_Retval_Set(Reg, Retval);
 }
 /* End Function:_RME_Svc_Handler *********************************************/
 
@@ -731,14 +731,14 @@ rme_ptr_t _RME_Timestamp_Inc(rme_cnt_t Value)
 }
 /* End Function:_RME_Timestamp_Inc *******************************************/
 
-/* Begin Function:_RME_Tick_SMP_Handler ***************************************
+/* Begin Function:_RME_Tim_SMP_Handler ****************************************
 Description : The system tick timer handler of RME, on all processors except for
               the main processor.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
-void _RME_Tick_SMP_Handler(volatile struct RME_Reg_Struct* Reg)
+void _RME_Tim_SMP_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     volatile struct RME_CPU_Local* CPU_Local;
     volatile struct RME_Thd_Struct* Thd_Cur;
@@ -773,28 +773,28 @@ void _RME_Tick_SMP_Handler(volatile struct RME_Reg_Struct* Reg)
         RME_COVERAGE_MARKER();
     }
 
-    /* Send to the system ticker receive endpoint. This endpoint is per-core */
-    _RME_Kern_Snd(CPU_Local->Sig_Tick);
+    /* Send to the system tick timer endpoint. This endpoint is per-core */
+    _RME_Kern_Snd(CPU_Local->Sig_Tim);
 
     /* All kernel send complete, now pick the highest priority thread to run */
     _RME_Kern_High(Reg, CPU_Local);
 }
-/* End Function:_RME_Tick_SMP_Handler ****************************************/
+/* End Function:_RME_Tim_SMP_Handler *****************************************/
 
-/* Begin Function:_RME_Tick_Handler *******************************************
+/* Begin Function:_RME_Tim_Handler ********************************************
 Description : The system tick timer handler of RME.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
-void _RME_Tick_Handler(volatile struct RME_Reg_Struct* Reg)
+void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     /* Increase the tick count */
     RME_Timestamp++;
     /* Call generic handler */
-    _RME_Tick_SMP_Handler(Reg);
+    _RME_Tim_SMP_Handler(Reg);
 }
-/* End Function:_RME_Tick_Handler ********************************************/
+/* End Function:_RME_Tim_Handler *********************************************/
 
 /* Begin Function:_RME_Clear **************************************************
 Description : Memset a memory area to zero. This is not fast due to byte operations;
@@ -3362,8 +3362,8 @@ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* CPU_Local,
     
     CPU_Local->CPUID=CPUID;
     CPU_Local->Thd_Cur=0U;
-    CPU_Local->Sig_Vect=0U;
-    CPU_Local->Sig_Tick=0U;
+    CPU_Local->Sig_Vct=0U;
+    CPU_Local->Sig_Tim=0U;
     
     /* Initialize the run-queue and bitmap */
     for(Prio_Cnt=0U;Prio_Cnt<RME_PREEMPT_PRIO_NUM;Prio_Cnt++)
@@ -4303,7 +4303,7 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
     {
         Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
         __RME_List_Del(Inv_Struct->Head.Prev, Inv_Struct->Head.Next);
-        Inv_Struct->Active=0U;
+        Inv_Struct->Thd_Act=0U;
     }
     
     /* Dereference the process */
@@ -4775,7 +4775,7 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
     
     /* Now save the system call return value to the caller stack. We're now sure that all
      * the context switches may be performed without ano possibility of a failure. */
-    __RME_Set_Syscall_Retval(Reg, 0);
+    __RME_Syscall_Retval_Set(Reg, 0);
     
     /* Do the scheduling for each thread, and we'll switch to the real winner after all
      * these scheduling. This can help remove the excessive overhead. */
@@ -4909,7 +4909,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Now save the system call return value to the caller stack */
-    __RME_Set_Syscall_Retval(Reg, 0);  
+    __RME_Syscall_Retval_Set(Reg, 0);  
     
     /* If the thread is running, or ready to run, kick it out of the run queue.
      * If it is blocked on some endpoint, end the blocking and set the return
@@ -4937,7 +4937,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
         
         /* If it got here, the thread that is operated on cannot be the current thread, so
          * we are not overwriting the return value of the caller thread */
-        __RME_Set_Syscall_Retval(&(Thd_Struct->Reg_Cur->Reg), RME_ERR_SIV_FREE);
+        __RME_Syscall_Retval_Set(&(Thd_Struct->Reg_Cur->Reg), RME_ERR_SIV_FREE);
         Thd_Struct->Sched.Signal->Thd=RME_NULL;
         Thd_Struct->Sched.Signal=RME_NULL;
         Thd_Struct->Sched.State=RME_THD_TIMEOUT;
@@ -5335,7 +5335,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Now save the system call return value to the caller stack - how much time the destination have now */
-    __RME_Set_Syscall_Retval(Reg, (rme_ret_t)(Thd_Dst->Sched.Slice));
+    __RME_Syscall_Retval_Set(Reg, (rme_ret_t)(Thd_Dst->Sched.Slice));
 
     /* See what was the state of the destination thread. If it is timeout, then
      * activate it. If it is other state, then leave it alone */
@@ -5373,18 +5373,18 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
                                   the kernel will pickup whatever thread that
                                   has the highest priority and time to run. 
                                   2-Level. 
-              rme_ptr_t Full_Yield - This is a flag to indicate whether this
-                                     is a full yield. If it is, the kernel will
-                                     discard all the time alloted on this
-                                     thread. This only works for threads that
-                                     have a finite budget.
+              rme_ptr_t Is_Yield - This is a flag to indicate whether this
+                                   is a full yield. If it is, the kernel will
+                                   discard all the time alloted on this
+                                   thread. This only works for threads that
+                                   have a finite budget.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
                        volatile struct RME_Reg_Struct* Reg,
                        rme_cid_t Cap_Thd,
-                       rme_ptr_t Full_Yield)
+                       rme_ptr_t Is_Yield)
 {
     struct RME_Cap_Thd* Thd_Cap_New;
     volatile struct RME_Thd_Struct* Thd_New;
@@ -5454,7 +5454,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         }
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
+        if((Is_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
@@ -5492,7 +5492,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
         
         /* See if we need to give up all our timeslices in this yield */
-        if((Full_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
+        if((Is_Yield!=0U)&&(Thd_Cur->Sched.Slice<RME_THD_INF_TIME))
         {
             RME_COVERAGE_MARKER();
             
@@ -5517,7 +5517,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Now that we are successful, save the system call return value to the caller stack */
-    __RME_Set_Syscall_Retval(Reg, 0);
+    __RME_Syscall_Retval_Set(Reg, 0);
 
     /* Set the new thread's state first */
     Thd_New->Sched.State=RME_THD_RUNNING;
@@ -5814,7 +5814,7 @@ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Cap_Sig)
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this */
-        __RME_Set_Syscall_Retval(&(Thd_Sig->Reg_Cur->Reg), 1);
+        __RME_Syscall_Retval_Set(&(Thd_Sig->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
         if(Thd_Sig->Sched.Slice!=0U)
         {
@@ -5929,12 +5929,12 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
 
         /* Now save the system call return value to the caller stack */
-        __RME_Set_Syscall_Retval(Reg, 0);
+        __RME_Syscall_Retval_Set(Reg, 0);
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this */
-        __RME_Set_Syscall_Retval(&(Thd_Rcv->Reg_Cur->Reg), 1);
+        __RME_Syscall_Retval_Set(&(Thd_Rcv->Reg_Cur->Reg), 1);
         /* See if the thread still have time left */
         if(Thd_Rcv->Sched.Slice!=0U)
         {
@@ -5990,7 +5990,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         }
         
         /* Now save the system call return value to the caller stack */
-        __RME_Set_Syscall_Retval(Reg, 0);
+        __RME_Syscall_Retval_Set(Reg, 0);
     }
 
     return 0;
@@ -6129,7 +6129,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
             }
             
             /* We have taken it, now return what we have taken */
-            __RME_Set_Syscall_Retval(Reg, 1);
+            __RME_Syscall_Retval_Set(Reg, 1);
         }
         else
         {
@@ -6148,7 +6148,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
             }
             
             /* We have taken all, now return what we have taken */
-            __RME_Set_Syscall_Retval(Reg, (rme_ret_t)Old_Value);
+            __RME_Syscall_Retval_Set(Reg, (rme_ret_t)Old_Value);
         }
         
         return 0;
@@ -6190,7 +6190,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
             RME_COVERAGE_MARKER();
 
             /* We have taken nothing but the system call is successful anyway */
-            __RME_Set_Syscall_Retval(Reg, 0);
+            __RME_Syscall_Retval_Set(Reg, 0);
         }
     }
     
@@ -6260,7 +6260,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
     /* Object init */
     Inv_Struct=(struct RME_Inv_Struct*)Vaddr;
     Inv_Struct->Prc=RME_CAP_CONV_ROOT(Prc_Op, struct RME_Cap_Prc*);
-    Inv_Struct->Active=0U;
+    Inv_Struct->Thd_Act=RME_NULL;
     /* By default we do not return on exception */
     Inv_Struct->Is_Exc_Ret=0U;
     
@@ -6315,7 +6315,7 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
     Inv_Struct=RME_CAP_GETOBJ(Inv_Del, struct RME_Inv_Struct*);
     
     /* See if the invocation is currently being used. If yes, we cannot delete it */
-    if(Inv_Struct->Active!=0U)
+    if(Inv_Struct->Thd_Act!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -6398,7 +6398,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Inv* Inv_Op;
     volatile struct RME_Inv_Struct* Inv_Struct;
     volatile struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_Thd_Struct* Active;
+    volatile struct RME_Thd_Struct* Thd_Act;
     rme_ptr_t Type_Stat;
 
     /* Get the capability slot */
@@ -6409,8 +6409,8 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     /* Get the invocation struct */
     Inv_Struct=RME_CAP_GETOBJ(Inv_Op, volatile struct RME_Inv_Struct*);
     /* See if we are currently active - If yes, we can't activate it again */
-    Active=Inv_Struct->Active;
-    if(RME_UNLIKELY(Active!=0U))
+    Thd_Act=Inv_Struct->Thd_Act;
+    if(RME_UNLIKELY(Thd_Act!=0U))
     {
         RME_COVERAGE_MARKER();
 
@@ -6424,8 +6424,8 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     /* Push this invocation stub capability into the current thread's invocation stack */
     Thd_Struct=RME_CPU_LOCAL()->Thd_Cur;
     /* Try to do CAS and activate it */
-    if(RME_UNLIKELY(RME_COMP_SWAP((volatile rme_ptr_t*)&(Inv_Struct->Active),
-                                  (rme_ptr_t)Active, (rme_ptr_t)Thd_Struct)==RME_CASFAIL))
+    if(RME_UNLIKELY(RME_COMP_SWAP((volatile rme_ptr_t*)&(Inv_Struct->Thd_Act),
+                                  (rme_ptr_t)Thd_Act, (rme_ptr_t)Thd_Struct)==RME_CASFAIL))
     {
         RME_COVERAGE_MARKER();
 
@@ -6503,24 +6503,24 @@ rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
     /* Restore the register contents, and set return value. We need to set
      * the return value of the invocation system call itself as well */
     __RME_Inv_Reg_Restore(Reg, &(Inv_Struct->Ret));
-    __RME_Set_Inv_Retval(Reg, (rme_ret_t)Retval);
+    __RME_Inv_Retval_Set(Reg, (rme_ret_t)Retval);
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */
-    RME_WRITE_RELEASE(&(Inv_Struct->Active), 0U);
+    RME_WRITE_RELEASE(&(Inv_Struct->Thd_Act), 0U);
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Is_Exc!=0U))
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Set_Syscall_Retval(Reg, RME_ERR_SIV_FAULT);
+        __RME_Syscall_Retval_Set(Reg, RME_ERR_SIV_FAULT);
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        __RME_Set_Syscall_Retval(Reg, 0);
+        __RME_Syscall_Retval_Set(Reg, 0);
     }
 
     /* Same assumptions as in invocation activation */

@@ -351,7 +351,7 @@ void __RME_A7M_Set_Flag(rme_ptr_t Base,
 }
 /* End Function:__RME_A7M_Set_Flag *******************************************/
 
-/* Begin Function:__RME_A7M_Vct_Handler **************************************
+/* Begin Function:__RME_A7M_Vct_Handler ***************************************
 Description : The generic interrupt handler of RME for ARMv7-M.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Vct_Num - The vector number. For ARMv7-M, this is in accordance
@@ -359,7 +359,7 @@ Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
+void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
     /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
@@ -370,13 +370,13 @@ void __RME_A7M_Vect_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_N
     
     __RME_A7M_Set_Flag(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, Vct_Num);
     
-    _RME_Kern_Snd(RME_A7M_Local.Sig_Vect);
+    _RME_Kern_Snd(RME_A7M_Local.Sig_Vct);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A7M_Local);
 }
-/* End Function:__RME_A7M_Vct_Handler ***************************************/
+/* End Function:__RME_A7M_Vct_Handler ****************************************/
 
-/* Begin Function:__RME_A7M_Pgt_Entry_Mod ***********************************
+/* Begin Function:__RME_A7M_Pgt_Entry_Mod *************************************
 Description : Consult or modify the page table attributes. ARMv7-M only allows 
               consulting page table attributes but does not allow modifying them,
               because there are no architecture-specific flags.
@@ -388,9 +388,9 @@ Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
-                                    rme_cid_t Cap_Pgt,
-                                    rme_ptr_t Vaddr,
-                                    rme_ptr_t Type)
+                                  rme_cid_t Cap_Pgt,
+                                  rme_ptr_t Vaddr,
+                                  rme_ptr_t Type)
 {
     struct RME_Cap_Pgt* Pgt_Op;
     rme_ptr_t Type_Stat;
@@ -414,7 +414,7 @@ rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     
     return RME_ERR_KFN_FAIL;
 }
-/* End Function:__RME_A7M_Pgt_Entry_Mod ************************************/
+/* End Function:__RME_A7M_Pgt_Entry_Mod **************************************/
 
 /* Begin Function:__RME_A7M_Int_Local_Mod *************************************
 Description : Consult or modify the local interrupt controller's vector state.
@@ -511,11 +511,11 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
 
     __RME_A7M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
     
-    if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vect)!=0U)
+    if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vct)!=0U)
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
-    __RME_Set_Syscall_Retval(Reg, 0);
+    __RME_Syscall_Retval_Set(Reg, 0);
     
     _RME_Kern_High(Reg, &RME_A7M_Local);
 
@@ -646,7 +646,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                     return 0U;
                 
                 /* Stop new allocations to D-cache NOW (by disabling interrupts) */
-                __RME_Disable_Int();
+                __RME_Int_Disable();
                 RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_DC;
                 __RME_A7M_Barrier();
                 
@@ -665,7 +665,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 }
                 
                 /* Reenable interrupts */
-                __RME_Enable_Int();
+                __RME_Int_Enable();
                 return 0U;
             }
             else
@@ -1392,7 +1392,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 
     /* If it gets here, we must have failed */
     if(Retval>=0)
-        __RME_Set_Syscall_Retval(Reg,0);
+        __RME_Syscall_Retval_Set(Reg,0);
             
     return Retval;
 }
@@ -1613,11 +1613,11 @@ rme_ptr_t __RME_Boot(void)
                                  RME_KOM_FLAG_ALL)==0U);
     
     /* Create the initial kernel endpoint for timer ticks */
-    RME_A7M_Local.Sig_Tick=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIM]);
+    RME_A7M_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIM]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_TIM)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_A7M_Local.Sig_Vect=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
+    RME_A7M_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_VCT)==0);
     
     /* Clean up the region for vectors and events */
@@ -1650,10 +1650,10 @@ rme_ptr_t __RME_Boot(void)
 
     /* Enable the MPU & interrupt */
     __RME_Pgt_Set(RME_CAP_GETOBJ((RME_A7M_Local.Thd_Cur)->Sched.Prc->Pgt,rme_ptr_t));
-    __RME_Enable_Int();
+    __RME_Int_Enable();
     
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0U);
+    __RME_User_Enter(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0U);
     
     /* Dummy return, never reaches here */
     return 0;
@@ -1669,7 +1669,6 @@ Return      : None.
 void __RME_A7M_Reboot(void)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
-    extern void RME_Reboot_Failsafe(void);
     RME_Reboot_Failsafe();
 #endif
 
@@ -1678,7 +1677,7 @@ void __RME_A7M_Reboot(void)
 }
 /* End Function:__RME_A7M_Reboot *********************************************/
 
-/* Begin Function:__RME_Get_Syscall_Param *************************************
+/* Begin Function:__RME_Syscall_Param_Get *************************************
 Description : Get the system call parameters from the stack frame.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
@@ -1686,7 +1685,7 @@ Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
-void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg, 
+void __RME_Syscall_Param_Get(volatile struct RME_Reg_Struct* Reg, 
                              rme_ptr_t* Svc,
                              rme_ptr_t* Cid,
                              rme_ptr_t* Param)
@@ -1697,9 +1696,9 @@ void __RME_Get_Syscall_Param(volatile struct RME_Reg_Struct* Reg,
     Param[1U]=Reg->R6;
     Param[2U]=Reg->R7;
 }
-/* End Function:__RME_Get_Syscall_Param **************************************/
+/* End Function:__RME_Syscall_Param_Get **************************************/
 
-/* Begin Function:__RME_Set_Syscall_Retval ************************************
+/* Begin Function:__RME_Syscall_Retval_Set ************************************
 Description : Set the system call return value to the stack frame. This function 
               may carry up to 4 return values. If the last 3 is not needed, just set
               them to zero.
@@ -1707,12 +1706,12 @@ Input       : rme_ret_t Retval - The return value.
 Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Set_Syscall_Retval(volatile struct RME_Reg_Struct* Reg,
+void __RME_Syscall_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                               rme_ret_t Retval)
 {
     Reg->R4=(rme_ptr_t)Retval;
 }
-/* End Function:__RME_Set_Syscall_Retval *************************************/
+/* End Function:__RME_Syscall_Retval_Set *************************************/
 
 /* Begin Function:__RME_Thd_Reg_Init ******************************************
 Description : Initialize the register set for the thread.
@@ -1811,7 +1810,10 @@ void __RME_Thd_Cop_Swap(volatile struct RME_Reg_Struct* Reg_New,
 #if(RME_A7M_FPU_TYPE!=RME_A7M_FPU_NONE)
     if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
     {
-        /* If both are not using the FPU, then no need to care about FPU context */
+        /* If both are not using the FPU, then no need to care about FPU context. In 
+         * Cortex-M, if the FPU is even touched once in a user thread, its FPCA will be 1,
+         * and the LR will be tainted with it, even if it does not use FPU later. So there
+         * is no chance that a thread can use FPU for some time turning it off later. */
         if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
         {
             /* Do nothing */
@@ -1871,25 +1873,25 @@ void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
 
-/* Begin Function:__RME_Set_Inv_Retval ****************************************
+/* Begin Function:__RME_Inv_Retval_Set ****************************************
 Description : Set the invocation return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
 Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Set_Inv_Retval(volatile struct RME_Reg_Struct* Reg,
+void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                           rme_ret_t Retval)
 {
     Reg->R5=(rme_ptr_t)Retval;
 }
-/* End Function:__RME_Set_Inv_Retval *****************************************/
+/* End Function:__RME_Inv_Retval_Set *****************************************/
 
 /* Begin Function:__RME_Pgt_Kom_Init ***************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. In Cortex-M, we do not need to add such pages.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
@@ -1925,7 +1927,7 @@ rme_ptr_t __RME_A7M_Rand(void)
 Description : Initialize the page table data structure, according to the capability.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
@@ -1975,7 +1977,7 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Is_Top, 
@@ -1984,13 +1986,13 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Vaddr)
 {
     if(Num_Order>RME_PGT_NUM_256)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     if(Size_Order<RME_PGT_SIZE_32B)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     if(Size_Order>RME_PGT_SIZE_4G)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     if((Vaddr&0x03U)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     return 0U;
 }
@@ -2000,17 +2002,17 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 Description : Check if the page table can be deleted.
 Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     /* Check if we are standalone */
     if(((RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Check if we still have a top-level */
     if(RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Toplevel!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
 
     return 0;
 }
@@ -2199,12 +2201,12 @@ rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU,
     if(Static!=0U)
     {
         if((Empty_Cnt+Dynamic_Cnt)<3U)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
     }
     else
     {
         if((Empty_Cnt+Dynamic_Cnt)==0U)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
     }
     
     /* We may map in using an empty slot */
@@ -2232,7 +2234,7 @@ Description : Update the top-level MPU metadata for this level of page table.
 Input       : volatile struct __RME_A7M_Pgt_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
                                   rme_ptr_t Op_Flag)
@@ -2243,7 +2245,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
     
     /* Is it possible for MPU to represent this? */
     if(RME_A7M_PGT_NUMORD(Meta->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Get the tables */
     if(Meta->Toplevel!=0U)
@@ -2259,7 +2261,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
         Table=RME_A7M_PGT_TBL_TOP((volatile rme_ptr_t*)Meta);
     }
     else
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     if(Op_Flag==RME_A7M_MPU_CLR)
     {
@@ -2291,7 +2293,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
                                     RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
                                     RME_A7M_PGT_NUMORD(Meta->Size_Num_Order),
                                     MPU_RASR,Meta->Page_Flag&RME_PGT_STATIC)!=0U)
-                return RME_ERR_PGT_OPFAIL;
+                return RME_ERR_PGT_FAIL;
         }
     }
     
@@ -2329,7 +2331,7 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
               rme_ptr_t Flag - The RME standard page attributes. Need to translate them into 
                                 architecture specific page table's settings.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Paddr,
@@ -2341,12 +2343,12 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* It should at least be readable */
     if((Flag&RME_PGT_READ)==0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
         
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Get the metadata */
     Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*);
@@ -2359,7 +2361,7 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if we are trying to make duplicate mappings into the same location */
     if((Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
      * subregions shall share the same flags in Cortex-M */
@@ -2368,7 +2370,7 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     else
     {
         if(Meta->Page_Flag!=Flag)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
     }
 
     /* Register into the page table */
@@ -2381,11 +2383,11 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
         if((Flag&RME_PGT_STATIC)!=0U)
         {
             /* Mapping static pages, update the MPU representation */
-            if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+            if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_FAIL)
             {
                 /* MPU update failed. Revert operations */
                 Table[Pos]=0U;
-                return RME_ERR_PGT_OPFAIL;
+                return RME_ERR_PGT_FAIL;
             }
         }
     }
@@ -2401,7 +2403,7 @@ Description : Unmap a page from the page table.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                  rme_ptr_t Pos)
@@ -2413,7 +2415,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Get the metadata */
     Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*);
@@ -2427,7 +2429,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
     if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0)||((Table[Pos]&RME_A7M_PGT_TERMINAL)==0U))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
 
     Temp=Table[Pos];
     Table[Pos]=0U;
@@ -2435,11 +2437,11 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
-        if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_FAIL)
         {
             /* Revert operations */
             Table[Pos]=Temp;
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
         }
     }
     /* Modify count */
@@ -2458,7 +2460,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
               rme_ptr_t Flag - This have no effect for MPU-based architectures
                                (because page table addresses use up the whole word).
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos, 
@@ -2473,7 +2475,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
      * constructions. In Cortex-M, we only allow the designated top-level to be
      * the actual top-level. */
     if(((Pgt_Child->Base)&RME_PGT_TOP)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Get the metadata */
     Parent_Meta=RME_CAP_GETOBJ(Pgt_Parent,struct __RME_A7M_Pgt_Meta*);
@@ -2481,11 +2483,11 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     
     /* The parent table must have or be a top-directory */
     if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base)&RME_PGT_TOP)==0U))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Check if the child already mapped somewhere, or have grandchild directories */
     if(((Child_Meta->Toplevel)!=0U)||(RME_A7M_PGT_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Where is the entry slot? */
     if(((Parent_Meta->Base)&RME_PGT_TOP)!=0U)
@@ -2495,7 +2497,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     
     /* Check if anything already mapped in */
     if((Parent_Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* The address must be aligned to a word */
     Parent_Table[Pos]=RME_A7M_PGT_PRESENT|RME_A7M_PGT_PGD_ADDR((rme_ptr_t)Child_Meta);
@@ -2514,13 +2516,13 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     if((RME_A7M_PGT_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
        (((Child_Meta->Page_Flag)&RME_PGT_STATIC)!=0U))
     {
-        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_PGT_FAIL)
         {
             /* Mapping failed. Revert operations */
             Parent_Table[Pos]=0U;
             Child_Meta->Toplevel=0U;
             RME_A7M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
         }
     }
 
@@ -2534,7 +2536,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
               rme_ptr_t Pos - The position in the page table.
               struct RME_Cap_Pgt* Pgt_Child - The child page table to unmap.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos, 
@@ -2555,22 +2557,22 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
 
     /* Check if we try to remove something nonexistent, or a page */
     if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)||((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* See if the child page table is actually mapped there */
     Child_Meta=(struct __RME_A7M_Pgt_Meta*)RME_A7M_PGT_PGD_ADDR(Table[Pos]);
     if(Child_Meta!=RME_CAP_GETOBJ(Pgt_Child,struct __RME_A7M_Pgt_Meta*))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
 
     /* Check if the directory still have child directories */
     if(RME_A7M_PGT_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
     if(RME_A7M_PGT_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
     {
-        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
-            return RME_ERR_PGT_OPFAIL;
+        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_FAIL)
+            return RME_ERR_PGT_FAIL;
     }
 
     Table[Pos]=0U;
@@ -2587,7 +2589,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
 Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flag - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Pos,
@@ -2598,7 +2600,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if the position is within the range of this page table */
     if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Check if this is the top-level page table. Get the table */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
@@ -2609,7 +2611,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
     /* Start lookup */
     if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)||
        ((Table[Pos]&RME_A7M_PGT_TERMINAL)==0U))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* This is a page. Return the physical address and flags */
     if(Paddr!=0)
@@ -2635,7 +2637,7 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Size_Order - The size order of the page.
               rme_ptr_t* Num_Order - The entry order of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                          rme_ptr_t Vaddr,
@@ -2652,7 +2654,7 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if this is the top-level page table */
     if(((Pgt_Op->Base)&RME_PGT_TOP)==0U)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_PGT_FAIL;
     
     /* Get the table and start lookup */
     Meta=RME_CAP_GETOBJ(Pgt_Op, struct __RME_A7M_Pgt_Meta*);
@@ -2663,15 +2665,15 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     {
         /* Check if the virtual address is in our range */
         if(Vaddr<RME_A7M_PGT_START(Meta->Base))
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
         /* Calculate where is the entry */
         Pos=(Vaddr-RME_A7M_PGT_START(Meta->Base))>>RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order);
         /* See if the entry is overrange */
         if((Pos>>RME_A7M_PGT_NUMORD(Meta->Size_Num_Order))!=0U)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
         if((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_PGT_FAIL;
         if((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U)
         {
             /* This is a page - we found it */
