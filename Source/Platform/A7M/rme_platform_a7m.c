@@ -46,8 +46,8 @@ states that the
 /* End Includes **************************************************************/
 
 /* Begin Function:main ********************************************************
-Description : The entry of the operating system. This function is for compatibility
-              with the existing toolchains.
+Description : The entry of the operating system. This function is for 
+              compatibility with the existing toolchains.
 Input       : None.
 Output      : None.
 Return      : int - Dummy value, this function never returns.
@@ -61,9 +61,10 @@ int main(void)
 /* End Function:main *********************************************************/
 
 /* Begin Function:__RME_A7M_Comp_Swap *****************************************
-Description : The compare-and-swap atomic instruction. If the Old value is equal to
-              *Ptr, then set the *Ptr as New and return 1; else return 0.
-              On Cortex-M there is only one core. There's basically no need to do
+Description : The compare-and-swap atomic instruction. If the Old value is
+              equal to *Ptr, then set the *Ptr as New and return 1; else return
+              0.
+              On Cortex-M there is only one core. There's no need to do
               anything special, and because we are already in kernel, relevant
               interrupts are already masked by default.
 Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
@@ -302,12 +303,14 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
      * thread. This compromises integrity and availability of other threads. Still, even if they go
      * unhandled, these faults may still comsume the timeslices of other threads (because they do happen
      * in other threads' context), and may lead to slight service quality degredation. This is an inherent
-     * issue in the Cortex-M architecture and we will never be able to address this perfectly. */  
+     * issue in the ARMv7-M architecture and we will never be able to address this perfectly. */  
     else
     {
         /* Additional remarks: the LSPERR, STKERR, MLSPERR and MSTKERR will soon develop into larger
          * other faults that can be handled because the stacks are corrupted. Thus, they are less harmful.
-         * The IMPRECISERR either go undetected (the bus data fault may be transient), or keeps spinning. */
+         * The IMPRECISERR either go undetected (the bus data fault may be transient), or keeps spinning.
+         * In the future, consider clearing the pending status of SVC in SHCSR as well, so we may handle
+         * some stacking errors with correct attribution */
         /* RME_A7M_BFSR_LSPERR - Bus FP lazy stacking errors */
         /* RME_A7M_BFSR_STKERR - Bus stacking errors */
         /* RME_A7M_BFSR_IMPRECISERR - Imprecise bus data errors */
@@ -428,7 +431,7 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
-    if(Int_Num>=RME_A7M_VECT_NUM)
+    if(Int_Num>=RME_A7M_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     switch(Operation)
@@ -481,7 +484,7 @@ rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Int_Num>=RME_A7M_VECT_NUM)
+    if(Int_Num>=RME_A7M_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     /* Trigger the interrupt */
@@ -506,7 +509,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Evt_Num>=RME_A7M_MAX_EVTS)
+    if(Evt_Num>=RME_A7M_EVT_MAX)
         return RME_ERR_KFN_FAIL;
 
     __RME_A7M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
@@ -1430,6 +1433,8 @@ void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
                                  rme_ptr_t Prio)
 {
     RME_ASSERT(Exc<0);
+
+    /* Consider 2's complement here, and SHPR1 logically starts from handler #4 */
     RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0x0FU)-4U)=(rme_u8_t)Prio;
 }
 /* End Function:__RME_A7M_NVIC_Set_Exc_Prio **********************************/
@@ -1491,10 +1496,11 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_A7M_LOW_LEVEL_INIT();
     
     /* Check the number of interrupt lines */
-    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_A7M_VECT_NUM);
-    RME_ASSERT(RME_A7M_VECT_NUM<=240U);
+    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_A7M_VCT_NUM);
+    RME_ASSERT(RME_A7M_VCT_NUM<=240U);
 
     /* Enable the MPU */
+    RME_ASSERT(RME_A7M_REGION_NUM<=16U);
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
     RME_A7M_SCB_SHCSR&=~RME_A7M_SCB_SHCSR_MEMFAULTENA;
     RME_A7M_MPU_CTRL=RME_A7M_MPU_CTRL_PRIVDEF|RME_A7M_MPU_CTRL_ENABLE;
@@ -2312,10 +2318,42 @@ void __RME_Pgt_Set(rme_ptr_t Pgt)
     struct __RME_A7M_MPU_Data* MPU_Data;
     
     MPU_Data=(struct __RME_A7M_MPU_Data*)(Pgt+sizeof(struct __RME_A7M_Pgt_Meta));
-    /* Get the physical address of the page table - here we do not need any conversion,
-     * because VA = PA as always. We just need to extract the MPU metadata part
-     * and pass it down */
+    /* Get the physical address of the page table - here we do not need any 
+     * conversion, because VA = PA as always. We just need to extract the MPU
+     * metadata part and pass it down */
+#if(RME_A7M_REGION_NUM==1U)
     ___RME_A7M_MPU_Set((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==2U)
+    ___RME_A7M_MPU_Set2((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==3U)
+    ___RME_A7M_MPU_Set3((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==4U)
+    ___RME_A7M_MPU_Set4((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==5U)
+    ___RME_A7M_MPU_Set5((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==6U)
+    ___RME_A7M_MPU_Set6((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==7U)
+    ___RME_A7M_MPU_Set7((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==8U)
+    ___RME_A7M_MPU_Set8((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==9U)
+    ___RME_A7M_MPU_Set9((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==10U)
+    ___RME_A7M_MPU_Set10((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==11U)
+    ___RME_A7M_MPU_Set11((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==12U)
+    ___RME_A7M_MPU_Set12((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==13U)
+    ___RME_A7M_MPU_Set13((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==14U)
+    ___RME_A7M_MPU_Set14((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==15U)
+    ___RME_A7M_MPU_Set15((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#elif(RME_A7M_REGION_NUM==16U)
+    ___RME_A7M_MPU_Set16((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+#endif
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
@@ -2699,6 +2737,7 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
         }
     }
+
     return 0U;
 }
 /* End Function:__RME_Pgt_Walk ***********************************************/

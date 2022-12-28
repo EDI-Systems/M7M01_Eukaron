@@ -101,7 +101,7 @@ while(0)
 /* Debugging */
 #define RME_DEBUG_PRINT_MAX                         (256U)
 /* Printk macros */
-#define RME_DBG_I(INT)                              RME_Int_Print((rvm_cnt_t)(INT))
+#define RME_DBG_I(INT)                              RME_Int_Print((rme_cnt_t)(INT))
 #define RME_DBG_U(UINT)                             RME_Hex_Print((rme_ptr_t)(UINT))
 #define RME_DBG_S(STR)                              RME_Str_Print((rme_s8_t*)(STR))
 #else
@@ -529,9 +529,9 @@ while(0)
 
 /* Page table flag arrangement
 * 32-bit systems: Maximum page table size 2^12 = 4096
-* [31    High Limit    20] [19    Low Limit    8][7    Flags    0]
+* [31    High Limit    20] [19    Low Limit    8][7    Flag    0]
 * 64-bit systems: Maximum page table size 2^28 = 268435456
-* [63    High Limit    36] [35    Low Limit    8][7    Flags    0] */
+* [63    High Limit    36] [35    Low Limit    8][7    Flag    0] */
 /* Maximum number of entries in a page table */
 #define RME_PGT_MAX_ENTRY                           RME_POW2(sizeof(rme_ptr_t)*4U-4U)
 /* Range high limit */ 

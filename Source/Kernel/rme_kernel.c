@@ -154,12 +154,12 @@ system calls or directly manipulate hardware.
 
 /* Includes ******************************************************************/
 #define __HDR_DEFS__
-#include "Platform/rme_platform.h"
+#include "rme_platform.h"
 #include "Kernel/rme_kernel.h"
 #undef __HDR_DEFS__
 
 #define __HDR_STRUCTS__
-#include "Platform/rme_platform.h"
+#include "rme_platform.h"
 #include "Kernel/rme_kernel.h"
 #undef __HDR_STRUCTS__
 
@@ -167,7 +167,7 @@ system calls or directly manipulate hardware.
 #include "Kernel/rme_kernel.h"
 
 #define __HDR_PUBLIC_MEMBERS__
-#include "Platform/rme_platform.h"
+#include "rme_platform.h"
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 

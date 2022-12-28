@@ -410,7 +410,7 @@ typedef rme_s32_t rme_ret_t;
 
 /* Events ********************************************************************/
 /* The fixed maximum number */
-#define RME_A7M_MAX_EVTS                (1024U)
+#define RME_A7M_EVT_MAX                 (1024U)
 
 /* Platform-specific kernel function macros **********************************/
 /* Page table entry mode which property to get */
@@ -669,7 +669,7 @@ struct __RME_A7M_MPU_Data
 {
     /* Bitmap showing whether these are static or not */
     rme_ptr_t Static;
-    /* The MPU data itself. For ARMv7-M, the number of regions shall not exceed 32 */
+    /* The MPU data itself. For ARMv7-M, the number of regions shall not exceed 16 */
     struct __RME_A7M_MPU_Entry Data[RME_A7M_REGION_NUM];
 };
 /*****************************************************************************/
@@ -891,6 +891,21 @@ __EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 __EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
 /* Setting the page table */
 EXTERN void ___RME_A7M_MPU_Set(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set2(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set3(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set4(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set5(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set6(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set7(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set8(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set9(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set10(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set11(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set12(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set13(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set14(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set15(rme_ptr_t MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set16(rme_ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
 /* Table operations */
 __EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,

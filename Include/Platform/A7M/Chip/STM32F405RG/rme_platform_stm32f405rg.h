@@ -69,7 +69,7 @@ Description: The configuration file for STM32F405RG.
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV4_SP)
 /* What is the vector number excluding system vectors? */
-#define RME_A7M_VECT_NUM                                (82U)
+#define RME_A7M_VCT_NUM                                 (82U)
 
 /* Interrupts ****************************************************************/
 #define WWDG_IRQHandler                                 IRQ0_Handler        /* Window WatchDog */
