@@ -106,7 +106,7 @@ typedef rme_s32_t rme_ret_t;
 /* Top-level page directory size calculation macro */
 #define RME_PGT_SIZE_TOP(NUM_ORDER)   RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
-#define RME_KOTBL                       RME_Kotbl
+#define RME_KOT_VA_BASE                       RME_Kot
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_CAV7_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
@@ -433,10 +433,10 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |----------16MB|-----|-----|-----|-----|
- * |Kernel&Globals|Kotbl|Pgreg|Kom1|Kom2|
+ * |Kernel&Globals|Kot|Pgreg|Kom1|Kom2|
  *  Kernel&Globals : Initial kernel text segment and all static variables.
  *                   Also includes per-CPU variables and all other stuff.
- *  Kotbl          : Kernel object registration table.
+ *  Kot          : Kernel object registration table.
  *  Pgreg          : Page table registration table.
  *  Kom1          : Kernel memory 1, linear mapping, allow creation of page tables.
  *  Kom2          : Kernel memory 2, non-linear mapping, allow creation of all other stuff.
@@ -445,8 +445,8 @@ struct RME_Iret_Struct
  *  that issue properly, and the Kom1 description also needs to take care of that. */
 struct RME_CAV7_Mem_Layout
 {
-	rme_ptr_t Kotbl_Start;
-	rme_ptr_t Kotbl_Size;
+	rme_ptr_t Kot_Start;
+	rme_ptr_t Kot_Size;
 
 	rme_ptr_t Pgreg_Start;
 	rme_ptr_t Pgreg_Size;

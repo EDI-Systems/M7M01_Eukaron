@@ -404,7 +404,7 @@ rme_ptr_t __RME_Boot(void)
     /* Create the capability table for the init process - always 16 */
     Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
     RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,16)==RME_BOOT_CPT);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(16));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(16));
 
     /* Create the capability table for initial page tables. We just add all the addressible
      * memory to the initial process; we do not care the actual memory amount. The initial
@@ -412,7 +412,7 @@ rme_ptr_t __RME_Boot(void)
      * and remember that kernel memory can only be adjusted in 64MB blocks. */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PGT,
                                    Cur_Addr, 0, RME_PGT_TOP, RME_PGT_SIZE_64M, RME_PGT_NUM_64)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_64));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_64));
 
     /* Map all the user memory that we have into it - L1, L2 and other cache memory is reserved for
      * kernel function usage only, and they are only accessible in kernel mode. This is to prevent
@@ -425,7 +425,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Prc_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC, RME_BOOT_CPT, RME_BOOT_INIT_PGT, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PRC_SIZE);
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PRC_SIZE);
 
     /* Create the initial kernel function capability */
     RME_ASSERT(_RME_Kern_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KERN)==0);
@@ -438,34 +438,34 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create the initial kernel endpoints for timer ticks */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_C66X_CPU_NUM)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {
         RME_C66X_CPU_Local[Count].Tick_Sig=(struct RME_Sig_Struct*)Cur_Addr;
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_TIMER, Count, Cur_Addr)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_SIG_SIZE);
     }
 
     /* Create the initial kernel endpoints for all other interrupts */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_C66X_CPU_NUM)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {
         RME_C66X_CPU_Local[Count].Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_SIG_SIZE);
     }
 
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_C66X_CPU_NUM)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {
         RME_ASSERT(_RME_Thd_Boot_Crt(RME_C66X_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PRC, Cur_Addr, 0, &(RME_C66X_CPU_Local[Count]))>=0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_THD_SIZE);
     }
 
-    RME_DBG_S("\r\nKotbl registration end offset: 0x");
+    RME_DBG_S("\r\nKot registration end offset: 0x");
     RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
     RME_DBG_S("\r\nKernel memory frontier: 0x");
     RME_DBG_U(Cur_Addr);

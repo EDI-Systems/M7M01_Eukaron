@@ -21,7 +21,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* The range of the capability is wrong */
 #define RME_ERR_CPT_RANGE               ((-3)+RME_ERR_CPT)
 /* The kernel object table operation of the capability is wrong */
-#define RME_ERR_CPT_KOTBL               ((-4)+RME_ERR_CPT)
+#define RME_ERR_CPT_KOT               ((-4)+RME_ERR_CPT)
 /* The capability number already exists, or not exist, depending on the function */
 #define RME_ERR_CPT_EXIST               ((-5)+RME_ERR_CPT)
 /* When freezing capabilities, the refcnt is not zero, or when delegating, refcnt overflowed */

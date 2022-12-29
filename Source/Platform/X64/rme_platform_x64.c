@@ -435,7 +435,7 @@ void __RME_X64_Feature_Get(void)
 
 /* Begin Function:__RME_X64_Mem_Init ******************************************
 Description : Initialize the memory map, and get the size of kernel object
-              allocation registration table(Kotbl) and page table reference
+              allocation registration table(Kot) and page table reference
               count registration table(Pgreg).
 Input       : rme_ptr_t MMap_Addr - The GRUB multiboot memory map data address.
               rme_ptr_t MMap_Length - The GRUB multiboot memory map data length.
@@ -532,14 +532,14 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
     RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGT_SIZE_256M));
 
     /* Kernel virtual memory layout */
-    RME_X64_Layout.Kotbl_Start=(rme_ptr_t)RME_KOTBL;
+    RME_X64_Layout.Kot_Start=(rme_ptr_t)RME_KOT_VA_BASE;
     /* +1G in cases where we have > 3GB memory for covering the memory hole */
     Info_Cnt=(MMap_Cnt>3*RME_POW2(RME_PGT_SIZE_1G))?(MMap_Cnt+RME_POW2(RME_PGT_SIZE_1G)):MMap_Cnt;
-    RME_X64_Layout.Kotbl_Size=((Info_Cnt>>RME_KOM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
+    RME_X64_Layout.Kot_Size=((Info_Cnt>>RME_KOM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
 
     /* Calculate the size of page table registration table size - we always assume 4GB range */
     Info_Cnt=(MMap_Cnt>RME_POW2(RME_PGT_SIZE_4G))?RME_POW2(RME_PGT_SIZE_4G):MMap_Cnt;
-    RME_X64_Layout.Pgreg_Start=RME_X64_Layout.Kotbl_Start+RME_X64_Layout.Kotbl_Size;
+    RME_X64_Layout.Pgreg_Start=RME_X64_Layout.Kot_Start+RME_X64_Layout.Kot_Size;
     RME_X64_Layout.Pgreg_Size=((Info_Cnt>>RME_PGT_SIZE_4K)+1)*sizeof(struct __RME_X64_Pgreg);
 
     /* Calculate the per-CPU data structure size - each CPU have two 4k pages */
@@ -1114,7 +1114,7 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     struct __RME_X64_Mem* Mem;
 
     /* Now initialize the kernel object allocation table */
-    _RME_Kotbl_Init(RME_X64_Layout.Kotbl_Size/sizeof(rme_ptr_t));
+    _RME_Kot_Init(RME_X64_Layout.Kot_Size/sizeof(rme_ptr_t));
     /* Reset PCID counter */
     RME_X64_PCID_Inc=0;
 
@@ -1299,10 +1299,10 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     }
 
     /* Now report all mapping info */
-    RME_DBG_S("\n\r\n\rKotbl_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Kotbl_Start);
-    RME_DBG_S("\n\rKotbl_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Kotbl_Size);
+    RME_DBG_S("\n\r\n\rKot_Start:     0x");
+    RME_DBG_U(RME_X64_Layout.Kot_Start);
+    RME_DBG_S("\n\rKot_Size:      0x");
+    RME_DBG_U(RME_X64_Layout.Kot_Size);
     RME_DBG_S("\n\rPgreg_Start:     0x");
     RME_DBG_U(RME_X64_Layout.Pgreg_Start);
     RME_DBG_S("\n\rPgreg_Size:      0x");
@@ -1416,13 +1416,13 @@ rme_ptr_t __RME_Boot(void)
     /* Create all initial tables in Kom1, which is sure to be present. We reserve 16
      * pages at the start to load the init process */
     Cur_Addr=RME_X64_Layout.Kom1_Start[0]+16*RME_POW2(RME_PGT_SIZE_2M);
-    RME_DBG_S("\r\nKotbl registration start offset: 0x");
+    RME_DBG_S("\r\nKot registration start offset: 0x");
     RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
 
     /* Create the capability table for the init process - always 16 */
     Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
     RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,16)==RME_BOOT_CPT);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(16));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(16));
 
     /* Create the capability table for initial page tables - now we are only
      * adding 2MB pages. There will be 1 PML4, 16 PDP, and 16*512=8192 PGD.
@@ -1430,20 +1430,20 @@ rme_ptr_t __RME_Boot(void)
      * for at least a decade. These data structures will eat 32MB of memory, which
      * is fine */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_PGT, Cur_Addr, 1+16+8192)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(1+16+8192));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(1+16+8192));
 
     /* Align the address to 4096 to prepare for page table creation */
     Cur_Addr=RME_ROUND_UP(Cur_Addr,12);
     /* Create PML4 */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PML4,
                                    Cur_Addr, 0, RME_PGT_TOP, RME_PGT_SIZE_512G, RME_PGT_NUM_512)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
     /* Create all our 16 PDPs, and cons them into the PML4 */
     for(Count=0;Count<16;Count++)
     {
         RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDP(Count),
                                        Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_1G, RME_PGT_NUM_512)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
         RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4), Count,
                                        RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count)), RME_PGT_ALL_PERM)==0);
     }
@@ -1453,7 +1453,7 @@ rme_ptr_t __RME_Boot(void)
     {
         RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDE(Count),
                                        Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_2M, RME_PGT_NUM_512)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
         RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
                                        RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDE(Count)), RME_PGT_ALL_PERM)==0);
     }
@@ -1502,7 +1502,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create a capability table for initial kernel memory capabilities. We need a few for Kom1, and another one for Kom2 */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_KOM, Cur_Addr, RME_X64_KOM1_MAXSEGS+1)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
     /* Create Kom1 capabilities - can create page tables here */
     for(Count=0;Count<RME_X64_Layout.Kom1_Trunks;Count++)
     {
@@ -1521,7 +1521,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create the initial kernel endpoints for timer ticks */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
@@ -1531,7 +1531,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create the initial kernel endpoints for all other interrupts */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
@@ -1541,15 +1541,15 @@ rme_ptr_t __RME_Boot(void)
 
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
         RME_ASSERT(_RME_Thd_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PRC, Cur_Addr, 0, CPU_Local)>=0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_THD_SIZE);
     }
 
-    RME_DBG_S("\r\nKotbl registration end offset: 0x");
+    RME_DBG_S("\r\nKot registration end offset: 0x");
     RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
     RME_DBG_S("\r\nKom1 frontier: 0x");
     RME_DBG_U(Cur_Addr);

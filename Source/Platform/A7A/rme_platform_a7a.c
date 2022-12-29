@@ -249,7 +249,7 @@ void __RME_CAV7_Feature_Get(void)
 
 /* Begin Function:__RME_CAV7_Mem_Init *****************************************
 Description : Initialize the memory map, and get the size of kernel object
-              allocation registration table(Kotbl) and page table reference
+              allocation registration table(Kot) and page table reference
               count registration table(Pgreg).
 Input       : rme_ptr_t MMap_Addr - The GRUB multiboot memory map data address.
               rme_ptr_t MMap_Length - The GRUB multiboot memory map data length.

@@ -169,11 +169,12 @@ while(0)
 #define RME_ERR_KOT_BMP                             (-1)
 
 /* Number of slots, and size of each slot */
-#define RME_KOTBL_SLOT_NUM                          (RME_KOM_VA_SIZE>>RME_KOM_SLOT_ORDER)
-#define RME_KOTBL_SLOT_SIZE                         RME_POW2(RME_KOM_SLOT_ORDER)
-#define RME_KOTBL_WORD_NUM                          (RME_ROUND_UP(RME_KOTBL_SLOT_NUM, RME_WORD_ORDER)>>RME_WORD_ORDER)
+#define RME_KOT_SLOT_NUM                            (RME_KOM_VA_SIZE>>RME_KOM_SLOT_ORDER)
+#define RME_KOT_SLOT_SIZE                           RME_POW2(RME_KOM_SLOT_ORDER)
+#define RME_KOT_WORD_NUM                            (RME_ROUND_UP(RME_KOT_SLOT_NUM, RME_WORD_ORDER)>>RME_WORD_ORDER)
+
 /* Round the kernel object size to the entry slot size */
-#define RME_KOTBL_ROUND(X)                          RME_ROUND_UP(X,RME_KOM_SLOT_ORDER)
+#define RME_KOM_ROUND(X)                            RME_ROUND_UP(X, RME_KOM_SLOT_ORDER)
 
 /* Capability Table **********************************************************/
 /* Capability size macro */
@@ -378,7 +379,7 @@ do \
     { \
         /* Defrost the cap if it is a root (likely), and return */ \
         if(RME_LIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
-            RME_CAP_DEFROST(CAP,TEMP); \
+            RME_CAP_DEFROST(CAP, TEMP); \
         return RME_ERR_CPT_REFCNT; \
     } \
     /* The only case where the Root_Ref is 0 is that this is a unreferenced root cap */ \
@@ -539,7 +540,7 @@ while(0)
 /* Range low limit */
 #define RME_PGT_FLAG_LOW(X)                         (((X)>>8)&RME_MASK_END(sizeof(rme_ptr_t)*4U-5U))
 /* Permission flags */
-#define RME_PGT_FLAG_FLAGS(X)                       ((X)&RME_MASK_END(7U))
+#define RME_PGT_FLAG_FLAG(X)                        ((X)&RME_MASK_END(7U))
 /* The initial flag of boot-time page table - allows all range delegation access only */
 #define RME_PGT_FLAG_FULL_RANGE                     RME_MASK_START(sizeof(rme_ptr_t)*4U+4U)
 
@@ -751,7 +752,7 @@ struct RME_Thd_Sched
     /* What is the CPU-local data structure that this thread is on? If this is
      * 0xFF....FF, then this is not binded to any core. "struct RME_CPU_Local" is
      * not yet defined here but compilation will still pass - it is a pointer */
-    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* Local;
     /* How much time slices is left for this thread? */
     rme_ptr_t Slice;
     /* What is the current state of the thread? */
@@ -892,8 +893,7 @@ struct RME_Cap_Kfn
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC_MEMBERS__
 /*****************************************************************************/
-/* Kernel object table */
-static volatile rme_ptr_t RME_Kotbl[RME_KOTBL_WORD_NUM];
+
 /*****************************************************************************/
 /* End Private Global Variables **********************************************/
 
@@ -965,11 +965,11 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
 /* In-kernel ready-queue primitives */
 static rme_ret_t _RME_Run_Ins(volatile struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Del(volatile struct RME_Thd_Struct* Thd);
-static volatile struct RME_Thd_Struct* _RME_Run_High(volatile struct RME_CPU_Local* CPU_Local);
+static volatile struct RME_Thd_Struct* _RME_Run_High(volatile struct RME_CPU_Local* Local);
 static rme_ret_t _RME_Run_Notif(volatile struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
-                              volatile struct RME_Thd_Struct* Curr_Thd, 
-                              volatile struct RME_Thd_Struct* Next_Thd);
+                              volatile struct RME_Thd_Struct* Thd_Cur, 
+                              volatile struct RME_Thd_Struct* Thd_New);
 /* Process system calls */
 static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt_Crt,
@@ -1160,12 +1160,12 @@ __EXTERN__ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Flag);
 
 /* Kernel Memory *************************************************************/
-__EXTERN__ rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words);
+__EXTERN__ rme_ret_t _RME_Kot_Init(rme_ptr_t Word);
 /* Kernel memory operations (in case HAL needs to allocate kernel memory) */
-__EXTERN__ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr,
-                                     rme_ptr_t Size);
-__EXTERN__ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr,
-                                      rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
+                                   rme_ptr_t Size);
+__EXTERN__ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
+                                    rme_ptr_t Size);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,
@@ -1183,7 +1183,7 @@ __EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
                                volatile struct RME_List* Prev,
                                volatile struct RME_List* Next);
 /* Initialize per-CPU data structures */
-__EXTERN__ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* CPU_Local,
+__EXTERN__ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* Local,
                                     rme_ptr_t CPUID);
 /* Thread fatal killer */
 __EXTERN__ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg);                              
@@ -1199,13 +1199,13 @@ __EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Prc,
                                        rme_ptr_t Vaddr,
                                        rme_ptr_t Prio,
-                                       volatile struct RME_CPU_Local* CPU_Local);
+                                       volatile struct RME_CPU_Local* Local);
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
 __EXTERN__ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Sig);
 __EXTERN__ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
-                               volatile struct RME_CPU_Local* CPU_Local);
+                               volatile struct RME_CPU_Local* Local);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,

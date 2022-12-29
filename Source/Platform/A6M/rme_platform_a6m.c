@@ -553,7 +553,7 @@ rme_ret_t __RME_A6M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* Local;
     volatile struct RME_Thd_Reg* Reg_Cur;
     rme_ptr_t Type_Stat;
     
@@ -561,9 +561,9 @@ rme_ret_t __RME_A6M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
-    CPU_Local=RME_CPU_LOCAL();
+    Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
     Reg_Cur=Thd_Struct->Reg_Cur;
     
@@ -615,7 +615,7 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Thd* Thd_Op;
     volatile struct RME_Thd_Struct* Thd_Struct;
     volatile struct RME_Inv_Struct* Inv_Struct;
-    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     rme_ptr_t Layer_Cnt;
     
@@ -623,9 +623,9 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
-    CPU_Local=RME_CPU_LOCAL();
+    Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
     
     /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
@@ -675,7 +675,7 @@ rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_CPU_Local* CPU_Local;
+    volatile struct RME_CPU_Local* Local;
     volatile struct RME_Thd_Reg* Reg_Cur;
     rme_ptr_t Type_Stat;
     
@@ -683,9 +683,9 @@ rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
-    CPU_Local=RME_CPU_LOCAL();
+    Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
     Reg_Cur=Thd_Struct->Reg_Cur;
     
@@ -927,14 +927,14 @@ rme_ptr_t __RME_Boot(void)
     
     /* Create the capability table for the init process */
     RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,RME_BOOT_CPT_SIZE)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_CPT_SIZE(RME_BOOT_CPT_SIZE));
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_BOOT_CPT_SIZE));
     
 #if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A6M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
                Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_4G, RME_PGT_NUM_1)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_1));
+    Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
     RME_ASSERT(_RME_Pgt_Boot_Add(RME_A6M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
 #else
@@ -942,7 +942,7 @@ rme_ptr_t __RME_Boot(void)
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A6M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
                Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_512M, RME_PGT_NUM_8U)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_8));
+    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_8));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
     RME_ASSERT(_RME_Pgt_Boot_Add(RME_A6M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
     RME_ASSERT(_RME_Pgt_Boot_Add(RME_A6M_CPT, RME_BOOT_PGT, 0x20000000U, 1U, RME_PGT_ALL_PERM)==0);
@@ -982,7 +982,7 @@ rme_ptr_t __RME_Boot(void)
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A6M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_THD,
                                  RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_A6M_Local)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_THD_SIZE);
+    Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE);
     
     /* Print the size of some kernel objects, only used in debugging
     Size=RME_CPT_SIZE(1U);
@@ -1157,7 +1157,7 @@ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Inv_Retval_Set *****************************************/
 
-/* Begin Function:__RME_Pgt_Kom_Init ***************************************
+/* Begin Function:__RME_Pgt_Kom_Init ******************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. In Cortex-M, we do not need to add such pages.
 Input       : None.
@@ -1173,23 +1173,23 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
 
 /* Begin Function:__RME_Pgt_Init **********************************************
 Description : Initialize the page table data structure, according to the capability.
-Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
+Input       : volatile struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
+rme_ptr_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
-    rme_ptr_t* Ptr;
+    volatile rme_ptr_t* Ptr;
     
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
     
     /* Initialize the causal metadata */
-    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
-    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Toplevel=0U;
-    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
-    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Dir_Page_Count=0U;
+    ((volatile struct __RME_A6M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
+    ((volatile struct __RME_A6M_Pgt_Meta*)Ptr)->Toplevel=0U;
+    ((volatile struct __RME_A6M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
+    ((volatile struct __RME_A6M_Pgt_Meta*)Ptr)->Dir_Page_Count=0U;
     Ptr+=sizeof(struct __RME_A6M_Pgt_Meta)/sizeof(rme_ptr_t);
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
@@ -1198,8 +1198,8 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     {
         for(Count=0;Count<RME_A6M_REGION_NUM;Count++)
         {
-            ((struct __RME_A6M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A6M_MPU_VALID|Count;
-            ((struct __RME_A6M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
+            ((volatile struct __RME_A6M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A6M_MPU_VALID|Count;
+            ((volatile struct __RME_A6M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
         }
         
         Ptr+=sizeof(struct __RME_A6M_MPU_Data)/sizeof(rme_ptr_t);
@@ -1212,9 +1212,9 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     
     return 0U;
 }
-/* End Function:__RME_Pgt_Init *********************************************/
+/* End Function:__RME_Pgt_Init ***********************************************/
 
-/* Begin Function:__RME_Pgt_Check *******************************************
+/* Begin Function:__RME_Pgt_Check *********************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
 Input       : rme_ptr_t Base_Addr - The start mapping address.
@@ -1242,65 +1242,65 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
     
     return 0U;
 }
-/* End Function:__RME_Pgt_Check ********************************************/
+/* End Function:__RME_Pgt_Check **********************************************/
 
-/* Begin Function:__RME_Pgt_Del_Check ***************************************
+/* Begin Function:__RME_Pgt_Del_Check *****************************************
 Description : Check if the page table can be deleted.
-Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
+Input       : volatile struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
 Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
+rme_ptr_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op)
 {
     /* Check if we are standalone */
-    if(((RME_CAP_GETOBJ(Pgt_Op,struct __RME_A6M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
+    if(((RME_CAP_GETOBJ(Pgt_Op, struct __RME_A6M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
         return RME_ERR_PGT_FAIL;
     
     /* Check if we still have a top-level */
-    if(RME_CAP_GETOBJ(Pgt_Op,struct __RME_A6M_Pgt_Meta*)->Toplevel!=0U)
+    if(RME_CAP_GETOBJ(Pgt_Op, struct __RME_A6M_Pgt_Meta*)->Toplevel!=0U)
         return RME_ERR_PGT_FAIL;
 
     return 0;
 }
-/* End Function:__RME_Pgt_Del_Check ****************************************/
+/* End Function:__RME_Pgt_Del_Check ******************************************/
 
-/* Begin Function:___RME_Pgt_MPU_Gen_RASR ***********************************
+/* Begin Function:___RME_Pgt_MPU_RASR *****************************************
 Description : Generate the RASR metadata for this level of page table.
 Input       : volatile rme_ptr_t* Table - The table to generate data for. This 
                                           is directly the raw page table itself,
                                           without accounting for metadata.
-              rme_ptr_t Flags - The flags for each entry.
+              rme_ptr_t Flag - The flags for each entry.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : struct __RME_A6M_MPU_Entry* Entry - The data generated.
 Return      : rme_ptr_t - The RASR value returned.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,
-                                    rme_ptr_t Flags, 
-                                    rme_ptr_t Size_Order,
-                                    rme_ptr_t Num_Order)
+rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
+                              rme_ptr_t Flag, 
+                              rme_ptr_t Size_Order,
+                              rme_ptr_t Num_Order)
 {
     rme_ptr_t RASR;
     rme_ptr_t Count;
-    rme_ptr_t Flag;
+    rme_ptr_t SRD_Flag;
     
     /* Get the SRD part first */
     RASR=0U;
-    Flag=0U;
+    SRD_Flag=0U;
     
     switch(Num_Order)
     {
-        case RME_PGT_NUM_1:Flag=0xFFU;break;
-        case RME_PGT_NUM_2:Flag=0x0FU;break;
-        case RME_PGT_NUM_4:Flag=0x03U;break;
-        case RME_PGT_NUM_8:Flag=0x01U;break;
+        case RME_PGT_NUM_1:SRD_Flag=0xFFU;break;
+        case RME_PGT_NUM_2:SRD_Flag=0x0FU;break;
+        case RME_PGT_NUM_4:SRD_Flag=0x03U;break;
+        case RME_PGT_NUM_8:SRD_Flag=0x01U;break;
         default:RME_ASSERT(0U);
     }
     
     for(Count=0U;Count<RME_POW2(Num_Order);Count++)
     {
         if(((Table[Count]&RME_A6M_PGT_PRESENT)!=0U)&&((Table[Count]&RME_A6M_PGT_TERMINAL)!=0U))
-            RASR|=Flag<<Count*RME_POW2(RME_PGT_NUM_8-Num_Order);
+            RASR|=SRD_Flag<<Count*RME_POW2(RME_PGT_NUM_8-Num_Order);
     }
     
     if(RASR==0U)
@@ -1311,27 +1311,27 @@ rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,
     RASR=RME_A6M_MPU_SRDCLR&(~RASR);
     RASR|=RME_A6M_MPU_SZENABLE;
     /* Is it read-only? - we do not care if the read bit is set, because it is always readable anyway */
-    if((Flags&RME_PGT_WRITE)!=0U)
+    if((Flag&RME_PGT_WRITE)!=0U)
         RASR|=RME_A6M_MPU_RW;
     else
         RASR|=RME_A6M_MPU_RO;
     /* Can we fetch instructions from there? */
-    if((Flags&RME_PGT_EXECUTE)==0U)
+    if((Flag&RME_PGT_EXECUTE)==0U)
         RASR|=RME_A6M_MPU_XN;
     /* Is the area cacheable? */
-    if((Flags&RME_PGT_CACHE)!=0U)
+    if((Flag&RME_PGT_CACHE)!=0U)
         RASR|=RME_A6M_MPU_CACHE;
     /* Is the area bufferable? */
-    if((Flags&RME_PGT_BUFFER)!=0U)
+    if((Flag&RME_PGT_BUFFER)!=0U)
         RASR|=RME_A6M_MPU_BUFFER;
     /* What is the region size? */
     RASR|=RME_A6M_MPU_REGIONSIZE(Size_Order+Num_Order);
     
     return RASR;
 }
-/* End Function:___RME_Pgt_MPU_Gen_RASR ************************************/
+/* End Function:___RME_Pgt_MPU_RASR ******************************************/
 
-/* Begin Function:___RME_Pgt_MPU_Clear **************************************
+/* Begin Function:___RME_Pgt_MPU_Clear ****************************************
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
 Input       : volatile struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU metadata
@@ -1436,7 +1436,7 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
-                                  rme_ptr_t Op_Flag)
+                                rme_ptr_t Op_Flag)
 {
     rme_ptr_t MPU_RASR;
     volatile rme_ptr_t* Table;
@@ -1473,7 +1473,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
     else
     {
         /* See if the RASR contains anything */
-        MPU_RASR=___RME_Pgt_MPU_Gen_RASR(Table, Meta->Page_Flag, 
+        MPU_RASR=___RME_Pgt_MPU_RASR(Table, Meta->Page_Flag, 
                                          RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
                                          RME_A6M_PGT_NUMORD(Meta->Size_Num_Order));
         if(MPU_RASR==0U)
@@ -1569,8 +1569,8 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Pos,
                              rme_ptr_t Flag)
 {
-    rme_ptr_t* Table;
-    struct __RME_A6M_Pgt_Meta* Meta;
+    volatile rme_ptr_t* Table;
+    volatile struct __RME_A6M_Pgt_Meta* Meta;
 
     /* It should at least be readable */
     if((Flag&RME_PGT_READ)==0U)
@@ -1586,13 +1586,13 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
         return RME_ERR_PGT_FAIL;
     
     /* Get the metadata */
-    Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A6M_Pgt_Meta*);
+    Meta=RME_CAP_GETOBJ(Pgt_Op, volatile struct __RME_A6M_Pgt_Meta*);
     
     /* Where is the entry slot */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
-        Table=RME_A6M_PGT_TBL_TOP((rme_ptr_t*)Meta);
+        Table=RME_A6M_PGT_TBL_TOP((volatile rme_ptr_t*)Meta);
     else
-        Table=RME_A6M_PGT_TBL_NOM((rme_ptr_t*)Meta);
+        Table=RME_A6M_PGT_TBL_NOM((volatile rme_ptr_t*)Meta);
     
     /* Check if we are trying to make duplicate mappings into the same location */
     if((Table[Pos]&RME_A6M_PGT_PRESENT)!=0U)
@@ -1626,6 +1626,7 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
             }
         }
     }
+    
     /* Modify count */
     RME_A6M_PGT_INC_PAGENUM(Meta->Dir_Page_Count);
     
@@ -1641,7 +1642,7 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
-                                 rme_ptr_t Pos)
+                               rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
@@ -1698,9 +1699,9 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
-                                rme_ptr_t Pos, 
-                                struct RME_Cap_Pgt* Pgt_Child,
-                                rme_ptr_t Flag)
+                              rme_ptr_t Pos, 
+                              struct RME_Cap_Pgt* Pgt_Child,
+                              rme_ptr_t Flag)
 {
     rme_ptr_t* Parent_Table;
     struct __RME_A6M_Pgt_Meta* Parent_Meta;
@@ -1827,9 +1828,9 @@ Output      : rme_ptr_t* Paddr - The physical address of the page.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
-                             rme_ptr_t Pos,
-                             rme_ptr_t* Paddr,
-                             rme_ptr_t* Flag)
+                           rme_ptr_t Pos,
+                           rme_ptr_t* Paddr,
+                           rme_ptr_t* Flag)
 {
     rme_ptr_t* Table;
     

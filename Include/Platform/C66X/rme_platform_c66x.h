@@ -106,7 +106,7 @@ typedef rme_s32_t rme_ret_t;
 /* Top-level page directory size calculation macro */
 #define RME_PGT_SIZE_TOP(NUM_ORDER)   (RME_PGT_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_C66X_MMU_Data))
 /* The kernel object allocation table address - original */
-#define RME_KOTBL                       RME_Kotbl
+#define RME_KOT_VA_BASE                       RME_Kot
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_C66X_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
@@ -615,10 +615,10 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |0--------------------------2GB|----------64MB or 128MB|-----|------|------|-----|3.25G-4G|-----|-----|
- * |Peripherals, identical mapping|Kernel&Globals|Kotbl|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
+ * |Peripherals, identical mapping|Kernel&Globals|Kot|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
  *  Vectors        : Interrupt vectors.
  *  Kernel&Globals : Initial kernel text segment and all static variables.
- *  Kotbl          : Kernel object registration table.
+ *  Kot          : Kernel object registration table.
  *  PerCPU         : Per-CPU data structures.
  *  Kpgtbl         : Kernel page tables.
  *  Pgreg          : Page table registration table.

@@ -127,7 +127,7 @@ typedef rme_s64_t rme_ret_t;
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_SIZE                         0
 /* The kernel object allocation table address - relocated */
-#define RME_KOTBL                            ((rme_ptr_t*)0xFFFF800001000000)
+#define RME_KOT_VA_BASE                            ((rme_ptr_t*)0xFFFF800001000000)
 /* Atomic instructions - The oficial release replaces all these with inline
  * assembly to boost speed. Sometimes this can harm compiler compatibility. If
  * you need normal assembly version, consider uncommenting the macro below. */
@@ -230,7 +230,7 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 #define RME_X64_VA_BASE                      (0xFFFF800000000000ULL)
 #define RME_X64_TEXT_VA_BASE                 (0xFFFFFFFF80000000ULL)
 /* The offset of kernel object table */
-#define RME_X64_KOTBL_OFFSET                 (0x1000000ULL)
+#define RME_X64_KOT_OFFSET                 (0x1000000ULL)
 /* The offset of device hole */
 #define RME_X64_DEVICE_OFFSET                (0xFE000000ULL)
 /* Convert PA-VA and VA-PA in the first block of memory (16MB - 3.25GB)*/
@@ -835,10 +835,10 @@ struct RME_Iret_Struct
 
 /* Memory information - the layout is (offset from VA base):
  * |0--640k|----------16MB|-----|-----|------|------|-----|3.25G-4G|-----|-----|
- * |Vectors|Kernel&Globals|Kotbl|Pgreg|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
+ * |Vectors|Kernel&Globals|Kot|Pgreg|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
  *  Vectors        : Interrupt vectors.
  *  Kernel&Globals : Initial kernel text segment and all static variables.
- *  Kotbl          : Kernel object registration table.
+ *  Kot          : Kernel object registration table.
  *  PerCPU         : Per-CPU data structures.
  *  Kpgtbl         : Kernel page tables.
  *  Pgreg          : Page table registration table.
@@ -850,8 +850,8 @@ struct RME_Iret_Struct
  */
 struct RME_X64_Layout
 {
-	rme_ptr_t Kotbl_Start;
-	rme_ptr_t Kotbl_Size;
+	rme_ptr_t Kot_Start;
+	rme_ptr_t Kot_Size;
 
 	rme_ptr_t Pgreg_Start;
 	rme_ptr_t Pgreg_Size;

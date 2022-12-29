@@ -100,13 +100,13 @@ typedef rme_s32_t rme_ret_t;
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   (0U)
 /* Cpt size limit - not restricted */
-#define RME_CPT_LIMIT                   (0U)
+#define RME_CPT_ENTRY_MAX               (0U)
 /* Normal page directory size calculation macro */
 #define RME_PGT_SIZE_NOM(NUM_ORDER)     (RME_POW2(NUM_ORDER)*sizeof(rme_ptr_t)+sizeof(struct __RME_A6M_Pgt_Meta))
 /* Top-level page directory size calculation macro */
 #define RME_PGT_SIZE_TOP(NUM_ORDER)     (RME_PGT_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_A6M_MPU_Data))
 /* The kernel object allocation table address - original */
-#define RME_KOTBL                       RME_Kotbl
+#define RME_KOT_VA_BASE                 RME_A6M_Kot
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A6M_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
@@ -518,10 +518,10 @@ static void __RME_A6M_Set_Flag(rme_ptr_t Base,
                                rme_ptr_t Size,
                                rme_ptr_t Pos);
 /* Page Table ****************************************************************/
-static rme_ptr_t ___RME_Pgt_MPU_Gen_RASR(volatile rme_ptr_t* Table,
-                                         rme_ptr_t Flag, 
-                                         rme_ptr_t Size_Order,
-                                         rme_ptr_t Num_Order);
+static rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
+                                     rme_ptr_t Flag, 
+                                     rme_ptr_t Size_Order,
+                                     rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A6M_MPU_Data* Top_MPU, 
                                       rme_ptr_t Base_Addr,
                                       rme_ptr_t Size_Order,
@@ -584,8 +584,10 @@ static rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 #endif
 
 /*****************************************************************************/
-/* Cortex-M only have one core, thus this is its CPU-local data structure */
+/* ARMv6-M only have one core, thus this is its CPU-local data structure */
 __EXTERN__ volatile struct RME_CPU_Local RME_A6M_Local;
+/* ARMv6-M use simple kernel object table */
+__EXTERN__ volatile rme_ptr_t RME_A6M_Kot[RME_KOT_WORD_NUM];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
@@ -666,14 +668,14 @@ __EXTERN__ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
 /* Page Table ****************************************************************/
 /* Initialization */
 __EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
 __EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                                      rme_ptr_t Is_Top, 
                                      rme_ptr_t Size_Order,
                                      rme_ptr_t Num_Order,
                                      rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op);
 /* Setting the page table */
 EXTERN void ___RME_A6M_MPU_Set(rme_ptr_t MPU_Meta);
 EXTERN void ___RME_A6M_MPU_Set2(rme_ptr_t MPU_Meta);

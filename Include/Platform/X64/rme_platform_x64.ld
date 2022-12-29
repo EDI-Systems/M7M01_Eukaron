@@ -3,7 +3,7 @@
 
 /* It seemed that we cannot directly link kernel to that address as it forces a custom gcc. So what's the plot? */
 
-/* Map kernel to 0xFFFFFFFF80000000, with all its text segments. the Kotbl starts from there too. */
+/* Map kernel to 0xFFFFFFFF80000000, with all its text segments. the Kot starts from there too. */
 /* OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386") */
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
