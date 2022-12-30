@@ -167,7 +167,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
     rme_ptr_t HFSR_Reg;
     rme_ptr_t CFSR_Reg;
     rme_ptr_t MMFAR_Reg;
-    rme_ptr_t Flags;
+    rme_ptr_t Flag;
     rme_ptr_t* Stack;
     volatile struct RME_Cap_Prc* Prc;
     volatile struct RME_Inv_Struct* Inv_Top;
@@ -193,7 +193,11 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
     if((HFSR_Reg&RME_A7M_HFSR_FORCED)!=0U)
         RME_ASSERT((HFSR_Reg&RME_A7M_HFSR_DEBUGEVT)!=0U);
     
-    /* We cannot recover from the following errors, have to kill the thread */
+    /* We cannot recover from the following errors, have to kill the thread. For MSTKERR, MLSPERR
+     * and MUNSTKERR, the original information like LR and PC may have lost, and we must kill the
+     * thread anyway. So it is mandatory that ARMv7-M (1) must use pointer-to-top-level page table
+     * scheme that guarantees immediate MPU update on page table static page modification (2) must
+     * not use dynamic pages as stack segments cause we cannot handle a miss on them. */
     if((CFSR_Reg&
         (RME_A7M_UFSR_DIVBYZERO|        /* Division by zero errors */
          RME_A7M_UFSR_UNALIGNED|        /* Unaligned access errors */
@@ -222,7 +226,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         else
             Prc=Inv_Top->Prc;
         
-        if(__RME_Pgt_Walk(Prc->Pgt, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+        if(__RME_Pgt_Walk(Prc->Pgt, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=MMFAR_Reg;
@@ -231,7 +235,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
-            RME_ASSERT((Flags&RME_PGT_STATIC)==0U);
+            RME_ASSERT((Flag&RME_PGT_STATIC)==0U);
             /* Try to update the dynamic page */
             if(___RME_Pgt_MPU_Update(Meta, 1U)!=0U)
             {
@@ -243,7 +247,8 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
     }
     /* This is an instruction access violation. We need to know where that instruction is.
      * This requires access of an user-level page, due to the fact that the fault address
-     * is stored on the fault stack. */ 
+     * is stored on the fault stack. We need to trust the pager, in this case, the RVM, because
+     * the pages mapped by it must be correct. */ 
     else if((CFSR_Reg&RME_A7M_MFSR_IACCVIOL)!=0U)
     {
         Inv_Top=RME_INVSTK_TOP(Thd_Cur);
@@ -255,7 +260,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         Stack=(rme_ptr_t*)(Reg->SP);
         
         /* Stack[6] is where the PC is before the fault. Make sure that this stack location is indeed accessible */
-        if(__RME_Pgt_Walk(Prc->Pgt, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+        if(__RME_Pgt_Walk(Prc->Pgt, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=(rme_ptr_t)(&Stack[6U]);
@@ -264,7 +269,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
-            if(__RME_Pgt_Walk(Prc->Pgt, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flags)!=0)
+            if(__RME_Pgt_Walk(Prc->Pgt, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
             {
                 Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                 Exc->Addr=Stack[6U];
@@ -273,10 +278,10 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
             else
             {
                 /* This must be a dynamic page */
-                RME_ASSERT((Flags&RME_PGT_STATIC)==0U);
+                RME_ASSERT((Flag&RME_PGT_STATIC)==0U);
                 
                 /* This page does not allow execution */
-                if((Flags&RME_PGT_EXECUTE)==0U)
+                if((Flag&RME_PGT_EXECUTE)==0U)
                 {
                     Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                     Exc->Addr=Stack[6U];
@@ -431,7 +436,7 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
-    if(Int_Num>=RME_A7M_VCT_NUM)
+    if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     switch(Operation)
@@ -484,7 +489,7 @@ rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Int_Num>=RME_A7M_VCT_NUM)
+    if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     /* Trigger the interrupt */
@@ -509,7 +514,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Evt_Num>=RME_A7M_EVT_MAX)
+    if(Evt_Num>=RME_RVM_VIRT_EVT_NUM)
         return RME_ERR_KFN_FAIL;
 
     __RME_A7M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
@@ -1494,10 +1499,10 @@ rme_ptr_t __RME_Low_Level_Init(void)
     rme_ptr_t Temp;
     
     RME_A7M_LOW_LEVEL_INIT();
-    
+
     /* Check the number of interrupt lines */
-    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_A7M_VCT_NUM);
-    RME_ASSERT(RME_A7M_VCT_NUM<=240U);
+    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_RVM_PHYS_VCT_NUM);
+    RME_ASSERT(RME_RVM_PHYS_VCT_NUM<=240U);
 
     /* Enable the MPU */
     RME_ASSERT(RME_A7M_REGION_NUM<=16U);
@@ -1649,9 +1654,9 @@ rme_ptr_t __RME_Boot(void)
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
 #if(RME_RVM_GEN_ENABLE==1U)
-    RME_ASSERT(Cur_Addr==RME_RVM_KOM_BOOT_FRONT);
+    RME_ASSERT(Cur_Addr==(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #else
-    RME_ASSERT(Cur_Addr<RME_RVM_KOM_BOOT_FRONT);
+    RME_ASSERT(Cur_Addr<(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #endif
 
     /* Enable the MPU & interrupt */

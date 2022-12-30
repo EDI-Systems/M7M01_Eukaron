@@ -275,25 +275,25 @@ typedef rme_s32_t rme_ret_t;
  * [0] Present - Is this entry present?
  */
 /* Get the actual table positions */
-#define RME_A6M_PGT_TBL_NOM(X)        ((X)+(sizeof(struct __RME_A6M_Pgt_Meta)/sizeof(rme_ptr_t)))
-#define RME_A6M_PGT_TBL_TOP(X)        ((X)+(sizeof(struct __RME_A6M_Pgt_Meta)+sizeof(struct __RME_A6M_MPU_Data))/sizeof(rme_ptr_t))
+#define RME_A6M_PGT_TBL_NOM(X)          ((X)+(sizeof(struct __RME_A6M_Pgt_Meta)/sizeof(rme_ptr_t)))
+#define RME_A6M_PGT_TBL_TOP(X)          ((X)+(sizeof(struct __RME_A6M_Pgt_Meta)+sizeof(struct __RME_A6M_MPU_Data))/sizeof(rme_ptr_t))
 /* Page entry bit definitions */
-#define RME_A6M_PGT_PRESENT           (1U<<0)
-#define RME_A6M_PGT_TERMINAL          (1U<<1)
+#define RME_A6M_PGT_PRESENT             (1U<<0)
+#define RME_A6M_PGT_TERMINAL            (1U<<1)
 /* The address mask for the actual page address */
-#define RME_A6M_PGT_PTE_ADDR(X)       ((X)&0xFFFFFFFCU)
+#define RME_A6M_PGT_PTE_ADDR(X)         ((X)&0xFFFFFFFCU)
 /* The address mask for the next level page table address */
-#define RME_A6M_PGT_PGD_ADDR(X)       ((X)&0xFFFFFFFCU)
+#define RME_A6M_PGT_PGD_ADDR(X)         ((X)&0xFFFFFFFCU)
 /* Page table metadata definitions */
-#define RME_A6M_PGT_START(X)          ((X)&0xFFFFFFFEU)
-#define RME_A6M_PGT_SIZEORD(X)        ((X)>>16)
-#define RME_A6M_PGT_NUMORD(X)         ((X)&0x0000FFFFU)
-#define RME_A6M_PGT_DIRNUM(X)         ((X)>>16)
-#define RME_A6M_PGT_PAGENUM(X)        ((X)&0x0000FFFFU)
-#define RME_A6M_PGT_INC_PAGENUM(X)    ((X)+=0x00000001U)
-#define RME_A6M_PGT_DEC_PAGENUM(X)    ((X)-=0x00000001U)
-#define RME_A6M_PGT_INC_DIRNUM(X)     ((X)+=0x00010000U)
-#define RME_A6M_PGT_DEC_DIRNUM(X)     ((X)-=0x00010000U)
+#define RME_A6M_PGT_START(X)            ((X)&0xFFFFFFFEU)
+#define RME_A6M_PGT_SIZEORD(X)          ((X)>>16)
+#define RME_A6M_PGT_NUMORD(X)           ((X)&0x0000FFFFU)
+#define RME_A6M_PGT_DIRNUM(X)           ((X)>>16)
+#define RME_A6M_PGT_PAGENUM(X)          ((X)&0x0000FFFFU)
+#define RME_A6M_PGT_INC_PAGENUM(X)      ((X)+=0x00000001U)
+#define RME_A6M_PGT_DEC_PAGENUM(X)      ((X)-=0x00000001U)
+#define RME_A6M_PGT_INC_DIRNUM(X)       ((X)+=0x00010000U)
+#define RME_A6M_PGT_DEC_DIRNUM(X)       ((X)-=0x00010000U)
 /* MPU operation flag */
 #define RME_A6M_MPU_CLR                 (0U)
 #define RME_A6M_MPU_UPD                 (1U)
@@ -312,10 +312,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_MPU_BUFFER              (1U<<16)
 #define RME_A6M_MPU_REGIONSIZE(X)       ((X-1U)<<1)
 #define RME_A6M_MPU_SZENABLE            (1U)
-
-/* Events ********************************************************************/
-/* The fixed maximum number */
-#define RME_A6M_EVT_MAX                 (1024U)
 
 /* Platform-specific kernel function macros **********************************/
 /* Page table entry mode which property to get */

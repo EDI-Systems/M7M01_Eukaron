@@ -294,7 +294,7 @@ rme_ret_t __RME_A6M_Int_Local_Mod(rme_ptr_t Int_Num,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
-    if(Int_Num>=RME_A6M_VCT_NUM)
+    if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     switch(Operation)
@@ -347,7 +347,7 @@ rme_ret_t __RME_A6M_Int_Local_Trig(rme_ptr_t CPUID,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Int_Num>=RME_A6M_VCT_NUM)
+    if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
     
     /* Trigger the interrupt - have to use ISPR directly */
@@ -372,7 +372,7 @@ rme_ret_t __RME_A6M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     if(CPUID!=0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Evt_Num>=RME_A6M_EVT_MAX)
+    if(Evt_Num>=RME_RVM_VIRT_EVT_NUM)
         return RME_ERR_KFN_FAIL;
 
     __RME_A6M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
@@ -863,8 +863,8 @@ rme_ptr_t __RME_Low_Level_Init(void)
     RME_A6M_LOW_LEVEL_INIT();
     
     /* Check the number of interrupt lines */
-    RME_ASSERT(((RME_A6M_SCNSCB_ICTR+1U)<<5U)>=RME_A6M_VCT_NUM);
-    RME_ASSERT(RME_A6M_VCT_NUM<=32U);
+    RME_ASSERT(((RME_A6M_SCNSCB_ICTR+1U)<<5U)>=RME_RVM_PHYS_VCT_NUM);
+    RME_ASSERT(RME_RVM_PHYS_VCT_NUM<=32U);
 
     /* Enable the MPU */
     RME_ASSERT(RME_A6M_REGION_NUM<=16U);
@@ -998,9 +998,9 @@ rme_ptr_t __RME_Boot(void)
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
 #if(RME_RVM_GEN_ENABLE==1U)
-    RME_ASSERT(Cur_Addr==RME_RVM_KOM_BOOT_FRONT);
+    RME_ASSERT(Cur_Addr==(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #else
-    RME_ASSERT(Cur_Addr<RME_RVM_KOM_BOOT_FRONT);
+    RME_ASSERT(Cur_Addr<(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #endif
 
     /* Enable the MPU & interrupt */

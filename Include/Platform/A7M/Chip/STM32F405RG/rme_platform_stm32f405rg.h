@@ -22,6 +22,8 @@ Description: The configuration file for STM32F405RG.
 #define RME_HYP_VA_BASE                                 (0x20000000U)
 /* The size of the hypervisor reserved virtual memory */
 #define RME_HYP_VA_SIZE                                 (0x20000U)
+/* The granularity of kernel memory allocation, in bytes */
+#define RME_KOM_SLOT_ORDER                              (4U)
 /* Kernel stack size and address */
 #define RME_KSTK_VA_BASE                                (0x10000FF0U)
 #define RME_KSTK_VA_SIZE                                (0x400U)
@@ -35,14 +37,17 @@ Description: The configuration file for STM32F405RG.
 #define RME_BOOT_CPT_SIZE                               (18U)
 #endif
 
-/* Physical vector flag area base and its size */
-#define RME_RVM_PHYS_VCTF_BASE                          (0x10007C00U)
+/* Physical vector number, flag area base and its size */
+#define RME_RVM_PHYS_VCT_NUM                            (82U)
+#define RME_RVM_PHYS_VCTF_BASE                          (0x10005C00U)
 #define RME_RVM_PHYS_VCTF_SIZE                          (0x200U)
-/* Virtual event flag area base and its size */
-#define RME_RVM_VIRT_EVTF_BASE                          (0x10007E00U)
+/* Virtual event number, flag area base and its size */
+#define RME_RVM_VIRT_EVT_NUM                            (20U)
+#define RME_RVM_VIRT_EVTF_BASE                          (0x10005E00U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x200U)
-/* Initial kenel object frontier limit */
-#define RME_RVM_KOM_BOOT_FRONT                          (0x10003000U)
+/* Initial kernel object frontier limit */
+#define RME_RVM_CAP_BOOT_FRONT                          (9U)
+#define RME_RVM_KOM_BOOT_FRONT                          (0x1000U)
 
 /* Init process's first thread's entry point address */
 #define RME_A7M_INIT_ENTRY                              (0x08004001U)
@@ -52,7 +57,12 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_A7M_SYSTICK_VAL                             (1680000U)
+/* Number of MPU regions available */
+#define RME_A7M_REGION_NUM                              (8U)
+/* What is the FPU type? */
+#define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV4_SP)
 
+/* Fixed *********************************************************************/
 /* What is the external crystal frequency? */
 #define RME_A7M_STM32F405RG_XTAL                        (8U)
 /* What are the PLL values? */
@@ -60,16 +70,6 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_STM32F405RG_PLLN                        (336U)
 #define RME_A7M_STM32F405RG_PLLP                        (2U)
 #define RME_A7M_STM32F405RG_PLLQ                        (7U)
-
-/* Fixed *********************************************************************/
-/* The granularity of kernel memory allocation, in bytes */
-#define RME_KOM_SLOT_ORDER                              (4U)
-/* Number of MPU regions available */
-#define RME_A7M_REGION_NUM                              (8U)
-/* What is the FPU type? */
-#define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV4_SP)
-/* What is the vector number excluding system vectors? */
-#define RME_A7M_VCT_NUM                                 (82U)
 
 /* Interrupts ****************************************************************/
 #define WWDG_IRQHandler                                 IRQ0_Handler        /* Window WatchDog */

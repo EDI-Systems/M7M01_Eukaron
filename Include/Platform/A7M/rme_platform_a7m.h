@@ -408,10 +408,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MPU_REGIONSIZE(X)       ((X-1U)<<1)
 #define RME_A7M_MPU_SZENABLE            (1U)
 
-/* Events ********************************************************************/
-/* The fixed maximum number */
-#define RME_A7M_EVT_MAX                 (1024U)
-
 /* Platform-specific kernel function macros **********************************/
 /* Page table entry mode which property to get */
 #define RME_A7M_KFN_PGT_ENTRY_MOD_GET_FLAGS         (0U)
