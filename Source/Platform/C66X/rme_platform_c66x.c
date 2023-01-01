@@ -403,14 +403,14 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr=RME_KOM_VA_START;
     /* Create the capability table for the init process - always 16 */
     Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
-    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,16)==RME_BOOT_CPT);
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,Cur_Addr,16)==RME_BOOT_INIT_CPT);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(16));
 
     /* Create the capability table for initial page tables. We just add all the addressible
      * memory to the initial process; we do not care the actual memory amount. The initial
      * memory will consist of 64MB memory blocks. Adjust this if you change kernel memory,
      * and remember that kernel memory can only be adjusted in 64MB blocks. */
-    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PGT,
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT,
                                    Cur_Addr, 0, RME_PGT_TOP, RME_PGT_SIZE_64M, RME_PGT_NUM_64)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_64));
 
@@ -424,11 +424,11 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Prc_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC, RME_BOOT_CPT, RME_BOOT_INIT_PGT, Cur_Addr)==0);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT, Cur_Addr)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PRC_SIZE);
 
     /* Create the initial kernel function capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KERN)==0);
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KERN)==0);
 
     /* Create initial kernel memory capability */
     RME_ASSERT(_RME_Kom_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_KOM, RME_BOOT_INIT_KOM,
@@ -437,7 +437,7 @@ rme_ptr_t __RME_Boot(void)
                                   RME_KOM_FLAG_THD|RME_KOM_FLAG_SIG|RME_KOM_FLAG_INV)==0);
 
     /* Create the initial kernel endpoints for timer ticks */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_C66X_CPU_NUM)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {
@@ -447,7 +447,7 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Create the initial kernel endpoints for all other interrupts */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_C66X_CPU_NUM)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {
@@ -457,7 +457,7 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_C66X_CPU_NUM)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_C66X_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_C66X_CPU_NUM)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_C66X_CPU_NUM));
     for(Count=0;Count<RME_C66X_CPU_NUM;Count++)
     {

@@ -11,7 +11,7 @@ Description: The configuration file for STM32L071CB.
 #define RME_ASSERT_CORRECT                              (0U)
 #define RME_DEBUG_PRINT                                 (1U)
 /* Generator *****************************************************************/
-/* Are we using the generator in the first place? */
+/* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
@@ -30,12 +30,6 @@ Description: The configuration file for STM32L071CB.
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_PREEMPT_PRIO_NUM                            (32U)
-/* Size of capability table */
-#if(RME_RVM_GEN_ENABLE==1U)
-#define RME_BOOT_CPT_SIZE                               (18U)
-#else
-#define RME_BOOT_CPT_SIZE                               (18U)
-#endif
 
 /* Physical vector number, flag area base and its size */
 #define RME_RVM_PHYS_VCT_NUM                            (32U)
@@ -45,9 +39,14 @@ Description: The configuration file for STM32L071CB.
 #define RME_RVM_VIRT_EVT_NUM                            (10U)
 #define RME_RVM_VIRT_EVTF_BASE                          (0x20002E00U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x100U)
+/* Size of initial capability table */
+#define RME_RVM_INIT_CPT_SIZE                           (54U)
 /* Initial kernel object frontier limit */
-#define RME_RVM_CAP_BOOT_FRONT                          (9U)
-#define RME_RVM_KOM_BOOT_FRONT                          (0x1000U)
+#define RME_RVM_CPT_BOOT_FRONT                          (9U)
+#define RME_RVM_KOM_BOOT_FRONT                          (0x400U)
+/* Post-boot kernel object frontier limit */
+#define RME_RVM_CPT_DONE_FRONT                          (18U)
+#define RME_RVM_KOM_DONE_FRONT                          (0x1200U)
 
 /* Init process's first thread's entry point address */
 #define RME_A6M_INIT_ENTRY                              (0x08004001U)
@@ -209,17 +208,17 @@ Description: The configuration file for STM32L071CB.
 do \
 { \
     /* Set HSION bit */ \
-    RME_A6M_RCC_CR|=0x00000001; \
+    RME_A6M_RCC_CR|=0x00000001U; \
     /* Reset CFGR register */ \
-    RME_A6M_RCC_CFGR=0x00000000; \
+    RME_A6M_RCC_CFGR=0x00000000U; \
     /* Reset HSEON, CSSON and PLLON bits */ \
     RME_A6M_RCC_CR&=0xFEF6FFFFU; \
     /* Reset HSEBYP bit */ \
     RME_A6M_RCC_CR&=0xFFFBFFFFU; \
     /* Disable all interrupts */ \
-    RME_A6M_RCC_CIER=0x00000000; \
+    RME_A6M_RCC_CIER=0x00000000U; \
     /* Vector table address */ \
-    RME_A6M_SCB_VTOR=0x08000000; \
+    RME_A6M_SCB_VTOR=0x08000000U; \
 } \
 while(0)
 
@@ -235,11 +234,11 @@ do \
     /* Initialize the oscillator */ \
     RME_A6M_RCC_CR|=RME_A6M_RCC_CR_HSEON; \
     __RME_A6M_Barrier(); \
-    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_HSERDY)==0); \
+    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_HSERDY)==0U); \
     /* Fpll=Fin*PLLMUL/PLLDIV */ \
     RME_A6M_RCC_CR&=~RME_A6M_RCC_CR_PLLON; \
     __RME_A6M_Barrier(); \
-    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_PLLRDY)!=0); \
+    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_PLLRDY)!=0U); \
     RME_A6M_RCC_CFGR=RME_A6M_RCC_CFGR_SOURCE_HSE| \
                      RME_A6M_RCC_CFGR_PLLMUL8| \
                      RME_A6M_RCC_CFGR_PLLDIV2| \
@@ -249,7 +248,7 @@ do \
     __RME_A6M_Barrier(); \
     RME_A6M_RCC_CR|=RME_A6M_RCC_CR_PLLON; \
     __RME_A6M_Barrier(); \
-    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_PLLRDY)==0); \
+    while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_PLLRDY)==0U); \
     \
     /* Flash ART enabling */ \
     RME_A6M_FLASH_ACR=RME_A6M_FLASH_ACR_LATENCY|RME_A6M_FLASH_ACR_PRFTEN; \
@@ -269,11 +268,11 @@ do \
     /* Enable USART 1 for user-level operations */ \
     /* UART IO initialization */ \
     RME_A6M_RCC_IOPENR|=RME_A6M_RCC_IOPENR_IOPAEN; \
-    RME_A6M_GPIOA_MODE(RME_A6M_GPIO_MODE_ALTERNATE, 9); \
-    RME_A6M_GPIOA_OTYPE(RME_A6M_GPIO_OTYPE_PUSHPULL, 9); \
-    RME_A6M_GPIOA_OSPEED(RME_A6M_GPIO_OSPEED_HIGH, 9); \
-    RME_A6M_GPIOA_PUPD(RME_A6M_GPIO_PUPD_PULLUP, 9); \
-    RME_A6M_GPIOA_AFH(RME_A6M_GPIO_AF4_USART1, 9); \
+    RME_A6M_GPIOA_MODE(RME_A6M_GPIO_MODE_ALTERNATE, 9U); \
+    RME_A6M_GPIOA_OTYPE(RME_A6M_GPIO_OTYPE_PUSHPULL, 9U); \
+    RME_A6M_GPIOA_OSPEED(RME_A6M_GPIO_OSPEED_HIGH, 9U); \
+    RME_A6M_GPIOA_PUPD(RME_A6M_GPIO_PUPD_PULLUP, 9U); \
+    RME_A6M_GPIOA_AFH(RME_A6M_GPIO_AF4_USART1, 9U); \
     \
     /* UART initialization */ \
     RME_A6M_RCC_APB2ENR|=RME_A6M_RCC_APB2ENR_USART1EN; \
@@ -290,7 +289,7 @@ while(0)
 do \
 { \
     RME_A6M_USART1_TDR=(rme_ptr_t)(CHAR); \
-    while((RME_A6M_USART1_ISR&0x80)==0); \
+    while((RME_A6M_USART1_ISR&0x80U)==0U); \
 } \
 while(0)
 
@@ -316,7 +315,7 @@ do \
 } \
 while(0)
     
-#define RME_A6M_PRFTH_STATE_GET() ((RME_A6M_FLASH_ACR&RME_A6M_FLASH_ACR_PRFTEN)!=0)
+#define RME_A6M_PRFTH_STATE_GET() ((RME_A6M_FLASH_ACR&RME_A6M_FLASH_ACR_PRFTEN)!=0U)
 /* End Defines ***************************************************************/
 
 /* End Of File ***************************************************************/

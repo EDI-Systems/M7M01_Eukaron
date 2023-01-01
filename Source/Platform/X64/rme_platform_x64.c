@@ -1421,7 +1421,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create the capability table for the init process - always 16 */
     Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
-    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,16)==RME_BOOT_CPT);
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,Cur_Addr,16)==RME_BOOT_INIT_CPT);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(16));
 
     /* Create the capability table for initial page tables - now we are only
@@ -1429,7 +1429,7 @@ rme_ptr_t __RME_Boot(void)
      * This should provide support for up to 4TB of memory, which will be sufficient
      * for at least a decade. These data structures will eat 32MB of memory, which
      * is fine */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_PGT, Cur_Addr, 1+16+8192)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_PGT, Cur_Addr, 1+16+8192)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(1+16+8192));
 
     /* Align the address to 4096 to prepare for page table creation */
@@ -1494,14 +1494,14 @@ rme_ptr_t __RME_Boot(void)
     RME_DBG_S("]");
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Prc_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC,
-                                  RME_BOOT_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4))==0);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
+                                  RME_BOOT_INIT_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4))==0);
 
     /* Create the initial kernel function capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KERN)==0);
+    RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KERN)==0);
 
     /* Create a capability table for initial kernel memory capabilities. We need a few for Kom1, and another one for Kom2 */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_KOM, Cur_Addr, RME_X64_KOM1_MAXSEGS+1)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_KOM, Cur_Addr, RME_X64_KOM1_MAXSEGS+1)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
     /* Create Kom1 capabilities - can create page tables here */
     for(Count=0;Count<RME_X64_Layout.Kom1_Trunks;Count++)
@@ -1520,7 +1520,7 @@ rme_ptr_t __RME_Boot(void)
                                   RME_KOM_FLAG_CPT|RME_KOM_FLAG_THD|RME_KOM_FLAG_INV)==0);
 
     /* Create the initial kernel endpoints for timer ticks */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
@@ -1530,7 +1530,7 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Create the initial kernel endpoints for all other interrupts */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_INT, Cur_Addr, RME_X64_Num_CPU)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
@@ -1540,7 +1540,7 @@ rme_ptr_t __RME_Boot(void)
     }
 
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
     Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {

@@ -370,9 +370,8 @@ Return      : None.
 void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
-    /* If the user decided to send to the generic interrupt endpoint (or hoped to bypass
-     * this due to some reason), we skip the flag marshalling & sending process */
-    if(RME_Boot_Vct_Handler(Vct_Num)!=0U)
+    /* If the user wants to bypass, we skip the flag marshalling & sending process */
+    if(RME_Boot_Vct_Handler(Vct_Num)==0U)
         return;
 #endif
     
@@ -1413,9 +1412,6 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
-    extern void RME_Boot_Pre_Init(void);
-#endif
 void __RME_A7M_Low_Level_Preinit(void)
 {
     RME_A7M_LOW_LEVEL_PREINIT();
@@ -1491,9 +1487,6 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
-	extern void RME_Boot_Post_Init(void);
-#endif
 rme_ptr_t __RME_Low_Level_Init(void)
 {
     rme_ptr_t Temp;
@@ -1559,10 +1552,6 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* Turn on FPU access from unpriviledged software - CP10&11 full access */
     RME_A7M_SCB_CPACR|=((3U<<(10U*2U))|(3U<<(11U*2U)));
 #endif
-		 
-#if(RME_RVM_GEN_ENABLE==1U)
-    RME_Boot_Post_Init();
-#endif
     
     return 0;
 }
@@ -1582,42 +1571,25 @@ rme_ptr_t __RME_Boot(void)
     Cur_Addr=RME_KOM_VA_BASE;
     
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_CPT,Cur_Addr,RME_BOOT_CPT_SIZE)==0);
-    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_BOOT_CPT_SIZE));
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT, Cur_Addr, RME_RVM_INIT_CPT_SIZE)==0);
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_RVM_INIT_CPT_SIZE));
     
-#if(RME_RVM_GEN_ENABLE==1U)
     /* Create the page table for the init process, and map in the page alloted for it */
     /* The top-level page table - covers 4G address range */
-    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT, 
                Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_4G, RME_PGT_NUM_1)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
-#else
-    /* Create the page table for the init process, and map in the page alloted for it */
-    /* The top-level page table - covers 4G address range */
-    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_PGT, 
-               Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_512M, RME_PGT_NUM_8U)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_8));
-    /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x20000000U, 1U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x40000000U, 2U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x60000000U, 3U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0x80000000U, 4U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xA0000000U, 5U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xC0000000U, 6U, RME_PGT_ALL_PERM)==0);
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_PGT, 0xE0000000U, 7U, RME_PGT_ALL_PERM)==0);
-#endif
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7M_CPT, RME_BOOT_INIT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Prc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_PRC, 
-                                 RME_BOOT_CPT, RME_BOOT_PGT)==0U);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC, 
+                                 RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT)==0U);
     
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_KFN)==0);
+    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KFN)==0);
     RME_ASSERT(_RME_Kom_Boot_Crt(RME_A7M_CPT, 
-                                 RME_BOOT_CPT, 
+                                 RME_BOOT_INIT_CPT, 
                                  RME_BOOT_INIT_KOM,
                                  RME_KOM_VA_BASE,
                                  RME_KOM_VA_BASE+RME_KOM_VA_SIZE-1U,
@@ -1625,18 +1597,18 @@ rme_ptr_t __RME_Boot(void)
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_A7M_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIM]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_TIM)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_TIM)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
     RME_A7M_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_VCT)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_VCT)==0);
     
     /* Clean up the region for vectors and events */
     _RME_Clear((void*)RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE);
     _RME_Clear((void*)RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE);
     
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_CPT, RME_BOOT_INIT_THD,
+    RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_THD,
                                  RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_A7M_Local)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE);
     
@@ -1657,6 +1629,11 @@ rme_ptr_t __RME_Boot(void)
     RME_ASSERT(Cur_Addr==(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #else
     RME_ASSERT(Cur_Addr<(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
+#endif
+
+#if(RME_RVM_GEN_ENABLE==1U)
+    /* Perform post initialization */
+    RME_Boot_Post_Init();
 #endif
 
     /* Enable the MPU & interrupt */

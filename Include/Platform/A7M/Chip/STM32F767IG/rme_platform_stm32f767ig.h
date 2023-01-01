@@ -29,9 +29,9 @@ Description: The configuration file for STM32F767IG.
 #define RME_MAX_PREEMPT_PRIO                            (32)
 /* Size of capability table */
 #if(RME_GEN_ENABLE==RME_TRUE)
-#define RME_BOOT_CPT_SIZE                            (18)
+#define RME_RVM_INIT_CPT_SIZE                            (18)
 #else
-#define RME_BOOT_CPT_SIZE                            (18)
+#define RME_RVM_INIT_CPT_SIZE                            (18)
 #endif
 /* Shared vector flag region address - always 512B memory for ARMv7-M */
 #define RME_A7M_VECT_FLAG_ADDR                          (0x2000FC00)

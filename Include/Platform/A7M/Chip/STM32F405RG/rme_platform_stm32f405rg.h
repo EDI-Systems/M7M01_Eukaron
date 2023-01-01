@@ -11,7 +11,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_ASSERT_CORRECT                              (0U)
 #define RME_DEBUG_PRINT                                 (1U)
 /* Generator *****************************************************************/
-/* Are we using the generator in the first place? */
+/* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
@@ -30,12 +30,6 @@ Description: The configuration file for STM32F405RG.
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_PREEMPT_PRIO_NUM                            (32U)
-/* Size of capability table */
-#if(RME_RVM_GEN_ENABLE==1U)
-#define RME_BOOT_CPT_SIZE                               (18U)
-#else
-#define RME_BOOT_CPT_SIZE                               (18U)
-#endif
 
 /* Physical vector number, flag area base and its size */
 #define RME_RVM_PHYS_VCT_NUM                            (82U)
@@ -45,9 +39,14 @@ Description: The configuration file for STM32F405RG.
 #define RME_RVM_VIRT_EVT_NUM                            (20U)
 #define RME_RVM_VIRT_EVTF_BASE                          (0x10005E00U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x200U)
+/* Size of initial capability table */
+#define RME_RVM_INIT_CPT_SIZE                           (54U)
 /* Initial kernel object frontier limit */
-#define RME_RVM_CAP_BOOT_FRONT                          (9U)
+#define RME_RVM_CPT_BOOT_FRONT                          (9U)
 #define RME_RVM_KOM_BOOT_FRONT                          (0x1000U)
+/* Post-boot kernel object frontier limit */
+#define RME_RVM_CPT_DONE_FRONT                          (18U)
+#define RME_RVM_KOM_DONE_FRONT                          (0x1800U)
 
 /* Init process's first thread's entry point address */
 #define RME_A7M_INIT_ENTRY                              (0x08004001U)
@@ -266,11 +265,11 @@ Description: The configuration file for STM32F405RG.
 do \
 { \
     /* Set CP10&11 full access */ \
-    RME_A7M_SCB_CPACR|=((3UL<<(10*2))|(3UL<<(11*2))); \
+    RME_A7M_SCB_CPACR|=((3U<<(10U*2U))|(3U<<(11U*2U))); \
     /* Set HSION bit */ \
-    RME_A7M_RCC_CR|=0x00000001; \
+    RME_A7M_RCC_CR|=0x00000001U; \
     /* Reset CFGR register */ \
-    RME_A7M_RCC_CFGR=0x00000000; \
+    RME_A7M_RCC_CFGR=0x00000000U; \
     /* Reset HSEON, CSSON and PLLON bits */ \
     RME_A7M_RCC_CR&=0xFEF6FFFFU; \
     /* Reset PLLCFGR register */ \
@@ -278,9 +277,9 @@ do \
     /* Reset HSEBYP bit */ \
     RME_A7M_RCC_CR&=0xFFFBFFFFU; \
     /* Disable all interrupts */ \
-    RME_A7M_RCC_CIR=0x00000000; \
+    RME_A7M_RCC_CIR=0x00000000U; \
     /* Vector table address */ \
-    RME_A7M_SCB_VTOR=0x08000000; \
+    RME_A7M_SCB_VTOR=0x08000000U; \
 } \
 while(0)
 
@@ -296,11 +295,11 @@ do \
     /* Initialize the oscillator */ \
     RME_A7M_RCC_CR|=RME_A7M_RCC_CR_HSEON; \
     __RME_A7M_Barrier(); \
-    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_HSERDY)==0); \
+    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_HSERDY)==0U); \
     /* Fpll=Fin/PLLM*PLLN, Fsys=Fpll/PLLP, Fperiph=Fpll/PLLQ */ \
     RME_A7M_RCC_CR&=~RME_A7M_RCC_CR_PLLON; \
     __RME_A7M_Barrier(); \
-    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_PLLRDY)!=0); \
+    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_PLLRDY)!=0U); \
     RME_A7M_RCC_PLLCFGR=RME_A7M_RCC_PLLCFGR_SOURCE_HSE| \
                         RME_A7M_RCC_PLLCFGR_PLLM(RME_A7M_STM32F405RG_PLLM)| \
                         RME_A7M_RCC_PLLCFGR_PLLN(RME_A7M_STM32F405RG_PLLN)| \
@@ -309,11 +308,11 @@ do \
     __RME_A7M_Barrier(); \
     RME_A7M_RCC_CR|=RME_A7M_RCC_CR_PLLON; \
     __RME_A7M_Barrier(); \
-    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_PLLRDY)==0); \
+    while((RME_A7M_RCC_CR&RME_A7M_RCC_CR_PLLRDY)==0U); \
     \
     /* HCLK,PCLK1 & PCLK2 configuration */ \
-    RME_A7M_FLASH_ACR_LATENCY(5); \
-    RME_ASSERT((RME_A7M_FLASH_ACR&0x0F)==5); \
+    RME_A7M_FLASH_ACR_LATENCY(5U); \
+    RME_ASSERT((RME_A7M_FLASH_ACR&0x0FU)==5U); \
     RME_A7M_RCC_CFGR_PCLK1(RME_A7M_RCC_CFGR_HCLK_DIV4); \
     RME_A7M_RCC_CFGR_PCLK2(RME_A7M_RCC_CFGR_HCLK_DIV2); \
     RME_A7M_RCC_CFGR_HCLK(RME_A7M_RCC_CFGR_SYSCLK_DIV1); \
@@ -337,18 +336,18 @@ do \
     /* Enable USART 1 for user-level operations */ \
     /* UART IO initialization */ \
     RME_A7M_RCC_AHB1ENR|=RME_A7M_RCC_AHB1ENR_GPIOBEN; \
-    RME_A7M_GPIOB_MODE(RME_A7M_GPIO_MODE_ALTERNATE,6); \
-    RME_A7M_GPIOB_OTYPE(RME_A7M_GPIO_OTYPE_PUSHPULL,6); \
-    RME_A7M_GPIOB_OSPEED(RME_A7M_GPIO_OSPEED_HIGH,6); \
-    RME_A7M_GPIOB_PUPD(RME_A7M_GPIO_PUPD_PULLUP,6); \
-    RME_A7M_GPIOB_AF0(RME_A7M_GPIO_AF7_USART1,6); \
+    RME_A7M_GPIOB_MODE(RME_A7M_GPIO_MODE_ALTERNATE, 6U); \
+    RME_A7M_GPIOB_OTYPE(RME_A7M_GPIO_OTYPE_PUSHPULL, 6U); \
+    RME_A7M_GPIOB_OSPEED(RME_A7M_GPIO_OSPEED_HIGH, 6U); \
+    RME_A7M_GPIOB_PUPD(RME_A7M_GPIO_PUPD_PULLUP ,6U); \
+    RME_A7M_GPIOB_AF0(RME_A7M_GPIO_AF7_USART1, 6U); \
     \
     /* UART initialization */ \
     RME_A7M_RCC_APB2ENR|=RME_A7M_RCC_APB2ENR_USART1EN; \
-    RME_A7M_USART1_CR1=0x0000008; \
-    RME_A7M_USART1_CR2=0x00; \
-    RME_A7M_USART1_CR3=0x00; \
-    RME_A7M_USART1_BRR=0x2D9; \
+    RME_A7M_USART1_CR1=0x0000008U; \
+    RME_A7M_USART1_CR2=0x00U; \
+    RME_A7M_USART1_CR3=0x00U; \
+    RME_A7M_USART1_BRR=0x2D9U; \
     RME_A7M_USART1_CR1|=RME_A7M_USART1_CR1_UE; \
 } \
 while(0)
@@ -358,7 +357,7 @@ while(0)
 do \
 { \
     RME_A7M_USART1_DR=(rme_ptr_t)(CHAR); \
-    while((RME_A7M_USART1_SR&0x80)==0); \
+    while((RME_A7M_USART1_SR&0x80U)==0U); \
 } \
 while(0)
 
@@ -392,7 +391,7 @@ do \
 } \
 while(0)
     
-#define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ICEN)!=0)
+#define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ICEN)!=0U)
 /* End Defines ***************************************************************/
 
 /* End Of File ***************************************************************/

@@ -126,9 +126,9 @@ typedef rme_s32_t rme_ret_t;
 /* Cortex-A specific macros **************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CPT                 0
+#define RME_BOOT_INIT_CPT                 0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGT                  1
+#define RME_BOOT_INIT_PGT                  1
 /* The init process */
 #define RME_BOOT_INIT_PRC              2
 /* The init thread */

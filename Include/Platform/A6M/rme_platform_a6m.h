@@ -125,11 +125,16 @@ typedef rme_s32_t rme_ret_t;
 /* The CPU and application specific macros are here */
 #include "rme_platform_a6m_conf.h"
 
+/* Vector/signal flag */
+#define RME_RVM_VCT_SIG_ALL             (0U)
+#define RME_RVM_VCT_SIG_SELF            (1U)
+#define RME_RVM_VCT_SIG_INIT            (2U)
+#define RME_RVM_VCT_SIG_NONE            (3U)
 #define RME_RVM_FLAG_SET(B, S, N)       ((volatile struct __RME_RVM_Flag*)((B)+((S)>>1)*(N)))
 /* End System macros *********************************************************/
 
-/* Cortex-M specific macros **************************************************/
-/* Detect floating-point coprocessor existence */
+/* ARMv6-M specific macros ***************************************************/
+/* No coprocessor */
 #define RME_COPROCESSOR_TYPE            RME_COPROCESSOR_NONE
 /* Registers *****************************************************************/
 #define RME_A6M_REG(X)                  (*((volatile rme_ptr_t*)(X)))
@@ -227,7 +232,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_SCNSCB_CID3             RME_A6M_REG(0xE000EFFCU)
 
 /* Generic *******************************************************************/
-/* ARMv7-M EXC_RETURN bits */
+/* ARMv6-M EXC_RETURN bits */
 #define RME_A6M_EXC_RET_INIT            (0xFFFFFFFDU)
 /* Are we returning to user mode? 1 means yes, 0 means no */
 #define RME_A6M_EXC_RET_RET_USER        (1U<<3)
@@ -235,13 +240,13 @@ typedef rme_s32_t rme_ret_t;
 /* Handler *******************************************************************/
 /* Fault definitions */
 /* The NMI is active */
-#define RME_A6M_ICSR_NMIPENDSET         RME_POW2(31)
+#define RME_A6M_ICSR_NMIPENDSET         RME_POW2(31U)
 
 /* Initialization ************************************************************/
 /* The capability table of the init process */
-#define RME_BOOT_CPT                    (0U)
+#define RME_BOOT_INIT_CPT               (0U)
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGT                    (1U)
+#define RME_BOOT_INIT_PGT               (1U)
 /* The init process */
 #define RME_BOOT_INIT_PRC               (2U)
 /* The init thread */
@@ -254,6 +259,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_BOOT_INIT_TIM               (6U)
 /* The initial default endpoint for all other vectors */
 #define RME_BOOT_INIT_VCT               (7U)
+
 /* Booting capability layout */
 #define RME_A6M_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 
@@ -507,6 +513,8 @@ EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
 EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
                                    rme_ptr_t Cap_Front,
                                    rme_ptr_t Kom_Front);
+EXTERN void RME_Boot_Pre_Init(void);
+EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
 /* Vector Flags **************************************************************/

@@ -203,7 +203,7 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 /* X64 specific macros *******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CPT                      0
+#define RME_BOOT_INIT_CPT                      0
 /* The top-level page table of the init process - an array */
 #define RME_BOOT_TBL_PGT                   1
 /* The init process */

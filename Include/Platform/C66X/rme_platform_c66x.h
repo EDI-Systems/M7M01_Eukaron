@@ -127,7 +127,7 @@ typedef rme_s32_t rme_ret_t;
 /* C66X specific macros ******************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_CPT                 0
+#define RME_BOOT_INIT_CPT                 0
 /* The top-level page table of the init process - an array */
 #define RME_BOOT_INIT_PGT             1
 /* The init process */

@@ -46,11 +46,11 @@ typedef s32 ret_t;
 
 /* Initial boot capabilities - This should be in accordnace with the kernel settings */
 /* The capability table of the init process */
-#define RME_BOOT_CPT          0
+#define RME_BOOT_INIT_CPT          0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_PGT           1
+#define RME_BOOT_INIT_PGT           1
 /* The top-level page table of the init process's SRAM */
-#define RME_BOOT_PGT_SRAM      2
+#define RME_BOOT_INIT_PGT_SRAM      2
 /* The init process */
 #define RME_BOOT_INIT_PRC       3
 /* The init thread */
@@ -220,7 +220,7 @@ void RME_Same_Prc_Thd_Switch_Test(void)
                                1, 2, 3, 4);
     /* There are still many bugs in the kernel. Need a white-box test to guarantee
      * that it is free of bugs. Find a scheme to do that */
-    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CPT,
+    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_INIT_CPT,
                       RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
                       RME_PARAM_D1(RME_BOOT_INIT_PRC)|RME_PARAM_D0(31),
                       RME_BOOT_BENCH_KOM_FRONTIER);
@@ -321,14 +321,14 @@ void RME_Diff_Prc_Thd_Switch_Test(void)
                                1, 2, 3, 4);
     
     /* Create the page table for the whole address space range */
-    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_CPT,
+    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_INIT_CPT,
                       RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGT_TOP)|
                       RME_PARAM_O1(29)|RME_PARAM_O0(3),
                       Frontier,
                       1);
 //    Frontier+=;
 //    /* Create the page table for the SRAM range */
-//    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_CPT,
+//    Retval=RME_CAP_OP(RME_SVC_PGT_CRT,RME_BOOT_INIT_CPT,
 //                      RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_Q1(RME_BOOT_BENCH_PGT_SRAM)|
 //                      RME_PARAM_O1(16)|RME_PARAM_O0(3),
 //                      Frontier,
@@ -337,14 +337,14 @@ void RME_Diff_Prc_Thd_Switch_Test(void)
 //    /* Map the pages into the top-level and the second-level */
 //    RME_CAP_OP(RME_SVC_PGT_ADD,0,
 //               RME_PARAM_Q1(RME_BOOT_BENCH_PGT_TOP)|0,
-//               RME_PARAM_D1(RME_BOOT_PGT)|0,
+//               RME_PARAM_D1(RME_BOOT_INIT_PGT)|0,
 //               |0)
                       
                   
     
     
     
-    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_CPT,
+    Retval=RME_CAP_OP(RME_SVC_THD_CRT,RME_BOOT_INIT_CPT,
                       RME_PARAM_D1(RME_BOOT_INIT_KOM)|RME_PARAM_D0(RME_BOOT_BENCH_THD),
                       RME_PARAM_D1(RME_BOOT_INIT_PRC)|RME_PARAM_D0(31),
                       RME_BOOT_BENCH_KOM_FRONTIER);
