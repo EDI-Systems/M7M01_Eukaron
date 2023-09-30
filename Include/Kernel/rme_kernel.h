@@ -899,7 +899,7 @@ struct RME_Cap_Kfn
 
 /* Private C Function Prototypes *********************************************/
 /* Generic *******************************************************************/
-static rme_ret_t __RME_Low_Level_Check(void);
+static rme_ret_t __RME_Lowlvl_Check(void);
 static rme_ret_t _RME_Syscall_Init(void);
 
 /* Capability Table **********************************************************/

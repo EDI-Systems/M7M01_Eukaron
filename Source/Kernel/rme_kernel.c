@@ -182,9 +182,9 @@ rme_ret_t RME_Kmain(void)
     /* Disable all interrupts first */
     __RME_Int_Disable();
     /* Some low-level checks to make sure the correctness of the core */
-    __RME_Low_Level_Check();
+    __RME_Lowlvl_Check();
     /* Hardware low-level init */
-    __RME_Low_Level_Init();
+    __RME_Lowlvl_Init();
     /* Initialize the kernel page tables */
     __RME_Pgt_Kom_Init();
     
@@ -201,13 +201,13 @@ rme_ret_t RME_Kmain(void)
 }
 /* End Function:RME_Kmain ****************************************************/
 
-/* Begin Function:__RME_Low_Level_Check ***************************************
+/* Begin Function:__RME_Lowlvl_Check ******************************************
 Description : Do some low-level checking for the operating system.
 Input       : None.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t __RME_Low_Level_Check(void)
+rme_ret_t __RME_Lowlvl_Check(void)
 {
     /* Make sure the machine is at least 32-bit */
     RME_ASSERT(RME_WORD_ORDER>=5U);
@@ -230,7 +230,7 @@ rme_ret_t __RME_Low_Level_Check(void)
     RME_ASSERT(RME_PREEMPT_PRIO_NUM<=RME_POW2(RME_WORD_BITS>>1));
     return 0;
 }
-/* End Function:__RME_Low_Level_Check ****************************************/
+/* End Function:__RME_Lowlvl_Check *******************************************/
 
 /* Begin Function:_RME_Syscall_Init *******************************************
 Description : The initialization function of system calls. This actually does
@@ -5583,9 +5583,7 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     /* Header init */
     Sig_Crt->Head.Root_Ref=1U;
     Sig_Crt->Head.Object=0U;
-    /* Receive only because this is from kernel. Kernel send does not check flags anyway */
-    Sig_Crt->Head.Flag=RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|
-                       RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM;
+    Sig_Crt->Head.Flag=RME_SIG_FLAG_ALL;
     
     /* Info init */
     Sig_Crt->Sig_Num=0U;

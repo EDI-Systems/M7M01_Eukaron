@@ -52,9 +52,7 @@ Description: The configuration file for STM32L071CB.
 #define RME_A6M_INIT_ENTRY                              (0x08004001U)
 /* Init process's first thread's stack address */
 #define RME_A6M_INIT_STACK                              (0x1000FFF0U)
-/* What is the NVIC priority grouping? */
-#define RME_A6M_NVIC_GROUPING                           (RME_A6M_NVIC_GROUPING_P2S6)
-/* What is the Systick value? - 10ms per tick*/
+/* What is the Systick value? - 10ms per tick */
 #define RME_A6M_SYSTICK_VAL                             (320000U)
 /* Number of MPU regions available */
 #define RME_A6M_REGION_NUM                              (8U)
@@ -204,7 +202,7 @@ Description: The configuration file for STM32L071CB.
 #define RME_A6M_USART1_CR1_UE                           (1U<<0)
 
 /* Preinitialization of critical hardware */
-#define RME_A6M_LOW_LEVEL_PREINIT() \
+#define RME_A6M_LOWLVL_PREINIT() \
 do \
 { \
     /* Set HSION bit */ \
@@ -222,7 +220,7 @@ do \
 } \
 while(0)
 
-#define RME_A6M_LOW_LEVEL_INIT_COMMON() \
+#define RME_A6M_LOWLVL_INIT_COMMON() \
 do \
 { \
     /* Set the clock tree in the system */ \
@@ -260,10 +258,10 @@ while(0)
 
 #if(RME_DEBUG_PRINT==1U)
 /* Other low-level initialization stuff - clock and serial */
-#define RME_A6M_LOW_LEVEL_INIT() \
+#define RME_A6M_LOWLVL_INIT() \
 do \
 { \
-    RME_A6M_LOW_LEVEL_INIT_COMMON(); \
+    RME_A6M_LOWLVL_INIT_COMMON(); \
     \
     /* Enable USART 1 for user-level operations */ \
     /* UART IO initialization */ \
@@ -296,7 +294,7 @@ while(0)
 #else
 
 /* Other low-level initialization stuff - clock and serial */
-#define RME_A6M_LOW_LEVEL_INIT() \
+#define RME_A6M_LOWLVL_INIT() \
 do \
 { \
     RME_A6M_LOW_LEVEL_INIT_COMMON(); \

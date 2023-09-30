@@ -177,14 +177,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_NVIC_IPR_SET(X, V)      RME_A6M_NVIC_IPR(X)=RME_A6M_NVIC_IPR(X)& \
                                                             ~(0xFFU<<RME_A6M_NVIC_IPR_BIT(X))| \
                                                             ((V)<<RME_A6M_NVIC_IPR_BIT(X))
-#define RME_A6M_NVIC_GROUPING_P7S1      (0U)
-#define RME_A6M_NVIC_GROUPING_P6S2      (1U)
-#define RME_A6M_NVIC_GROUPING_P5S3      (2U)
-#define RME_A6M_NVIC_GROUPING_P4S4      (3U)
-#define RME_A6M_NVIC_GROUPING_P3S5      (4U)
-#define RME_A6M_NVIC_GROUPING_P2S6      (5U)
-#define RME_A6M_NVIC_GROUPING_P1S7      (6U)
-#define RME_A6M_NVIC_GROUPING_P0S8      (7U)
 
 #define RME_A6M_IRQN_NONMASKABLEINT     (-14)
 #define RME_A6M_IRQN_MEMORYMANAGEMENT   (-12)
@@ -207,7 +199,15 @@ typedef rme_s32_t rme_ret_t;
 
 #define RME_A6M_SCB_CCR                 RME_A6M_REG(0xE000ED14U)
 
-#define RME_A6M_SCB_SHPR(X)             RME_A6M_REGB(0xE000ED18U+(X))
+/* ARMv6-M does not allow IPR byte access, this is different from ARMv7-M,
+ * and is ERRORNOUSLY documented in the ARMv6-M reference manual (manual 
+ * says that it have no usage restrictions, which is absurd)! */
+#define RME_A6M_SCB_SHPR(X)             RME_A6M_REG(0xE000ED18U+(((X)>>2)<<2))
+#define RME_A6M_SCB_SHPR_BIT(X)         (((X)&0x3U)<<3)
+#define RME_A6M_SCB_SHPR_GET(X)         ((RME_A6M_SCB_SHPR(X)>>RME_A6M_SCB_SHPR_BIT(X))&0xFFU)
+#define RME_A6M_SCB_SHPR_SET(X, V)      RME_A6M_SCB_SHPR(X)=RME_A6M_SCB_SHPR(X)& \
+                                                            ~(0xFFU<<RME_A6M_SCB_SHPR_BIT(X))| \
+                                                            ((V)<<RME_A6M_SCB_SHPR_BIT(X))
 
 #define RME_A6M_SCB_SHCSR               RME_A6M_REG(0xE000ED24U)
 #define RME_A6M_SCB_SHCSR_SVCALLPENDED  (1U<<15)
@@ -255,10 +255,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_BOOT_INIT_KFN               (4U)
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM               (5U)
-/* The initial timer endpoint */
-#define RME_BOOT_INIT_TIM               (6U)
 /* The initial default endpoint for all other vectors */
-#define RME_BOOT_INIT_VCT               (7U)
+#define RME_BOOT_INIT_VCT               (6U)
 
 /* Booting capability layout */
 #define RME_A6M_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
@@ -411,6 +409,7 @@ typedef rme_s32_t rme_ret_t;
 struct __RME_RVM_Flag
 {
     rme_ptr_t Lock;
+    rme_ptr_t Fast;
     rme_ptr_t Group;
     rme_ptr_t Flag[1024];
 };
@@ -419,7 +418,7 @@ struct __RME_RVM_Flag
 /* The register set struct - R0-R3, R12, PC, LR, xPSR is automatically pushed.
  * Here we need LR to decide EXC_RETURN, that's why it is here. ARMv6-M must
  * separate pushes to two efforts, that's why its layout is a bit different from
- * ARMv7's. */
+ * ARMv7-M's. */
 struct RME_Reg_Struct
 {
     rme_ptr_t SP;
@@ -518,9 +517,12 @@ EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
 /* Vector Flags **************************************************************/
-static void __RME_A6M_Set_Flag(rme_ptr_t Base,
-                               rme_ptr_t Size,
-                               rme_ptr_t Pos);
+static void __RME_A6M_Flag_Fast(rme_ptr_t Base,
+                                rme_ptr_t Size,
+                                rme_ptr_t Flag);
+static void __RME_A6M_Flag_Slow(rme_ptr_t Base,
+                                rme_ptr_t Size,
+                                rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
                                      rme_ptr_t Flag, 
@@ -621,11 +623,14 @@ __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 
 /* Handler *******************************************************************/
-/* Fault handler */
+/* Exception handler */
 __EXTERN__ void __RME_A6M_Exc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_A6M_Vct_Handler(volatile struct RME_Reg_Struct* Reg,
-                                      rme_ptr_t Vect_Num);
+                                      rme_ptr_t Vct_Num);
+/* Timer handler */
+__EXTERN__ void __RME_A6M_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
+
 /* Kernel function handler */
 __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        volatile struct RME_Reg_Struct* Reg,
@@ -635,8 +640,8 @@ __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Param2);
 
 /* Initialization ************************************************************/
-__EXTERN__ void __RME_A6M_Low_Level_Preinit(void);
-__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ void __RME_A6M_Lowlvl_Preinit(void);
+__EXTERN__ rme_ptr_t __RME_Lowlvl_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
 EXTERN void __RME_A6M_Reset(void);
 __EXTERN__ void __RME_A6M_Reboot(void);

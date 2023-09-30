@@ -350,10 +350,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_BOOT_INIT_KFN               (4U)
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM               (5U)
-/* The initial timer endpoint */
-#define RME_BOOT_INIT_TIM               (6U)
-/* The initial default endpoint for all other vectors */
-#define RME_BOOT_INIT_VCT               (7U)
+/* The initial timer/interrupt endpoint */
+#define RME_BOOT_INIT_VCT               (6U)
 
 /* Booting capability layout */
 #define RME_A7M_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
@@ -587,6 +585,7 @@ typedef rme_s32_t rme_ret_t;
 struct __RME_RVM_Flag
 {
     rme_ptr_t Lock;
+    rme_ptr_t Fast;
     rme_ptr_t Group;
     rme_ptr_t Flag[1024];
 };
@@ -714,9 +713,12 @@ EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
 /* Vector Flags **************************************************************/
-static void __RME_A7M_Set_Flag(rme_ptr_t Base,
-                               rme_ptr_t Size,
-                               rme_ptr_t Pos);
+static void __RME_A7M_Flag_Fast(rme_ptr_t Base,
+                                rme_ptr_t Size,
+                                rme_ptr_t Flag);
+static void __RME_A7M_Flag_Slow(rme_ptr_t Base,
+                                rme_ptr_t Size,
+                                rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
 static rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
@@ -830,6 +832,8 @@ __EXTERN__ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg,
                                       rme_ptr_t Vect_Num);
+/* Timer handler */
+__EXTERN__ void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Kernel function handler */
 __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        volatile struct RME_Reg_Struct* Reg,
@@ -839,8 +843,8 @@ __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Param2);
 
 /* Initialization ************************************************************/
-__EXTERN__ void __RME_A7M_Low_Level_Preinit(void);
-__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ void __RME_A7M_Lowlvl_Preinit(void);
+__EXTERN__ rme_ptr_t __RME_Lowlvl_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
 EXTERN void __RME_A7M_Reset(void);
 __EXTERN__ void __RME_A7M_Reboot(void);

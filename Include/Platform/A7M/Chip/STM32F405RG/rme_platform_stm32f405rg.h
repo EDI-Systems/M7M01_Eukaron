@@ -261,7 +261,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_USART1_CR1_UE                           (1U<<13)
 
 /* Preinitialization of critical hardware */
-#define RME_A7M_LOW_LEVEL_PREINIT() \
+#define RME_A7M_LOWLVL_PREINIT() \
 do \
 { \
     /* Set CP10&11 full access */ \
@@ -283,7 +283,7 @@ do \
 } \
 while(0)
 
-#define RME_A7M_LOW_LEVEL_INIT_COMMON() \
+#define RME_A7M_LOWLVL_INIT_COMMON() \
 do \
 { \
     /* Set the clock tree in the system */ \
@@ -328,10 +328,10 @@ while(0)
 
 #if(RME_DEBUG_PRINT==1U)
 /* Other low-level initialization stuff - clock and serial */
-#define RME_A7M_LOW_LEVEL_INIT() \
+#define RME_A7M_LOWLVL_INIT() \
 do \
 { \
-    RME_A7M_LOW_LEVEL_INIT_COMMON(); \
+    RME_A7M_LOWLVL_INIT_COMMON(); \
     \
     /* Enable USART 1 for user-level operations */ \
     /* UART IO initialization */ \
@@ -364,10 +364,10 @@ while(0)
 #else
 
 /* Other low-level initialization stuff - clock and serial */
-#define RME_A7M_LOW_LEVEL_INIT() \
+#define RME_A7M_LOWLVL_INIT() \
 do \
 { \
-    RME_A7M_LOW_LEVEL_INIT_COMMON(); \
+    RME_A7M_LOWLVL_INIT_COMMON(); \
 } \
 while(0)
 #endif

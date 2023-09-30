@@ -332,32 +332,54 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_A7M_Fault_Handler **************************************/
 
-/* Begin Function:__RME_A7M_Set_Flag ******************************************
-Description : Set a generic flag in a flag set. Works for both vectors and events
-              for ARMv7-M.
+/* Begin Function:__RME_A7M_Flag_Fast *****************************************
+Description : Set a fast flag in a flag set. Works for timer interrupts only.
 Input       : rme_ptr_t Base - The base address of the flagset.
-              rme_ptr_t Base - The size of the flagset.
-              rme_ptr_t Pos - The position in the flagset to set.
+              rme_ptr_t Size - The size of the flagset.
+              rme_ptr_t Flag - The fast flagset to program.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Set_Flag(rme_ptr_t Base,
-                        rme_ptr_t Size,
-                        rme_ptr_t Pos)
+void __RME_A7M_Flag_Fast(rme_ptr_t Base,
+                         rme_ptr_t Size,
+                         rme_ptr_t Flag)
 {
     volatile struct __RME_RVM_Flag* Set;
     
     /* Choose a data structure that is not locked at the moment */
-    if(RME_RVM_FLAG_SET(Base, Size, 0U)->Lock==0U)
-        Set=RME_RVM_FLAG_SET(Base, Size, 0U);
-    else
+    Set=RME_RVM_FLAG_SET(Base, Size, 0U);
+    if(Set->Lock!=0U)
+        Set=RME_RVM_FLAG_SET(Base, Size, 1U);
+    
+    /* Set the flags for this interrupt source */
+    Set->Fast|=Flag;
+}
+/* End Function:__RME_A7M_Flag_Fast ******************************************/
+
+/* Begin Function:__RME_A7M_Flag_Slow *****************************************
+Description : Set a slow flag in a flag set. Works for both vectors and events.
+Input       : rme_ptr_t Base - The base address of the flagset.
+              rme_ptr_t Size - The size of the flagset.
+              rme_ptr_t Pos - The position in the flagset to set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_Flag_Slow(rme_ptr_t Base,
+                         rme_ptr_t Size,
+                         rme_ptr_t Pos)
+{
+    volatile struct __RME_RVM_Flag* Set;
+    
+    /* Choose a data structure that is not locked at the moment */
+    Set=RME_RVM_FLAG_SET(Base, Size, 0U);
+    if(Set->Lock!=0U)
         Set=RME_RVM_FLAG_SET(Base, Size, 1U);
     
     /* Set the flags for this interrupt source */
     Set->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
     Set->Flag[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
 }
-/* End Function:__RME_A7M_Set_Flag *******************************************/
+/* End Function:__RME_A7M_Flag_Slow ******************************************/
 
 /* Begin Function:__RME_A7M_Vct_Handler ***************************************
 Description : The generic interrupt handler of RME for ARMv7-M.
@@ -375,13 +397,29 @@ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Nu
         return;
 #endif
     
-    __RME_A7M_Set_Flag(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, Vct_Num);
+    __RME_A7M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, Vct_Num);
     
     _RME_Kern_Snd(RME_A7M_Local.Sig_Vct);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A7M_Local);
 }
 /* End Function:__RME_A7M_Vct_Handler ****************************************/
+
+/* Begin Function:__RME_A7M_Tim_Handler ***************************************
+Description : The timer interrupt handler of RME for ARMv7-M.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
+{
+#if(RME_RVM_GEN_ENABLE==1U)
+    __RME_A7M_Flag_Fast(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, 1U);
+#endif
+    
+    _RME_Tim_Handler(Reg);
+}
+/* End Function:__RME_A7M_Tim_Handler ****************************************/
 
 /* Begin Function:__RME_A7M_Pgt_Entry_Mod *************************************
 Description : Consult or modify the page table attributes. ARMv7-M only allows 
@@ -516,7 +554,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     if(Evt_Num>=RME_RVM_VIRT_EVT_NUM)
         return RME_ERR_KFN_FAIL;
 
-    __RME_A7M_Set_Flag(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
+    __RME_A7M_Flag_Slow(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
     
     if(_RME_Kern_Snd(RME_A7M_Local.Sig_Vct)!=0U)
         return RME_ERR_KFN_FAIL;
@@ -1405,22 +1443,22 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
 
-/* Begin Function:__RME_A7M_Low_Level_Preinit *********************************
+/* Begin Function:__RME_A7M_Lowlvl_Preinit ************************************
 Description : Initialize the low-level hardware, before the loading of the kernel
               even takes place.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Low_Level_Preinit(void)
+void __RME_A7M_Lowlvl_Preinit(void)
 {
-    RME_A7M_LOW_LEVEL_PREINIT();
+    RME_A7M_LOWLVL_PREINIT();
     
 #if(RME_RVM_GEN_ENABLE==1U)
     RME_Boot_Pre_Init();
 #endif
 }
-/* End Function:__RME_A7M_Low_Level_Preinit **********************************/
+/* End Function:__RME_A7M_Lowlvl_Preinit *************************************/
 
 /* Begin Function:__RME_A7M_NVIC_Set_Exc_Prio *********************************
 Description : Set the system exception priority in ARMv7-M architecture.
@@ -1481,17 +1519,17 @@ void __RME_A7M_Cache_Init(void)
 }
 /* End Function:__RME_A7M_Cache_Init *****************************************/
 
-/* Begin Function:__RME_Low_Level_Init ****************************************
+/* Begin Function:__RME_Lowlvl_Init *******************************************
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t __RME_Low_Level_Init(void)
+rme_ptr_t __RME_Lowlvl_Init(void)
 {
     rme_ptr_t Temp;
     
-    RME_A7M_LOW_LEVEL_INIT();
+    RME_A7M_LOWLVL_INIT();
 
     /* Check the number of interrupt lines */
     RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_RVM_PHYS_VCT_NUM);
@@ -1555,7 +1593,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
     
     return 0;
 }
-/* End Function:__RME_Low_Level_Init *****************************************/
+/* End Function:__RME_Lowlvl_Init ********************************************/
 
 /* Begin Function:__RME_Boot **************************************************
 Description : Boot the first process in the system.
@@ -1595,11 +1633,8 @@ rme_ptr_t __RME_Boot(void)
                                  RME_KOM_VA_BASE+RME_KOM_VA_SIZE-1U,
                                  RME_KOM_FLAG_ALL)==0U);
     
-    /* Create the initial kernel endpoint for timer ticks */
-    RME_A7M_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIM]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_TIM)==0);
-    
-    /* Create the initial kernel endpoint for all other interrupts */
+    /* Create the initial kernel endpoint for timer ticks and interrupts */
+    RME_A7M_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
     RME_A7M_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VCT]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_VCT)==0);
     

@@ -79,12 +79,12 @@ DUMMY_STACK
 
 ;/* Begin Imports ************************************************************/
                         ;Preinitialization routine.
-                        IMPORT              __RME_A7M_Low_Level_Preinit
+                        IMPORT              __RME_A7M_Lowlvl_Preinit
                         IMPORT              __main
                         ;The system call handler of RME. C function.
                         IMPORT              _RME_Svc_Handler
                         ;The system tick handler of RME. C function.
-                        IMPORT              _RME_Tim_Handler
+                        IMPORT              __RME_A7M_Tim_Handler
                         ;The memory management fault handler of RME. C function.
                         IMPORT              __RME_A7M_Exc_Handler
                         ;The generic interrupt handler for all other vectors.
@@ -382,7 +382,7 @@ __Vectors_Size          EQU                 __Vectors_End-__Vectors
 
 ;/* Begin Handlers ***********************************************************/
 Reset_Handler           PROC
-                        LDR                 R0, =__RME_A7M_Low_Level_Preinit
+                        LDR                 R0, =__RME_A7M_Lowlvl_Preinit
                         BLX                 R0
                         LDR                 R0, =__main
                         BX                  R0
@@ -1072,7 +1072,7 @@ SysTick_Handler         PROC
                         PUSH                {R0}
                         
                         MOV                 R0, SP              ; Pass in the regs
-                        BL                  _RME_Tim_Handler
+                        BL                  __RME_A7M_Tim_Handler
                         
                         POP                 {R0}
                         MSR                 PSP, R0
@@ -1157,7 +1157,8 @@ ___RME_A7M_Thd_Cop_Clear PROC
                         DCI                 0xECB0              ; VLDMIA    R0!,{S0-S31}
                         DCI                 0x0A20              ; Clear all the FPU registers
                         MOV                 R0, #0              ; Clear FPSCR as well
-                        VMSR                FPSCR, R0
+                        DCI                 0xEEE1              ; VMSR      FPSCR, R0
+                        DCI                 0x0A10
                         BX                  LR
                         ENDP
                         ALIGN

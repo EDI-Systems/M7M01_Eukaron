@@ -9,63 +9,67 @@ Description: The configuration file for STM32F767IG.
 /* Defines *******************************************************************/
 /* Debugging *****************************************************************/
 #define RME_ASSERT_CORRECT                              (0U)
+#define RME_DEBUG_PRINT                                 (1U)
 /* Generator *****************************************************************/
 /* Are we using the generator in the first place? */
-#define RME_RVM_GEN_ENABLE                              RME_FALSE
+#define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
 /* The virtual memory start address for the kernel objects */
-#define RME_KOM_VA_START                               (0x20003000)
+#define RME_KOM_VA_BASE                                 (0x20003000U)
 /* The size of the kernel object virtual memory */
-#define RME_KOM_SIZE                                   (0xD000)
+#define RME_KOM_VA_SIZE                                 (0xD000U)
 /* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
-#define RME_HYP_VA_START                                (0x20020000)
+#define RME_HYP_VA_BASE                                 (0x20020000U)
 /* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_SIZE                                    (0x60000)
-/* Kernel stack address - we have 4kB stack */
-#define RME_KOM_STACK_BASE                             (0x20000FF0)
-#define RME_KOM_STACK_SIZE                             (0x1000)
+#define RME_HYP_VA_SIZE                                 (0x60000U)
+/* The granularity of kernel memory allocation, in bytes */
+#define RME_KOM_SLOT_ORDER                              (4U)
+/* Kernel stack size and address */
+#define RME_KSTK_VA_BASE                                (0x20000FF0U)
+#define RME_KSTK_VA_SIZE                                (0x1000U)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
-#define RME_MAX_PREEMPT_PRIO                            (32)
-/* Size of capability table */
-#if(RME_GEN_ENABLE==RME_TRUE)
-#define RME_RVM_INIT_CPT_SIZE                            (18)
-#else
-#define RME_RVM_INIT_CPT_SIZE                            (18)
-#endif
-/* Shared vector flag region address - always 512B memory for ARMv7-M */
-#define RME_A7M_VECT_FLAG_ADDR                          (0x2000FC00)
-/* Shared interrupt flag region address - always 512B memory for ARMv7-M */
-#define RME_A7M_EVT_FLAG_ADDR                           (0x2000FE00)
+#define RME_PREEMPT_PRIO_NUM                            (32U)
+
+/* Physical vector number, flag area base and its size */
+#define RME_RVM_PHYS_VCT_NUM                            (110U)
+#define RME_RVM_PHYS_VCTF_BASE                          (0x20005C00U)
+#define RME_RVM_PHYS_VCTF_SIZE                          (0x400U)
+/* Virtual event number, flag area base and its size */
+#define RME_RVM_VIRT_EVT_NUM                            (20U)
+#define RME_RVM_VIRT_EVTF_BASE                          (0x20005E00U)
+#define RME_RVM_VIRT_EVTF_SIZE                          (0x400U)
+/* Size of initial capability table */
+#define RME_RVM_INIT_CPT_SIZE                           (54U)
 /* Initial kernel object frontier limit */
-#define RME_A7M_KOM_BOOT_FRONTIER                      (0x20003400)
+#define RME_RVM_CPT_BOOT_FRONT                          (9U)
+#define RME_RVM_KOM_BOOT_FRONT                          (0x1000U)
+/* Post-boot kernel object frontier limit */
+#define RME_RVM_CPT_DONE_FRONT                          (18U)
+#define RME_RVM_KOM_DONE_FRONT                          (0x1800U)
+
 /* Init process's first thread's entry point address */
-#define RME_A7M_INIT_ENTRY                              (0x08010001)
+#define RME_A7M_INIT_ENTRY                              (0x08004001U)
 /* Init process's first thread's stack address */
-#define RME_A7M_INIT_STACK                              (0x2001FFF0)
+#define RME_A7M_INIT_STACK                              (0x2000FFF0U)
 /* What is the NVIC priority grouping? */
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
-/* What is the Systick value? */
-#define RME_A7M_SYSTICK_VAL                             (2160000)
-
-/* What is the external crystal frequency? */
-#define RME_A7M_STM32F767IG_XTAL                        (25)
-/* What are the PLL values? */
-#define RME_A7M_STM32F767IG_PLLM                        (25)
-#define RME_A7M_STM32F767IG_PLLN                        (432)
-#define RME_A7M_STM32F767IG_PLLP                        (2)
-#define RME_A7M_STM32F767IG_PLLQ                        (9)
-#define RME_A7M_STM32F767IG_PLLR                        (0)
-
-/* Fixed *********************************************************************/
-/* The granularity of kernel memory allocation, in bytes */
-#define RME_KOM_SLOT_ORDER                             (4)
+/* What is the Systick value? - 10ms per tick*/
+#define RME_A7M_SYSTICK_VAL                             (2160000U)
 /* Number of MPU regions available */
-#define RME_A7M_MPU_REGIONS                             (8)
+#define RME_A7M_REGION_NUM                              (8U)
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV5_DP)
-/* What is the vector number excluding system vectors? */
-#define RME_A7M_VECT_NUM                                (110)
+
+/* Fixed *********************************************************************/
+/* What is the external crystal frequency? */
+#define RME_A7M_STM32F767IG_XTAL                        (25U)
+/* What are the PLL values? */
+#define RME_A7M_STM32F767IG_PLLM                        (25U)
+#define RME_A7M_STM32F767IG_PLLN                        (432U)
+#define RME_A7M_STM32F767IG_PLLP                        (2U)
+#define RME_A7M_STM32F767IG_PLLQ                        (9U)
+#define RME_A7M_STM32F767IG_PLLR                        (0U)
 
 /* Interrupts ****************************************************************/
 #define  WWDG_IRQHandler                                IRQ0_Handler        /* Window WatchDog */                                       
@@ -190,39 +194,39 @@ Description: The configuration file for STM32F767IG.
 #define  MDIOS_IRQHandler                               IRQ109_Handler      /* MDIOS */
 
 /* Initialization registers **************************************************/
-#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840)
+#define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840U)
 #define RME_A7M_RCC_APB1ENR_PWREN                       (1U<<28)
 
-#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40007000)
+#define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40007000U)
 #define RME_A7M_PWR_CR1_VOS_SCALE1                      (3U<<14)
 #define RME_A7M_PWR_CR1_ODEN                            (1U<<16)
 #define RME_A7M_PWR_CR1_ODSWEN                          (1U<<17)
-#define RME_A7M_PWR_CSR1                                RME_A7M_REG(0x40007004)
+#define RME_A7M_PWR_CSR1                                RME_A7M_REG(0x40007004U)
 #define RME_A7M_PWR_CSR1_ODRDY                          (1U<<16)
 #define RME_A7M_PWR_CSR1_ODSWRDY                        (1U<<17)
 
-#define RME_A7M_RCC_CR                                  RME_A7M_REG(0x40023800)
+#define RME_A7M_RCC_CR                                  RME_A7M_REG(0x40023800U)
 #define RME_A7M_RCC_CR_HSEON                            (1U<<16)
 #define RME_A7M_RCC_CR_HSERDY                           (1U<<17)
 #define RME_A7M_RCC_CR_PLLON                            (1U<<24)
 #define RME_A7M_RCC_CR_PLLRDY                           (1U<<25)
 
-#define RME_A7M_RCC_PLLCFGR                             RME_A7M_REG(0x40023804)
+#define RME_A7M_RCC_PLLCFGR                             RME_A7M_REG(0x40023804U)
 #define RME_A7M_RCC_PLLCFGR_SOURCE_HSE                  (1U<<22)
 #define RME_A7M_RCC_PLLCFGR_PLLM(X)                     (X)
 #define RME_A7M_RCC_PLLCFGR_PLLN(X)                     ((X)<<6)
-#define RME_A7M_RCC_PLLCFGR_PLLP(X)                     ((((X)>>1)-1)<<16)
+#define RME_A7M_RCC_PLLCFGR_PLLP(X)                     ((((X)>>1)-1U)<<16)
 #define RME_A7M_RCC_PLLCFGR_PLLQ(X)                     ((X)<<24)
 #define RME_A7M_RCC_PLLCFGR_PLLR(X)                     ((X)<<28)
 
-#define RME_A7M_RCC_CIR                                 RME_A7M_REG(0x4002380C)
+#define RME_A7M_RCC_CIR                                 RME_A7M_REG(0x4002380CU)
 
-#define RME_A7M_FLASH_ACR                               RME_A7M_REG(0x40023C00)
+#define RME_A7M_FLASH_ACR                               RME_A7M_REG(0x40023C00U)
 #define RME_A7M_FLASH_ACR_LATENCY(X)                    RME_A7M_FLASH_ACR=((RME_A7M_FLASH_ACR&~0x0FU)|(X))
 #define RME_A7M_FLASH_ACR_ARTEN                         (1U<<9)
 #define RME_A7M_FLASH_ACR_PRFTEN                        (1U<<8)
 
-#define RME_A7M_RCC_CFGR                                RME_A7M_REG(0x40023808)
+#define RME_A7M_RCC_CFGR                                RME_A7M_REG(0x40023808U)
 #define RME_A7M_RCC_CFGR_PCLK1(X)                       RME_A7M_RCC_CFGR=(RME_A7M_RCC_CFGR&~0x1C00U)|((X)<<10)
 #define RME_A7M_RCC_CFGR_PCLK2(X)                       RME_A7M_RCC_CFGR=(RME_A7M_RCC_CFGR&~0xE000U)|((X)<<13)
 #define RME_A7M_RCC_CFGR_HCLK(X)                        RME_A7M_RCC_CFGR=(RME_A7M_RCC_CFGR&~0x00F0U)|((X)<<4)
@@ -236,25 +240,25 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_RCC_CFGR_HCLK_DIV8                      (0x06U)
 #define RME_A7M_RCC_CFGR_HCLK_DIV16                     (0x07U)
 
-#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000810)
+#define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000810U)
 #define RME_A7M_TIM_FLAG_UPDATE                         (1U<<0)
 
-#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023830)
+#define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023830U)
 #define RME_A7M_RCC_AHB1ENR_GPIOAEN                     (1U<<0)
 
-#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023844)
+#define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023844U)
 #define RME_A7M_RCC_APB2ENR_USART1EN                    (1U<<4)
 
-#define RME_A7M_GPIOA_MODER                             RME_A7M_REG(0x40020000)
-#define RME_A7M_GPIOA_OTYPER                            RME_A7M_REG(0x40020004)
-#define RME_A7M_GPIOA_OSPEEDR                           RME_A7M_REG(0x40020008)
-#define RME_A7M_GPIOA_PUPDR                             RME_A7M_REG(0x4002000C)
-#define RME_A7M_GPIOA_IDR                               RME_A7M_REG(0x40020010)
-#define RME_A7M_GPIOA_ODR                               RME_A7M_REG(0x40020014)
-#define RME_A7M_GPIOA_BSRR                              RME_A7M_REG(0x40020018)
-#define RME_A7M_GPIOA_LCKR                              RME_A7M_REG(0x4002001C)
-#define RME_A7M_GPIOA_AFR0                              RME_A7M_REG(0x40020020)
-#define RME_A7M_GPIOA_AFR1                              RME_A7M_REG(0x40020024)
+#define RME_A7M_GPIOA_MODER                             RME_A7M_REG(0x40020000U)
+#define RME_A7M_GPIOA_OTYPER                            RME_A7M_REG(0x40020004U)
+#define RME_A7M_GPIOA_OSPEEDR                           RME_A7M_REG(0x40020008U)
+#define RME_A7M_GPIOA_PUPDR                             RME_A7M_REG(0x4002000CU)
+#define RME_A7M_GPIOA_IDR                               RME_A7M_REG(0x40020010U)
+#define RME_A7M_GPIOA_ODR                               RME_A7M_REG(0x40020014U)
+#define RME_A7M_GPIOA_BSRR                              RME_A7M_REG(0x40020018U)
+#define RME_A7M_GPIOA_LCKR                              RME_A7M_REG(0x4002001CU)
+#define RME_A7M_GPIOA_AFR0                              RME_A7M_REG(0x40020020U)
+#define RME_A7M_GPIOA_AFR1                              RME_A7M_REG(0x40020024U)
 
 #define RME_A7M_GPIO_MODE_INPUT                         (0U)
 #define RME_A7M_GPIO_MODE_OUTPUT                        (1U)
@@ -275,30 +279,30 @@ Description: The configuration file for STM32F767IG.
 
 #define RME_A7M_GPIO_AF7_USART1                         (0x07U)
 
-#define RME_A7M_GPIOA_MODE(MODE,PIN)                    RME_A7M_GPIOA_MODER=(RME_A7M_GPIOA_MODER&~(0x03<<((PIN)*2)))|((MODE)<<((PIN)*2))
-#define RME_A7M_GPIOA_OTYPE(OTYPE,PIN)                  RME_A7M_GPIOA_OTYPER=(RME_A7M_GPIOA_OTYPER&~(0x01<<(PIN)))|((OTYPE)<<(PIN))
-#define RME_A7M_GPIOA_OSPEED(OSPEED,PIN)                RME_A7M_GPIOA_OSPEEDR=(RME_A7M_GPIOA_OSPEEDR&~(0x03<<((PIN)*2)))|((OSPEED)<<((PIN)*2))
-#define RME_A7M_GPIOA_PUPD(PUPD,PIN)                    RME_A7M_GPIOA_PUPDR=(RME_A7M_GPIOA_PUPDR&~(0x03<<((PIN)*2)))|((PUPD)<<((PIN)*2))
-#define RME_A7M_GPIOA_AF0(AF,PIN)                       RME_A7M_GPIOA_AFR0=(RME_A7M_GPIOA_AFR0&~(0x0F<<((PIN)*4)))|((AF)<<((PIN)*4))
-#define RME_A7M_GPIOA_AF1(AF,PIN)                       RME_A7M_GPIOA_AFR1=(RME_A7M_GPIOA_AFR1&~(0x0F<<((PIN-8)*4)))|((AF)<<((PIN-8)*4))
+#define RME_A7M_GPIOA_MODE(MODE,PIN)                    RME_A7M_GPIOA_MODER=(RME_A7M_GPIOA_MODER&~(0x03U<<((PIN)*2)))|((MODE)<<((PIN)*2))
+#define RME_A7M_GPIOA_OTYPE(OTYPE,PIN)                  RME_A7M_GPIOA_OTYPER=(RME_A7M_GPIOA_OTYPER&~(0x01U<<(PIN)))|((OTYPE)<<(PIN))
+#define RME_A7M_GPIOA_OSPEED(OSPEED,PIN)                RME_A7M_GPIOA_OSPEEDR=(RME_A7M_GPIOA_OSPEEDR&~(0x03U<<((PIN)*2)))|((OSPEED)<<((PIN)*2))
+#define RME_A7M_GPIOA_PUPD(PUPD,PIN)                    RME_A7M_GPIOA_PUPDR=(RME_A7M_GPIOA_PUPDR&~(0x03U<<((PIN)*2)))|((PUPD)<<((PIN)*2))
+#define RME_A7M_GPIOA_AF0(AF,PIN)                       RME_A7M_GPIOA_AFR0=(RME_A7M_GPIOA_AFR0&~(0x0FU<<((PIN)*4)))|((AF)<<((PIN)*4))
+#define RME_A7M_GPIOA_AF1(AF,PIN)                       RME_A7M_GPIOA_AFR1=(RME_A7M_GPIOA_AFR1&~(0x0FU<<((PIN-8)*4)))|((AF)<<((PIN-8)*4))
 
-#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x40011000)
-#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011004)
-#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011008)
-#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x4001100C)
-#define RME_A7M_USART1_ISR                              RME_A7M_REG(0x4001101C)
-#define RME_A7M_USART1_TDR                              RME_A7M_REG(0x40011028)
+#define RME_A7M_USART1_CR1                              RME_A7M_REG(0x40011000U)
+#define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011004U)
+#define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011008U)
+#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x4001100CU)
+#define RME_A7M_USART1_ISR                              RME_A7M_REG(0x4001101CU)
+#define RME_A7M_USART1_TDR                              RME_A7M_REG(0x40011028U)
 
 #define RME_A7M_USART1_CR1_UE                           (1U<<0)
 
 /* Preinitialization of critical hardware */
-#define RME_A7M_LOW_LEVEL_PREINIT() \
+#define RME_A7M_LOWLVL_PREINIT() \
 do \
 { \
     /* Set HSION bit */ \
-    RME_A7M_RCC_CR|=0x00000001; \
+    RME_A7M_RCC_CR|=0x00000001U; \
     /* Reset CFGR register */ \
-    RME_A7M_RCC_CFGR=0x00000000; \
+    RME_A7M_RCC_CFGR=0x00000000U; \
     /* Reset HSEON, CSSON and PLLON bits */ \
     RME_A7M_RCC_CR&=0xFEF6FFFFU; \
     /* Reset PLLCFGR register */ \
@@ -306,9 +310,9 @@ do \
     /* Reset HSEBYP bit */ \
     RME_A7M_RCC_CR&=0xFFFBFFFFU; \
     /* Disable all interrupts */ \
-    RME_A7M_RCC_CIR=0x00000000; \
+    RME_A7M_RCC_CIR=0x00000000U; \
     /* Vector table address */ \
-    RME_A7M_SCB_VTOR=0x08000000; \
+    RME_A7M_SCB_VTOR=0x08000000U; \
 } \
 while(0)
 
@@ -316,7 +320,7 @@ while(0)
  * STM32F7xx APB1<45MHz, APB2<90MHz. When running at 216MHz,
  * actually we are overdriving the bus a little, which might
  * be fine. */
-#define RME_A7M_LOW_LEVEL_INIT() \
+#define RME_A7M_LOWLVL_INIT_COMMON() \
 do \
 { \
     /* Set the clock tree in the system */ \
@@ -364,22 +368,31 @@ do \
     __RME_A7M_Cache_Init(); \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_ARTEN; \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
+} \
+while(0)
+
+#if(RME_DEBUG_PRINT==1U)
+/* Other low-level initialization stuff - clock and serial */
+#define RME_A7M_LOWLVL_INIT() \
+do \
+{ \
+    RME_A7M_LOWLVL_INIT_COMMON(); \
     \
     /* Enable USART 1 for user-level operations */ \
     /* Clock enabling */ \
     RME_A7M_RCC_AHB1ENR|=RME_A7M_RCC_AHB1ENR_GPIOAEN; \
     RME_A7M_RCC_APB2ENR|=RME_A7M_RCC_APB2ENR_USART1EN; \
     /* UART IO initialization */ \
-    RME_A7M_GPIOA_MODE(RME_A7M_GPIO_MODE_ALTERNATE,9); \
-    RME_A7M_GPIOA_OTYPE(RME_A7M_GPIO_OTYPE_PUSHPULL,9); \
-    RME_A7M_GPIOA_OSPEED(RME_A7M_GPIO_OSPEED_HIGH,9); \
-    RME_A7M_GPIOA_PUPD(RME_A7M_GPIO_PUPD_PULLUP,9); \
-    RME_A7M_GPIOA_AF1(RME_A7M_GPIO_AF7_USART1,9); \
+    RME_A7M_GPIOA_MODE(RME_A7M_GPIO_MODE_ALTERNATE,9U); \
+    RME_A7M_GPIOA_OTYPE(RME_A7M_GPIO_OTYPE_PUSHPULL,9U); \
+    RME_A7M_GPIOA_OSPEED(RME_A7M_GPIO_OSPEED_HIGH,9U); \
+    RME_A7M_GPIOA_PUPD(RME_A7M_GPIO_PUPD_PULLUP,9U); \
+    RME_A7M_GPIOA_AF1(RME_A7M_GPIO_AF7_USART1,9U); \
     /* UART initialization */ \
-    RME_A7M_USART1_CR1=0x0000008; \
-    RME_A7M_USART1_CR2=0x00; \
-    RME_A7M_USART1_CR3=0x00; \
-    RME_A7M_USART1_BRR=0x3AA; \
+    RME_A7M_USART1_CR1=0x0000008U; \
+    RME_A7M_USART1_CR2=0x00U; \
+    RME_A7M_USART1_CR3=0x00U; \
+    RME_A7M_USART1_BRR=0x3AAU; \
     RME_A7M_USART1_CR1|=RME_A7M_USART1_CR1_UE; \
 } \
 while(0)
@@ -388,10 +401,21 @@ while(0)
 #define RME_A7M_PUTCHAR(CHAR) \
 do \
 { \
-    RME_A7M_USART1_TDR=(CHAR); \
-    while((RME_A7M_USART1_ISR&0x40)==0); \
+    RME_A7M_USART1_TDR=(rme_ptr_t)(CHAR); \
+    while((RME_A7M_USART1_ISR&0x40U)==0U); \
 } \
 while(0)
+
+#else
+
+/* Other low-level initialization stuff - clock and serial */
+#define RME_A7M_LOWLVL_INIT() \
+do \
+{ \
+    RME_A7M_LOWLVL_INIT_COMMON(); \
+} \
+while(0)
+#endif
     
 /* Prefetcher state set and get */
 #define RME_A7M_PRFTH_STATE_SET(STATE) \
