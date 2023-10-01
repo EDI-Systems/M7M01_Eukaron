@@ -334,7 +334,7 @@ do \
     /* Check end boundary and its possible wraparound */ \
     if(RME_UNLIKELY((((VADDR)+(SIZE))<(VADDR)))) \
         return RME_ERR_CPT_FLAG; \
-    if(RME_UNLIKELY((CAP)->End<((VADDR)+(SIZE)))) \
+    if(RME_UNLIKELY((CAP)->End<((VADDR)+(SIZE)-1U))) \
         return RME_ERR_CPT_FLAG; \
 } \
 while(0)

@@ -3151,9 +3151,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
     return 0;
 }
-/* End Function:_RME_Kot_Mark **********************************************/
+/* End Function:_RME_Kot_Mark ************************************************/
 
-/* Begin Function:_RME_Kot_Erase ********************************************
+/* Begin Function:_RME_Kot_Erase **********************************************
 Description : Depopulate the kernel object bitmap contiguously. We do not need 
               CAS on erasure operations.
 Input       : rme_ptr_t Kaddr - The kernel virtual address.
@@ -3273,7 +3273,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
 
     return 0;
 }
-/* End Function:_RME_Kot_Erase *********************************************/
+/* End Function:_RME_Kot_Erase ***********************************************/
 
 /* Begin Function:_RME_Kom_Boot_Crt *******************************************
 Description : Create boot-time kernel memory capability. Kernel memory allow
