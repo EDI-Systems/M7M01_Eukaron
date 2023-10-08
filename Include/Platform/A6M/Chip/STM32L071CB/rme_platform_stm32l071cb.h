@@ -56,6 +56,8 @@ Description: The configuration file for STM32L071CB.
 #define RME_A6M_SYSTICK_VAL                             (320000U)
 /* Number of MPU regions available */
 #define RME_A6M_REGION_NUM                              (8U)
+/* What is the FPU type? - always a no */
+#define RME_COP_NUM                                     (0U)
 
 /* Interrupts ****************************************************************/
 #define WWDG_IRQHandler                                 IRQ0_Handler        /* Window WatchDog */

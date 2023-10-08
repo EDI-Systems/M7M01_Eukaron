@@ -72,7 +72,7 @@ DUMMY_STACK
                         IMPORT              __RME_A6M_Lowlvl_Preinit
                         IMPORT              __main
                         ;The system call handler of RME. C function.
-                        IMPORT              _RME_Svc_Handler
+                        IMPORT              __RME_A6M_Svc_Handler
                         ;The system tick handler of RME. C function.
                         IMPORT              __RME_A6M_Tim_Handler
                         ;The memory management fault handler of RME. C function.
@@ -455,7 +455,7 @@ SVC_Handler             PROC
                         PUSH                {R0}
                 
                         MOV                 R0, SP              ; Pass in the regs
-                        BL                  _RME_Svc_Handler
+                        BL                  __RME_A6M_Svc_Handler
                 
                         POP                 {R0}
                         MSR                 PSP, R0

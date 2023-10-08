@@ -16,7 +16,7 @@
 ;EPSR                         Execute Program Status Register.
 ;The above 3 registers are saved into the stack in combination(xPSR).
 ;
-;The ARM Cortex-M4 include a single-precision FPU, and the Cortex-M7 will feature
+;The Cortex-M4 include a single-precision FPU, and the Cortex-M7 will feature
 ;a double-precision FPU.
 ;*****************************************************************************/
 
@@ -82,7 +82,7 @@ DUMMY_STACK
                         IMPORT              __RME_A7M_Lowlvl_Preinit
                         IMPORT              __main
                         ;The system call handler of RME. C function.
-                        IMPORT              _RME_Svc_Handler
+                        IMPORT              __RME_A7M_Svc_Handler
                         ;The system tick handler of RME. C function.
                         IMPORT              __RME_A7M_Tim_Handler
                         ;The memory management fault handler of RME. C function.
@@ -1096,7 +1096,7 @@ SVC_Handler             PROC
                         PUSH                {R0}
                         
                         MOV                 R0, SP              ; Pass in the regs
-                        BL                  _RME_Svc_Handler
+                        BL                  __RME_A7M_Svc_Handler
                         
                         POP                 {R0}
                         MSR                 PSP, R0

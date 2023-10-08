@@ -64,7 +64,7 @@ int main(void)
 Description : The compare-and-swap atomic instruction. If the Old value is
               equal to *Ptr, then set the *Ptr as New and return 1; else return
               0.
-              On Cortex-M there is only one core. There's no need to do
+              On ARMv6-M there is only one core. There's no need to do
               anything special, and because we are already in kernel, relevant
               interrupts are already masked by default.
 Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
@@ -128,7 +128,7 @@ rme_ptr_t __RME_A6M_Fetch_And(volatile rme_ptr_t* Ptr,
 /* End Function:__RME_A6M_Fetch_And ******************************************/
 
 /* Begin Function:__RME_Putchar ***********************************************
-Description : Output a character to console. In Cortex-M, under most circumstances, 
+Description : Output a character to console. In ARMv6-M, under most circumstances, 
               we should use the ITM or serial for such outputs.
 Input       : char Char - The character to print.
 Output      : None.
@@ -147,7 +147,7 @@ rme_ptr_t __RME_Putchar(char Char)
 Description : Get the CPUID. This is to identify where we are executing.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - The CPUID. On Cortex-M, this is certainly always 0.
+Return      : rme_ptr_t - The CPUID. On ARMv6-M, this is certainly always 0.
 ******************************************************************************/
 rme_ptr_t __RME_CPUID_Get(void)
 {
@@ -165,28 +165,29 @@ Return      : None.
 void __RME_A6M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
 {
     volatile struct RME_Thd_Struct* Thd_Cur;
-    volatile struct RME_Exc_Struct* Exc;
     
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->LR&RME_A6M_EXC_RET_RET_USER)!=0U);
     
     /* Get the address of this faulty address, and what caused this fault */
     Thd_Cur=RME_A6M_Local.Thd_Cur;
-    Exc=&Thd_Cur->Reg_Cur->Exc;
     
     /* Are we activating the NMI? If yes, we directly soft lockup */
     RME_ASSERT((RME_A6M_SCB_ICSR&RME_A6M_ICSR_NMIPENDSET)==0U);
     
     /* Clear SVC pend indicators, because the fault could have happened before
      * the SVC. The access to SHCSR is implementation defined (always a no in 
-     * Cortex-M0+, in fact), so if the processor does not support this, we're
+     * ARMv6-M0+, in fact), so if the processor does not support this, we're
      * left with nothing to help. This is not the case in ARMv6-M where it's 
      * guaranteed to be accessible by the processor. */
     RME_A6M_SCB_SHCSR&=~RME_A6M_SCB_SHCSR_SVCALLPENDED;
     
     /* ARMv6-M have no fault indicators. Any fault is fatal */
-    Exc->Cause=1U;
+    Thd_Cur->Ctx.Reg->Exc.Cause=1U;
     __RME_Thd_Fatal(Reg);
+    
+    /* Make sure the LR returns to the user level */
+    RME_A6M_EXC_RET_FIX(Reg);
 }
 /* End Function:__RME_A6M_Exc_Handler ****************************************/
 
@@ -260,6 +261,9 @@ void __RME_A6M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Nu
     _RME_Kern_Snd(RME_A6M_Local.Sig_Vct);
     /* Remember to pick the guy with the highest priority after we did all sends */
     _RME_Kern_High(Reg, &RME_A6M_Local);
+    
+    /* Make sure the LR returns to the user level */
+    RME_A6M_EXC_RET_FIX(Reg);
 }
 /* End Function:__RME_A6M_Vct_Handler ****************************************/
 
@@ -276,8 +280,26 @@ void __RME_A6M_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
 #endif
     
     _RME_Tim_Handler(Reg);
+    
+    /* Make sure the LR returns to the user level */
+    RME_A6M_EXC_RET_FIX(Reg);
 }
 /* End Function:__RME_A6M_Tim_Handler ****************************************/
+
+/* Begin Function:__RME_A6M_Svc_Handler ***************************************
+Description : The timer interrupt handler of RME for ARMv6-M.
+Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
+Return      : None.
+******************************************************************************/
+void __RME_A6M_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
+{   
+    _RME_Svc_Handler(Reg);
+    
+    /* Make sure the LR returns to the user level */
+    RME_A6M_EXC_RET_FIX(Reg);
+}
+/* End Function:__RME_A6M_Svc_Handler ****************************************/
 
 /* Begin Function:__RME_A6M_Pgt_Entry_Mod *************************************
 Description : Consult or modify the page table attributes. ARMv6-M only allows 
@@ -418,7 +440,7 @@ rme_ret_t __RME_A6M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
-    __RME_Syscall_Retval_Set(Reg, 0);
+    __RME_Svc_Retval_Set(Reg, 0);
     
     _RME_Kern_High(Reg, &RME_A6M_Local);
 
@@ -480,20 +502,20 @@ rme_ret_t __RME_A6M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
 {
     switch(Freg_ID)
     {
-        case RME_A6M_KFN_CPU_FUNC_CPUID:           {Reg->R6=RME_A6M_SCB_CPUID;break;}
-        case RME_A6M_KFN_CPU_FUNC_MPU_TYPE:        {Reg->R6=RME_A6M_MPU_CTRL;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID0:            {Reg->R6=RME_A6M_SCNSCB_PID0;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID1:            {Reg->R6=RME_A6M_SCNSCB_PID1;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID2:            {Reg->R6=RME_A6M_SCNSCB_PID2;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID3:            {Reg->R6=RME_A6M_SCNSCB_PID3;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID4:            {Reg->R6=RME_A6M_SCNSCB_PID4;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID5:            {Reg->R6=RME_A6M_SCNSCB_PID5;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID6:            {Reg->R6=RME_A6M_SCNSCB_PID6;break;}
-        case RME_A6M_KFN_CPU_FUNC_PID7:            {Reg->R6=RME_A6M_SCNSCB_PID7;break;}
-        case RME_A6M_KFN_CPU_FUNC_CID0:            {Reg->R6=RME_A6M_SCNSCB_CID0;break;}
-        case RME_A6M_KFN_CPU_FUNC_CID1:            {Reg->R6=RME_A6M_SCNSCB_CID1;break;}
-        case RME_A6M_KFN_CPU_FUNC_CID2:            {Reg->R6=RME_A6M_SCNSCB_CID2;break;}
-        case RME_A6M_KFN_CPU_FUNC_CID3:            {Reg->R6=RME_A6M_SCNSCB_CID3;break;}
+        case RME_A6M_KFN_CPU_FUNC_CPUID:            {Reg->R6=RME_A6M_SCB_CPUID;break;}
+        case RME_A6M_KFN_CPU_FUNC_MPU_TYPE:         {Reg->R6=RME_A6M_MPU_CTRL;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID0:             {Reg->R6=RME_A6M_SCNSCB_PID0;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID1:             {Reg->R6=RME_A6M_SCNSCB_PID1;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID2:             {Reg->R6=RME_A6M_SCNSCB_PID2;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID3:             {Reg->R6=RME_A6M_SCNSCB_PID3;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID4:             {Reg->R6=RME_A6M_SCNSCB_PID4;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID5:             {Reg->R6=RME_A6M_SCNSCB_PID5;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID6:             {Reg->R6=RME_A6M_SCNSCB_PID6;break;}
+        case RME_A6M_KFN_CPU_FUNC_PID7:             {Reg->R6=RME_A6M_SCNSCB_PID7;break;}
+        case RME_A6M_KFN_CPU_FUNC_CID0:             {Reg->R6=RME_A6M_SCNSCB_CID0;break;}
+        case RME_A6M_KFN_CPU_FUNC_CID1:             {Reg->R6=RME_A6M_SCNSCB_CID1;break;}
+        case RME_A6M_KFN_CPU_FUNC_CID2:             {Reg->R6=RME_A6M_SCNSCB_CID2;break;}
+        case RME_A6M_KFN_CPU_FUNC_CID3:             {Reg->R6=RME_A6M_SCNSCB_CID3;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
@@ -597,12 +619,12 @@ rme_ret_t __RME_A6M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
-    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    /* See if the target thread is already bound. If no or bound to other cores, we just quit */
     Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
-    Reg_Cur=Thd_Struct->Reg_Cur;
+    Reg_Cur=Thd_Struct->Ctx.Reg;
     
     switch(Operation)
     {
@@ -626,6 +648,7 @@ rme_ret_t __RME_A6M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
         case RME_A6M_KFN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Reg_Cur->Reg.R11;break;}
         case RME_A6M_KFN_DEBUG_REG_MOD_R11_SET:    {Reg_Cur->Reg.R11=Value;break;}
         case RME_A6M_KFN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Reg_Cur->Reg.LR;break;}
+        case RME_A6M_KFN_DEBUG_REG_MOD_LR_SET:     {Reg_Cur->Reg.LR=Reg->R6;break;}
         default:                                   {return RME_ERR_KFN_FAIL;}
     }
 
@@ -659,7 +682,7 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
-    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    /* See if the target thread is already bound. If no or bound to other cores, we just quit */
     Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.Local!=Local)
@@ -667,10 +690,10 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     
     /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
     Layer_Cnt=RME_PARAM_D1(Operation);
-    Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
+    Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Ctx.Invstk.Next);
     while(1U)
     {
-        if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
+        if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Ctx.Invstk))
             return RME_ERR_KFN_FAIL;
         
         if(Layer_Cnt==0U)
@@ -684,10 +707,10 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     switch(RME_PARAM_D0(Operation))
     {
         /* Register read/write */
-        case RME_A6M_KFN_DEBUG_INV_MOD_SP_GET:     {Reg->R6=Inv_Struct->Ret.SP;break;}
-        case RME_A6M_KFN_DEBUG_INV_MOD_SP_SET:     {Inv_Struct->Ret.SP=Value;break;}
-        case RME_A6M_KFN_DEBUG_INV_MOD_LR_GET:     {Reg->R6=Reg->R6=Inv_Struct->Ret.LR;break;}
-        /* case RME_A6M_KFN_DEBUG_INV_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
+        case RME_A6M_KFN_DEBUG_INV_MOD_SP_GET:      {Reg->R6=Inv_Struct->Ret.SP;break;}
+        case RME_A6M_KFN_DEBUG_INV_MOD_SP_SET:      {Inv_Struct->Ret.SP=Value;break;}
+        case RME_A6M_KFN_DEBUG_INV_MOD_LR_GET:      {Reg->R6=Inv_Struct->Ret.LR;break;}
+        case RME_A6M_KFN_DEBUG_INV_MOD_LR_SET:      {Inv_Struct->Ret.LR=Reg->R6;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
@@ -719,12 +742,12 @@ rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
     
-    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    /* See if the target thread is already bound. If no or bound to other cores, we just quit */
     Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
-    Reg_Cur=Thd_Struct->Reg_Cur;
+    Reg_Cur=Thd_Struct->Ctx.Reg;
     
     switch(Operation)
     {
@@ -838,9 +861,10 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         }
     }
 
-    /* If it gets here, we must have failed */
+    /* Only non-ctxsw kernel functions end up here, we need to set success
+     * return value for them */
     if(Retval>=0)
-        __RME_Syscall_Retval_Set(Reg,0);
+        __RME_Svc_Retval_Set(Reg, Retval);
             
     return Retval;
 }
@@ -885,9 +909,9 @@ void __RME_A6M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-rme_ptr_t __RME_Lowlvl_Init(void)
+void __RME_Lowlvl_Init(void)
 {
     RME_A6M_LOWLVL_INIT();
     
@@ -928,8 +952,6 @@ rme_ptr_t __RME_Lowlvl_Init(void)
     RME_A6M_SYSTICK_CTRL=RME_A6M_SYSTICK_CTRL_CLKSOURCE|
                          RME_A6M_SYSTICK_CTRL_TICKINT|
                          RME_A6M_SYSTICK_CTRL_ENABLE;
-    
-    return 0;
 }
 /* End Function:__RME_Lowlvl_Init ********************************************/
 
@@ -937,9 +959,9 @@ rme_ptr_t __RME_Lowlvl_Init(void)
 Description : Boot the first process in the system.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - Always 0.
+Return      : None.
 ******************************************************************************/
-rme_ptr_t __RME_Boot(void)
+void __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
     /* volatile rme_ptr_t Size; */
@@ -983,14 +1005,16 @@ rme_ptr_t __RME_Boot(void)
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A6M_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_THD,
                                  RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_A6M_Local)==0);
-    Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE);
+    Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
     
     /* Print the size of some kernel objects, only used in debugging
     Size=RME_CPT_SIZE(1U);
     Size=RME_PGT_SIZE_TOP(0U)-sizeof(rme_ptr_t);
     Size=RME_PGT_SIZE_NOM(0U)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    Size=RME_THD_SIZE; */
+    Size=RME_HYP_SIZE;
+    Size=RME_REG_SIZE(0U);
+    Size=RME_THD_SIZE(0U); */
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
@@ -1016,8 +1040,8 @@ rme_ptr_t __RME_Boot(void)
     /* Boot into the init thread */
     __RME_User_Enter(RME_A6M_INIT_ENTRY, RME_A6M_INIT_STACK, 0U);
     
-    /* Dummy return, never reaches here */
-    return 0;
+    /* Never reaches here */
+    while(1U);
 }
 /* End Function:__RME_Boot ***************************************************/
 
@@ -1038,7 +1062,7 @@ void __RME_A6M_Reboot(void)
 }
 /* End Function:__RME_A6M_Reboot *********************************************/
 
-/* Begin Function:__RME_Syscall_Param_Get *************************************
+/* Begin Function:__RME_Svc_Param_Get *****************************************
 Description : Get the system call parameters from the stack frame.
 Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
@@ -1046,7 +1070,7 @@ Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
-void __RME_Syscall_Param_Get(volatile struct RME_Reg_Struct* Reg, 
+void __RME_Svc_Param_Get(volatile struct RME_Reg_Struct* Reg, 
                              rme_ptr_t* Svc,
                              rme_ptr_t* Cid,
                              rme_ptr_t* Param)
@@ -1057,22 +1081,20 @@ void __RME_Syscall_Param_Get(volatile struct RME_Reg_Struct* Reg,
     Param[1U]=Reg->R6;
     Param[2U]=Reg->R7;
 }
-/* End Function:__RME_Syscall_Param_Get **************************************/
+/* End Function:__RME_Svc_Param_Get ******************************************/
 
-/* Begin Function:__RME_Syscall_Retval_Set ************************************
-Description : Set the system call return value to the stack frame. This function 
-              may carry up to 4 return values. If the last 3 is not needed, just set
-              them to zero.
+/* Begin Function:__RME_Svc_Retval_Set ****************************************
+Description : Set the system call return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
 Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Syscall_Retval_Set(volatile struct RME_Reg_Struct* Reg,
+void __RME_Svc_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                               rme_ret_t Retval)
 {
     Reg->R4=(rme_ptr_t)Retval;
 }
-/* End Function:__RME_Syscall_Retval_Set *************************************/
+/* End Function:__RME_Svc_Retval_Set *****************************************/
 
 /* Begin Function:__RME_Thd_Reg_Init ******************************************
 Description : Initialize the register set for the thread.
@@ -1165,15 +1187,15 @@ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
 
 /* Begin Function:__RME_Pgt_Kom_Init ******************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
-              top-level page tables. In Cortex-M, we do not need to add such pages.
+              top-level page tables. In ARMv6-M, we do not need to add such pages.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ptr_t - 0, always successful.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Kom_Init(void)
+rme_ret_t __RME_Pgt_Kom_Init(void)
 {
     /* Empty function, always immediately successful */
-    return 0U;
+    return 0;
 }
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
 
@@ -1181,9 +1203,9 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
 Description : Initialize the page table data structure, according to the capability.
 Input       : volatile struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op)
+rme_ret_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
     volatile rme_ptr_t* Ptr;
@@ -1229,22 +1251,22 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
+rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Is_Top, 
                           rme_ptr_t Size_Order,
                           rme_ptr_t Num_Order,
                           rme_ptr_t Vaddr)
 {
     if(Num_Order>RME_PGT_NUM_256)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     if(Size_Order<RME_PGT_SIZE_32B)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     if(Size_Order>RME_PGT_SIZE_4G)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     if((Vaddr&0x03U)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     return 0U;
 }
@@ -1254,17 +1276,17 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 Description : Check if the page table can be deleted.
 Input       : volatile struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op)
+rme_ret_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op)
 {
     /* Check if we are standalone */
     if(((RME_CAP_GETOBJ(Pgt_Op, struct __RME_A6M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Check if we still have a top-level */
     if(RME_CAP_GETOBJ(Pgt_Op, struct __RME_A6M_Pgt_Meta*)->Toplevel!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -1345,9 +1367,9 @@ Input       : volatile struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU me
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : None.
-Return      : rme_ptr_t - Always 0.
+Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A6M_MPU_Data* Top_MPU, 
+rme_ret_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A6M_MPU_Data* Top_MPU, 
                                  rme_ptr_t Base_Addr,
                                  rme_ptr_t Size_Order,
                                  rme_ptr_t Num_Order)
@@ -1383,9 +1405,9 @@ Input       : volatile struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU me
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t MPU_RASR - The RASR register content, if set.
 Output      : None.
-Return      : rme_ptr_t - Always 0.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A6M_MPU_Data* Top_MPU, 
+rme_ret_t ___RME_Pgt_MPU_Add(volatile struct __RME_A6M_MPU_Data* Top_MPU, 
                              rme_ptr_t Base_Addr,
                              rme_ptr_t Size_Order,
                              rme_ptr_t Num_Order,
@@ -1421,7 +1443,7 @@ rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A6M_MPU_Data* Top_MPU,
     
     /* Update unsuccessful, we didn't find any match. We will need a new slot. */
     if(Empty_Cnt==0)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* We may map in using an empty slot */
     Count=Empty[0];
@@ -1439,9 +1461,9 @@ Description : Update the top-level MPU metadata for this level of page table.
 Input       : volatile struct __RME_A6M_Pgt_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
+rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
                                 rme_ptr_t Op_Flag)
 {
     rme_ptr_t MPU_RASR;
@@ -1450,7 +1472,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
     
     /* Is it possible for MPU to represent this? */
     if(RME_A6M_PGT_NUMORD(Meta->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Get the tables */
     if(Meta->Toplevel!=0U)
@@ -1466,7 +1488,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
         Table=RME_A6M_PGT_TBL_TOP((volatile rme_ptr_t*)Meta);
     }
     else
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     if(Op_Flag==RME_A6M_MPU_CLR)
     {
@@ -1498,7 +1520,7 @@ rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A6M_Pgt_Meta* Meta,
                                   RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
                                   RME_A6M_PGT_NUMORD(Meta->Size_Num_Order),
                                   MPU_RASR)!=0U)
-                return RME_ERR_PGT_FAIL;
+                return RME_ERR_HAL_FAIL;
         }
     }
     
@@ -1568,9 +1590,9 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
               rme_ptr_t Flag - The RME standard page attributes. Need to translate them into 
                                 architecture specific page table's settings.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
+rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Paddr,
                              rme_ptr_t Pos,
                              rme_ptr_t Flag)
@@ -1580,16 +1602,16 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* It should at least be readable */
     if((Flag&RME_PGT_READ)==0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* ARMv6-M refuses all dynamic mappings - we don't even have fault handlers */
     if((Flag&RME_PGT_READ)==0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
         
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv6-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
     Meta=RME_CAP_GETOBJ(Pgt_Op, volatile struct __RME_A6M_Pgt_Meta*);
@@ -1602,16 +1624,16 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if we are trying to make duplicate mappings into the same location */
     if((Table[Pos]&RME_A6M_PGT_PRESENT)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
-     * subregions shall share the same flags in Cortex-M */
+     * subregions shall share the same flags in ARMv6-M */
     if(RME_A6M_PGT_PAGENUM(Meta->Dir_Page_Count)==0U)
         Meta->Page_Flag=Flag;
     else
     {
         if(Meta->Page_Flag!=Flag)
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
     }
 
     /* Register into the page table */
@@ -1624,11 +1646,11 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
         if((Flag&RME_PGT_STATIC)!=0U)
         {
             /* Mapping static pages, update the MPU representation */
-            if(___RME_Pgt_MPU_Update(Meta, RME_A6M_MPU_UPD)==RME_ERR_PGT_FAIL)
+            if(___RME_Pgt_MPU_Update(Meta, RME_A6M_MPU_UPD)==RME_ERR_HAL_FAIL)
             {
                 /* MPU update failed. Revert operations */
                 Table[Pos]=0U;
-                return RME_ERR_PGT_FAIL;
+                return RME_ERR_HAL_FAIL;
             }
         }
     }
@@ -1645,9 +1667,9 @@ Description : Unmap a page from the page table.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
+rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
@@ -1657,7 +1679,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv6-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
     Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_A6M_Pgt_Meta*);
@@ -1671,7 +1693,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
     if(((Table[Pos]&RME_A6M_PGT_PRESENT)==0)||((Table[Pos]&RME_A6M_PGT_TERMINAL)==0U))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
 
     Temp=Table[Pos];
     Table[Pos]=0U;
@@ -1679,11 +1701,11 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
-        if(___RME_Pgt_MPU_Update(Meta, RME_A6M_MPU_UPD)==RME_ERR_PGT_FAIL)
+        if(___RME_Pgt_MPU_Update(Meta, RME_A6M_MPU_UPD)==RME_ERR_HAL_FAIL)
         {
             /* Revert operations */
             Table[Pos]=Temp;
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
         }
     }
     /* Modify count */
@@ -1702,9 +1724,9 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
               rme_ptr_t Flag - This have no effect for MPU-based architectures
                                (because page table addresses use up the whole word).
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
+rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                               rme_ptr_t Pos, 
                               struct RME_Cap_Pgt* Pgt_Child,
                               rme_ptr_t Flag)
@@ -1714,10 +1736,10 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     struct __RME_A6M_Pgt_Meta* Child_Meta;
     
     /* Is the child a designated top level directory? If it is, we do not allow 
-     * constructions. In Cortex-M, we only allow the designated top-level to be
+     * constructions. In ARMv6-M, we only allow the designated top-level to be
      * the actual top-level. */
     if(((Pgt_Child->Base)&RME_PGT_TOP)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
     Parent_Meta=RME_CAP_GETOBJ(Pgt_Parent,struct __RME_A6M_Pgt_Meta*);
@@ -1725,11 +1747,11 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     
     /* The parent table must have or be a top-directory */
     if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base)&RME_PGT_TOP)==0U))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Check if the child already mapped somewhere, or have grandchild directories */
     if(((Child_Meta->Toplevel)!=0U)||(RME_A6M_PGT_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Where is the entry slot? */
     if(((Parent_Meta->Base)&RME_PGT_TOP)!=0U)
@@ -1739,7 +1761,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     
     /* Check if anything already mapped in */
     if((Parent_Table[Pos]&RME_A6M_PGT_PRESENT)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* The address must be aligned to a word */
     Parent_Table[Pos]=RME_A6M_PGT_PRESENT|RME_A6M_PGT_PGD_ADDR((rme_ptr_t)Child_Meta);
@@ -1758,13 +1780,13 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     if((RME_A6M_PGT_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
        (((Child_Meta->Page_Flag)&RME_PGT_STATIC)!=0U))
     {
-        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A6M_MPU_UPD)==RME_ERR_PGT_FAIL)
+        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A6M_MPU_UPD)==RME_ERR_HAL_FAIL)
         {
             /* Mapping failed. Revert operations */
             Parent_Table[Pos]=0U;
             Child_Meta->Toplevel=0U;
             RME_A6M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
         }
     }
 
@@ -1778,9 +1800,9 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
               rme_ptr_t Pos - The position in the page table.
               struct RME_Cap_Pgt* Pgt_Child - The child page table to unmap.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
+rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos, 
                                 struct RME_Cap_Pgt* Pgt_Child)
 {
@@ -1799,22 +1821,22 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
 
     /* Check if we try to remove something nonexistent, or a page */
     if(((Table[Pos]&RME_A6M_PGT_PRESENT)==0U)||((Table[Pos]&RME_A6M_PGT_TERMINAL)!=0U))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* See if the child page table is actually mapped there */
     Child_Meta=(struct __RME_A6M_Pgt_Meta*)RME_A6M_PGT_PGD_ADDR(Table[Pos]);
     if(Child_Meta!=RME_CAP_GETOBJ(Pgt_Child,struct __RME_A6M_Pgt_Meta*))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Check if the directory still have child directories */
     if(RME_A6M_PGT_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
     if(RME_A6M_PGT_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
     {
-        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A6M_MPU_CLR)==RME_ERR_PGT_FAIL)
-            return RME_ERR_PGT_FAIL;
+        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A6M_MPU_CLR)==RME_ERR_HAL_FAIL)
+            return RME_ERR_HAL_FAIL;
     }
 
     Table[Pos]=0U;
@@ -1831,9 +1853,9 @@ Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
 Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flag - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
+rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t Pos,
                            rme_ptr_t* Paddr,
                            rme_ptr_t* Flag)
@@ -1842,7 +1864,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if the position is within the range of this page table */
     if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Check if this is the top-level page table. Get the table */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
@@ -1853,7 +1875,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
     /* Start lookup */
     if(((Table[Pos]&RME_A6M_PGT_PRESENT)==0U)||
        ((Table[Pos]&RME_A6M_PGT_TERMINAL)==0U))
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* This is a page. Return the physical address and flags */
     if(Paddr!=0)
@@ -1879,9 +1901,9 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Size_Order - The size order of the page.
               rme_ptr_t* Num_Order - The entry order of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_FAIL.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
+rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                          rme_ptr_t Vaddr,
                          rme_ptr_t* Pgt,
                          rme_ptr_t* Map_Vaddr,
@@ -1896,7 +1918,7 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Check if this is the top-level page table */
     if(((Pgt_Op->Base)&RME_PGT_TOP)==0U)
-        return RME_ERR_PGT_FAIL;
+        return RME_ERR_HAL_FAIL;
     
     /* Get the table and start lookup */
     Meta=RME_CAP_GETOBJ(Pgt_Op, struct __RME_A6M_Pgt_Meta*);
@@ -1907,15 +1929,15 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     {
         /* Check if the virtual address is in our range */
         if(Vaddr<RME_A6M_PGT_START(Meta->Base))
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
         /* Calculate where is the entry */
         Pos=(Vaddr-RME_A6M_PGT_START(Meta->Base))>>RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
         /* See if the entry is overrange */
         if((Pos>>RME_A6M_PGT_NUMORD(Meta->Size_Num_Order))!=0U)
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
         if((Table[Pos]&RME_A6M_PGT_PRESENT)==0U)
-            return RME_ERR_PGT_FAIL;
+            return RME_ERR_HAL_FAIL;
         if((Table[Pos]&RME_A6M_PGT_TERMINAL)!=0U)
         {
             /* This is a page - we found it */

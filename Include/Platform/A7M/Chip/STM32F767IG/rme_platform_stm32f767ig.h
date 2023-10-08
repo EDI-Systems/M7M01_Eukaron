@@ -59,7 +59,10 @@ Description: The configuration file for STM32F767IG.
 /* Number of MPU regions available */
 #define RME_A7M_REGION_NUM                              (8U)
 /* What is the FPU type? */
-#define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV5_DP)
+#define RME_COP_NUM                                     (3U)
+#define RME_A7M_COP_FPV4_SP                             (1U)
+#define RME_A7M_COP_FPV5_SP                             (1U)
+#define RME_A7M_COP_FPV5_DP                             (1U)
 
 /* Fixed *********************************************************************/
 /* What is the external crystal frequency? */

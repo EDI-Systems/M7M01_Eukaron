@@ -99,6 +99,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_VA_EQU_PA                   (1U)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   (0U)
+/* Read timestamp counter */
+#define RME_TIMESTAMP                   (RME_A7M_Timestamp)
 /* Cpt size limit - not restricted */
 #define RME_CPT_ENTRY_MAX               (0U)
 /* Normal page directory size calculation macro */
@@ -115,7 +117,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_FETCH_AND(PTR,OPERAND)      __RME_A7M_Fetch_And(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                __RME_A7M_MSB_Get(VAL)
-/* No read/write barriers needed on Cortex-M, because they are currently all
+/* No read/write barriers needed on ARMv7-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
 #define RME_WRITE_RELEASE(X, V)         ((*(X))=(V))
@@ -134,8 +136,6 @@ typedef rme_s32_t rme_ret_t;
 /* End System macros *********************************************************/
 
 /* ARMv7-M specific macros ***************************************************/
-/* Detect floating-point coprocessor existence */
-#define RME_COPROCESSOR_TYPE            RME_A7M_FPU_TYPE
 /* Registers *****************************************************************/
 #define RME_A7M_REG(X)                  (*((volatile rme_ptr_t*)(X)))
 #define RME_A7M_REGB(X)                 (*((volatile rme_u8_t*)(X)))
@@ -275,15 +275,21 @@ typedef rme_s32_t rme_ret_t;
 /* Generic *******************************************************************/
 /* ARMv7-M EXC_RETURN bits */
 #define RME_A7M_EXC_RET_INIT            (0xFFFFFFFDU)
+#define RME_A7M_EXC_RET_MASK            (0x00000010U)
+#define RME_A7M_EXC_RET_KEEP            (0xFFFFFFEDU)
+#define RME_A7M_EXC_RET_FIX(X)          (((X)->LR)=((X)->LR)&RME_A7M_EXC_RET_MASK|RME_A7M_EXC_RET_KEEP)
 /* Whether the stack frame is standard(contains no FPU data). 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_STD_FRAME       (1U<<4)
 /* Are we returning to user mode? 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_RET_USER        (1U<<3)
-/* FPU type definitions */
-#define RME_A7M_FPU_NONE                (0U)
-#define RME_A7M_FPU_FPV4_SP             (1U)
-#define RME_A7M_FPU_FPV5_SP             (2U)
-#define RME_A7M_FPU_FPV5_DP             (3U)
+
+/* FPU CPACR settings */
+#define RME_A7M_SCB_CPACR_FPU_MASK      (((3U<<(10*2))|(3U<<(11*2))))
+/* Coprocessor type definitions */
+#define RME_A7M_ATTR_NONE               (0U)
+#define RME_A7M_ATTR_FPV4_SP            (1U<<0)
+#define RME_A7M_ATTR_FPV5_SP            (1U<<1)
+#define RME_A7M_ATTR_FPV5_DP            (1U<<2)
 
 /* Handler *******************************************************************/
 /* Fault definitions */
@@ -607,9 +613,9 @@ struct RME_Reg_Struct
     rme_ptr_t LR;
 };
 
-/* The coprocessor register set structure. In Cortex-M, if there is a 
+/* The coprocessor register set structure. In ARMv7-M, if there is a 
  * single-precision FPU, then the FPU S0-S15 is automatically pushed */
-struct RME_Cop_Struct
+struct RME_A7M_Cop_Struct
 {
     rme_ptr_t S16;
     rme_ptr_t S17;
@@ -725,17 +731,17 @@ static rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
                                      rme_ptr_t Flag, 
                                      rme_ptr_t Size_Order,
                                      rme_ptr_t Num_Order);
-static rme_ptr_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+static rme_ret_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
                                       rme_ptr_t Base_Addr,
                                       rme_ptr_t Size_Order,
                                       rme_ptr_t Num_Order);
-static rme_ptr_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+static rme_ret_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
                                     rme_ptr_t Base_Addr,
                                     rme_ptr_t Size_Order,
                                     rme_ptr_t Num_Order,
                                     rme_ptr_t MPU_RASR,
                                     rme_ptr_t Static);
-static rme_ptr_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
+static rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
                                        rme_ptr_t Op_Flag);
 /* Kernel function ***********************************************************/
 static rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
@@ -794,6 +800,8 @@ static rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 #endif
 
 /*****************************************************************************/
+/* Timestamp counter */
+__EXTERN__ volatile rme_ptr_t RME_A7M_Timestamp;
 /* ARMv7-M only have one core, thus this is its CPU-local data structure */
 __EXTERN__ volatile struct RME_CPU_Local RME_A7M_Local;
 /* ARMv7-M use simple kernel object table */
@@ -831,9 +839,11 @@ __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 __EXTERN__ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __EXTERN__ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg,
-                                      rme_ptr_t Vect_Num);
+                                      rme_ptr_t Vct_Num);
 /* Timer handler */
 __EXTERN__ void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
+/* Syscall handler */
+__EXTERN__ void __RME_A7M_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
 /* Kernel function handler */
 __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                                        volatile struct RME_Reg_Struct* Reg,
@@ -844,8 +854,8 @@ __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 
 /* Initialization ************************************************************/
 __EXTERN__ void __RME_A7M_Lowlvl_Preinit(void);
-__EXTERN__ rme_ptr_t __RME_Lowlvl_Init(void);
-__EXTERN__ rme_ptr_t __RME_Boot(void);
+__EXTERN__ void __RME_Lowlvl_Init(void);
+__EXTERN__ void __RME_Boot(void);
 EXTERN void __RME_A7M_Reset(void);
 __EXTERN__ void __RME_A7M_Reboot(void);
 __EXTERN__ void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
@@ -858,14 +868,14 @@ EXTERN void __RME_User_Enter(rme_ptr_t Entry,
 /* Register Manipulation *****************************************************/
 /* Coprocessor */
 EXTERN void ___RME_A7M_Thd_Cop_Clear(void);
-EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_Cop_Struct* Cop);
-EXTERN void ___RME_A7M_Thd_Cop_Load(volatile struct RME_Cop_Struct* Cop);
+EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_A7M_Cop_Struct* Cop);
+EXTERN void ___RME_A7M_Thd_Cop_Load(volatile struct RME_A7M_Cop_Struct* Cop);
 /* Syscall parameter */
-__EXTERN__ void __RME_Syscall_Param_Get(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Svc_Param_Get(volatile struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Svc,
                                         rme_ptr_t* Capid,
                                         rme_ptr_t* Param);
-__EXTERN__ void __RME_Syscall_Retval_Set(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Svc_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
 /* Thread register sets */
 __EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry,
@@ -874,12 +884,6 @@ __EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry,
                                    volatile struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
                                    volatile struct RME_Reg_Struct* Src);
-__EXTERN__ void __RME_Thd_Cop_Init(volatile struct RME_Reg_Struct* Reg,
-                                   volatile struct RME_Cop_Struct* Cop);
-__EXTERN__ void __RME_Thd_Cop_Swap(volatile struct RME_Reg_Struct* Reg_New,
-                                   volatile struct RME_Cop_Struct* Cop_New,
-                                   volatile struct RME_Reg_Struct* Reg_Cur,
-                                   volatile struct RME_Cop_Struct* Cop_Cur);
 /* Invocation register sets */
 __EXTERN__ void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
                                    volatile struct RME_Reg_Struct* Reg);
@@ -887,18 +891,30 @@ __EXTERN__ void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
                                       volatile struct RME_Iret_Struct* Ret);
 __EXTERN__ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
                                      rme_ret_t Retval);
+/* Coprocessor register sets */
+__EXTERN__ rme_ret_t __RME_Thd_Cop_Check(rme_ptr_t Attr);
+__EXTERN__ rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr);
+__EXTERN__ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
+                                   volatile struct RME_Reg_Struct* Reg,
+                                   volatile void* Cop);
+__EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                                   volatile struct RME_Reg_Struct* Reg_New,
+                                   volatile void* Cop_New,
+                                   rme_ptr_t Attr_Cur,
+                                   volatile struct RME_Reg_Struct* Reg_Cur,
+                                   volatile void* Cop_Cur);
 
 /* Page Table ****************************************************************/
 /* Initialization */
-__EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ret_t __RME_Pgt_Kom_Init(void);
+__EXTERN__ rme_ret_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
-__EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
+__EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                                      rme_ptr_t Is_Top, 
                                      rme_ptr_t Size_Order,
                                      rme_ptr_t Num_Order,
                                      rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ret_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op);
 /* Setting the page table */
 EXTERN void ___RME_A7M_MPU_Set(rme_ptr_t MPU_Meta);
 EXTERN void ___RME_A7M_MPU_Set2(rme_ptr_t MPU_Meta);
@@ -918,25 +934,25 @@ EXTERN void ___RME_A7M_MPU_Set15(rme_ptr_t MPU_Meta);
 EXTERN void ___RME_A7M_MPU_Set16(rme_ptr_t MPU_Meta);
 __EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
 /* Table operations */
-__EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
+__EXTERN__ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                                         rme_ptr_t Paddr,
                                         rme_ptr_t Pos,
                                         rme_ptr_t Flag);
-__EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
+__EXTERN__ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                           rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
+__EXTERN__ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                                          rme_ptr_t Pos, 
                                          struct RME_Cap_Pgt* Pgt_Child,
                                          rme_ptr_t Flag);
-__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
+__EXTERN__ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                            rme_ptr_t Pos,
                                            struct RME_Cap_Pgt* Pgt_Child);
 /* Lookup and walking */
-__EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
+__EXTERN__ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                                       rme_ptr_t Pos,
                                       rme_ptr_t* Paddr,
                                       rme_ptr_t* Flag);
-__EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
+__EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                                     rme_ptr_t Vaddr,
                                     rme_ptr_t* Pgt,
                                     rme_ptr_t* Map_Vaddr,

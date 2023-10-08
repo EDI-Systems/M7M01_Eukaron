@@ -48,6 +48,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 #define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1U),POW)
 /* Check if address is aligned on word boundary */
 #define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))==0U)
+#define RME_NOT_ALIGNED(ADDR)                       (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))!=0U)
 /* Bit field extraction macros for easy extraction of parameters
 [MSB                                 PARAMS                                 LSB]
 [                  D1                  ][                  D0                  ]
@@ -87,7 +88,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 do \
 { \
     if(RME_UNLIKELY((RETVAL)<0)) \
-        __RME_Syscall_Retval_Set((REG),(RETVAL)); \
+        __RME_Svc_Retval_Set((REG),(RETVAL)); \
     \
     return; \
 } \
@@ -161,9 +162,6 @@ do \
 while(0)
 #endif
 
-/* CPU & Coprocessor *********************************************************/
-#define RME_COPROCESSOR_NONE                        (0U)
-
 /* Kernel Object Table *******************************************************/
 /* Bitmap reference error */
 #define RME_ERR_KOT_BMP                             (-1)
@@ -210,7 +208,7 @@ while(0)
 #define RME_CAP_TYPE_PGT                            (4U)
 /* Process */
 #define RME_CAP_TYPE_PRC                            (5U)
-/* Thread */
+/* Thread - there are two types */
 #define RME_CAP_TYPE_THD                            (6U)
 /* Synchronous invocation */
 #define RME_CAP_TYPE_INV                            (7U)
@@ -236,11 +234,9 @@ while(0)
 #if(RME_QUIE_TIME!=0)
 #if(RME_WORD_ORDER==5)
 /* If this is a 32-bit system, need to consider overflows */
-#define RME_CAP_QUIE(X)                             (((RME_Timestamp-(X))>(X)-RME_Timestamp)? \
-                                                     (((X)-RME_Timestamp)>RME_QUIE_TIME): \
-                                                     ((RME_Timestamp-(X))>RME_QUIE_TIME))
+#define RME_CAP_QUIE(X)                             (_RME_Distance((RME_TIMESTAMP),(X))>RME_QUIE_TIME)
 #else
-#define RME_CAP_QUIE(X)                             ((RME_Timestamp-(X))>RME_QUIE_TIME)
+#define RME_CAP_QUIE(X)                             (((RME_TIMESTAMP)-(X))>RME_QUIE_TIME)
 #endif
 #else
 #define RME_CAP_QUIE(X)                             (1U)
@@ -525,8 +521,8 @@ do \
 while(0)
 
 /* Page Table ****************************************************************/
-/* Driver layer error reporting macro */
-#define RME_ERR_PGT_FAIL                            ((rme_ptr_t)(-1))
+/* Default driver layer error - return anything smaller than 0 is ok */
+#define RME_ERR_HAL_FAIL                            (-1)
 
 /* Page table flag arrangement
 * 32-bit systems: Maximum page table size 2^12 = 4096
@@ -555,15 +551,15 @@ while(0)
 #define RME_PGT_ORDER(SIZE,NUM)                     (((SIZE)<<(sizeof(rme_ptr_t)*4U))|(NUM))
     
 /* Kernel Memory *************************************************************/
-/* Kernel memory function capability flag arrangement - extended flags used, Granularity always 64 bytes min,
-* because the reserved bits is always 6 bits, and the flags field in the Ext_Flag is always 6 bits too.
-* 32-bit systems:
-* [31          High Limit[31:16]         16] [15       Low Limit[31:16]       0]  Flags
-* [31 High Limit[15: 6] 22] [21 Reserved 16] [15 Low Limit[15: 6] 6] [5 Flags 0]  Ext_Flag
-* 64-bit systems:
-* [63          High Limit[64:32]         32] [31       Low Limit[64:32]       0]  Flags
-* [63 High Limit[31: 6] 38] [37 Reserved 32] [31 Low Limit[31: 6] 6] [5 Flags 0]  Ext_Flag
-*/
+/* Kernel memory function capability flag arrangement - extended flags used, 
+ * granularity always 64 bytes min, because the reserved bits (for svc number)
+ * is always 6 bits, and the flags field in the Ext_Flag is always 6 bits too.
+ * 32-bit systems:
+ * [31          High Limit[31:16]         16] [15       Low Limit[31:16]       0]  Flags
+ * [31 High Limit[15: 6] 22] [21 Reserved 16] [15 Low Limit[15: 6] 6] [5 Flags 0]  Ext_Flag
+ * 64-bit systems:
+ * [63          High Limit[64:32]         32] [31       Low Limit[64:32]       0]  Flags
+ * [63 High Limit[31: 6] 38] [37 Reserved 32] [31 Low Limit[31: 6] 6] [5 Flags 0]  Ext_Flag */
 #define RME_KOM_FLAG_HIGH_F(FLAG)                   ((FLAG)&RME_MASK_START(sizeof(rme_ptr_t)*4U))
 #define RME_KOM_FLAG_HIGH_E(EFLAG)                  (((EFLAG)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_START(6U))
 #define RME_KOM_FLAG_HIGH(FLAG, EFLAG)              (RME_KOM_FLAG_HIGH_F(FLAG)|RME_KOM_FLAG_HIGH_E(EFLAG))
@@ -589,23 +585,36 @@ while(0)
 #define RME_PRIO_WORD_NUM                           (RME_PREEMPT_PRIO_NUM>>RME_WORD_ORDER)
 
 /* Thread binding state */
-#define RME_THD_UNBINDED                            ((struct RME_CPU_Local*)RME_ALLBITS)
+#define RME_THD_FREE                                ((struct RME_CPU_Local*)RME_ALLBITS)
 /* Thread sched rcv faulty state */
-#define RME_THD_EXC_FLAG                            RME_POW2(sizeof(rme_ptr_t)*8U-2U)
+#define RME_THD_EXC_FLAG                            RME_POW2(RME_WORD_BITS-2U)
 /* Init thread infinite time marker */
 #define RME_THD_INIT_TIME                           (RME_ALLBITS>>1)
 /* Other thread infinite time marker */
 #define RME_THD_INF_TIME                            (RME_THD_INIT_TIME-1U)
-/* Thread time upper limit - always ths infinite time */
-#define RME_THD_MAX_TIME                            (RME_THD_INF_TIME)
-#define RME_THD_SIZE                                sizeof(struct RME_Thd_Struct)
+
+/* Thread attribute flag arrangement - svc number used to carry Is_Hyp and Attr
+ * 32-bit systems:
+ * [16               Attr              7] [6 Is_Hyp] [5        Reserved        0]  Svc
+ * 64-bit systems:
+ * [32               Attr              7] [6 Is_Hyp] [5        Reserved        0]  Svc */
+#define RME_THD_HYP_FLAG                            RME_POW2(RME_WORD_BITS-1U)
+#define RME_THD_ATTR(X)                             ((X)&(RME_ALLBITS>>1))
+
+#define RME_HYP_SIZE                                sizeof(struct RME_Thd_Struct)
+#if(RME_COP_NUM!=0U)
+#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-sizeof(rme_ptr_t)+__RME_Thd_Cop_Size(X))
+#else
+#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-sizeof(rme_ptr_t))
+#endif
+#define RME_THD_SIZE(X)                             (RME_HYP_SIZE+RME_REG_SIZE(X))
     
 /* Time checking macro */
 #define RME_TIME_CHECK(DST, AMOUNT) \
 do \
 { \
     /* Check if exceeded maximum time or overflowed */ \
-    if(RME_UNLIKELY((((DST)+(AMOUNT))>=RME_THD_MAX_TIME)||(((DST)+(AMOUNT))<(DST)))) \
+    if(RME_UNLIKELY((((DST)+(AMOUNT))>=RME_THD_INF_TIME)||(((DST)+(AMOUNT))<(DST)))) \
         return RME_ERR_PTH_OVERFLOW; \
 } \
 while(0)
@@ -619,9 +628,9 @@ while(0)
 #define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
 /* Get the top of invocation stack - no volatile needed here because this is single-threaded */
-#define RME_INVSTK_TOP(THD)                         ((volatile struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \
+#define RME_INVSTK_TOP(THD)                         ((volatile struct RME_Inv_Struct*)((((THD)->Ctx.Invstk.Next)==&((THD)->Ctx.Invstk))? \
                                                                                        (RME_NULL): \
-                                                                                       ((THD)->Inv_Stack.Next)))
+                                                                                       ((THD)->Ctx.Invstk.Next)))
 
 /* Kernel Function ***********************************************************/
 /* Driver layer error reporting macro */
@@ -750,7 +759,7 @@ struct RME_Thd_Sched
     /* What's the TID of the thread? */
     rme_ptr_t TID;
     /* What is the CPU-local data structure that this thread is on? If this is
-     * 0xFF....FF, then this is not binded to any core. "struct RME_CPU_Local" is
+     * 0xFF....FF, then this is not bound to any core. "struct RME_CPU_Local" is
      * not yet defined here but compilation will still pass - it is a pointer */
     volatile struct RME_CPU_Local* Local;
     /* How much time slices is left for this thread? */
@@ -775,18 +784,26 @@ struct RME_Thd_Sched
     struct RME_List Event;
 };
 
-/* Thread register set structure */
+/* Thread register set structure - not instantiated at all */
 struct RME_Thd_Reg
 {
     /* The register set - architecture specific */
     struct RME_Reg_Struct Reg;
-#if(RME_COPROCESSOR_TYPE!=RME_COPROCESSOR_NONE)
-    /* The co-processor/peripheral context - architecture specific.
-     * This usually contains the FPU data */
-    struct RME_Cop_Struct Cop;
-#endif
     /* The error information - architecture specific */
     struct RME_Exc_Struct Exc;
+    /* The co-processor/peripheral (FPU) context - architecture specific */
+    rme_ptr_t Cop[1];
+};
+
+/* Thread context structure */
+struct RME_Thd_Ctx
+{
+    /* The hypervisor flag and context attribute */
+    rme_ptr_t Hyp_Attr;
+    /* The pointer to current register set */
+    volatile struct RME_Thd_Reg* Reg;
+    /* The thread synchronous invocation stack */
+    struct RME_List Invstk;
 };
 
 /* Thread object structure */
@@ -794,12 +811,8 @@ struct RME_Thd_Struct
 {
     /* The thread scheduling structure */
     struct RME_Thd_Sched Sched;
-    /* The pointer to current register set */
-    volatile struct RME_Thd_Reg* Reg_Cur;
-    /* The default register storage area - may be used or not */
-    struct RME_Thd_Reg Reg_Def;
-    /* The thread synchronous invocation stack */
-    struct RME_List Inv_Stack;
+    /* The thread context */
+    struct RME_Thd_Ctx Ctx;
 };
 
 /* Thread capability structure */
@@ -992,7 +1005,9 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Thd,
                               rme_cid_t Cap_Prc,
                               rme_ptr_t Prio_Max,
-                              rme_ptr_t Raddr);
+                              rme_ptr_t Raddr,
+                              rme_ptr_t Attr,
+                              rme_ptr_t Is_Hyp);
 static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Thd);
@@ -1001,17 +1016,13 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
                                    rme_ptr_t Entry,
                                    rme_ptr_t Stack,
                                    rme_ptr_t Param);
-static rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Cpt* Cpt,
-                                  rme_cid_t Cap_Thd,
-                                  rme_ptr_t Kaddr,
-                                  rme_ptr_t Entry,
-                                  rme_ptr_t Stack);
 static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                                      rme_cid_t Cap_Thd,
                                      rme_cid_t Cap_Thd_Sched,
                                      rme_cid_t Cap_Sig,
                                      rme_tid_t TID,
-                                     rme_ptr_t Prio);
+                                     rme_ptr_t Prio,
+                                     rme_ptr_t Haddr);
 static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      volatile struct RME_Reg_Struct* Reg,
                                      rme_ptr_t Number,
@@ -1107,11 +1118,10 @@ __EXTERN__ rme_ptr_t RME_Timestamp;
 __EXTERN__ rme_ret_t RME_Kmain(void);
 /* System call handler */
 __EXTERN__ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
-/* Increase counter */
-__EXTERN__ rme_ptr_t _RME_Timestamp_Inc(rme_cnt_t Value);
 /* Timer interrupt handler */
-__EXTERN__ void _RME_Tim_SMP_Handler(volatile struct RME_Reg_Struct* Reg);
-__EXTERN__ void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
+__EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
+__EXTERN__ rme_ptr_t _RME_Tim_Future(void);
 /* Memory helpers */
 __EXTERN__ void _RME_Clear(volatile void* Addr,
                            rme_ptr_t Size);
@@ -1121,6 +1131,7 @@ __EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
 __EXTERN__ void _RME_Memcpy(volatile void* Dst,
                             volatile void* Src,
                             rme_ptr_t Num);
+__EXTERN__ rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2);
 #if(RME_DEBUG_PRINT==1U)
 /* Debugging helpers */
 __EXTERN__ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint);

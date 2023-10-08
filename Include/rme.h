@@ -52,8 +52,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_PTH_PGT                 ((-1)+RME_ERR_PTH)
 /* Conflicting operations happening at the same time */
 #define RME_ERR_PTH_CONFLICT            ((-2)+RME_ERR_PTH)
-/* Thread ID error */
-#define RME_ERR_PTH_TID                 ((-3)+RME_ERR_PTH)
+/* Hypervisor register area address error */
+#define RME_ERR_PTH_HADDR               ((-3)+RME_ERR_PTH)
 /* Thread state is invalid or we have failed the CAS */
 #define RME_ERR_PTH_INVSTATE            ((-4)+RME_ERR_PTH)
 /* The thread priority is not correct */
@@ -160,28 +160,27 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Thread */
 /* This cap to thread allows setting its execution parameters */
 #define RME_THD_FLAG_EXEC_SET           (1U<<0)
-/* This cap to thread allows setting its hypervisor parameters */
-#define RME_THD_FLAG_HYP_SET            (1U<<1)
 /* This cap to thread allows setting its scheduling parameters */
-#define RME_THD_FLAG_SCHED_CHILD        (1U<<2)
+#define RME_THD_FLAG_SCHED_CHILD        (1U<<1)
 /* This cap to thread allows registering it as a scheduler */
-#define RME_THD_FLAG_SCHED_PARENT       (1U<<3)
+#define RME_THD_FLAG_SCHED_PARENT       (1U<<2)
 /* This cap to thread allows changing its priority level */
-#define RME_THD_FLAG_SCHED_PRIO         (1U<<4)
+#define RME_THD_FLAG_SCHED_PRIO         (1U<<3)
 /* This cap to thread allows freeing the thread from the core */
-#define RME_THD_FLAG_SCHED_FREE         (1U<<5)
+#define RME_THD_FLAG_SCHED_FREE         (1U<<4)
 /* This cap to thread allows getting scheduling notifications */
-#define RME_THD_FLAG_SCHED_RCV          (1U<<6)
+#define RME_THD_FLAG_SCHED_RCV          (1U<<5)
 /* This cap to thread allows acting as a source for time transfer */
-#define RME_THD_FLAG_XFER_SRC           (1U<<7)
+#define RME_THD_FLAG_XFER_SRC           (1U<<6)
 /* This cap to thread allows acting as a destination for time transfer */
-#define RME_THD_FLAG_XFER_DST           (1U<<8)
+#define RME_THD_FLAG_XFER_DST           (1U<<7)
 /* This cap to thread allows switching to it */
-#define RME_THD_FLAG_SWT                (1U<<9)
+#define RME_THD_FLAG_SWT                (1U<<8)
 /* This cap to thread allows all operations */
-#define RME_THD_FLAG_ALL                (RME_THD_FLAG_EXEC_SET|RME_THD_FLAG_HYP_SET|RME_THD_FLAG_SCHED_CHILD| \
-                                         RME_THD_FLAG_SCHED_PARENT|RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_FREE| \
-                                         RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST|RME_THD_FLAG_SWT)
+#define RME_THD_FLAG_ALL                (RME_THD_FLAG_EXEC_SET|RME_THD_FLAG_SCHED_CHILD| \
+                                         RME_THD_FLAG_SCHED_PARENT|RME_THD_FLAG_SCHED_PRIO| \
+                                         RME_THD_FLAG_SCHED_FREE|RME_THD_FLAG_SCHED_RCV| \
+                                         RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST|RME_THD_FLAG_SWT)
 /* Signal */
 /* This cap to signal endpoint allows sending to it */
 #define RME_SIG_FLAG_SND                (1U<<0)
@@ -344,7 +343,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Receive from a signal endpoint */
 #define RME_SVC_SIG_RCV                 (3U)
 /* Kernel function calling ***************************************************/
-#define RME_SVC_KERN                    (4U)
+#define RME_SVC_KFN                     (4U)
 /* The operations that may cause a context switch ****************************/
 /* Changing thread priority */
 #define RME_SVC_THD_SCHED_PRIO          (5U)
@@ -394,24 +393,22 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_THD_DEL                 (25U)
 /* Set entry&stack */
 #define RME_SVC_THD_EXEC_SET            (26U)
-/* Set this as a hypervisor - managed thread */
-#define RME_SVC_THD_HYP_SET             (27U)
 /* Bind to the current processor */
-#define RME_SVC_THD_SCHED_BIND          (28U)
+#define RME_SVC_THD_SCHED_BIND          (27U)
 /* Try to receive scheduling notifications */
-#define RME_SVC_THD_SCHED_RCV           (29U)
+#define RME_SVC_THD_SCHED_RCV           (28U)
 /* Signal operations *********************************************************/
 /* Create */
-#define RME_SVC_SIG_CRT                 (30U)
+#define RME_SVC_SIG_CRT                 (29U)
 /* Delete */
-#define RME_SVC_SIG_DEL                 (31U)
+#define RME_SVC_SIG_DEL                 (30U)
 /* Invocation operations *****************************************************/
 /* Create */
-#define RME_SVC_INV_CRT                 (32U)
+#define RME_SVC_INV_CRT                 (31U)
 /* Delete */
-#define RME_SVC_INV_DEL                 (33U)
+#define RME_SVC_INV_DEL                 (32U)
 /* Set entry&stack */
-#define RME_SVC_INV_SET                 (34U)
+#define RME_SVC_INV_SET                 (33U)
 /* End System Calls **********************************************************/
 
 /* Kernel Functions **********************************************************/
