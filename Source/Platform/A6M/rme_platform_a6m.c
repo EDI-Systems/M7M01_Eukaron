@@ -279,7 +279,7 @@ void __RME_A6M_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
     __RME_A6M_Flag_Fast(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, 1U);
 #endif
     
-    _RME_Tim_Handler(Reg);
+    _RME_Tim_Handler(Reg, 1U);
     
     /* Make sure the LR returns to the user level */
     RME_A6M_EXC_RET_FIX(Reg);

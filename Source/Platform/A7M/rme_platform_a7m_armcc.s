@@ -1154,7 +1154,7 @@ UsageFault_Handler
 ___RME_A7M_Thd_Cop_Clear PROC               
                         ;Use DCI to avoid compilation errors when FPU not enabled
                         LDR                 R0, =COP_CLEAR
-                        DCI                 0xECB0              ; VLDMIA    R0!,{S0-S31}
+                        DCI                 0xEC90              ; VLDMIA    R0,{S0-S31}
                         DCI                 0x0A20              ; Clear all the FPU registers
                         MOV                 R0, #0              ; Clear FPSCR as well
                         DCI                 0xEEE1              ; VMSR      FPSCR, R0
@@ -1176,7 +1176,7 @@ COP_CLEAR
 ;*****************************************************************************/
 ___RME_A7M_Thd_Cop_Save PROC
                         ;Use DCI to avoid compilation errors when FPU not enabled
-                        DCI                 0xED20              ; VSTMDB    R0!,{S16-S31}
+                        DCI                 0xEC80              ; VSTMIA    R0,{S16-S31}
                         DCI                 0x8A10              ; Save all the FPU registers
 ;                       LDR                 R1, =0xE000EF38     ; Save FPCAR @ 0xE000EF38
 ;                       LDR                 R1, [R1]
@@ -1196,7 +1196,7 @@ ___RME_A7M_Thd_Cop_Save PROC
 ;*****************************************************************************/
 ___RME_A7M_Thd_Cop_Load PROC
                         ;Use DCI to avoid compilation errors when FPU not enabled
-                        DCI                 0xECB0              ; VLDMIA    R0!,{S16-S31}
+                        DCI                 0xEC90              ; VLDMIA    R0,{S16-S31}
                         DCI                 0x8A10              ; Restore all the FPU registers
 ;                       LDR                 R1, =0xE000EF38     ; Restore FPCAR @ 0xE000EF38
 ;                       LDR                 R0, [R0]

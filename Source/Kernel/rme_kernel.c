@@ -271,7 +271,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     __RME_Svc_Param_Get(Reg, &Svc, &Cid, Param);
     Svc_Num=Svc&0x3FU;
     
-    /* Fast path - synchronous invocation returning */
+    /* Ultra-fast path - synchronous invocation returning */
     if(Svc_Num==RME_SVC_INV_RET)
     {
         RME_COVERAGE_MARKER();
@@ -320,7 +320,7 @@ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
     }
 
     /* See if this operation can potentially cause a context switch. All the 
-     * functions that may cause a xontext switch is listed here. The behavior
+     * functions that may cause a context switch is listed here. The behavior
      * of these functions shall be: If the function is successful, they shall
      * perform the return value saving on proper register stacks by themselves;
      * if the function fails, it should not conduct such return value saving.
@@ -727,27 +727,24 @@ void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Slice)
     {
         RME_COVERAGE_MARKER();
 
-        /* Decrease timeslice count */
+        /* Decrease timeslice count, and see if the timeslice is used up */
         if(Slice<Thd_Cur->Sched.Slice)
-            Thd_Cur->Sched.Slice-=Slice;
-        else
-            Thd_Cur->Sched.Slice=0U;
-        
-        /* See if the current thread's timeslice is used up */
-        if(Thd_Cur->Sched.Slice==0U)
         {
             RME_COVERAGE_MARKER();
             
+            Thd_Cur->Sched.Slice-=Slice;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+
             /* Running out of time. Kick this guy out and pick someone else */
+            Thd_Cur->Sched.Slice=0U;
             Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             /* Delete it from runqueue */
             _RME_Run_Del(Thd_Cur);
             /* Send a scheduler notification to its parent */
             _RME_Run_Notif(Thd_Cur);
-        }
-        else
-        {
-            RME_COVERAGE_MARKER();
         }
     }
     else
@@ -772,11 +769,9 @@ Return      : None.
 ******************************************************************************/
 void _RME_Tim_Elapse(rme_ptr_t Slice)
 {
-    volatile struct RME_CPU_Local* Local;
     volatile struct RME_Thd_Struct* Thd_Cur;
     
-    Local=RME_CPU_LOCAL();
-    Thd_Cur=Local->Thd_Cur;
+    Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
     
     /* We don't want the slices less than 1 because we want to keep the kernel
      * SVC invariants - the current thread must still be running after this */
@@ -784,7 +779,8 @@ void _RME_Tim_Elapse(rme_ptr_t Slice)
     {
         RME_COVERAGE_MARKER();
 
-        /* Decrease timeslice count */
+        /* Decrease timeslice count, but no less than 1, so the thread is
+         * always running, which keeps the invariant of the kernel */
         if(Slice<Thd_Cur->Sched.Slice)
             Thd_Cur->Sched.Slice-=Slice;
         else
@@ -3702,9 +3698,9 @@ rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
     /* If coprocessor is enabled, handle coprocessor context as well */
 #if(RME_COP_NUM!=0U)
     __RME_Thd_Cop_Swap(RME_THD_ATTR(Thd_New->Ctx.Hyp_Attr),
-                       Reg_New, &(Thd_New->Ctx.Reg->Cop),
+                       Reg_New, Thd_New->Ctx.Reg->Cop,
                        RME_THD_ATTR(Thd_Cur->Ctx.Hyp_Attr),
-                       Reg_Cur, &(Thd_Cur->Ctx.Reg->Cop));
+                       Reg_Cur, Thd_Cur->Ctx.Reg->Cop);
 #endif
 
     /* Are we going to switch page tables? If yes, we change it now */
