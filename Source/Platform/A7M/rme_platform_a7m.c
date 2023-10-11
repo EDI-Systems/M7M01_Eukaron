@@ -2367,7 +2367,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
-                                  rme_ptr_t Op_Flag)
+                                rme_ptr_t Op_Flag)
 {
     rme_ptr_t MPU_RASR;
     volatile rme_ptr_t* Table;
