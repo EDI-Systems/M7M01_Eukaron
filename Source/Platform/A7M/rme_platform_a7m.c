@@ -21,9 +21,11 @@ Low-level register manipulations and parameter extractions.
 
 * Page Table Section *********************************************************
 Page table related operations are all here.
-The page table conforms to page table implementation style 1, which
-states that the 
-
+The page table conforms to page table implementation style I, which states that
+the page table trees shall not share anything and each tree must be constructed
+in a high-to-low order. This is due to the STKERR type of memory access faults
+not designating any address and losing LR register so must be avoided at all
+cost, prohibiting any dynamic loading behavior on the stack segment.
 ******************************************************************************/
 
 /* Includes ******************************************************************/
@@ -158,22 +160,22 @@ rme_ptr_t __RME_CPUID_Get(void)
 /* Begin Function:__RME_A7M_Exc_Handler ***************************************
 Description : The fault handler of RME. In ARMv7-M, this is used to handle multiple
               faults.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
+void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
 {
     rme_ptr_t HFSR_Reg;
     rme_ptr_t CFSR_Reg;
     rme_ptr_t MMFAR_Reg;
     rme_ptr_t Flag;
     rme_ptr_t* Stack;
-    volatile struct RME_Cap_Prc* Prc;
-    volatile struct RME_Inv_Struct* Inv_Top;
-    volatile struct RME_Thd_Struct* Thd_Cur;
-    volatile struct RME_Exc_Struct* Exc;
-    volatile struct __RME_A7M_Pgt_Meta* Meta;
+    struct RME_Cap_Prc* Prc;
+    struct RME_Inv_Struct* Inv_Top;
+    struct RME_Thd_Struct* Thd_Cur;
+    struct RME_Exc_Struct* Exc;
+    struct __RME_A7M_Pgt_Meta* Meta;
     
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->LR&RME_A7M_EXC_RET_RET_USER)!=0U);
@@ -211,7 +213,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
          RME_A7M_MFSR_MUNSTKERR))!=0U)  /* MPU unstacking errors */
     {
         Exc->Cause=CFSR_Reg;
-        __RME_Thd_Fatal(Reg);
+        _RME_Thd_Fatal(Reg);
     }
     /* Attempt recovery from memory management fault by MPU region swapping */
     else if((CFSR_Reg&RME_A7M_MFSR_MMARVALID)!=0U)
@@ -230,18 +232,18 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=MMFAR_Reg;
-            __RME_Thd_Fatal(Reg);
+            _RME_Thd_Fatal(Reg);
         }
         else
         {
             /* This must be a dynamic page. Or there must be something wrong in the kernel, we lockup */
             RME_ASSERT((Flag&RME_PGT_STATIC)==0U);
             /* Try to update the dynamic page */
-            if(___RME_Pgt_MPU_Update(Meta, 1U)!=0U)
+            if(___RME_A7M_MPU_Update(Meta, 1U)!=0U)
             {
                 Exc->Cause=RME_A7M_MFSR_DACCVIOL;
                 Exc->Addr=MMFAR_Reg;
-                __RME_Thd_Fatal(Reg);
+                _RME_Thd_Fatal(Reg);
             }
         }
     }
@@ -264,7 +266,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=(rme_ptr_t)(&Stack[6U]);
-            __RME_Thd_Fatal(Reg);
+            _RME_Thd_Fatal(Reg);
         }
         else
         {
@@ -273,7 +275,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
             {
                 Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                 Exc->Addr=Stack[6U];
-                __RME_Thd_Fatal(Reg);
+                _RME_Thd_Fatal(Reg);
             }
             else
             {
@@ -285,16 +287,16 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
                 {
                     Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                     Exc->Addr=Stack[6U];
-                    __RME_Thd_Fatal(Reg);
+                    _RME_Thd_Fatal(Reg);
                 }
                 else
                 {
                     /* Try to update the dynamic page */
-                    if(___RME_Pgt_MPU_Update(Meta, 1U)!=0U)
+                    if(___RME_A7M_MPU_Update(Meta, 1U)!=0U)
                     {
                         Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                         Exc->Addr=Stack[6U];
-                        __RME_Thd_Fatal(Reg);
+                        _RME_Thd_Fatal(Reg);
                     }
                 }
             }
@@ -333,7 +335,7 @@ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg)
     /* Make sure the LR returns to the user level */
     RME_A7M_EXC_RET_FIX(Reg);
 }
-/* End Function:__RME_A7M_Fault_Handler **************************************/
+/* End Function:__RME_A7M_Exc_Handler ****************************************/
 
 /* Begin Function:__RME_A7M_Flag_Fast *****************************************
 Description : Set a fast flag in a flag set. Works for timer interrupts only.
@@ -386,13 +388,13 @@ void __RME_A7M_Flag_Slow(rme_ptr_t Base,
 
 /* Begin Function:__RME_A7M_Vct_Handler ***************************************
 Description : The generic interrupt handler of RME for ARMv7-M.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Vct_Num - The vector number. For ARMv7-M, this is in accordance
                                    with the ARMv7-M architecture reference manual.
 Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
+void __RME_A7M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 {
 #if(RME_RVM_GEN_ENABLE==1U)
     /* If the user wants to bypass, we skip the flag marshalling & sending process */
@@ -413,11 +415,11 @@ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Nu
 
 /* Begin Function:__RME_A7M_Tim_Handler ***************************************
 Description : The timer interrupt handler of RME for ARMv7-M.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
+void __RME_A7M_Tim_Handler(struct RME_Reg_Struct* Reg)
 {
     RME_A7M_Timestamp++;
     
@@ -435,11 +437,11 @@ void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg)
 
 /* Begin Function:__RME_A7M_Svc_Handler ***************************************
 Description : The timer interrupt handler of RME for ARMv7-M.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
-Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Svc_Handler(volatile struct RME_Reg_Struct* Reg)
+void __RME_A7M_Svc_Handler(struct RME_Reg_Struct* Reg)
 {    
     _RME_Svc_Handler(Reg);
     
@@ -565,13 +567,13 @@ rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
 
 /* Begin Function:__RME_A7M_Evt_Local_Trig ************************************
 Description : Trigger a CPU's local event source.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
               rme_ptr_t Evt_Num - The event ID.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
+rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
                                    rme_ptr_t CPUID,
                                    rme_ptr_t Evt_Num)
 {
@@ -591,7 +593,7 @@ rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
     
     _RME_Kern_High(Reg, &RME_A7M_Local);
 
-    return 0U;
+    return 0;
 }
 /* End Function:__RME_A7M_Evt_Local_Trig *************************************/
 
@@ -636,20 +638,20 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
-                    return 0U;
+                    return 0;
                 
                 /* Invalidate contents, then enable I-cache */
                 __RME_A7M_Barrier();
                 RME_A7M_SCNSCB_ICALLU=0U;
                 RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
                 __RME_A7M_Barrier();
-                return 0U;
+                return 0;
             }
             else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)==0U)
-                    return 0U;
+                    return 0;
                 
                 /* Disable I-cache */
                 __RME_A7M_Barrier();
@@ -658,7 +660,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 /* Invalidate contents */
                 RME_A7M_SCNSCB_ICALLU=0U;
                 __RME_A7M_Barrier();
-                return 0U;
+                return 0;
             }
             else
                 return RME_ERR_KFN_FAIL;
@@ -696,7 +698,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0U)
-                    return 0U;
+                    return 0;
         
                 /* Invalidate contents, then enable D-cache */
                 for(Set_Cnt=0U;Set_Cnt<=Sets;Set_Cnt++)
@@ -709,13 +711,13 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 }
                 RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DC;
                 __RME_A7M_Barrier();
-                return 0U;
+                return 0;
             }
             else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)==0)
-                    return 0U;
+                    return 0;
                 
                 /* Stop new allocations to D-cache NOW (by disabling interrupts) */
                 __RME_Int_Disable();
@@ -738,7 +740,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
                 
                 /* Reenable interrupts */
                 __RME_Int_Enable();
-                return 0U;
+                return 0;
             }
             else
                 return RME_ERR_KFN_FAIL;
@@ -762,21 +764,21 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             {
                 /* Is it already enabled? */
                 if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
-                    return 0U;
+                    return 0;
                 
                 /* Enable BTAC */
                 RME_A7M_SCNSCB_ACTLR&=~RME_A7M_SCNSCB_ACTLR_DISBTAC;
-                return 0U;
+                return 0;
             }
             else if(Param==RME_A7M_KFN_CACHE_STATE_DISABLE)
             {
                 /* Is it already disabled? */
                 if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)!=0U)
-                    return 0U;
+                    return 0;
                 
                 /* Disable BTAC */
                 RME_A7M_SCNSCB_ACTLR|=RME_A7M_SCNSCB_ACTLR_DISBTAC;
-                return 0U;
+                return 0;
             }
             else
                 return RME_ERR_KFN_FAIL;
@@ -840,7 +842,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
             RME_A7M_SCNSCB_ICIMVAU=Param;
         
         __RME_A7M_Barrier();
-        return 0U;
+        return 0;
     }
     else if(Cache_ID==RME_A7M_KFN_CACHE_DCACHE)
     {
@@ -887,12 +889,12 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                     }
                 }
                 
-                return 0U;
+                return 0;
             }
             /* By address */
-            case RME_A7M_KFN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0U;}
-            case RME_A7M_KFN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0U;}
-            case RME_A7M_KFN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0U;}
+            case RME_A7M_KFN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0;}
+            case RME_A7M_KFN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0;}
+            case RME_A7M_KFN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0;}
             /* By set */
             case RME_A7M_KFN_CACHE_CLEAN_SET: /* Fall-through */
             case RME_A7M_KFN_CACHE_INV_SET:
@@ -913,7 +915,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                     __RME_A7M_Barrier();
                 }
                 
-                return 0U;
+                return 0;
             }
             /* By way */
             case RME_A7M_KFN_CACHE_CLEAN_WAY: /* Fall-through */
@@ -935,7 +937,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                     __RME_A7M_Barrier();
                 }
                 
-                return 0U; 
+                return 0; 
             }
             /* By set and way */
             case RME_A7M_KFN_CACHE_CLEAN_SETWAY: /* Fall-through */
@@ -956,7 +958,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
                     RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
                 __RME_A7M_Barrier();
                 
-                return 0U;
+                return 0;
             }
             default:break;
         }
@@ -972,7 +974,7 @@ rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
         /* This may take effect or not... */
         RME_A7M_SCNSCB_BPIALL=0U;
         
-        return 0U;
+        return 0;
     }
     
     /* Invalid cache specified */
@@ -1029,28 +1031,28 @@ Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
+rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
                                   rme_ptr_t Freg_ID)
 {
     switch(Freg_ID)
     {
-        case RME_A7M_KFN_CPU_FUNC_CPUID:           {Reg->R6=RME_A7M_SCB_CPUID;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_PFR0:         {Reg->R6=RME_A7M_SCB_ID_PFR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_PFR1:         {Reg->R6=RME_A7M_SCB_ID_PFR1;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_DFR0:         {Reg->R6=RME_A7M_SCB_ID_DFR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_AFR0:         {Reg->R6=RME_A7M_SCB_ID_AFR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_MMFR0:        {Reg->R6=RME_A7M_SCB_ID_MMFR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_MMFR1:        {Reg->R6=RME_A7M_SCB_ID_MMFR1;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_MMFR2:        {Reg->R6=RME_A7M_SCB_ID_MMFR2;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_MMFR3:        {Reg->R6=RME_A7M_SCB_ID_MMFR3;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR0:        {Reg->R6=RME_A7M_SCB_ID_ISAR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR1:        {Reg->R6=RME_A7M_SCB_ID_ISAR1;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR2:        {Reg->R6=RME_A7M_SCB_ID_ISAR2;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR3:        {Reg->R6=RME_A7M_SCB_ID_ISAR3;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR4:        {Reg->R6=RME_A7M_SCB_ID_ISAR4;break;}
-        case RME_A7M_KFN_CPU_FUNC_ID_ISAR5:        {Reg->R6=RME_A7M_SCB_ID_ISAR5;break;}
-        case RME_A7M_KFN_CPU_FUNC_CLIDR:           {Reg->R6=RME_A7M_SCB_CLIDR;break;}
-        case RME_A7M_KFN_CPU_FUNC_CTR:             {Reg->R6=RME_A7M_SCB_CTR;break;}
+        case RME_A7M_KFN_CPU_FUNC_CPUID:            {Reg->R6=RME_A7M_SCB_CPUID;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_PFR0:          {Reg->R6=RME_A7M_SCB_ID_PFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_PFR1:          {Reg->R6=RME_A7M_SCB_ID_PFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_DFR0:          {Reg->R6=RME_A7M_SCB_ID_DFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_AFR0:          {Reg->R6=RME_A7M_SCB_ID_AFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR0:         {Reg->R6=RME_A7M_SCB_ID_MMFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR1:         {Reg->R6=RME_A7M_SCB_ID_MMFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR2:         {Reg->R6=RME_A7M_SCB_ID_MMFR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_MMFR3:         {Reg->R6=RME_A7M_SCB_ID_MMFR3;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR0:         {Reg->R6=RME_A7M_SCB_ID_ISAR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR1:         {Reg->R6=RME_A7M_SCB_ID_ISAR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR2:         {Reg->R6=RME_A7M_SCB_ID_ISAR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR3:         {Reg->R6=RME_A7M_SCB_ID_ISAR3;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR4:         {Reg->R6=RME_A7M_SCB_ID_ISAR4;break;}
+        case RME_A7M_KFN_CPU_FUNC_ID_ISAR5:         {Reg->R6=RME_A7M_SCB_ID_ISAR5;break;}
+        case RME_A7M_KFN_CPU_FUNC_CLIDR:            {Reg->R6=RME_A7M_SCB_CLIDR;break;}
+        case RME_A7M_KFN_CPU_FUNC_CTR:              {Reg->R6=RME_A7M_SCB_CTR;break;}
         case RME_A7M_KFN_CPU_FUNC_ICACHE_CCSIDR:
         {
             RME_A7M_SCB_CSSELR=1U;
@@ -1065,22 +1067,22 @@ rme_ret_t __RME_A7M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
             Reg->R6=RME_A7M_SCB_CCSIDR;
             break;
         }
-        case RME_A7M_KFN_CPU_FUNC_MPU_TYPE:        {Reg->R6=RME_A7M_MPU_CTRL;break;}
-        case RME_A7M_KFN_CPU_FUNC_MVFR0:           {Reg->R6=RME_A7M_SCNSCB_MVFR0;break;}
-        case RME_A7M_KFN_CPU_FUNC_MVFR1:           {Reg->R6=RME_A7M_SCNSCB_MVFR1;break;}
-        case RME_A7M_KFN_CPU_FUNC_MVFR2:           {Reg->R6=RME_A7M_SCNSCB_MVFR2;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID0:            {Reg->R6=RME_A7M_SCNSCB_PID0;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID1:            {Reg->R6=RME_A7M_SCNSCB_PID1;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID2:            {Reg->R6=RME_A7M_SCNSCB_PID2;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID3:            {Reg->R6=RME_A7M_SCNSCB_PID3;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID4:            {Reg->R6=RME_A7M_SCNSCB_PID4;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID5:            {Reg->R6=RME_A7M_SCNSCB_PID5;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID6:            {Reg->R6=RME_A7M_SCNSCB_PID6;break;}
-        case RME_A7M_KFN_CPU_FUNC_PID7:            {Reg->R6=RME_A7M_SCNSCB_PID7;break;}
-        case RME_A7M_KFN_CPU_FUNC_CID0:            {Reg->R6=RME_A7M_SCNSCB_CID0;break;}
-        case RME_A7M_KFN_CPU_FUNC_CID1:            {Reg->R6=RME_A7M_SCNSCB_CID1;break;}
-        case RME_A7M_KFN_CPU_FUNC_CID2:            {Reg->R6=RME_A7M_SCNSCB_CID2;break;}
-        case RME_A7M_KFN_CPU_FUNC_CID3:            {Reg->R6=RME_A7M_SCNSCB_CID3;break;}
+        case RME_A7M_KFN_CPU_FUNC_MPU_TYPE:         {Reg->R6=RME_A7M_MPU_CTRL;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR0:            {Reg->R6=RME_A7M_SCNSCB_MVFR0;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR1:            {Reg->R6=RME_A7M_SCNSCB_MVFR1;break;}
+        case RME_A7M_KFN_CPU_FUNC_MVFR2:            {Reg->R6=RME_A7M_SCNSCB_MVFR2;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID0:             {Reg->R6=RME_A7M_SCNSCB_PID0;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID1:             {Reg->R6=RME_A7M_SCNSCB_PID1;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID2:             {Reg->R6=RME_A7M_SCNSCB_PID2;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID3:             {Reg->R6=RME_A7M_SCNSCB_PID3;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID4:             {Reg->R6=RME_A7M_SCNSCB_PID4;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID5:             {Reg->R6=RME_A7M_SCNSCB_PID5;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID6:             {Reg->R6=RME_A7M_SCNSCB_PID6;break;}
+        case RME_A7M_KFN_CPU_FUNC_PID7:             {Reg->R6=RME_A7M_SCNSCB_PID7;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID0:             {Reg->R6=RME_A7M_SCNSCB_CID0;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID1:             {Reg->R6=RME_A7M_SCNSCB_CID1;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID2:             {Reg->R6=RME_A7M_SCNSCB_CID2;break;}
+        case RME_A7M_KFN_CPU_FUNC_CID3:             {Reg->R6=RME_A7M_SCNSCB_CID3;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
@@ -1130,12 +1132,12 @@ rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID,
 /* Begin Function:__RME_A7M_Perf_Cycle_Mod ************************************
 Description : Cycle performance counter read or write for ARMv7-M. Only supports
               CYCCNT register.
-Input       : volatile struct RME_Reg_Struct* Reg - The current register set.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Cycle_ID - The performance counter to read or write.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
-rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
+rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
                                    rme_ptr_t Cycle_ID, 
                                    rme_ptr_t Operation,
                                    rme_ptr_t Value)
@@ -1162,7 +1164,7 @@ rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
 /* Begin Function:__RME_A7M_Debug_Reg_Mod *************************************
 Description : Debug regular register modification implementation for ARMv7-M.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
-              volatile struct RME_Reg_Struct* Reg - The current register set.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
               rme_ptr_t Value - The value to write into the register.
@@ -1170,16 +1172,16 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the han
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
-                                  volatile struct RME_Reg_Struct* Reg, 
+                                  struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_CPU_Local* Local;
-    volatile struct RME_Reg_Struct* Reg_Cur;
-    volatile struct RME_A7M_Cop_Struct* FP_Reg_Cur;
+    struct RME_CPU_Local* Local;
+    rme_ptr_t* Position;
+    rme_ptr_t Register;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -1190,83 +1192,26 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
-    Reg_Cur=&(Thd_Struct->Ctx.Reg->Reg);
     
-    /* Register read/write */
-    switch(Operation)
-    {
-        case RME_A7M_KFN_DEBUG_REG_MOD_SP_GET:      {Reg->R6=Reg_Cur->SP;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_SP_SET:      {Reg_Cur->SP=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R4_GET:      {Reg->R6=Reg_Cur->R4;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R4_SET:      {Reg_Cur->R4=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R5_GET:      {Reg->R6=Reg_Cur->R5;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R5_SET:      {Reg_Cur->R5=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R6_GET:      {Reg->R6=Reg_Cur->R6;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R6_SET:      {Reg_Cur->R6=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R7_GET:      {Reg->R6=Reg_Cur->R7;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R7_SET:      {Reg_Cur->R7=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R8_GET:      {Reg->R6=Reg_Cur->R8;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R8_SET:      {Reg_Cur->R8=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R9_GET:      {Reg->R6=Reg_Cur->R9;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R9_SET:      {Reg_Cur->R9=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R10_GET:     {Reg->R6=Reg_Cur->R10;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R10_SET:     {Reg_Cur->R10=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R11_GET:     {Reg->R6=Reg_Cur->R11;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_R11_SET:     {Reg_Cur->R11=Value;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_LR_GET:      {Reg->R6=Reg_Cur->LR;break;}
-        case RME_A7M_KFN_DEBUG_REG_MOD_LR_SET:      {Reg_Cur->LR=Reg->R6;break;}
-        /* FPU register read/write */
-        default:
-        {
-            /* See if this thread have FPU context */
-            if(RME_THD_ATTR(Thd_Struct->Ctx.Hyp_Attr)!=0U)
-            {
-                FP_Reg_Cur=(volatile struct RME_A7M_Cop_Struct*)&(Thd_Struct->Ctx.Reg->Cop);
-                switch(Operation)
-                {
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S16_GET:     {Reg->R6=FP_Reg_Cur->S16;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S16_SET:     {FP_Reg_Cur->S16=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S17_GET:     {Reg->R6=FP_Reg_Cur->S17;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S17_SET:     {FP_Reg_Cur->S17=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S18_GET:     {Reg->R6=FP_Reg_Cur->S18;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S18_SET:     {FP_Reg_Cur->S18=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S19_GET:     {Reg->R6=FP_Reg_Cur->S19;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S19_SET:     {FP_Reg_Cur->S19=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S20_GET:     {Reg->R6=FP_Reg_Cur->S20;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S20_SET:     {FP_Reg_Cur->S20=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S21_GET:     {Reg->R6=FP_Reg_Cur->S21;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S21_SET:     {FP_Reg_Cur->S21=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S22_GET:     {Reg->R6=FP_Reg_Cur->S22;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S22_SET:     {FP_Reg_Cur->S22=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S23_GET:     {Reg->R6=FP_Reg_Cur->S23;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S23_SET:     {FP_Reg_Cur->S23=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S24_GET:     {Reg->R6=FP_Reg_Cur->S24;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S24_SET:     {FP_Reg_Cur->S24=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S25_GET:     {Reg->R6=FP_Reg_Cur->S25;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S25_SET:     {FP_Reg_Cur->S25=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S26_GET:     {Reg->R6=FP_Reg_Cur->S26;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S26_SET:     {FP_Reg_Cur->S26=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S27_GET:     {Reg->R6=FP_Reg_Cur->S27;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S27_SET:     {FP_Reg_Cur->S27=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S28_GET:     {Reg->R6=FP_Reg_Cur->S28;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S28_SET:     {FP_Reg_Cur->S28=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S29_GET:     {Reg->R6=FP_Reg_Cur->S29;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S29_SET:     {FP_Reg_Cur->S29=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S30_GET:     {Reg->R6=FP_Reg_Cur->S30;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S30_SET:     {FP_Reg_Cur->S30=Value;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S31_GET:     {Reg->R6=FP_Reg_Cur->S31;break;}
-                    case RME_A7M_KFN_DEBUG_REG_MOD_S31_SET:     {FP_Reg_Cur->S31=Value;break;}
-                    default:                                    {return RME_ERR_KFN_FAIL;}
-                }
-            }
-            else
-                return RME_ERR_KFN_FAIL;
-            
-            break;
-        }
-    }
+    /* Register validity check */
+    Register=Operation&(~RME_A7M_KFN_DEBUG_REG_MOD_SET);
+    if(Register<=RME_A7M_KFN_DEBUG_REG_MOD_LR)
+        Position=&(((rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Reg))[Register]);
+#if(RME_COP_NUM!=0U)
+    /* See if this thread have FPU context */
+    else if((RME_THD_ATTR(Thd_Struct->Ctx.Hyp_Attr)!=0U)&&(Register<=RME_A7M_KFN_DEBUG_REG_MOD_S31))
+        Position=&(((rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Cop))[Register-RME_A7M_KFN_DEBUG_REG_MOD_S16]);
+#endif
+    else
+        return RME_ERR_KFN_FAIL;
+    
+    /* Perform read/write */
+    if((Operation&RME_A7M_KFN_DEBUG_REG_MOD_SET)==0U)
+        Reg->R6=Position[0];
+    else
+        Position[0]=Reg->R6;
 
-    return 0U;
+    return 0;
 }
 /* End Function:__RME_A7M_Debug_Reg_Mod **************************************/
 
@@ -1281,15 +1226,15 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the han
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
-                                  volatile struct RME_Reg_Struct* Reg, 
+                                  struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
-    volatile struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_Inv_Struct* Inv_Struct;
-    volatile struct RME_CPU_Local* Local;
+    struct RME_Thd_Struct* Thd_Struct;
+    struct RME_Inv_Struct* Inv_Struct;
+    struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     rme_ptr_t Layer_Cnt;
     
@@ -1304,17 +1249,17 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     
     /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
     Layer_Cnt=RME_PARAM_D1(Operation);
-    Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Ctx.Invstk.Next);
+    Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Ctx.Invstk.Next);
     while(1U)
     {
-        if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Ctx.Invstk))
+        if(Inv_Struct==(struct RME_Inv_Struct*)&(Thd_Struct->Ctx.Invstk))
             return RME_ERR_KFN_FAIL;
         
         if(Layer_Cnt==0U)
             break;
         
         Layer_Cnt--;
-        Inv_Struct=(volatile struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
+        Inv_Struct=(struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
     }
 
     /* D0 position is the operation */
@@ -1335,7 +1280,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
 /* Begin Function:__RME_A7M_Debug_Exc_Get *************************************
 Description : Debug exception register extraction implementation for ARMv7-M.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
-              volatile struct RME_Reg_Struct* Reg - The current register set.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the
@@ -1343,14 +1288,13 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
-                                  volatile struct RME_Reg_Struct* Reg, 
+                                  struct RME_Reg_Struct* Reg, 
                                   rme_cid_t Cap_Thd,
                                   rme_ptr_t Operation)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_CPU_Local* Local;
-    volatile struct RME_Thd_Reg* Reg_Cur;
+    struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -1361,13 +1305,12 @@ rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.Local!=Local)
         return RME_ERR_PTH_INVSTATE;
-    Reg_Cur=Thd_Struct->Ctx.Reg;
     
     switch(Operation)
     {
         /* Register read */
-        case RME_A7M_KFN_DEBUG_EXC_GET_CAUSE:       {Reg->R6=Reg_Cur->Exc.Cause;break;}
-        case RME_A7M_KFN_DEBUG_EXC_GET_ADDR:        {Reg->R6=Reg_Cur->Exc.Addr;break;}
+        case RME_A7M_KFN_DEBUG_EXC_CAUSE_GET:       {Reg->R6=Thd_Struct->Ctx.Reg->Exc.Cause;break;}
+        case RME_A7M_KFN_DEBUG_EXC_ADDR_GET:        {Reg->R6=Thd_Struct->Ctx.Reg->Exc.Addr;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
@@ -1378,7 +1321,7 @@ rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 /* Begin Function:__RME_Kfn_Handler *******************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
-              volatile struct RME_Reg_Struct* Reg - The current register set.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The subfunction ID.
               rme_ptr_t Param1 - The first parameter.
@@ -1390,7 +1333,7 @@ Return      : rme_ret_t - The value that the function returned.
 extern rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 #endif
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
-                            volatile struct RME_Reg_Struct* Reg,
+                            struct RME_Reg_Struct* Reg,
                             rme_ptr_t Func_ID,
                             rme_ptr_t Sub_ID,
                             rme_ptr_t Param1,
@@ -1709,7 +1652,8 @@ void __RME_Boot(void)
 #endif
 
     /* Enable the MPU & interrupt */
-    __RME_Pgt_Set(RME_CAP_GETOBJ((RME_A7M_Local.Thd_Cur)->Sched.Prc->Pgt,rme_ptr_t));
+    RME_ASSERT(RME_CAP_IS_ROOT(RME_A7M_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
+    __RME_Pgt_Set(RME_A7M_Local.Thd_Cur->Sched.Prc->Pgt);
     __RME_Int_Enable();
     
     /* Boot into the init thread */
@@ -1739,13 +1683,13 @@ void __RME_A7M_Reboot(void)
 
 /* Begin Function:__RME_Svc_Param_Get *****************************************
 Description : Get the system call parameters from the stack frame.
-Input       : volatile struct RME_Reg_Struct* Reg - The register set.
+Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Cid - The capability ID number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
-void __RME_Svc_Param_Get(volatile struct RME_Reg_Struct* Reg, 
+void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg, 
                          rme_ptr_t* Svc,
                          rme_ptr_t* Cid,
                          rme_ptr_t* Param)
@@ -1766,7 +1710,7 @@ Input       : rme_ret_t Retval - The return value.
 Output      : volatile struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Svc_Retval_Set(volatile struct RME_Reg_Struct* Reg,
+void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
                           rme_ret_t Retval)
 {
     Reg->R4=(rme_ptr_t)Retval;
@@ -1775,16 +1719,18 @@ void __RME_Svc_Retval_Set(volatile struct RME_Reg_Struct* Reg,
 
 /* Begin Function:__RME_Thd_Reg_Init ******************************************
 Description : Initialize the register set for the thread.
-Input       : rme_ptr_t Entry - The thread entry address.
+Input       : rme_ptr_t Attr - The context attributes.
+              rme_ptr_t Entry - The thread entry address.
               rme_ptr_t Stack - The thread stack address.
               rme_ptr_t Param - The parameter to pass.
-Output      : volatile struct RME_Reg_Struct* Reg - The register set content generated.
+Output      : struct RME_Reg_Struct* Reg - The register set content generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Init(rme_ptr_t Entry,
+void __RME_Thd_Reg_Init(rme_ptr_t Attr,
+                        rme_ptr_t Entry,
                         rme_ptr_t Stack,
                         rme_ptr_t Param, 
-                        volatile struct RME_Reg_Struct* Reg)
+                        struct RME_Reg_Struct* Reg)
 {
     /* Set the LR to a value indicating that we have never used FPU in this new task */
     Reg->LR=RME_A7M_EXC_RET_INIT;
@@ -1803,8 +1749,8 @@ Input       : volatile struct RME_Reg_Struct* Src - The source register set.
 Output      : volatile struct RME_Reg_Struct* Dst - The destination register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
-                        volatile struct RME_Reg_Struct* Src)
+void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
+                        struct RME_Reg_Struct* Src)
 {
     /* Make sure that the ordering is the same so the compiler can optimize */
     Dst->SP=Src->SP;
@@ -1827,23 +1773,27 @@ Input       : volatile struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Iret_Struct* Ret - The invocation return register context.
 Return      : None.
 ******************************************************************************/
-void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
-                        volatile struct RME_Reg_Struct* Reg)
+void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
+                        struct RME_Reg_Struct* Reg)
 {
+    /* LR is needed to remember the stackframe format - with or without FPU */
     Ret->LR=Reg->LR;
     Ret->SP=Reg->SP;
+    /* There are no FPU context on invocation stack, need to indicate this */
+    Ret->LR=RME_A7M_EXC_RET_INIT;
 }
 /* End Function:__RME_Inv_Reg_Save *******************************************/
 
 /* Begin Function:__RME_Inv_Reg_Restore ***************************************
 Description : Restore the necessary registers for returning from an invocation.
-Input       : volatile struct RME_Iret_Struct* Ret - The invocation return register context.
-Output      : volatile struct RME_Reg_Struct* Reg - The register set.
+Input       : struct RME_Iret_Struct* Ret - The invocation return register context.
+Output      : struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
-                           volatile struct RME_Iret_Struct* Ret)
+void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,
+                           struct RME_Iret_Struct* Ret)
 {
+    /* Restore to original stackframe format */
     Reg->LR=Ret->LR;
     Reg->SP=Ret->SP;
 }
@@ -1852,10 +1802,10 @@ void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
 /* Begin Function:__RME_Inv_Retval_Set ****************************************
 Description : Set the invocation return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
-Output      : volatile struct RME_Reg_Struct* Reg - The register set.
+Output      : struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
+void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                           rme_ret_t Retval)
 {
     Reg->R5=(rme_ptr_t)Retval;
@@ -1895,7 +1845,7 @@ rme_ret_t __RME_Thd_Cop_Check(rme_ptr_t Attr)
 Description : Query coprocessor register size for this CPU.
 Input       : rme_ptr_t Attr - The thread context attributes.
 Output      : None.
-Return      : rme_ptr_t - 0 - This does not have any coprocessors.
+Return      : rme_ptr_t - The coprocessor register size.
 ******************************************************************************/
 #if(RME_COP_NUM!=0U)
 rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr)
@@ -1911,39 +1861,40 @@ rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr)
 /* Begin Function:__RME_Thd_Cop_Init ******************************************
 Description : Initialize the coprocessor register set for the thread.
 Input       : rme_ptr_t Attr - The coprocessor context attributes.
-              volatile struct RME_Reg_Struct* Reg - The register struct to help
+              struct RME_Reg_Struct* Reg - The register struct to help
                                                     initialize the coprocessor.
-Output      : volatile void* Cop - The register set content generated.
+Output      : void* Cop - The register set content generated.
 Return      : None.
 ******************************************************************************/
 #if(RME_COP_NUM!=0U)
 void __RME_Thd_Cop_Init(rme_ptr_t Attr,
-                        volatile struct RME_Reg_Struct* Reg,
-                        volatile void* Cop)
+                        struct RME_Reg_Struct* Reg,
+                        void* Cop)
 {
-    volatile struct RME_A7M_Cop_Struct* FP_Reg_Cur;
+    volatile struct RME_A7M_Cop_Struct* A7M_Cop;
     
-    /* Initialize when there is a FPU context */
-    if(Attr!=0U)
-    {
-        FP_Reg_Cur=Cop;
-        FP_Reg_Cur->S16=0U;
-        FP_Reg_Cur->S17=0U;
-        FP_Reg_Cur->S18=0U;
-        FP_Reg_Cur->S19=0U;
-        FP_Reg_Cur->S20=0U;
-        FP_Reg_Cur->S21=0U;
-        FP_Reg_Cur->S22=0U;
-        FP_Reg_Cur->S23=0U;
-        FP_Reg_Cur->S24=0U;
-        FP_Reg_Cur->S25=0U;
-        FP_Reg_Cur->S26=0U;
-        FP_Reg_Cur->S27=0U;
-        FP_Reg_Cur->S28=0U;
-        FP_Reg_Cur->S29=0U;
-        FP_Reg_Cur->S30=0U;
-        FP_Reg_Cur->S31=0U;
-    }
+    /* Initialize only when there is a FPU context */
+    if(Attr==RME_A7M_ATTR_NONE)
+        return;
+    
+    A7M_Cop=Cop;
+    
+    A7M_Cop->S16=0U;
+    A7M_Cop->S17=0U;
+    A7M_Cop->S18=0U;
+    A7M_Cop->S19=0U;
+    A7M_Cop->S20=0U;
+    A7M_Cop->S21=0U;
+    A7M_Cop->S22=0U;
+    A7M_Cop->S23=0U;
+    A7M_Cop->S24=0U;
+    A7M_Cop->S25=0U;
+    A7M_Cop->S26=0U;
+    A7M_Cop->S27=0U;
+    A7M_Cop->S28=0U;
+    A7M_Cop->S29=0U;
+    A7M_Cop->S30=0U;
+    A7M_Cop->S31=0U;
 }
 #endif
 /* End Function:__RME_Thd_Cop_Init *******************************************/
@@ -1951,66 +1902,75 @@ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
 /* Begin Function:__RME_Thd_Cop_Swap ******************************************
 Description : Swap the cop register sets. This operation is flexible - If the
               program does not use the FPU, we do not save/restore its context.
+              We do not need to turn off lazy stacking, because even if a fault
+              occurs, it (1) tails the execution of activates the will get dropped
+              by our handler deliberately and will not cause wrong attribution.
+              They can be alternatively disabled as well if you wish.
 Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
-              volatile struct RME_Reg_Struct* Reg_New - The context to switch to.
+              struct RME_Reg_Struct* Reg_New - The context to switch to.
               rme_ptr_t Attr_Cur - The attribute of the context to switch from.
-              volatile struct RME_Reg_Struct* Reg_Cur - The context to switch from.
-Output      : volatile void* Cop_New - The coprocessor context to switch to.
-              volatile void* Cop_Cur - The coprocessor context to switch from.
+              struct RME_Reg_Struct* Reg_Cur - The context to switch from.
+Output      : void* Cop_New - The coprocessor context to switch to.
+              void* Cop_Cur - The coprocessor context to switch from.
 Return      : None.
 ******************************************************************************/
 #if(RME_COP_NUM!=0U)
 void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
-                        volatile struct RME_Reg_Struct* Reg_New,
-                        volatile void* Cop_New,
+                        struct RME_Reg_Struct* Reg_New,
+                        void* Cop_New,
                         rme_ptr_t Attr_Cur,
-                        volatile struct RME_Reg_Struct* Reg_Cur,
-                        volatile void* Cop_Cur)
+                        struct RME_Reg_Struct* Reg_Cur,
+                        void* Cop_Cur)
 {
-    /* Turn on the FPU if the next thread will use it - We do not need to turn
-     * off lazy stacking, because even if a fault occurs, it (1) tails the 
-     * execution of activates the will get dropped by our handler deliberately 
-     * and will not cause wrong attribution. They can be alternatively disabled
-     * as well if you wish */
+    static rme_ptr_t Dirty=1U;
+    
+    /* The current thread does have FPU capability */
+    if(Attr_Cur!=RME_A7M_ATTR_NONE)
+    {
+        /* The current thread made use of that capability, need to save context */
+        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
+        {
+            /* FPU MUST be enabled at this point. No possibility that we've had
+             * such a stack containing FPU context and the FPU is disabled */
+            RME_ASSERT((RME_A7M_SCB_CPACR&RME_A7M_SCB_CPACR_FPU_MASK)!=0U);
+            /* In theory, when we switch from a FPU-enabled thread to a FPU-disabled
+             * thread and back, we don't ever need to save and restore FPU registers.
+             * However, RME supports HYP-threads, which may need to read/write the
+             * registers in a kernel agnostic fashion. In that case, if the FPU
+             * is ever put to use, its context must be saved and restored. */
+            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
+            Dirty=1U;
+        }
+    }
+    
+    /* The next thread does have FPU capability, enable FPU */
     if(Attr_New!=RME_A7M_ATTR_NONE)
+    {
         RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
-    
-    /* If we do not have a FPU, return directly */
-    if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
-    {
-        /* If both are not using the FPU, then no need to care about FPU context. In 
-         * ARMv7-M, if the FPU is even touched once in a user thread, its FPCA will be 1,
-         * and the LR will be tainted with it, even if it does not use FPU later. So there
-         * is no chance that a thread can use FPU for some time turning it off later. */
-        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
+        /* The next thread made use of that capability, need to load context */
+        if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
         {
-            /* Do nothing */
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
+            Dirty=1U;
         }
-        /* Current thread uses the FPU, but the new thread does not. Save FPU context
-         * to the current thread, and clean up the FPU registers so there is no leak */
+        /* The next thread did not make use of the capability, clean-up its
+         * FPU context. The processor automatically sets the FPCA to zero (on
+         * detection that LR[4]=1), so that the exception entry stacks later
+         * does not include FPU registers anymore. The FPU is therefore not
+         * really turned off when the thread says it doesn't want to use FPU,
+         * but put into hibernation that does not cause more ctxsw burden. */
         else
         {
-            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
-            ___RME_A7M_Thd_Cop_Clear();
+            /* Clean up and restore to initial state, if dirty only, to save time */
+            if(Dirty!=0U)
+            {
+                ___RME_A7M_Thd_Cop_Clear();
+                Dirty=0U;
+            }
         }
     }
+    /* The next thread does not have such capability, disable FPU */
     else
-    {
-        /* The current thread is not using the FPU, but the new thread is */
-        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)!=0U)
-        {
-            ___RME_A7M_Thd_Cop_Load(Cop_New);
-        }
-        /* Both ones are using the FPU */
-        else
-        {
-            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
-            ___RME_A7M_Thd_Cop_Load(Cop_New);
-        }
-    }
-    
-    /* Turn off the FPU if the next thread does not use it */
-    if(Attr_New==RME_A7M_ATTR_NONE)
         RME_A7M_SCB_CPACR&=~RME_A7M_SCB_CPACR_FPU_MASK;
 }
 #endif
@@ -2055,35 +2015,34 @@ rme_ptr_t __RME_A7M_Rand(void)
 
 /* Begin Function:__RME_Pgt_Init **********************************************
 Description : Initialize the page table data structure, according to the capability.
-Input       : volatile struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
+Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - 0 - Always successful.
 ******************************************************************************/
-rme_ret_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op)
+rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
-    volatile rme_ptr_t* Ptr;
+    rme_ptr_t* Ptr;
     
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt_Op, rme_ptr_t*);
     
     /* Initialize the causal metadata */
-    ((volatile struct __RME_A7M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
-    ((volatile struct __RME_A7M_Pgt_Meta*)Ptr)->Toplevel=0U;
-    ((volatile struct __RME_A7M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
-    ((volatile struct __RME_A7M_Pgt_Meta*)Ptr)->Dir_Page_Count=0U;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Toplevel=0U;
+    ((struct __RME_A7M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
     Ptr+=sizeof(struct __RME_A7M_Pgt_Meta)/sizeof(rme_ptr_t);
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
      * environments, if it is top-level, we need to add kernel pages as well */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
     {
-        ((volatile struct __RME_A7M_MPU_Data*)Ptr)->Static=0U;
+        ((struct __RME_A7M_MPU_Data*)Ptr)->Static=0U;
         
         for(Count=0;Count<RME_A7M_REGION_NUM;Count++)
         {
-            ((volatile struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
-            ((volatile struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
+            ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RBAR=RME_A7M_MPU_VALID|Count;
+            ((struct __RME_A7M_MPU_Data*)Ptr)->Data[Count].MPU_RASR=0U;
         }
         
         Ptr+=sizeof(struct __RME_A7M_MPU_Data)/sizeof(rme_ptr_t);
@@ -2130,27 +2089,21 @@ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 
 /* Begin Function:__RME_Pgt_Del_Check *****************************************
 Description : Check if the page table can be deleted.
-Input       : volatile struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
+Input       : struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ret_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op)
+rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
-    /* Check if we are standalone */
-    if(((RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Dir_Page_Count)>>16)!=0U)
-        return RME_ERR_HAL_FAIL;
-    
-    /* Check if we still have a top-level */
-    if(RME_CAP_GETOBJ(Pgt_Op,struct __RME_A7M_Pgt_Meta*)->Toplevel!=0U)
-        return RME_ERR_HAL_FAIL;
-
+    /* We don't need to check the directory mapping status (whether we are 
+     * parent or children) anymore because this is done in the kernel */
     return 0;
 }
 /* End Function:__RME_Pgt_Del_Check ******************************************/
 
-/* Begin Function:___RME_Pgt_MPU_RASR *****************************************
+/* Begin Function:___RME_A7M_MPU_RASR_Gen *************************************
 Description : Generate the RASR metadata for this level of page table.
-Input       : volatile rme_ptr_t* Table - The table to generate data for. This 
+Input       : rme_ptr_t* Table - The table to generate data for. This 
                                           is directly the raw page table itself,
                                           without accounting for metadata.
               rme_ptr_t Flag - The flags for each entry.
@@ -2159,10 +2112,10 @@ Input       : volatile rme_ptr_t* Table - The table to generate data for. This
 Output      : struct __RME_A7M_MPU_Entry* Entry - The data generated.
 Return      : rme_ptr_t - The RASR value returned.
 ******************************************************************************/
-rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
-                              rme_ptr_t Flag, 
-                              rme_ptr_t Size_Order,
-                              rme_ptr_t Num_Order)
+rme_ptr_t ___RME_A7M_MPU_RASR_Gen(rme_ptr_t* Table,
+                                  rme_ptr_t Flag, 
+                                  rme_ptr_t Size_Order,
+                                  rme_ptr_t Num_Order)
 {
     rme_ptr_t RASR;
     rme_ptr_t Count;
@@ -2213,19 +2166,19 @@ rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
     
     return RASR;
 }
-/* End Function:___RME_Pgt_MPU_RASR ******************************************/
+/* End Function:___RME_A7M_MPU_RASR_Gen **************************************/
 
-/* Begin Function:___RME_Pgt_MPU_Clear ****************************************
+/* Begin Function:___RME_A7M_MPU_Clear ****************************************
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
-Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
+Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata
               rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+rme_ret_t ___RME_A7M_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
                                rme_ptr_t Base_Addr,
                                rme_ptr_t Size_Order,
                                rme_ptr_t Num_Order)
@@ -2252,14 +2205,14 @@ rme_ret_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU,
     
     return 0;
 }
-/* End Function:___RME_Pgt_MPU_Clear *****************************************/
+/* End Function:___RME_A7M_MPU_Clear *****************************************/
 
-/* Begin Function:___RME_Pgt_MPU_Add ******************************************
+/* Begin Function:___RME_A7M_MPU_Add ******************************************
 Description : Add or update the MPU entry in the top-level MPU table. We guarantee
               that at any time at least two regions are dedicated to dynamic entries.
               This is due to the fact that ARM have LDRD and STRD, which can require
               two regions to function correctly.
-Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
+Input       : struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU metadata.
               rme_ptr_t Base_Addr - The start mapping address of the directory.
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
@@ -2268,7 +2221,7 @@ Input       : volatile struct __RME_A7M_MPU_Data* Top_MPU - The top-level MPU me
 Output      : None.
 Return      : rme_ret_t - If 0, update successful, else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ret_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+rme_ret_t ___RME_A7M_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
                              rme_ptr_t Base_Addr,
                              rme_ptr_t Size_Order,
                              rme_ptr_t Num_Order,
@@ -2357,21 +2310,21 @@ rme_ret_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU,
 
     return 0;
 }
-/* End Function:___RME_Pgt_MPU_Add *******************************************/
+/* End Function:___RME_A7M_MPU_Add *******************************************/
 
-/* Begin Function:___RME_Pgt_MPU_Update ***************************************
+/* Begin Function:___RME_A7M_MPU_Update ***************************************
 Description : Update the top-level MPU metadata for this level of page table.
-Input       : volatile struct __RME_A7M_Pgt_Meta* Meta - This page table.
+Input       : struct __RME_A7M_Pgt_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
+rme_ret_t ___RME_A7M_MPU_Update(struct __RME_A7M_Pgt_Meta* Meta,
                                 rme_ptr_t Op_Flag)
 {
     rme_ptr_t MPU_RASR;
-    volatile rme_ptr_t* Table;
-    volatile struct __RME_A7M_MPU_Data* Top_MPU;
+    rme_ptr_t* Table;
+    struct __RME_A7M_MPU_Data* Top_MPU;
     
     /* Is it possible for MPU to represent this? */
     if(RME_A7M_PGT_NUMORD(Meta->Size_Num_Order)>RME_PGT_NUM_8)
@@ -2381,14 +2334,14 @@ rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
     if(Meta->Toplevel!=0U)
     {
         /* We have a top-level */
-        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgt_Meta));
-        Table=RME_A7M_PGT_TBL_NOM((volatile rme_ptr_t*)Meta);
+        Top_MPU=(struct __RME_A7M_MPU_Data*)(Meta->Toplevel+sizeof(struct __RME_A7M_Pgt_Meta));
+        Table=RME_A7M_PGT_TBL_NOM(Meta);
     }
     else if(((Meta->Base)&RME_PGT_TOP)!=0U)
     {
         /* We don't have a top-level, but we are the top-level */
-        Top_MPU=(volatile struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgt_Meta));
-        Table=RME_A7M_PGT_TBL_TOP((volatile rme_ptr_t*)Meta);
+        Top_MPU=(struct __RME_A7M_MPU_Data*)(((rme_ptr_t)Meta)+sizeof(struct __RME_A7M_Pgt_Meta));
+        Table=RME_A7M_PGT_TBL_TOP(Meta);
     }
     else
         return RME_ERR_HAL_FAIL;
@@ -2396,7 +2349,7 @@ rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
     if(Op_Flag==RME_A7M_MPU_CLR)
     {
         /* Clear the metadata - this function will never fail */
-        ___RME_Pgt_MPU_Clear(Top_MPU,
+        ___RME_A7M_MPU_Clear(Top_MPU,
                              RME_A7M_PGT_START(Meta->Base),
                              RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
                              RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
@@ -2404,13 +2357,13 @@ rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
     else
     {
         /* See if the RASR contains anything */
-        MPU_RASR=___RME_Pgt_MPU_RASR(Table, Meta->Page_Flag, 
+        MPU_RASR=___RME_A7M_MPU_RASR_Gen(Table, Meta->Page_Flag, 
                                      RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
                                      RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
         if(MPU_RASR==0U)
         {
             /* All pages are unmapped. Clear this from the MPU data */
-            ___RME_Pgt_MPU_Clear(Top_MPU,
+            ___RME_A7M_MPU_Clear(Top_MPU,
                                  RME_A7M_PGT_START(Meta->Base),
                                  RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
                                  RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
@@ -2418,7 +2371,7 @@ rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
         else
         {
             /* At least one of the pages are there. Map it */
-            if(___RME_Pgt_MPU_Add(Top_MPU,
+            if(___RME_A7M_MPU_Add(Top_MPU,
                                   RME_A7M_PGT_START(Meta->Base),
                                   RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
                                   RME_A7M_PGT_NUMORD(Meta->Size_Num_Order),
@@ -2430,54 +2383,102 @@ rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
     
     return 0U;
 }
-/* End Function:___RME_Pgt_MPU_Update ****************************************/
+/* End Function:___RME_A7M_MPU_Update ****************************************/
+
+/* Begin Function:___RME_A7M_Pgt_Have_Page ************************************
+Description : See if there are pages mapped in a directory.
+Input       : volatile rme_ptr_t* Table - The table to detect.
+              rme_ptr_t Num_Order - The number order.
+Output      : None.
+Return      : rme_ptr_t - If there are no pages mapped in, 0; else 1.
+******************************************************************************/
+rme_ptr_t ___RME_A7M_Pgt_Have_Page(rme_ptr_t* Table,
+                                   rme_ptr_t Num_Order)
+{
+    rme_ptr_t Count;
+    
+    for(Count=0U;Count<RME_POW2(Num_Order);Count++)
+    {
+        if(((Table[Count]&RME_A7M_PGT_PRESENT)!=0U)&&
+           ((Table[Count]&RME_A7M_PGT_TERMINAL)!=0U))
+            return 1U;
+    }
+    
+    return 0U;
+}
+/* End Function:___RME_A7M_Pgt_Have_Page *************************************/
+
+/* Begin Function:___RME_A7M_Pgt_Have_Pgdir ***********************************
+Description : See if there are page directories mapped mapped in a directory.
+Input       : volatile rme_ptr_t* Table - The table to detect.
+              rme_ptr_t Num_Order - The number order.
+Output      : None.
+Return      : rme_ptr_t - If there are no pages mapped in, 0; else 1.
+******************************************************************************/
+rme_ptr_t ___RME_A7M_Pgt_Have_Pgdir(rme_ptr_t* Table,
+                                    rme_ptr_t Num_Order)
+{
+    rme_ptr_t Count;
+    
+    for(Count=0U;Count<RME_POW2(Num_Order);Count++)
+    {
+        if(((Table[Count]&RME_A7M_PGT_PRESENT)!=0U)&&
+           ((Table[Count]&RME_A7M_PGT_TERMINAL)==0U))
+            return 1U;
+    }
+    
+    return 0;
+}
+/* End Function:___RME_A7M_Pgt_Have_Pgdir ************************************/
 
 /* Begin Function:__RME_Pgt_Set ***********************************************
 Description : Set the processor's page table.
-Input       : rme_ptr_t Pgt - The virtual address of the page table.
+Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_Pgt_Set(rme_ptr_t Pgt)
+void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
     struct __RME_A7M_MPU_Data* MPU_Data;
     
-    MPU_Data=(struct __RME_A7M_MPU_Data*)(Pgt+sizeof(struct __RME_A7M_Pgt_Meta));
+    MPU_Data=(struct __RME_A7M_MPU_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
+                                          sizeof(struct __RME_A7M_Pgt_Meta));
+    
     /* Get the physical address of the page table - here we do not need any 
      * conversion, because VA = PA as always. We just need to extract the MPU
      * metadata part and pass it down */
 #if(RME_A7M_REGION_NUM==1U)
-    ___RME_A7M_MPU_Set((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set1(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==2U)
-    ___RME_A7M_MPU_Set2((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set2(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==3U)
-    ___RME_A7M_MPU_Set3((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set3(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==4U)
-    ___RME_A7M_MPU_Set4((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set4(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==5U)
-    ___RME_A7M_MPU_Set5((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set5(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==6U)
-    ___RME_A7M_MPU_Set6((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set6(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==7U)
-    ___RME_A7M_MPU_Set7((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set7(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==8U)
-    ___RME_A7M_MPU_Set8((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set8(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==9U)
-    ___RME_A7M_MPU_Set9((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set9(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==10U)
-    ___RME_A7M_MPU_Set10((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set10(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==11U)
-    ___RME_A7M_MPU_Set11((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set11(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==12U)
-    ___RME_A7M_MPU_Set12((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set12(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==13U)
-    ___RME_A7M_MPU_Set13((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set13(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==14U)
-    ___RME_A7M_MPU_Set14((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set14(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==15U)
-    ___RME_A7M_MPU_Set15((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set15(&(MPU_Data->Data[0].MPU_RBAR));
 #elif(RME_A7M_REGION_NUM==16U)
-    ___RME_A7M_MPU_Set16((rme_ptr_t)(&(MPU_Data->Data[0].MPU_RBAR)));
+    ___RME_A7M_MPU_Set16(&(MPU_Data->Data[0].MPU_RBAR));
 #endif
 }
 /* End Function:__RME_Pgt_Set ************************************************/
@@ -2489,10 +2490,10 @@ Description : Map a page into the page table. If a page is mapped into the slot,
               the page granularity. This architecture requires that the mapping is
               always at least readable.
 Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate on.
-              rme_ptr_t Paddr - The physical address to map to. No effect if we are unmapping.
+              rme_ptr_t Paddr - The physical address to map to.
               rme_ptr_t Pos - The position in the page table.
-              rme_ptr_t Flag - The RME standard page attributes. Need to translate them into 
-                                architecture specific page table's settings.
+              rme_ptr_t Flag - The RME standard page attributes. Need to
+                               translate them into architecture specific ones.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
@@ -2509,7 +2510,8 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
         return RME_ERR_HAL_FAIL;
         
     /* We are doing page-based operations on this, so the page directory should
-     * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
+     * be MPU-representable. Only page numbers of 1, 2, 4 & 8 are representable
+     * for ARMv7-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
         return RME_ERR_HAL_FAIL;
     
@@ -2518,9 +2520,9 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Where is the entry slot */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
-        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_TOP(Meta);
     else
-        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_NOM(Meta);
     
     /* Check if we are trying to make duplicate mappings into the same location */
     if((Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
@@ -2528,7 +2530,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
      * subregions shall share the same flags in ARMv7-M */
-    if(RME_A7M_PGT_PAGENUM(Meta->Dir_Page_Count)==0U)
+    if(___RME_A7M_Pgt_Have_Page(Table, RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))==0U)
         Meta->Page_Flag=Flag;
     else
     {
@@ -2546,7 +2548,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
         if((Flag&RME_PGT_STATIC)!=0U)
         {
             /* Mapping static pages, update the MPU representation */
-            if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
+            if(___RME_A7M_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
             {
                 /* MPU update failed. Revert operations */
                 Table[Pos]=0U;
@@ -2554,8 +2556,6 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
             }
         }
     }
-    /* Modify count */
-    RME_A7M_PGT_INC_PAGENUM(Meta->Dir_Page_Count);
     
     return 0;
 }
@@ -2569,14 +2569,15 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
-                                 rme_ptr_t Pos)
+                               rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
     struct __RME_A7M_Pgt_Meta* Meta;
         
     /* We are doing page-based operations on this, so the page directory should
-     * be MPU-representable. Only page sizes of 1, 2, 4 & 8 are representable for ARMv7-M */
+     * be MPU-representable. Only page numbers of 1, 2, 4 & 8 are representable
+     * for ARMv7-M */
     if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
         return RME_ERR_HAL_FAIL;
     
@@ -2585,9 +2586,9 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     
     /* Where is the entry slot */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
-        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_TOP(Meta);
     else
-        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
+        Table=RME_A7M_PGT_TBL_NOM(Meta);
 
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
@@ -2600,17 +2601,15 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
     {
         /* Now we are unmapping the pages - Immediately update MPU representations */
-        if(___RME_Pgt_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
+        if(___RME_A7M_MPU_Update(Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
         {
             /* Revert operations */
             Table[Pos]=Temp;
             return RME_ERR_HAL_FAIL;
         }
     }
-    /* Modify count */
-    RME_A7M_PGT_DEC_PAGENUM(Meta->Dir_Page_Count);
     
-    return 0U;
+    return 0;
 }
 /* End Function:__RME_Pgt_Page_Unmap *****************************************/
 
@@ -2626,19 +2625,14 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
-                                rme_ptr_t Pos, 
-                                struct RME_Cap_Pgt* Pgt_Child,
-                                rme_ptr_t Flag)
+                              rme_ptr_t Pos, 
+                              struct RME_Cap_Pgt* Pgt_Child,
+                              rme_ptr_t Flag)
 {
     rme_ptr_t* Parent_Table;
+    rme_ptr_t* Child_Table;
     struct __RME_A7M_Pgt_Meta* Parent_Meta;
     struct __RME_A7M_Pgt_Meta* Child_Meta;
-    
-    /* Is the child a designated top level directory? If it is, we do not allow 
-     * constructions. In ARMv7-M, we only allow the designated top-level to be
-     * the actual top-level. */
-    if(((Pgt_Child->Base)&RME_PGT_TOP)!=0U)
-        return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
     Parent_Meta=RME_CAP_GETOBJ(Pgt_Parent,struct __RME_A7M_Pgt_Meta*);
@@ -2648,15 +2642,18 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     if((Parent_Meta->Toplevel==0U)&&(((Parent_Meta->Base)&RME_PGT_TOP)==0U))
         return RME_ERR_HAL_FAIL;
     
-    /* Check if the child already mapped somewhere, or have grandchild directories */
-    if(((Child_Meta->Toplevel)!=0U)||(RME_A7M_PGT_DIRNUM(Child_Meta->Dir_Page_Count)!=0U))
+    /* The child must not have a top-level and itself is not a top-level.
+     * We don't need to check whether the child already have childs, because
+     * this is impossible: trying to map into a pgdir without a top-level, and
+     * trying to unmap a pgdir that still have childs will both be rejected. */
+    if(((Child_Meta->Toplevel)!=0U)||(((Child_Meta->Base)&RME_PGT_TOP)!=0U))
         return RME_ERR_HAL_FAIL;
     
     /* Where is the entry slot? */
     if(((Parent_Meta->Base)&RME_PGT_TOP)!=0U)
-        Parent_Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Parent_Meta);
+        Parent_Table=RME_A7M_PGT_TBL_TOP(Parent_Meta);
     else
-        Parent_Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Parent_Meta);
+        Parent_Table=RME_A7M_PGT_TBL_NOM(Parent_Meta);
     
     /* Check if anything already mapped in */
     if((Parent_Table[Pos]&RME_A7M_PGT_PRESENT)!=0U)
@@ -2671,20 +2668,18 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
         Child_Meta->Toplevel=(rme_ptr_t)Parent_Meta;
     else
         Child_Meta->Toplevel=Parent_Meta->Toplevel;
-
-    RME_A7M_PGT_INC_DIRNUM(Parent_Meta->Dir_Page_Count);
     
-    /* Update MPU settings if there are static pages mapped into the source. If there
-     * are any, update the MPU settings */
-    if((RME_A7M_PGT_PAGENUM(Child_Meta->Dir_Page_Count)!=0U)&&
+    /* Update MPU settings if there are static pages mapped into the source. 
+     * If there are any, update the MPU settings. */
+    Child_Table=RME_A7M_PGT_TBL_NOM(Child_Meta);
+    if((___RME_A7M_Pgt_Have_Page(Child_Table, RME_PGT_NUMORD(Pgt_Child->Size_Num_Order))!=0U)&&
        (((Child_Meta->Page_Flag)&RME_PGT_STATIC)!=0U))
     {
-        if(___RME_Pgt_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
+        if(___RME_A7M_MPU_Update(Child_Meta, RME_A7M_MPU_UPD)==RME_ERR_HAL_FAIL)
         {
             /* Mapping failed. Revert operations */
             Parent_Table[Pos]=0U;
             Child_Meta->Toplevel=0U;
-            RME_A7M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
             return RME_ERR_HAL_FAIL;
         }
     }
@@ -2714,9 +2709,9 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
     
     /* Where is the entry slot */
     if(((Pgt_Parent->Base)&RME_PGT_TOP)!=0U)
-        Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Parent_Meta);
+        Table=RME_A7M_PGT_TBL_TOP(Parent_Meta);
     else
-        Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Parent_Meta);
+        Table=RME_A7M_PGT_TBL_NOM(Parent_Meta);
 
     /* Check if we try to remove something nonexistent, or a page */
     if(((Table[Pos]&RME_A7M_PGT_PRESENT)==0U)||((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U))
@@ -2728,19 +2723,18 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
         return RME_ERR_HAL_FAIL;
 
     /* Check if the directory still have child directories */
-    if(RME_A7M_PGT_DIRNUM(Parent_Meta->Dir_Page_Count)!=0U)
+    if(___RME_A7M_Pgt_Have_Page(Table, RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
         return RME_ERR_HAL_FAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
-    if(RME_A7M_PGT_PAGENUM(Parent_Meta->Dir_Page_Count)!=0U)
+    if(___RME_A7M_Pgt_Have_Pgdir(Table, RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
     {
-        if(___RME_Pgt_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_HAL_FAIL)
+        if(___RME_A7M_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_HAL_FAIL)
             return RME_ERR_HAL_FAIL;
     }
 
     Table[Pos]=0U;
     Parent_Meta->Toplevel=0U;
-    RME_A7M_PGT_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
 
     return 0;
 }
@@ -2760,10 +2754,6 @@ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t* Flag)
 {
     rme_ptr_t* Table;
-    
-    /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)
-        return RME_ERR_HAL_FAIL;
     
     /* Check if this is the top-level page table. Get the table */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
@@ -2815,13 +2805,12 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     rme_ptr_t* Table;
     rme_ptr_t Pos;
     
-    /* Check if this is the top-level page table */
-    if(((Pgt_Op->Base)&RME_PGT_TOP)==0U)
-        return RME_ERR_HAL_FAIL;
+    /* This must the top-level page table */
+    RME_ASSERT(((Pgt_Op->Base)&RME_PGT_TOP)!=0U);
     
     /* Get the table and start lookup */
     Meta=RME_CAP_GETOBJ(Pgt_Op, struct __RME_A7M_Pgt_Meta*);
-    Table=RME_A7M_PGT_TBL_TOP((rme_ptr_t*)Meta);
+    Table=RME_A7M_PGT_TBL_TOP(Meta);
     
     /* Do lookup recursively */
     while(1)
@@ -2840,17 +2829,17 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
         if((Table[Pos]&RME_A7M_PGT_TERMINAL)!=0U)
         {
             /* This is a page - we found it */
-            if(Pgt!=0U)
+            if(Pgt!=RME_NULL)
                 *Pgt=(rme_ptr_t)Meta;
-            if(Map_Vaddr!=0U)
+            if(Map_Vaddr!=RME_NULL)
                 *Map_Vaddr=RME_A7M_PGT_START(Meta->Base)+(Pos<<RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order));
-            if(Paddr!=0U)
+            if(Paddr!=RME_NULL)
                 *Paddr=RME_A7M_PGT_START(Meta->Base)+(Pos<<RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order));
-            if(Size_Order!=0U)
+            if(Size_Order!=RME_NULL)
                 *Size_Order=RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order);
-            if(Num_Order!=0U)
+            if(Num_Order!=RME_NULL)
                 *Num_Order=RME_A7M_PGT_NUMORD(Meta->Size_Num_Order);
-            if(Flag!=0U)
+            if(Flag!=RME_NULL)
                 *Flag=Meta->Page_Flag;
             
             break;
@@ -2859,7 +2848,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
         {
             /* This is a directory, we goto that directory to continue walking */
             Meta=(struct __RME_A7M_Pgt_Meta*)RME_A7M_PGT_PGD_ADDR(Table[Pos]);
-            Table=RME_A7M_PGT_TBL_NOM((rme_ptr_t*)Meta);
+            Table=RME_A7M_PGT_TBL_NOM(Meta);
         }
     }
 

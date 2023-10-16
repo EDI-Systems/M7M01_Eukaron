@@ -128,7 +128,7 @@ do \
         RME_DBG_S(__TIME__); \
         RME_DBG_S("\r\n"); \
         RME_ASSERT_FAILED(__FILE__, __LINE__, __DATE__, __TIME__); \
-        while(1); \
+        while(1U); \
     } \
 } \
 while(0)
@@ -243,8 +243,9 @@ while(0)
 #endif
 
 /* Convert to root */
-#define RME_CAP_CONV_ROOT(X,TYPE)                   ((RME_CAP_ATTR((X)->Head.Type_Stat)!=RME_CAP_ATTR_ROOT)? \
-                                                     ((TYPE)((X)->Head.Root_Ref)):((TYPE)(X)))
+#define RME_CAP_IS_ROOT(X)                          (RME_CAP_ATTR((X)->Head.Type_Stat)==RME_CAP_ATTR_ROOT)
+#define RME_CAP_CONV_ROOT(X,TYPE)                   (RME_CAP_IS_ROOT(X)? \
+                                                     ((TYPE)(X)):((TYPE)((X)->Head.Root_Ref)))
 /* Get the object */
 #define RME_CAP_GETOBJ(X,TYPE)                      ((TYPE)((X)->Head.Object))
 /* 1-layer capid addressing:
@@ -431,7 +432,7 @@ do \
                                   RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP, RME_CAP_STAT_CREATING, RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
         return RME_ERR_CPT_EXIST; \
     /* We have taken the slot. Now log the quiescence counter in. No barrier needed as our atomics are serializing */ \
-    (CAP)->Head.Timestamp=RME_Timestamp; \
+    (CAP)->Head.Timestamp=RME_TIMESTAMP; \
 } \
 while(0)
 
@@ -628,9 +629,10 @@ while(0)
 #define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
 /* Get the top of invocation stack - no volatile needed here because this is single-threaded */
-#define RME_INVSTK_TOP(THD)                         ((volatile struct RME_Inv_Struct*)((((THD)->Ctx.Invstk.Next)==&((THD)->Ctx.Invstk))? \
-                                                                                       (RME_NULL): \
-                                                                                       ((THD)->Ctx.Invstk.Next)))
+#define RME_INVSTK_TOP_ADDR(THD)                    ((((THD)->Ctx.Invstk.Next)==&((THD)->Ctx.Invstk))? \
+                                                     (RME_NULL): \
+                                                     ((THD)->Ctx.Invstk.Next))
+#define RME_INVSTK_TOP(THD)                         ((struct RME_Inv_Struct*)RME_INVSTK_TOP_ADDR(THD))
 
 /* Kernel Function ***********************************************************/
 /* Driver layer error reporting macro */
@@ -701,9 +703,10 @@ struct RME_Cap_Pgt
     struct RME_Cap_Head Head;
     /* The entry size/number order */
     rme_ptr_t Size_Num_Order;
-    /* The base address of this page table */
+    /* The base address of this page table.
+     * Also, if this is a top-level, the last bit will be set. */
     rme_ptr_t Base;
-    /* Address space ID, if applicable */
+    /* Address space ID, if applicable - need to convert to root cap to r/w */
     rme_ptr_t ASID;
 };
 
@@ -723,8 +726,8 @@ struct RME_Cap_Kom
 /* List head structure */
 struct RME_List
 {
-    volatile struct RME_List* Prev;
-    volatile struct RME_List* Next;
+    struct RME_List* Prev;
+    struct RME_List* Next;
 };
 
 /* Per-CPU run queue structure */
@@ -740,9 +743,9 @@ struct RME_Run_Struct
 struct RME_Cap_Prc
 {
     struct RME_Cap_Head Head;
-    /* The capability table struct */
+    /* The capability table struct - need to convert to root cap to r/w */
     struct RME_Cap_Cpt* Cpt;
-    /* The page table struct */
+    /* The page table struct - need to convert to root cap to r/w */
     struct RME_Cap_Pgt* Pgt;
     rme_ptr_t Info[1];
 };
@@ -761,7 +764,7 @@ struct RME_Thd_Sched
     /* What is the CPU-local data structure that this thread is on? If this is
      * 0xFF....FF, then this is not bound to any core. "struct RME_CPU_Local" is
      * not yet defined here but compilation will still pass - it is a pointer */
-    volatile struct RME_CPU_Local* Local;
+    struct RME_CPU_Local* Local;
     /* How much time slices is left for this thread? */
     rme_ptr_t Slice;
     /* What is the current state of the thread? */
@@ -771,15 +774,15 @@ struct RME_Thd_Sched
     /* What's the maximum priority allowed for this thread? */
     rme_ptr_t Prio_Max;
     /* What signal endpoint does this thread block on? */
-    volatile struct RME_Cap_Sig* Signal;
+    struct RME_Cap_Sig* Signal;
     /* Which process is it created in? */
-    volatile struct RME_Cap_Prc* Prc;
+    struct RME_Cap_Prc* Prc;
     /* Am I referenced by someone as a scheduler? */
     rme_ptr_t Sched_Ref;
     /* What is its scheduler thread? */
-    volatile struct RME_Thd_Struct* Sched_Thd;
+    struct RME_Thd_Struct* Sched_Thd;
     /* What is the signal endpoint to send to if we have scheduler notifications? (optional) */
-    volatile struct RME_Cap_Sig* Sched_Sig;
+    struct RME_Cap_Sig* Sched_Sig;
     /* The event list for the thread */
     struct RME_List Event;
 };
@@ -801,7 +804,7 @@ struct RME_Thd_Ctx
     /* The hypervisor flag and context attribute */
     rme_ptr_t Hyp_Attr;
     /* The pointer to current register set */
-    volatile struct RME_Thd_Reg* Reg;
+    struct RME_Thd_Reg* Reg;
     /* The thread synchronous invocation stack */
     struct RME_List Invstk;
 };
@@ -827,9 +830,9 @@ struct RME_Cap_Thd
 struct RME_Cap_Sig
 {
     struct RME_Cap_Head Head;
-    /* The number of signals sent to here */
+    /* The number of signals sent to here - need to convert to root cap to r/w */
     rme_ptr_t Sig_Num;
-    /* What thread blocked on this one */
+    /* What thread blocked on this one - need to convert to root cap to r/w */
     struct RME_Thd_Struct* Thd;
     rme_ptr_t Info[1];
 };
@@ -865,13 +868,13 @@ struct RME_CPU_Local
     /* The CPUID of the CPU */
     rme_ptr_t CPUID;
     /* The current thread on the CPU */
-    volatile struct RME_Thd_Struct* Thd_Cur;
+    struct RME_Thd_Struct* Thd_Cur;
     /* The tick timer signal endpoint */
-    volatile struct RME_Cap_Sig* Sig_Tim;
+    struct RME_Cap_Sig* Sig_Tim;
     /* The vector signal endpoint */
-    volatile struct RME_Cap_Sig* Sig_Vct;
+    struct RME_Cap_Sig* Sig_Vct;
     /* The runqueue and bitmap */
-    volatile struct RME_Run_Struct Run;
+    struct RME_Run_Struct Run;
 };
 
 /* Kernel Function ***********************************************************/
@@ -912,8 +915,7 @@ struct RME_Cap_Kfn
 
 /* Private C Function Prototypes *********************************************/
 /* Generic *******************************************************************/
-static rme_ret_t __RME_Lowlvl_Check(void);
-static rme_ret_t _RME_Syscall_Init(void);
+static rme_ret_t _RME_Lowlvl_Check(void);
 
 /* Capability Table **********************************************************/
 /* Capability system calls */
@@ -976,13 +978,13 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
 
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
-static rme_ret_t _RME_Run_Ins(volatile struct RME_Thd_Struct* Thd);
-static rme_ret_t _RME_Run_Del(volatile struct RME_Thd_Struct* Thd);
-static volatile struct RME_Thd_Struct* _RME_Run_High(volatile struct RME_CPU_Local* Local);
-static rme_ret_t _RME_Run_Notif(volatile struct RME_Thd_Struct* Thd);
-static rme_ret_t _RME_Run_Swt(volatile struct RME_Reg_Struct* Reg,
-                              volatile struct RME_Thd_Struct* Thd_Cur, 
-                              volatile struct RME_Thd_Struct* Thd_New);
+static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
+static struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* Local);
+static rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
+                              struct RME_Thd_Struct* Thd_Cur, 
+                              struct RME_Thd_Struct* Thd_New);
 /* Process system calls */
 static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt_Crt,
@@ -1024,7 +1026,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                                      rme_ptr_t Prio,
                                      rme_ptr_t Haddr);
 static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
-                                     volatile struct RME_Reg_Struct* Reg,
+                                     struct RME_Reg_Struct* Reg,
                                      rme_ptr_t Number,
                                      rme_cid_t Cap_Thd0,
                                      rme_ptr_t Prio0,
@@ -1033,17 +1035,17 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      rme_cid_t Cap_Thd2,
                                      rme_ptr_t Prio2);
 static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt, 
-                                     volatile struct RME_Reg_Struct* Reg,
+                                     struct RME_Reg_Struct* Reg,
                                      rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
                                     rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
-                                    volatile struct RME_Reg_Struct* Reg,
+                                    struct RME_Reg_Struct* Reg,
                                     rme_cid_t Cap_Thd_Dst,
                                     rme_cid_t Cap_Thd_Src,
                                     rme_ptr_t Time);
 static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
-                              volatile struct RME_Reg_Struct* Reg,
+                              struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Thd,
                               rme_ptr_t Is_Yield);
                               
@@ -1056,10 +1058,10 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Sig);
 static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
-                              volatile struct RME_Reg_Struct* Reg,
+                              struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Sig);
 static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
-                              volatile struct RME_Reg_Struct* Reg,
+                              struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Sig,
                               rme_ptr_t Option);
 /* Invocation system calls */
@@ -1078,16 +1080,16 @@ static rme_ret_t _RME_Inv_Set(struct RME_Cap_Cpt* Cpt,
                               rme_ptr_t Stack,
                               rme_ptr_t Is_Exc_Ret);
 static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt, 
-                              volatile struct RME_Reg_Struct* Reg,
+                              struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Inv,
                               rme_ptr_t Param);
-static rme_ret_t _RME_Inv_Ret(volatile struct RME_Reg_Struct* Reg,
+static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
                               rme_ptr_t Retval,
                               rme_ptr_t Is_Exc);
 
 /* Kernel Function ***********************************************************/
 static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
-                              volatile struct RME_Reg_Struct* Reg,
+                              struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Kern,
                               rme_ptr_t Func_ID,
                               rme_ptr_t Sub_ID,
@@ -1106,8 +1108,7 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
 #endif
 
 /*****************************************************************************/
-/* Current timestamp counter */
-__EXTERN__ rme_ptr_t RME_Timestamp;
+
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
@@ -1117,20 +1118,17 @@ __EXTERN__ rme_ptr_t RME_Timestamp;
 /* Kernel entry */
 __EXTERN__ rme_ret_t RME_Kmain(void);
 /* System call handler */
-__EXTERN__ void _RME_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
 /* Timer interrupt handler */
-__EXTERN__ void _RME_Tim_Handler(volatile struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
+__EXTERN__ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
 __EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
 __EXTERN__ rme_ptr_t _RME_Tim_Future(void);
 /* Memory helpers */
-__EXTERN__ void _RME_Clear(volatile void* Addr,
-                           rme_ptr_t Size);
+__EXTERN__ void _RME_Clear(void* Addr, rme_ptr_t Size);
 __EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
                                  const void* Ptr2,
                                  rme_ptr_t Num);
-__EXTERN__ void _RME_Memcpy(volatile void* Dst,
-                            volatile void* Src,
-                            rme_ptr_t Num);
+__EXTERN__ void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num);
 __EXTERN__ rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2);
 #if(RME_DEBUG_PRINT==1U)
 /* Debugging helpers */
@@ -1187,17 +1185,17 @@ __EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 
 /* Process and Thread ********************************************************/
 /* Linked list operations */
-__EXTERN__ void __RME_List_Crt(volatile struct RME_List* Head);
-__EXTERN__ void __RME_List_Del(volatile struct RME_List* Prev,
-                               volatile struct RME_List* Next);
-__EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
-                               volatile struct RME_List* Prev,
-                               volatile struct RME_List* Next);
+__EXTERN__ void _RME_List_Crt(struct RME_List* Head);
+__EXTERN__ void _RME_List_Del(struct RME_List* Prev,
+                              struct RME_List* Next);
+__EXTERN__ void _RME_List_Ins(struct RME_List* New,
+                              struct RME_List* Prev,
+                              struct RME_List* Next);
 /* Initialize per-CPU data structures */
-__EXTERN__ void _RME_CPU_Local_Init(volatile struct RME_CPU_Local* Local,
+__EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
                                     rme_ptr_t CPUID);
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t __RME_Thd_Fatal(volatile struct RME_Reg_Struct* Reg);                              
+__EXTERN__ rme_ret_t _RME_Thd_Fatal(struct RME_Reg_Struct* Reg);                              
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt_Crt,
@@ -1210,13 +1208,13 @@ __EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Prc,
                                        rme_ptr_t Vaddr,
                                        rme_ptr_t Prio,
-                                       volatile struct RME_CPU_Local* Local);
+                                       struct RME_CPU_Local* Local);
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
-__EXTERN__ rme_ret_t _RME_Kern_Snd(volatile struct RME_Cap_Sig* Sig);
-__EXTERN__ void _RME_Kern_High(volatile struct RME_Reg_Struct* Reg,
-                               volatile struct RME_CPU_Local* Local);
+__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig);
+__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
+                               struct RME_CPU_Local* Local);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,

@@ -283,6 +283,9 @@ typedef rme_s32_t rme_ret_t;
 /* Are we returning to user mode? 1 means yes, 0 means no */
 #define RME_A7M_EXC_RET_RET_USER        (1U<<3)
 
+/* FPU control settings */
+#define RME_A7M_CONTROL_FPCA            (1U<<2)
+
 /* FPU CPACR settings */
 #define RME_A7M_SCB_CPACR_FPU_MASK      (((3U<<(10*2))|(3U<<(11*2))))
 /* Coprocessor type definitions */
@@ -380,8 +383,10 @@ typedef rme_s32_t rme_ret_t;
  * [0] Present - Is this entry present?
  */
 /* Get the actual table positions */
-#define RME_A7M_PGT_TBL_NOM(X)          ((X)+(sizeof(struct __RME_A7M_Pgt_Meta)/sizeof(rme_ptr_t)))
-#define RME_A7M_PGT_TBL_TOP(X)          ((X)+(sizeof(struct __RME_A7M_Pgt_Meta)+sizeof(struct __RME_A7M_MPU_Data))/sizeof(rme_ptr_t))
+#define RME_A7M_PGT_META                (sizeof(struct __RME_A7M_Pgt_Meta)/sizeof(rme_ptr_t))
+#define RME_A7M_MPU_DATA                (sizeof(struct __RME_A7M_MPU_Data)/sizeof(rme_ptr_t))
+#define RME_A7M_PGT_TBL_NOM(X)          (((rme_ptr_t*)(X))+RME_A7M_PGT_META)
+#define RME_A7M_PGT_TBL_TOP(X)          (((rme_ptr_t*)(X))+RME_A7M_PGT_META+RME_A7M_MPU_DATA)
 /* Page entry bit definitions */
 #define RME_A7M_PGT_PRESENT             (1U<<0)
 #define RME_A7M_PGT_TERMINAL            (1U<<1)
@@ -393,12 +398,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_PGT_START(X)            ((X)&0xFFFFFFFEU)
 #define RME_A7M_PGT_SIZEORD(X)          ((X)>>16)
 #define RME_A7M_PGT_NUMORD(X)           ((X)&0x0000FFFFU)
-#define RME_A7M_PGT_DIRNUM(X)           ((X)>>16)
-#define RME_A7M_PGT_PAGENUM(X)          ((X)&0x0000FFFFU)
-#define RME_A7M_PGT_INC_PAGENUM(X)      ((X)+=0x00000001U)
-#define RME_A7M_PGT_DEC_PAGENUM(X)      ((X)-=0x00000001U)
-#define RME_A7M_PGT_INC_DIRNUM(X)       ((X)+=0x00010000U)
-#define RME_A7M_PGT_DEC_DIRNUM(X)       ((X)-=0x00010000U)
 /* MPU operation flag */
 #define RME_A7M_MPU_CLR                 (0U)
 #define RME_A7M_MPU_UPD                 (1U)
@@ -508,67 +507,44 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_KFN_PERF_VAL_GET                    (0U)
 #define RME_A7M_KFN_PERF_VAL_SET                    (1U)
 /* Register read/write */
-#define RME_A7M_KFN_DEBUG_REG_MOD_SP_GET            (0U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_SP_SET            (1U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R4_GET            (2U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R4_SET            (3U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R5_GET            (4U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R5_SET            (5U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R6_GET            (6U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R6_SET            (7U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R7_GET            (8U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R7_SET            (9U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R8_GET            (10U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R8_SET            (11U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R9_GET            (12U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R9_SET            (13U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R10_GET           (14U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R10_SET           (15U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R11_GET           (16U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_R11_SET           (17U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_LR_GET            (18U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_LR_SET            (19U)
-/* FPU register read/write */
-#define RME_A7M_KFN_DEBUG_REG_MOD_S16_GET           (20U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S16_SET           (21U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S17_GET           (22U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S17_SET           (23U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S18_GET           (24U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S18_SET           (25U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S19_GET           (26U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S19_SET           (27U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S20_GET           (28U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S20_SET           (29U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S21_GET           (30U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S21_SET           (31U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S22_GET           (32U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S22_SET           (33U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S23_GET           (34U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S23_SET           (35U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S24_GET           (36U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S24_SET           (37U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S25_GET           (38U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S25_SET           (39U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S26_GET           (40U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S26_SET           (41U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S27_GET           (42U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S27_SET           (43U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S28_GET           (44U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S28_SET           (45U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S29_GET           (46U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S29_SET           (47U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S30_GET           (48U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S30_SET           (49U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S31_GET           (50U)
-#define RME_A7M_KFN_DEBUG_REG_MOD_S31_SET           (51U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_GET               (0U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_SET               (1U<<16)
+/* General-purpose registers */
+#define RME_A7M_KFN_DEBUG_REG_MOD_SP                (0U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R4                (1U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R5                (2U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R6                (3U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R7                (4U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R8                (5U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R9                (6U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R10               (7U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_R11               (8U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_LR                (9U)
+/* FPU registers */
+#define RME_A7M_KFN_DEBUG_REG_MOD_S16               (10U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S17               (11U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S18               (12U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S19               (13U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S20               (14U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S21               (15U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S22               (16U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S23               (17U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S24               (18U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S25               (19U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S26               (20U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S27               (21U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S28               (22U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S29               (23U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S30               (24U)
+#define RME_A7M_KFN_DEBUG_REG_MOD_S31               (25U)
 /* Invocation register read/write */
 #define RME_A7M_KFN_DEBUG_INV_MOD_SP_GET            (0U)
 #define RME_A7M_KFN_DEBUG_INV_MOD_SP_SET            (1U)
 #define RME_A7M_KFN_DEBUG_INV_MOD_LR_GET            (2U)
 #define RME_A7M_KFN_DEBUG_INV_MOD_LR_SET            (3U)
 /* Exception register read */
-#define RME_A7M_KFN_DEBUG_EXC_GET_CAUSE             (0U)
-#define RME_A7M_KFN_DEBUG_EXC_GET_ADDR              (1U)
+#define RME_A7M_KFN_DEBUG_EXC_CAUSE_GET             (0U)
+#define RME_A7M_KFN_DEBUG_EXC_ADDR_GET              (1U)
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_DEFS__ */
 #endif
@@ -664,8 +640,6 @@ struct __RME_A7M_Pgt_Meta
     rme_ptr_t Base;
     /* The size/num order of this level */
     rme_ptr_t Size_Num_Order;
-    /* The child directory/page number in this level */
-    rme_ptr_t Dir_Page_Count;
     /* The page flags at this level. If any pages are mapped in, it must conform
      * to the same attributes as the older pages */
     rme_ptr_t Page_Flag;
@@ -718,6 +692,23 @@ EXTERN void RME_Boot_Pre_Init(void);
 EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
+/* MPU operations */
+EXTERN void ___RME_A7M_MPU_Set1(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set2(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set3(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set4(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set5(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set6(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set7(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set8(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set9(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set10(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set11(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set12(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set13(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set14(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set15(rme_ptr_t* MPU_Meta);
+EXTERN void ___RME_A7M_MPU_Set16(rme_ptr_t* MPU_Meta);
 /* Vector Flags **************************************************************/
 static void __RME_A7M_Flag_Fast(rme_ptr_t Base,
                                 rme_ptr_t Size,
@@ -727,22 +718,26 @@ static void __RME_A7M_Flag_Slow(rme_ptr_t Base,
                                 rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_A7M_Rand(void);
-static rme_ptr_t ___RME_Pgt_MPU_RASR(volatile rme_ptr_t* Table,
-                                     rme_ptr_t Flag, 
-                                     rme_ptr_t Size_Order,
-                                     rme_ptr_t Num_Order);
-static rme_ret_t ___RME_Pgt_MPU_Clear(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+static rme_ptr_t ___RME_A7M_MPU_RASR_Gen(rme_ptr_t* Table,
+                                         rme_ptr_t Flag, 
+                                         rme_ptr_t Size_Order,
+                                         rme_ptr_t Num_Order);
+static rme_ret_t ___RME_A7M_MPU_Clear(struct __RME_A7M_MPU_Data* Top_MPU, 
                                       rme_ptr_t Base_Addr,
                                       rme_ptr_t Size_Order,
                                       rme_ptr_t Num_Order);
-static rme_ret_t ___RME_Pgt_MPU_Add(volatile struct __RME_A7M_MPU_Data* Top_MPU, 
+static rme_ret_t ___RME_A7M_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU, 
                                     rme_ptr_t Base_Addr,
                                     rme_ptr_t Size_Order,
                                     rme_ptr_t Num_Order,
                                     rme_ptr_t MPU_RASR,
                                     rme_ptr_t Static);
-static rme_ret_t ___RME_Pgt_MPU_Update(volatile struct __RME_A7M_Pgt_Meta* Meta,
+static rme_ret_t ___RME_A7M_MPU_Update(struct __RME_A7M_Pgt_Meta* Meta,
                                        rme_ptr_t Op_Flag);
+static rme_ptr_t ___RME_A7M_Pgt_Have_Page(rme_ptr_t* Table,
+                                          rme_ptr_t Num_Order);
+static rme_ptr_t ___RME_A7M_Pgt_Have_Pgdir(rme_ptr_t* Table,
+                                           rme_ptr_t Num_Order);
 /* Kernel function ***********************************************************/
 static rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
                                          rme_cid_t Cap_Pgt,
@@ -753,7 +748,7 @@ static rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
                                          rme_ptr_t Param);
 static rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID,
                                           rme_ptr_t Int_Num);
-static rme_ret_t __RME_A7M_Evt_Local_Trig(volatile struct RME_Reg_Struct* Reg,
+static rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
                                           rme_ptr_t CPUID,
                                           rme_ptr_t Evt_Num);
 static rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
@@ -765,27 +760,27 @@ static rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID,
 static rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID,
                                      rme_ptr_t Operation,
                                      rme_ptr_t Param);
-static rme_ret_t __RME_A7M_Perf_CPU_Func(volatile struct RME_Reg_Struct* Reg,
+static rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
                                          rme_ptr_t Freg_ID);
 static rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID,
                                         rme_ptr_t Operation,
                                         rme_ptr_t Param);
-static rme_ret_t __RME_A7M_Perf_Cycle_Mod(volatile struct RME_Reg_Struct* Reg,
+static rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
                                           rme_ptr_t Cycle_ID, 
                                           rme_ptr_t Operation,
                                           rme_ptr_t Value);
 static rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
-                                         volatile struct RME_Reg_Struct* Reg, 
+                                         struct RME_Reg_Struct* Reg, 
                                          rme_cid_t Cap_Thd,
                                          rme_ptr_t Operation,
                                          rme_ptr_t Value);
 static rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
-                                         volatile struct RME_Reg_Struct* Reg, 
+                                         struct RME_Reg_Struct* Reg, 
                                          rme_cid_t Cap_Thd,
                                          rme_ptr_t Operation,
                                          rme_ptr_t Value);
 static rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
-                                         volatile struct RME_Reg_Struct* Reg, 
+                                         struct RME_Reg_Struct* Reg, 
                                          rme_cid_t Cap_Thd,
                                          rme_ptr_t Operation);
 /*****************************************************************************/
@@ -801,11 +796,11 @@ static rme_ret_t __RME_A7M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 
 /*****************************************************************************/
 /* Timestamp counter */
-__EXTERN__ volatile rme_ptr_t RME_A7M_Timestamp;
+__EXTERN__ rme_ptr_t RME_A7M_Timestamp;
 /* ARMv7-M only have one core, thus this is its CPU-local data structure */
-__EXTERN__ volatile struct RME_CPU_Local RME_A7M_Local;
+__EXTERN__ struct RME_CPU_Local RME_A7M_Local;
 /* ARMv7-M use simple kernel object table */
-__EXTERN__ volatile rme_ptr_t RME_A7M_Kot[RME_KOT_WORD_NUM];
+__EXTERN__ rme_ptr_t RME_A7M_Kot[RME_KOT_WORD_NUM];
 /*****************************************************************************/
 
 /* End Public Global Variables ***********************************************/
@@ -836,17 +831,17 @@ __EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 
 /* Handler *******************************************************************/
 /* Fault handler */
-__EXTERN__ void __RME_A7M_Exc_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_A7M_Vct_Handler(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_A7M_Vct_Handler(struct RME_Reg_Struct* Reg,
                                       rme_ptr_t Vct_Num);
 /* Timer handler */
-__EXTERN__ void __RME_A7M_Tim_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_A7M_Tim_Handler(struct RME_Reg_Struct* Reg);
 /* Syscall handler */
-__EXTERN__ void __RME_A7M_Svc_Handler(volatile struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_A7M_Svc_Handler(struct RME_Reg_Struct* Reg);
 /* Kernel function handler */
 __EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
-                                       volatile struct RME_Reg_Struct* Reg,
+                                       struct RME_Reg_Struct* Reg,
                                        rme_ptr_t Func_ID,
                                        rme_ptr_t Sub_ID,
                                        rme_ptr_t Param1,
@@ -868,71 +863,56 @@ EXTERN void __RME_User_Enter(rme_ptr_t Entry,
 /* Register Manipulation *****************************************************/
 /* Coprocessor */
 EXTERN void ___RME_A7M_Thd_Cop_Clear(void);
-EXTERN void ___RME_A7M_Thd_Cop_Save(volatile struct RME_A7M_Cop_Struct* Cop);
-EXTERN void ___RME_A7M_Thd_Cop_Load(volatile struct RME_A7M_Cop_Struct* Cop);
+EXTERN void ___RME_A7M_Thd_Cop_Save(struct RME_A7M_Cop_Struct* Cop);
+EXTERN void ___RME_A7M_Thd_Cop_Load(struct RME_A7M_Cop_Struct* Cop);
 /* Syscall parameter */
-__EXTERN__ void __RME_Svc_Param_Get(volatile struct RME_Reg_Struct* Reg,
-                                        rme_ptr_t* Svc,
-                                        rme_ptr_t* Capid,
-                                        rme_ptr_t* Param);
-__EXTERN__ void __RME_Svc_Retval_Set(volatile struct RME_Reg_Struct* Reg,
-                                         rme_ret_t Retval);
+__EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
+                                    rme_ptr_t* Svc,
+                                    rme_ptr_t* Capid,
+                                    rme_ptr_t* Param);
+__EXTERN__ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
+                                     rme_ret_t Retval);
 /* Thread register sets */
-__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry,
+__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
+                                   rme_ptr_t Entry,
                                    rme_ptr_t Stack,
                                    rme_ptr_t Param,
-                                   volatile struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_Thd_Reg_Copy(volatile struct RME_Reg_Struct* Dst,
-                                   volatile struct RME_Reg_Struct* Src);
+                                   struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
+                                   struct RME_Reg_Struct* Src);
 /* Invocation register sets */
-__EXTERN__ void __RME_Inv_Reg_Save(volatile struct RME_Iret_Struct* Ret,
-                                   volatile struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_Inv_Reg_Restore(volatile struct RME_Reg_Struct* Reg,
-                                      volatile struct RME_Iret_Struct* Ret);
-__EXTERN__ void __RME_Inv_Retval_Set(volatile struct RME_Reg_Struct* Reg,
+__EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
+                                   struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,
+                                      struct RME_Iret_Struct* Ret);
+__EXTERN__ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                                      rme_ret_t Retval);
 /* Coprocessor register sets */
 __EXTERN__ rme_ret_t __RME_Thd_Cop_Check(rme_ptr_t Attr);
 __EXTERN__ rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr);
 __EXTERN__ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
-                                   volatile struct RME_Reg_Struct* Reg,
-                                   volatile void* Cop);
+                                   struct RME_Reg_Struct* Reg,
+                                   void* Cop);
 __EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
-                                   volatile struct RME_Reg_Struct* Reg_New,
-                                   volatile void* Cop_New,
+                                   struct RME_Reg_Struct* Reg_New,
+                                   void* Cop_New,
                                    rme_ptr_t Attr_Cur,
-                                   volatile struct RME_Reg_Struct* Reg_Cur,
-                                   volatile void* Cop_Cur);
+                                   struct RME_Reg_Struct* Reg_Cur,
+                                   void* Cop_Cur);
 
 /* Page Table ****************************************************************/
 /* Initialization */
 __EXTERN__ rme_ret_t __RME_Pgt_Kom_Init(void);
-__EXTERN__ rme_ret_t __RME_Pgt_Init(volatile struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
 __EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                                      rme_ptr_t Is_Top, 
                                      rme_ptr_t Size_Order,
                                      rme_ptr_t Num_Order,
                                      rme_ptr_t Vaddr);
-__EXTERN__ rme_ret_t __RME_Pgt_Del_Check(volatile struct RME_Cap_Pgt* Pgt_Op);
+__EXTERN__ rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
 /* Setting the page table */
-EXTERN void ___RME_A7M_MPU_Set(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set2(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set3(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set4(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set5(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set6(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set7(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set8(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set9(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set10(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set11(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set12(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set13(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set14(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set15(rme_ptr_t MPU_Meta);
-EXTERN void ___RME_A7M_MPU_Set16(rme_ptr_t MPU_Meta);
-__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__EXTERN__ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt);
 /* Table operations */
 __EXTERN__ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                                         rme_ptr_t Paddr,
@@ -960,7 +940,6 @@ __EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                                     rme_ptr_t* Size_Order,
                                     rme_ptr_t* Num_Order,
                                     rme_ptr_t* Flag);
-
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__

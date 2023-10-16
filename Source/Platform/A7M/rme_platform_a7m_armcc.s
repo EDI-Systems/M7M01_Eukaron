@@ -42,6 +42,8 @@ DUMMY_STACK
                         EXPORT              __RME_Int_Enable
                         ;A full barrier
                         EXPORT              __RME_A7M_Barrier
+                        ;Full system reset
+                        EXPORT              __RME_A7M_Reset
                         ;Wait until interrupts happen
                         EXPORT              __RME_A7M_Wait_Int
                         ;Get the MSB in a word
@@ -54,12 +56,8 @@ DUMMY_STACK
                         EXPORT              ___RME_A7M_Thd_Cop_Save
                         ;The FPU register restore routine
                         EXPORT              ___RME_A7M_Thd_Cop_Load
-                        ;A full barrier
-                        EXPORT              __RME_A7M_Barrier
-                        ;Full system reset
-                        EXPORT              __RME_A7M_Reset
                         ;The MPU setup routines
-                        EXPORT              ___RME_A7M_MPU_Set
+                        EXPORT              ___RME_A7M_MPU_Set1
                         EXPORT              ___RME_A7M_MPU_Set2
                         EXPORT              ___RME_A7M_MPU_Set3
                         EXPORT              ___RME_A7M_MPU_Set4
@@ -972,8 +970,8 @@ __RME_Int_Enable        PROC
 ;Return      : None.
 ;*****************************************************************************/
 __RME_A7M_Barrier       PROC
-                        DSB
-                        ISB
+                        DSB                 SY
+                        ISB                 SY
                         BX                  LR
                         ENDP
                         ALIGN
@@ -1145,7 +1143,7 @@ UsageFault_Handler
 
 ;/* Begin Function:___RME_A7M_Thd_Cop_Clear ***********************************
 ;Description : Clean up the coprocessor state so that the FP information is not
-;              leaked when switching from a fpu-enabled thread to a fpu-disabled
+;              leaked when switching from a FPU-enabled thread to a FPU-disabled
 ;              thread.             
 ;Input       : None.
 ;Output      : None.
@@ -1189,7 +1187,7 @@ ___RME_A7M_Thd_Cop_Save PROC
 ;/* End Function:___RME_A7M_Thd_Cop_Save *************************************/
 
 ;/* Begin Function:___RME_A7M_Thd_Cop_Load ************************************
-;Description : Restore the coprocessor context on switch.             
+;Description : Restore the coprocessor context on switch.
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
 ;Return      : None.
@@ -1252,9 +1250,10 @@ ___RME_A7M_Thd_Cop_Load PROC
                         ISB                                     ; Barrier
                         BX                  LR
                         MEND
-                        
+
 ; 1-region version
-___RME_A7M_MPU_Set      PROC
+                        AREA                MPU1, CODE, READONLY, ALIGN=3
+___RME_A7M_MPU_Set1     PROC
                         MPU_PRE
                         MPU_SET
                         MPU_POST
@@ -1262,7 +1261,9 @@ ___RME_A7M_MPU_Set      PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 2-region version
+                        AREA                MPU2, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set2     PROC
                         MPU_PRE
                         MPU_SET2
@@ -1271,7 +1272,9 @@ ___RME_A7M_MPU_Set2     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 3-region version
+                        AREA                MPU3, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set3     PROC
                         MPU_PRE
                         MPU_SET3
@@ -1280,7 +1283,9 @@ ___RME_A7M_MPU_Set3     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 4-region version
+                        AREA                MPU4, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set4     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1289,7 +1294,9 @@ ___RME_A7M_MPU_Set4     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 5-region version
+                        AREA                MPU5, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set5     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1299,7 +1306,9 @@ ___RME_A7M_MPU_Set5     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 6-region version
+                        AREA                MPU6, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set6     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1309,7 +1318,9 @@ ___RME_A7M_MPU_Set6     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 7-region version
+                        AREA                MPU7, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set7     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1319,7 +1330,9 @@ ___RME_A7M_MPU_Set7     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 8-region version
+                        AREA                MPU8, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set8     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1329,7 +1342,9 @@ ___RME_A7M_MPU_Set8     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 9-region version
+                        AREA                MPU9, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set9     PROC
                         MPU_PRE
                         MPU_SET4
@@ -1340,7 +1355,9 @@ ___RME_A7M_MPU_Set9     PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 10-region version
+                        AREA                MPU10, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set10    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1351,7 +1368,9 @@ ___RME_A7M_MPU_Set10    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 11-region version
+                        AREA                MPU11, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set11    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1362,7 +1381,9 @@ ___RME_A7M_MPU_Set11    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 12-region version
+                        AREA                MPU12, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set12    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1373,7 +1394,9 @@ ___RME_A7M_MPU_Set12    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 13-region version
+                        AREA                MPU13, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set13    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1385,7 +1408,9 @@ ___RME_A7M_MPU_Set13    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 14-region version
+                        AREA                MPU14, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set14    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1397,7 +1422,9 @@ ___RME_A7M_MPU_Set14    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 15-region version
+                        AREA                MPU15, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set15    PROC
                         MPU_PRE
                         MPU_SET4
@@ -1409,7 +1436,9 @@ ___RME_A7M_MPU_Set15    PROC
                         ALIGN
                         LTORG
                         ALIGN
+
 ; 16-region version
+                        AREA                MPU16, CODE, READONLY, ALIGN=3
 ___RME_A7M_MPU_Set16    PROC
                         MPU_PRE
                         MPU_SET4
