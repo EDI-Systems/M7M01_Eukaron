@@ -80,7 +80,7 @@ a double-precision FPU.
 
 /* Begin Imports *************************************************************/
     /* What CMSIS provided. Have to call these. */
-    .global             __RME_A7M_Low_Level_Preinit
+    .global             __RME_A7M_Lowlvl_Preinit
     /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
     /* The system call handler of RME. This will be defined in C language. */
@@ -401,7 +401,7 @@ __Vectors_End:
     .extern			_start
 THUMB _start:
 THUMB Reset_Handler:
-    LDR                 R0, =__RME_A7M_Low_Level_Preinit
+    LDR                 R0, =__RME_A7M_Lowlvl_Preinit
     BLX                 R0
     /* Initialize the data section */
     LDR                 R0,=__data_start__
