@@ -38,13 +38,13 @@ a double-precision FPU.
     /* Enable all interrupts */
     .global             __RME_Int_Enable
     /* A full barrier */
-    .global			__RME_A7M_Barrier
+    .global			    __RME_A7M_Barrier
+    /* Full system reset */
+    .global             __RME_A7M_Reset
     /* Wait until interrupts happen */
     .global             __RME_A7M_Wait_Int
     /* Get the MSB in a word */
     .global             __RME_A7M_MSB_Get
-    /* Kernel main function wrapper */
-    .global             _RME_Kmain
     /* Entering of the user mode */
     .global             __RME_User_Enter
     /* Clear FPU register contents */
@@ -53,14 +53,8 @@ a double-precision FPU.
     .global             ___RME_A7M_Thd_Cop_Save
     /* The FPU register restore routine */
     .global             ___RME_A7M_Thd_Cop_Load
-    /* The FPU register restore routine */
-    .global             ___RME_A7M_Thd_Cop_Restore
-    /* The MPU setup routine */
-    .global             ___RME_A7M_MPU_Set
-    /* Full system reset */
-    .global		      __RME_A7M_Reset
     /* The MPU setup routines */
-    .global              ___RME_A7M_MPU_Set
+    .global              ___RME_A7M_MPU_Set1
     .global              ___RME_A7M_MPU_Set2
     .global              ___RME_A7M_MPU_Set3
     .global              ___RME_A7M_MPU_Set4
@@ -84,9 +78,9 @@ a double-precision FPU.
     /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
     /* The system call handler of RME. This will be defined in C language. */
-    .global             _RME_Svc_Handler
+    .global             __RME_A7M_Svc_Handler
     /* The system tick handler of RME. This will be defined in C language. */
-    .global             _RME_Tim_Handler
+    .global             __RME_A7M_Tim_Handler
     /* The memory management fault handler of RME. This will be defined in C language. */
     .global             __RME_A7M_Exc_Handler
     /* The generic interrupt handler for all other vectors. */
