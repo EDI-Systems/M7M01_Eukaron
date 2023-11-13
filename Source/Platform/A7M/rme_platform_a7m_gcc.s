@@ -38,7 +38,7 @@ a double-precision FPU.
     /* Enable all interrupts */
     .global             __RME_Int_Enable
     /* A full barrier */
-    .global			    __RME_A7M_Barrier
+    .global             __RME_A7M_Barrier
     /* Full system reset */
     .global             __RME_A7M_Reset
     /* Wait until interrupts happen */
