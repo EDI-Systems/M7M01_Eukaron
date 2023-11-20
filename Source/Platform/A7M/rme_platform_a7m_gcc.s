@@ -73,15 +73,14 @@ a double-precision FPU.
 /* End Exports ***************************************************************/
 
 /* Begin Imports *************************************************************/
-    /* What CMSIS provided. Have to call these. */
+    /* Preinitialization routine. */
     .global             __RME_A7M_Lowlvl_Preinit
-    /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
-    /* The system call handler of RME. This will be defined in C language. */
+    /* The system call handler of RME. C function. */
     .global             __RME_A7M_Svc_Handler
-    /* The system tick handler of RME. This will be defined in C language. */
+    /* The system tick handler of RME. C function. */
     .global             __RME_A7M_Tim_Handler
-    /* The memory management fault handler of RME. This will be defined in C language. */
+    /* The memory management fault handler of RME. C function. */
     .global             __RME_A7M_Exc_Handler
     /* The generic interrupt handler for all other vectors. */
     .global             __RME_A7M_Vct_Handler
@@ -374,6 +373,7 @@ __Vectors:
     .long               IRQ238_Handler
     .long               IRQ239_Handler
 __Vectors_End:
+__Vectors_Size:
 /* End Vector Table **********************************************************/
 
 /* Begin Memory Init *********************************************************/
@@ -392,7 +392,7 @@ __Vectors_End:
     .global             __bss_start__
     .global             __bss_end__
     .global             main
-    .extern			_start
+    .extern             _start
 THUMB _start:
 THUMB Reset_Handler:
     LDR                 R0, =__RME_A7M_Lowlvl_Preinit
@@ -952,21 +952,19 @@ THUMB IRQ236_Handler:
 THUMB IRQ237_Handler:
 THUMB IRQ238_Handler:
 THUMB IRQ239_Handler:
-    PUSH                {LR}
-    PUSH                {R4-R11}            /* Spill all the general purpose registers; empty descending */
+    PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               /* Pass in the pt_regs parameter, and call the handler. */
+    MOV                 R0,SP               /* Pass in the regs */
     MRS                 R1,xPSR             /* Pass in the interrupt number */
-    UBFX                R1,R1,#0,#9         /* Extract the interrupt number bitfield */
+    UBFX                R1,R1,#0,#9
     SUB                 R1,#16              /* The IRQ0's starting number is 16. we subtract it here */
     BL                  __RME_A7M_Vct_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11}
-    POP                 {PC}                /* Now we reset the PC. */
+    POP                 {R4-R11,PC}
     B                   .                   /* Capture faults */
 /* End Handlers **************************************************************/
 
@@ -994,6 +992,19 @@ THUMB __RME_Int_Enable:
     BX                  LR
 /* End Function:__RME_Int_Enable *********************************************/
 
+/* Begin Function:__RME_A7M_Barrier ******************************************
+Description : A full data/instruction barrier.
+Input       : None.
+Output      : None.    
+Return      : None.
+*****************************************************************************/
+THUMB __RME_A7M_Barrier:       
+    DSB                 SY
+    ISB                 SY
+    BX                  LR
+    B                   .
+/* End Function:__RME_A7M_Barrier *******************************************/
+
 /* Begin Function:__RME_A7M_Reset ********************************************
 Description : A full system reset.
 Input       : None.
@@ -1001,15 +1012,15 @@ Output      : None.
 Return      : None.
 *****************************************************************************/
 THUMB __RME_A7M_Reset:
-                        /* Disable all interrupts */
-                        CPSID               I
-                        /* ARMv7-M Standard system reset */
-                        LDR                 R0, =0xE000ED0C
-                        LDR                 R1, =0x05FA0004
-                        STR                 R1, [R0]
-                        ISB
-                        /* Deadloop */
-                        B                   .
+    /* Disable all interrupts */
+    CPSID               I
+    /* ARMv7-M Standard system reset */
+    LDR                 R0,=0xE000ED0C
+    LDR                 R1,=0x05FA0004
+    STR                 R1,[R0]
+    ISB
+    /* Deadloop */
+    B                   .
 /* End Function:__RME_A7M_Reset *********************************************/
 
 
@@ -1021,7 +1032,7 @@ Return      : None.
 ******************************************************************************/
 THUMB __RME_A7M_Wait_Int:
     /* Wait for interrupt */
-    WFI 
+    WFE 
     BX                  LR
 /* End Function:__RME_A7M_Wait_Int *******************************************/
 
@@ -1064,6 +1075,7 @@ THUMB __RME_User_Enter:
     MSR                 PSP,R1              /* Set the stack pointer */
     MOV                 R4,#0x03            /* Unprevileged thread mode */
     MSR                 CONTROL,R4
+    ISB
     MOV                 R1,R0               /* Save the entry to R1 */
     MOV                 R0,R2               /* Save CPUID(always 0) to R0 */
     BLX                 R1                  /* Branch to our target */
@@ -1078,18 +1090,16 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 THUMB SysTick_Handler:
-    PUSH                {LR}
-    PUSH                {R4-R11}            /* Spill all the general purpose registers; empty descending */
+    PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               /* Pass in the pt_regs parameter, and call the handler. */
-    BL                  _RME_Tim_Handler
+    MOV                 R0,SP               /* Pass in the regs */
+    BL                  __RME_A7M_Tim_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11}
-    POP                 {PC}                /* Now we reset the PC. */
+    POP                 {R4-R11,PC}
     B                   .                   /* Capture faults */
 /* End Function:SysTick_Handler **********************************************/
 
@@ -1101,18 +1111,16 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 THUMB SVC_Handler:
-    PUSH                {LR}
-    PUSH                {R4-R11}            /* Spill all the general purpose registers; empty descending */
+    PUSH                {R4-R11,LR}         /* Spill all the general purpose registers; empty descending */
     MRS                 R0,PSP
     PUSH                {R0}
     
     MOV                 R0,SP               /* Pass in the pt_regs parameter, and call the handler. */
-    BL                  _RME_Svc_Handler
+    BL                  __RME_A7M_Svc_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11}
-    POP                 {PC}                /* Now we reset the PC. */
+    POP                 {R4-R11,PC}
     B                   .                   /* Capture faults */
 /* End Function:SVC_Handler **************************************************/
 
@@ -1137,8 +1145,7 @@ THUMB MemManage_Handler:
 THUMB BusFault_Handler:
     NOP
 THUMB UsageFault_Handler:
-    PUSH                {LR}
-    PUSH                {R4-R11}            /* Spill all the general purpose registers; empty descending */
+    PUSH                {R4-R11,LR}            /* Spill all the general purpose registers; empty descending */
     MRS                 R0,PSP
     PUSH                {R0}
     
@@ -1147,8 +1154,7 @@ THUMB UsageFault_Handler:
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11}
-    POP                 {PC}                /* Now we reset the PC. */
+    POP                 {R4-R11,PC}
     B                   .                   /* Capture faults */
 /* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **********/
 
@@ -1161,15 +1167,16 @@ Output      : None.
 Return      : None.
 *****************************************************************************/
 THUMB ___RME_A7M_Thd_Cop_Clear:            
-                 /* Use DCI to avoid compilation errors when FPU not enabled */
-                        LDR                 R0, =COP_CLEAR
-                        .short                 0xECB0              // VLDMIA    R0!,{S0-S31}
-                        .short                 0x0A20              // Clear all the FPU registers
-                        MOV                 R0, #0              // Clear FPSCR as well
-                        VMSR                FPSCR, R0
-                        BX                  LR
+    /* Use DCI to avoid compilation errors when FPU not enabled */
+    LDR                 R0, =COP_CLEAR
+    .short              0xEC90              /* VLDMIA    R0!,{S0-S31} */
+    .short              0x0A20              /* Clear all the FPU registers */
+    MOV                 R0,#0               /* Clear FPSCR as well */
+    .short              0xEEE1              /* VMSR      FPSCR, R0 */
+    .short              0x0A10
+    BX                  LR
 COP_CLEAR:
-                        .space               32*4
+    .space               32*4
 /* End Function:___RME_A7M_Thd_Cop_Clear ************************************/
 
 /* Begin Function:___RME_A7M_Thd_Cop_Save *************************************
@@ -1181,9 +1188,9 @@ Return      : None.
 THUMB ___RME_A7M_Thd_Cop_Save:
     /* Use DCI to avoid compilation errors when FPU not enabled. Anyway,
      * this will not be called when FPU not enabled. */
-    .long               0x8A10ED20          /* VSTMDB    R0!,{S16-S31}, Save all the FPU registers */
+    .short              0xEC80
+    .short              0x8A10
     BX                  LR
-    B                   .
 /* End Function:___RME_A7M_Thd_Cop_Save **************************************/
 
 /* Begin Function:___RME_A7M_Thd_Cop_Load ************************************
@@ -1193,13 +1200,10 @@ Output      : None.
 Return      : None.
 *****************************************************************************/
 THUMB ___RME_A7M_Thd_Cop_Load:
-                  /* Use DCI to avoid compilation errors when FPU not enabled*/
-                        .short                 0xECB0            // VLDMIA    R0!,{S16-S31}
-                        .short                 0x8A10             // Restore all the FPU registers
-//;                       LDR                 R1, =0xE000EF38    // Restore FPCAR @ 0xE000EF38
-//;                       LDR                 R0, [R0]
-//;                       STR                 R0, [R1]
-                        BX                  LR
+/* Use DCI to avoid compilation errors when FPU not enabled*/
+    .short              0xEC90            /* VLDMIA    R0!,{S16-S31} */
+    .short              0x8A10            /* Restore all the FPU registers */
+    BX                  LR
 /* End Function:___RME_A7M_Thd_Cop_Load *************************************/
 
 /* Begin Function:___RME_A7M_Thd_Cop_Restore **********************************
@@ -1222,155 +1226,142 @@ Input       : R0 - The pointer to the MPU content.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-                        .macro MPU_PRE
-                        PUSH                {R4-R9}             // Save registers
-                        LDR                 R1, =0xE000ED9C     // The base address of MPU RBAR and all 4 registers
-                        .endm
+    .macro MPU_PRE
+    PUSH                {R4-R9}             /* Save registers */
+    LDR                 R1, =0xE000ED9C     /* The base address of MPU RBAR and all 4 registers */
+    .endm
+    
+    .macro MPU_SET
+    LDMIA               R0!, {R2-R3}        /* Read settings */
+    STMIA               R1, {R2-R3}         /* Program */
+    .endm
+    
+    .macro MPU_SET2
+    LDMIA               R0!, {R2-R5}
+    STMIA               R1, {R2-R5} 
+    .endm
+    
+    .macro MPU_SET3
+    LDMIA               R0!, {R2-R7}
+    STMIA               R1, {R2-R7}
+    .endm
+    
+    .macro MPU_SET4
+    LDMIA               R0!, {R2-R9}
+    STMIA               R1, {R2-R9}
+    .endm
+    
+    .macro MPU_POST
+    POP                 {R4-R9}             /* Restore registers */
+    ISB                                     /* Barrier */
+    BX                  LR
+    .endm
                         
-                        .macro MPU_SET
-                        LDMIA               R0!, {R2-R3}        // Read settings
-                        STMIA               R1, {R2-R3}         // Program
-                        .endm
-                        
-                        .macro MPU_SET2
-                        LDMIA               R0!, {R2-R5}
-                        STMIA               R1, {R2-R5} 
-                        .endm
-                        
-                        .macro MPU_SET3
-                        LDMIA               R0!, {R2-R7}
-                        STMIA               R1, {R2-R7}
-                        .endm
-                        
-                        .macro MPU_SET4
-                        LDMIA               R0!, {R2-R9}
-                        STMIA               R1, {R2-R9}
-                        .endm
-                        
-                        .macro MPU_POST
-                        POP                 {R4-R9}             // Restore registers
-                        ISB                                     // Barrier
-                        BX                  LR
-                        .endm
-                        
-// 1-region version
+/* 1-region version */
 THUMB ___RME_A7M_MPU_Set:
-                        MPU_PRE
-                        MPU_SET
-                        MPU_POST
-// 2-region version
+    MPU_PRE
+    MPU_SET
+    MPU_POST
+/* 2-region version */
 THUMB ___RME_A7M_MPU_Set2:
-                        MPU_PRE
-                        MPU_SET2
-                        MPU_POST
-// 3-region version
+    MPU_PRE
+    MPU_SET2
+    MPU_POST
+/* 3-region version */
 THUMB ___RME_A7M_MPU_Set3:
-                        MPU_PRE
-                        MPU_SET3
-                        MPU_POST
-// 4-region version
+    MPU_PRE
+    MPU_SET3
+    MPU_POST
+/* 4-region version */
 THUMB ___RME_A7M_MPU_Set4:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_POST
-// 5-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_POST
+/* 5-region version */
 THUMB ___RME_A7M_MPU_Set5:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET
-                        MPU_POST
-// 6-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET
+    MPU_POST
+/* 6-region version */
 THUMB ___RME_A7M_MPU_Set6:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET2
-                        MPU_POST
-// 7-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET2
+    MPU_POST
+/* 7-region version */
 THUMB ___RME_A7M_MPU_Set7:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET3
-                        MPU_POST
-// 8-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET3
+    MPU_POST
+/* 8-region version */
 THUMB ___RME_A7M_MPU_Set8:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_POST
-// 9-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_POST
+/* 9-region version */
 THUMB ___RME_A7M_MPU_Set9:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET
-                        MPU_POST
-// 10-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET
+    MPU_POST
+/* 10-region version */
 THUMB ___RME_A7M_MPU_Set10:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET2
-                        MPU_POST
-// 11-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET2
+    MPU_POST
+/* 11-region version */
 THUMB ___RME_A7M_MPU_Set11:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET3
-                        MPU_POST
-// 12-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET3
+    MPU_POST
+/* 12-region version */
 THUMB ___RME_A7M_MPU_Set12:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_POST
-// 13-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_POST
+/* 13-region version */
 THUMB ___RME_A7M_MPU_Set13:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET
-                        MPU_POST
-// 14-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_SET
+    MPU_POST
+/* 14-region version */
 THUMB ___RME_A7M_MPU_Set14:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET2
-                        MPU_POST
-// 15-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_SET2
+    MPU_POST
+/* 15-region version */
 THUMB ___RME_A7M_MPU_Set15:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET3
-                        MPU_POST
-// 16-region version
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_SET3
+    MPU_POST
+/* 16-region version */
 THUMB ___RME_A7M_MPU_Set16:
-                        MPU_PRE
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_SET4
-                        MPU_POST
+    MPU_PRE
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_SET4
+    MPU_POST
 /* End Function:___RME_A7M_MPU_Set *******************************************/
-
-/* Begin Function:__RME_A7M_Barrier ******************************************
-Description : A full data/instruction barrier.
-Input       : None.
-Output      : None.    
-Return      : None.
-*****************************************************************************/
-THUMB __RME_A7M_Barrier:       
-                        DSB
-                        ISB
-                        BX                  LR
-				B			  .
-/* End Function:__RME_A7M_Barrier *******************************************/
 
 	.end
 /* End Of File ***************************************************************/
