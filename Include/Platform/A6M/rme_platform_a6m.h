@@ -115,8 +115,9 @@ typedef rme_s32_t rme_ret_t;
 #define RME_FETCH_ADD(PTR,ADDEND)       __RME_A6M_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
 #define RME_FETCH_AND(PTR,OPERAND)      __RME_A6M_Fetch_And(PTR,OPERAND)
-/* Get most significant bit */
-#define RME_MSB_GET(VAL)                __RME_A6M_MSB_Get(VAL)
+/* Get most/least significant bit */
+#define RME_MSB_GET(VAL)                _RME_MSB_Generic(VAL)
+#define RME_LSB_GET(VAL)                _RME_LSB_Generic(VAL)
 /* No read/write barriers needed on Cortex-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
@@ -548,6 +549,7 @@ static rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
                                           rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_A6M_Pgt_Have_Pgdir(rme_ptr_t* Table,
                                            rme_ptr_t Num_Order);
+static void ___RME_A6M_Pgt_Refresh(void);
 /* Kernel function ***********************************************************/
 static rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
                                          rme_cid_t Cap_Pgt,
@@ -616,8 +618,6 @@ EXTERN void __RME_Int_Disable(void);
 EXTERN void __RME_Int_Enable(void);
 EXTERN void __RME_A6M_Barrier(void);
 EXTERN void __RME_A6M_Wait_Int(void);
-/* MSB counting */
-EXTERN rme_ptr_t __RME_A6M_MSB_Get(rme_ptr_t Val);
 /* Atomics */
 __EXTERN__ rme_ptr_t __RME_A6M_Comp_Swap(volatile rme_ptr_t* Ptr,
                                          rme_ptr_t Old,

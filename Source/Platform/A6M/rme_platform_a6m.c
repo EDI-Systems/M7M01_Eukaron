@@ -1610,6 +1610,25 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 }
 /* End Function:__RME_Pgt_Set ************************************************/
 
+/* Begin Function:___RME_A6M_Pgt_Refresh **************************************
+Description : Refresh the processor's page table content to the latest.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void ___RME_A6M_Pgt_Refresh(void)
+{
+    struct RME_Thd_Struct* Thd_Cur;
+    
+    /* Get current thread; if we're booting, do nothing */
+    Thd_Cur=RME_A6M_Local.Thd_Cur;
+    if(Thd_Cur==RME_NULL)
+        return;
+    
+    __RME_Pgt_Set(_RME_Thd_Pgt(Thd_Cur));
+}
+/* End Function:___RME_A6M_Pgt_Refresh ***************************************/
+
 /* Begin Function:__RME_Pgt_Page_Map ******************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
@@ -1685,6 +1704,8 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                 Table[Pos]=0U;
                 return RME_ERR_HAL_FAIL;
             }
+            /* Update MPU in case we're manipulating the current page table */
+            ___RME_A6M_Pgt_Refresh();
         }
     }
     
@@ -1738,6 +1759,8 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
             Table[Pos]=Temp;
             return RME_ERR_HAL_FAIL;
         }
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A6M_Pgt_Refresh();
     }
     
     return 0;
@@ -1813,6 +1836,8 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
             Child_Meta->Toplevel=0U;
             return RME_ERR_HAL_FAIL;
         }
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A6M_Pgt_Refresh();
     }
 
     return 0;
@@ -1862,6 +1887,8 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
     {
         if(___RME_A6M_MPU_Update(Parent_Meta, RME_A6M_MPU_CLR)==RME_ERR_HAL_FAIL)
             return RME_ERR_HAL_FAIL;
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A6M_Pgt_Refresh();
     }
 
     Table[Pos]=0U;

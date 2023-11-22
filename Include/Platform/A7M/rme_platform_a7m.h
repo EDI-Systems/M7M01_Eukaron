@@ -117,6 +117,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_FETCH_AND(PTR,OPERAND)      __RME_A7M_Fetch_And(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                __RME_A7M_MSB_Get(VAL)
+#define RME_LSB_GET(VAL)                _RME_LSB_Generic(VAL)
 /* No read/write barriers needed on ARMv7-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
@@ -738,6 +739,7 @@ static rme_ptr_t ___RME_A7M_Pgt_Have_Page(rme_ptr_t* Table,
                                           rme_ptr_t Num_Order);
 static rme_ptr_t ___RME_A7M_Pgt_Have_Pgdir(rme_ptr_t* Table,
                                            rme_ptr_t Num_Order);
+static void ___RME_A7M_Pgt_Refresh(void);
 /* Kernel function ***********************************************************/
 static rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
                                          rme_cid_t Cap_Pgt,

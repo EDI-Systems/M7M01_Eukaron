@@ -171,8 +171,7 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
     rme_ptr_t MMFAR_Reg;
     rme_ptr_t Flag;
     rme_ptr_t* Stack;
-    struct RME_Cap_Prc* Prc;
-    struct RME_Inv_Struct* Inv_Top;
+    struct RME_Cap_Pgt* Pgt;
     struct RME_Thd_Struct* Thd_Cur;
     struct RME_Exc_Struct* Exc;
     struct __RME_A7M_Pgt_Meta* Meta;
@@ -222,13 +221,9 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
         RME_ASSERT((CFSR_Reg&RME_A7M_MFSR_DACCVIOL)!=0U);
         /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
          * can be found in our current page table, and if it is there, we only care about the flags */
-        Inv_Top=RME_INVSTK_TOP(Thd_Cur);
-        if(Inv_Top==RME_NULL)
-            Prc=Thd_Cur->Sched.Prc;
-        else
-            Prc=Inv_Top->Prc;
+        Pgt=_RME_Thd_Pgt(Thd_Cur);
         
-        if(__RME_Pgt_Walk(Prc->Pgt, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
+        if(__RME_Pgt_Walk(Pgt, MMFAR_Reg, (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=MMFAR_Reg;
@@ -245,6 +240,8 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
                 Exc->Addr=MMFAR_Reg;
                 _RME_Thd_Fatal(Reg);
             }
+            else
+                __RME_Pgt_Set(Pgt);
         }
     }
     /* This is an instruction access violation. We need to know where that instruction is.
@@ -253,16 +250,12 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
      * the pages mapped by it must be correct. */ 
     else if((CFSR_Reg&RME_A7M_MFSR_IACCVIOL)!=0U)
     {
-        Inv_Top=RME_INVSTK_TOP(Thd_Cur);
-        if(Inv_Top==0U)
-            Prc=Thd_Cur->Sched.Prc;
-        else
-            Prc=Inv_Top->Prc;
+        Pgt=_RME_Thd_Pgt(Thd_Cur);
         
         Stack=(rme_ptr_t*)(Reg->SP);
         
         /* Stack[6] is where the PC is before the fault. Make sure that this stack location is indeed accessible */
-        if(__RME_Pgt_Walk(Prc->Pgt, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
+        if(__RME_Pgt_Walk(Pgt, (rme_ptr_t)(&Stack[6U]), (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
         {
             Exc->Cause=RME_A7M_MFSR_DACCVIOL;
             Exc->Addr=(rme_ptr_t)(&Stack[6U]);
@@ -271,7 +264,7 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
         else
         {
             /* The SP address is actually accessible. Find the actual instruction address then */
-            if(__RME_Pgt_Walk(Prc->Pgt, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
+            if(__RME_Pgt_Walk(Pgt, Stack[6U], (rme_ptr_t*)(&Meta), 0U, 0U, 0U, 0U, &Flag)!=0)
             {
                 Exc->Cause=RME_A7M_MFSR_IACCVIOL;
                 Exc->Addr=Stack[6U];
@@ -298,6 +291,8 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
                         Exc->Addr=Stack[6U];
                         _RME_Thd_Fatal(Reg);
                     }
+                    else
+                        __RME_Pgt_Set(Pgt);
                 }
             }
         }
@@ -1422,7 +1417,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
     /* If it gets here, we need to set success retval */
     if(Retval>=0)
         __RME_Svc_Retval_Set(Reg,0);
-            
+
     return Retval;
 }
 /* End Function:__RME_Kfn_Handler ********************************************/
@@ -1660,7 +1655,7 @@ void __RME_Boot(void)
     __RME_User_Enter(RME_A7M_INIT_ENTRY, RME_A7M_INIT_STACK, 0U);
     
     /* Should never reach here */
-    while(1U);
+    while(1);
 }
 /* End Function:__RME_Boot ***************************************************/
 
@@ -2358,8 +2353,8 @@ rme_ret_t ___RME_A7M_MPU_Update(struct __RME_A7M_Pgt_Meta* Meta,
     {
         /* See if the RASR contains anything */
         MPU_RASR=___RME_A7M_MPU_RASR_Gen(Table, Meta->Page_Flag, 
-                                     RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
-                                     RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
+                                         RME_A7M_PGT_SIZEORD(Meta->Size_Num_Order),
+                                         RME_A7M_PGT_NUMORD(Meta->Size_Num_Order));
         if(MPU_RASR==0U)
         {
             /* All pages are unmapped. Clear this from the MPU data */
@@ -2381,7 +2376,7 @@ rme_ret_t ___RME_A7M_MPU_Update(struct __RME_A7M_Pgt_Meta* Meta,
         }
     }
     
-    return 0U;
+    return 0;
 }
 /* End Function:___RME_A7M_MPU_Update ****************************************/
 
@@ -2483,6 +2478,25 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 }
 /* End Function:__RME_Pgt_Set ************************************************/
 
+/* Begin Function:___RME_A7M_Pgt_Refresh **************************************
+Description : Refresh the processor's page table content to the latest.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void ___RME_A7M_Pgt_Refresh(void)
+{
+    struct RME_Thd_Struct* Thd_Cur;
+    
+    /* Get current thread; if we're booting, do nothing */
+    Thd_Cur=RME_A7M_Local.Thd_Cur;
+    if(Thd_Cur==RME_NULL)
+        return;
+    
+    __RME_Pgt_Set(_RME_Thd_Pgt(Thd_Cur));
+}
+/* End Function:___RME_A7M_Pgt_Refresh ***************************************/
+
 /* Begin Function:__RME_Pgt_Page_Map ******************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
@@ -2554,6 +2568,8 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                 Table[Pos]=0U;
                 return RME_ERR_HAL_FAIL;
             }
+            /* Update MPU in case we're manipulating the current page table */
+            ___RME_A7M_Pgt_Refresh();
         }
     }
     
@@ -2607,6 +2623,8 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
             Table[Pos]=Temp;
             return RME_ERR_HAL_FAIL;
         }
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A7M_Pgt_Refresh();
     }
     
     return 0;
@@ -2682,6 +2700,8 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
             Child_Meta->Toplevel=0U;
             return RME_ERR_HAL_FAIL;
         }
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A7M_Pgt_Refresh();
     }
 
     return 0;
@@ -2731,6 +2751,8 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
     {
         if(___RME_A7M_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_HAL_FAIL)
             return RME_ERR_HAL_FAIL;
+        /* Update MPU in case we're manipulating the current page table */
+        ___RME_A7M_Pgt_Refresh();
     }
 
     Table[Pos]=0U;

@@ -190,6 +190,742 @@ dedicated assembly atomics. If LTO has been enabled, there are three cases:
 #undef __HDR_PUBLIC_MEMBERS__
 /* End Includes **************************************************************/
 
+/* Begin Function:_RME_MSB_Generic ********************************************
+Description : Find the MSB's position. This is a portable solution for all
+              processors; if your processor does not have fast built-in bit
+              manipulation support, you can resort to this when porting.
+Input       : rme_ptr_t Value - The value to compute for.
+Output      : None.
+Return      : rme_ptr_t - The result. 0 will be returned for 0.
+******************************************************************************/
+rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value)
+{
+    rme_ptr_t Bit;
+    static const rme_u8_t Table[256]=
+    {
+        0U, 0U, 1U, 1U, 2U, 2U, 2U, 2U, 3U, 3U, 3U, 3U, 3U, 3U, 3U, 3U,
+        4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U,
+        5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U,
+        5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U,
+        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
+        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
+        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
+        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
+        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U
+    };
+
+#if(RME_WORD_ORDER==4U)
+    /* 15-8 */
+    if(Value>=RME_POW2(8U))
+    {
+        RME_COVERAGE_MARKER();
+        Bit=8U;
+    }
+    /* 7-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        Bit=0U;
+    }
+#elif(RME_WORD_ORDER==5U)
+    /* 31-16 */
+    if(Value>=RME_POW2(16U))
+    {
+        RME_COVERAGE_MARKER();
+        /* 31-24 */
+        if(Value>=RME_POW2(24U))
+        {
+            RME_COVERAGE_MARKER();
+            Bit=24U;
+        }
+        /* 24-16 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            Bit=16U;
+        }
+    }
+    /* 15-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        /* 15-8 */
+        if(Value>=RME_POW2(8U))
+        {
+            RME_COVERAGE_MARKER();
+            Bit=8U;
+        }
+        /* 7-0 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            Bit=0U;
+        }
+    }
+#elif(RME_WORD_ORDER==6U)
+    /* 63-32 */
+    if(Value>=RME_POW2(32U))
+    {
+        RME_COVERAGE_MARKER();
+        /* 63-48 */
+        if(Value>=RME_POW2(48U))
+        {
+            RME_COVERAGE_MARKER();
+            /* 63-56 */
+            if(Value>=RME_POW2(56U))
+            {
+                RME_COVERAGE_MARKER();
+                Bit=56U;
+            }
+            /* 56-48 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=48U;
+            }
+        }
+        /* 47-32 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            /* 47-40 */
+            if(Value>=RME_POW2(40U))
+            {
+                RME_COVERAGE_MARKER();
+                Bit=40U;
+            }
+            /* 39-32 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=32U;
+            }
+        }
+    }
+    /* 31-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        /* 31-16 */
+        if(Value>=RME_POW2(16U))
+        {
+            RME_COVERAGE_MARKER();
+            /* 31-24 */
+            if(Value>=RME_POW2(24U))
+            {
+                RME_COVERAGE_MARKER();
+                Bit=24U;
+            }
+            /* 24-16 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=16U;
+            }
+        }
+        /* 15-0 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            /* 15-8 */
+            if(Value>=RME_POW2(8U))
+            {
+                RME_COVERAGE_MARKER();
+                Bit=8U;
+            }
+            /* 7-0 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=0U;
+            }
+        }
+    }
+#else
+#error Generic FFS for 128-bits & above are not implemented.
+#endif
+
+    return Table[Value>>Bit]+Bit;
+}
+/* End Function:_RME_MSB_Generic *********************************************/
+
+/* Begin Function:_RME_LSB_Generic ********************************************
+Description : Find the LSB's position. This is a portable solution for all
+              processors; if your processor does not have fast built-in bit
+              manipulation support, you can resort to this when porting.
+Input       : rme_ptr_t Value - The value to count.
+Output      : None.
+Return      : rme_ptr_t - The result. 0 will be returned for 0.
+******************************************************************************/
+rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
+{
+    rme_ptr_t Bit;
+    static const rme_u8_t Table[256]=
+    {
+        0U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        6U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        7U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        6U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+    };
+    
+#if(RME_WORD_ORDER==4U)
+    /* 16-8 */
+    if((Value<<8)==0U)
+    {
+        RME_COVERAGE_MARKER();
+        Bit=8U;
+    }
+    /* 7-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        Bit=0U;
+    }
+#elif(RME_WORD_ORDER==5U)
+    /* 31-16 */
+    if((Value<<16)==0U)
+    {
+        RME_COVERAGE_MARKER();
+        /* 31-24 */
+        if((Value<<8)==0U)
+        {
+            RME_COVERAGE_MARKER();
+            Bit=24U;
+        }
+        /* 24-16 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            Bit=16U;
+        }
+    }
+    /* 15-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        /* 15-8 */
+        if((Value<<24)==0U)
+        {
+            RME_COVERAGE_MARKER();
+            Bit=8U;
+        }
+        /* 7-0 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            Bit=0U;
+        }
+    }
+#elif(RME_WORD_ORDER==6U)
+    /* 63-32 */
+    if((Value<<32)==0U)
+    {
+        RME_COVERAGE_MARKER();
+        /* 63-48 */
+        if((Value<<16)==0U)
+        {
+            RME_COVERAGE_MARKER();
+            /* 63-56 */
+            if((Value<<8)==0U)
+            {
+                RME_COVERAGE_MARKER();
+                Bit=56U;
+            }
+            /* 56-48 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=48U;
+            }
+        }
+        /* 47-32 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            /* 47-40 */
+            if((Value<<24)==0U)
+            {
+                RME_COVERAGE_MARKER();
+                Bit=40U;
+            }
+            /* 39-32 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=32U;
+            }
+        }
+    }
+    /* 31-0 */
+    else
+    {
+        RME_COVERAGE_MARKER();
+        /* 31-16 */
+        if((Value<<48)==0U)
+        {
+            RME_COVERAGE_MARKER();
+            /* 31-24 */
+            if((Value<<40)==0U)
+            {
+                RME_COVERAGE_MARKER();
+                Bit=24U;
+            }
+            /* 24-16 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=16U;
+            }
+        }
+        /* 15-0 */
+        else
+        {
+            RME_COVERAGE_MARKER();
+            /* 15-8 */
+            if((Value<<56)==0U)
+            {
+                RME_COVERAGE_MARKER();
+                Bit=8U;
+            }
+            /* 7-0 */
+            else
+            {
+                RME_COVERAGE_MARKER();
+                Bit=0U;
+            }
+        }
+    }
+#else
+#error Generic FLS for 128-bits & above are not implemented.
+#endif
+
+    return Table[(rme_u8_t)(Value>>Bit)]+Bit;
+}
+/* End Function:_RME_LSB_Generic *********************************************/
+
+/* Begin Function:_RME_RBT_Generic ********************************************
+Description : Reverse bit order. This is a portable solution meant for all
+              processors; if your processor does not have fast built-in RBT,
+              you can resort to this instead.
+              This is implemented to be as fast as possible.
+Input       : rme_ptr_t Value - The value to count.
+Output      : None.
+Return      : rme_ptr_t - The result.
+******************************************************************************/
+rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value)
+{
+    rme_ptr_t Ret;
+    rme_ptr_t Src;
+    rme_u8_t* To;
+    rme_u8_t* From;
+
+    static const rme_u8_t Table[256]=
+    {
+        0x00U, 0x80U, 0x40U, 0xC0U, 0x20U, 0xA0U, 0x60U, 0xE0U,
+        0x10U, 0x90U, 0x50U, 0xD0U, 0x30U, 0xB0U, 0x70U, 0xF0U,
+        0x08U, 0x88U, 0x48U, 0xC8U, 0x28U, 0xA8U, 0x68U, 0xE8U,
+        0x18U, 0x98U, 0x58U, 0xD8U, 0x38U, 0xB8U, 0x78U, 0xF8U,
+        0x04U, 0x84U, 0x44U, 0xC4U, 0x24U, 0xA4U, 0x64U, 0xE4U,
+        0x14U, 0x94U, 0x54U, 0xD4U, 0x34U, 0xB4U, 0x74U, 0xF4U,
+        0x0CU, 0x8CU, 0x4CU, 0xCCU, 0x2CU, 0xACU, 0x6CU, 0xECU,
+        0x1CU, 0x9CU, 0x5CU, 0xDCU, 0x3CU, 0xBCU, 0x7CU, 0xFCU,
+        0x02U, 0x82U, 0x42U, 0xC2U, 0x22U, 0xA2U, 0x62U, 0xE2U,
+        0x12U, 0x92U, 0x52U, 0xD2U, 0x32U, 0xB2U, 0x72U, 0xF2U,
+        0x0AU, 0x8AU, 0x4AU, 0xCAU, 0x2AU, 0xAAU, 0x6AU, 0xEAU,
+        0x1AU, 0x9AU, 0x5AU, 0xDAU, 0x3AU, 0xBAU, 0x7AU, 0xFAU,
+        0x06U, 0x86U, 0x46U, 0xC6U, 0x26U, 0xA6U, 0x66U, 0xE6U,
+        0x16U, 0x96U, 0x56U, 0xD6U, 0x36U, 0xB6U, 0x76U, 0xF6U,
+        0x0EU, 0x8EU, 0x4EU, 0xCEU, 0x2EU, 0xAEU, 0x6EU, 0xEEU,
+        0x1EU, 0x9EU, 0x5EU, 0xDEU, 0x3EU, 0xBEU, 0x7EU, 0xFEU,
+        0x01U, 0x81U, 0x41U, 0xC1U, 0x21U, 0xA1U, 0x61U, 0xE1U,
+        0x11U, 0x91U, 0x51U, 0xD1U, 0x31U, 0xB1U, 0x71U, 0xF1U,
+        0x09U, 0x89U, 0x49U, 0xC9U, 0x29U, 0xA9U, 0x69U, 0xE9U,
+        0x19U, 0x99U, 0x59U, 0xD9U, 0x39U, 0xB9U, 0x79U, 0xF9U,
+        0x05U, 0x85U, 0x45U, 0xC5U, 0x25U, 0xA5U, 0x65U, 0xE5U,
+        0x15U, 0x95U, 0x55U, 0xD5U, 0x35U, 0xB5U, 0x75U, 0xF5U,
+        0x0DU, 0x8DU, 0x4DU, 0xCDU, 0x2DU, 0xADU, 0x6DU, 0xEDU,
+        0x1DU, 0x9DU, 0x5DU, 0xDDU, 0x3DU, 0xBDU, 0x7DU, 0xFDU,
+        0x03U, 0x83U, 0x43U, 0xC3U, 0x23U, 0xA3U, 0x63U, 0xE3U,
+        0x13U, 0x93U, 0x53U, 0xD3U, 0x33U, 0xB3U, 0x73U, 0xF3U,
+        0x0BU, 0x8BU, 0x4BU, 0xCBU, 0x2BU, 0xABU, 0x6BU, 0xEBU,
+        0x1BU, 0x9BU, 0x5BU, 0xDBU, 0x3BU, 0xBBU, 0x7BU, 0xFBU,
+        0x07U, 0x87U, 0x47U, 0xC7U, 0x27U, 0xA7U, 0x67U, 0xE7U,
+        0x17U, 0x97U, 0x57U, 0xD7U, 0x37U, 0xB7U, 0x77U, 0xF7U,
+        0x0FU, 0x8FU, 0x4FU, 0xCFU, 0x2FU, 0xAFU, 0x6FU, 0xEFU,
+        0x1FU, 0x9FU, 0x5FU, 0xDFU, 0x3FU, 0xBFU, 0x7FU, 0xFFU
+    };
+
+    Src=Value;
+    To=(rme_u8_t*)(&Ret);
+    From=(rme_u8_t*)(&Src);
+
+#if(RME_WORD_ORDER==4)
+    To[0]=Table[From[1]];
+    To[1]=Table[From[0]];
+#elif(RME_WORD_ORDER==5)
+    To[0]=Table[From[3]];
+    To[1]=Table[From[2]];
+    To[2]=Table[From[1]];
+    To[3]=Table[From[0]];
+#elif(RME_WORD_ORDER==6U)
+    To[0]=Table[From[7]];
+    To[1]=Table[From[6]];
+    To[2]=Table[From[5]];
+    To[3]=Table[From[4]];
+    To[4]=Table[From[3]];
+    To[5]=Table[From[2]];
+    To[6]=Table[From[1]];
+    To[7]=Table[From[0]];
+#else
+#error Generic RBT for 128-bits & above are not implemented.
+#endif
+
+    return Ret;
+}
+/* End Function:_RME_RBT_Generic *********************************************/
+
+/* Begin Function:_RME_List_Crt ***********************************************
+Description : Create a doubly linked list.
+Input       : struct RME_List* Head - The pointer to the list head.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_List_Crt(struct RME_List* Head)
+{
+    Head->Prev=Head;
+    Head->Next=Head;
+}
+/* End Function:_RME_List_Crt ************************************************/
+
+/* Begin Function:_RME_List_Del ***********************************************
+Description : Delete a node from the doubly-linked list.
+Input       : struct RME_List* Prev - The previous node.
+              struct RME_List* Next - The next node.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_List_Del(struct RME_List* Prev, struct RME_List* Next)
+{
+    Next->Prev=Prev;
+    Prev->Next=Next;
+}
+/* End Function:_RME_List_Del ************************************************/
+
+/* Begin Function:_RME_List_Ins ***********************************************
+Description : Insert a node to the doubly-linked list.
+Input       : struct RME_List* New - The new node to insert.
+              struct RME_List* Prev - The previous node.
+              struct RME_List* Next - The next node.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_List_Ins(struct RME_List* New,
+                   struct RME_List* Prev,
+                   struct RME_List* Next)
+{
+    Next->Prev=New;
+    New->Next=Next;
+    New->Prev=Prev;
+    Prev->Next=New;
+}
+/* End Function:_RME_List_Ins ************************************************/
+
+/* Begin Function:_RME_Clear **************************************************
+Description : Memset a memory area to zero. This is not fast due to byte operations;
+              this is not meant for large memory. However, it is indeed secure.
+Input       : void* Addr - The address to clear.
+              rme_ptr_t Size - The size to clear.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_Clear(void* Addr, rme_ptr_t Size)
+{
+    rme_ptr_t Count;
+
+    for(Count=0U;Count<Size;Count++)
+        ((rme_u8_t*)Addr)[Count]=0U;
+}
+/* End Function:_RME_Clear ***************************************************/
+
+/* Begin Function:_RME_Memcmp *************************************************
+Description : Compare two memory segments to see if they are equal. This is not
+              fast due to byte operations; this is not meant for large memory.
+Input       : const void* Ptr1 - The first memory region.
+              const void* Ptr2 - The second memory region.
+              rme_ptr_t Num - The number of bytes to compare.
+Output      : None.
+Return      : rme_ret_t - If Ptr1>Ptr2, then return a positive value; else a negative
+                          value. If Ptr1==Ptr2, then return 0;
+******************************************************************************/
+rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
+{
+    const rme_s8_t* Dst;
+    const rme_s8_t* Src;
+    rme_ptr_t Count;
+
+    Dst=(const rme_s8_t*)Ptr1;
+    Src=(const rme_s8_t*)Ptr2;
+
+    for(Count=0U;Count<Num;Count++)
+    {
+        if(Dst[Count]!=Src[Count])
+        {
+            RME_COVERAGE_MARKER();
+            
+            return Dst[Count]-Src[Count];
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+
+    return 0;
+}
+/* End Function:_RME_Memcmp **************************************************/
+
+/* Begin Function:_RME_Memcpy *************************************************
+Description : Copy one segment of memory to another segment. This is not fast
+              due to byte operations; this is not meant for large memory.
+Input       : volatile void* Dst - The first memory region.
+              volatile void* Src - The second memory region.
+              rme_ptr_t Num - The number of bytes to compare.
+              rme_ptr_t Size - The size to clear.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num)
+{
+    rme_ptr_t Count;
+
+    for(Count=0U;Count<Num;Count++)
+        ((volatile rme_u8_t*)Dst)[Count]=((volatile rme_u8_t*)Src)[Count];
+}
+/* End Function:_RME_Memcpy **************************************************/
+
+/* Begin Function:_RME_Distance ***********************************************
+Description : Compute the absolute distance between two numbers, when integer
+              wraparound is considered.
+Input       : rme_ptr_t Num1 - The first number.
+              rme_ptr_t Num2 - The second number.
+Output      : None.
+Return      : rme_ptr_t - The distance.
+******************************************************************************/
+rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2)
+{
+    rme_ptr_t Diff1;
+    rme_ptr_t Diff2;
+    
+    Diff1=Num1-Num2;
+    Diff2=Num2-Num1;
+    
+    if(Diff1>Diff2)
+        return Diff2;
+    else
+        return Diff1;
+}
+/* End Function:_RME_Distance ************************************************/
+
+/* Begin Function:RME_Int_Print ***********************************************
+Description : Print a signed integer on the debugging console. This integer is
+              printed as decimal with sign.
+Input       : rme_cnt_t Int - The integer to print.
+Output      : None.
+Return      : rme_cnt_t - The length of the string printed.
+******************************************************************************/
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Int_Print(rme_cnt_t Int)
+{
+    rme_cnt_t Num;
+    rme_cnt_t Abs;
+    rme_cnt_t Iter;
+    rme_cnt_t Count;
+    rme_cnt_t Div;
+    
+    /* Exit on zero */
+    if(Int==0)
+    {
+        RME_COVERAGE_MARKER();
+
+        __RME_Putchar('0');
+        return 1;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
+
+    /* Correct all negatives into positives */
+    if(Int<0)
+    {
+        RME_COVERAGE_MARKER();
+
+        __RME_Putchar('-');
+        Abs=-Int;
+        Num=1;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+
+        Abs=Int;
+        Num=0;
+    }
+
+    /* How many digits are there? */
+    Count=0;
+    Div=1;
+    Iter=Abs;
+    while(1U)
+    {
+        Iter/=10;
+        Count++;
+        if(Iter!=0)
+        {
+            RME_COVERAGE_MARKER();
+
+            Div*=10;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+
+            break;
+        }
+    }
+    Num+=Count;
+
+    /* Print the integer */
+    Iter=Abs;
+    while(Count>0)
+    {
+        Count--;
+        __RME_Putchar((rme_s8_t)(Iter/Div)+'0');
+        Iter=Iter%Div;
+        Div/=10;
+    }
+    
+    return Num;
+}
+#endif
+/* End Function:RME_Int_Print ************************************************/
+
+/* Begin Function:RME_Hex_Print ***********************************************
+Description : Print a unsigned integer on the debugging console. This integer is
+              printed as hexadecimal.
+Input       : rme_ptr_t Uint - The unsigned integer to print.
+Output      : None.
+Return      : rme_cnt_t - The length of the string printed.
+******************************************************************************/
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
+{
+    rme_ptr_t Iter;
+    rme_ptr_t Count;
+    rme_ptr_t Num;
+    
+    /* Exit on zero */
+    if(Uint==0U)
+    {
+        RME_COVERAGE_MARKER();
+        
+        __RME_Putchar('0');
+        return 1;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
+    /* Filter out all the zeroes */
+    Count=0U;
+    Iter=Uint;
+    while((Iter>>((sizeof(rme_ptr_t)*8U)-4U))==0U)
+    {
+        Iter<<=4;
+        Count++;
+    }
+    
+    /* Count is the number of pts to print */
+    Count=-Count+sizeof(rme_ptr_t)*2U;
+    Num=Count;
+    while(Count>0U)
+    {
+        Count--;
+        Iter=(Uint>>(Count*4U))&0x0FU;
+        if(Iter<10U)
+        {
+            RME_COVERAGE_MARKER();
+
+            __RME_Putchar(((rme_s8_t)Iter)+'0');
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+
+            __RME_Putchar(((rme_s8_t)Iter)+'A'-10);
+        }
+    }
+    
+    return (rme_cnt_t)Num;
+}
+#endif
+/* End Function:RME_Hex_Print ************************************************/
+
+/* Begin Function:RME_Str_Print ***********************************************
+Description : Print a string the kernel console.
+              This is only used for kernel-level debugging.
+Input       : rme_s8_t* String - The string to print
+Output      : None.
+Return      : rme_cnt_t - The length of the string printed, the '\0' is not included.
+******************************************************************************/
+#if(RME_DEBUG_PRINT==1U)
+rme_cnt_t RME_Str_Print(rme_s8_t* String)
+{
+    rme_ptr_t Count;
+    
+    Count=0;
+    while(Count<RME_DEBUG_PRINT_MAX)
+    {
+        if(String[Count]=='\0')
+        {
+            RME_COVERAGE_MARKER();
+            
+            break;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
+        __RME_Putchar(String[Count++]);
+    }
+    
+    return (rme_cnt_t)Count;
+}
+#endif
+/* End Function:RME_Str_Print ************************************************/
+
 /* Begin Function:RME_Kmain ***************************************************
 Description : The entry of the operating system.
 Input       : None.
@@ -807,274 +1543,6 @@ rme_ptr_t _RME_Tim_Future(void)
     return RME_CPU_LOCAL()->Thd_Cur->Sched.Slice;
 }
 /* End Function:_RME_Tim_Future **********************************************/
-
-/* Begin Function:_RME_Clear **************************************************
-Description : Memset a memory area to zero. This is not fast due to byte operations;
-              this is not meant for large memory. However, it is indeed secure.
-Input       : void* Addr - The address to clear.
-              rme_ptr_t Size - The size to clear.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void _RME_Clear(void* Addr, rme_ptr_t Size)
-{
-    rme_ptr_t Count;
-
-    for(Count=0U;Count<Size;Count++)
-        ((rme_u8_t*)Addr)[Count]=0U;
-}
-/* End Function:_RME_Clear ***************************************************/
-
-/* Begin Function:_RME_Memcmp *************************************************
-Description : Compare two memory segments to see if they are equal. This is not
-              fast due to byte operations; this is not meant for large memory.
-Input       : const void* Ptr1 - The first memory region.
-              const void* Ptr2 - The second memory region.
-              rme_ptr_t Num - The number of bytes to compare.
-Output      : None.
-Return      : rme_ret_t - If Ptr1>Ptr2, then return a positive value; else a negative
-                          value. If Ptr1==Ptr2, then return 0;
-******************************************************************************/
-rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
-{
-    const rme_s8_t* Dst;
-    const rme_s8_t* Src;
-    rme_ptr_t Count;
-
-    Dst=(const rme_s8_t*)Ptr1;
-    Src=(const rme_s8_t*)Ptr2;
-
-    for(Count=0U;Count<Num;Count++)
-    {
-        if(Dst[Count]!=Src[Count])
-        {
-            RME_COVERAGE_MARKER();
-            
-            return Dst[Count]-Src[Count];
-        }
-        else
-        {
-            RME_COVERAGE_MARKER();
-        }
-    }
-
-    return 0;
-}
-/* End Function:_RME_Memcmp **************************************************/
-
-/* Begin Function:_RME_Memcpy *************************************************
-Description : Copy one segment of memory to another segment. This is not fast
-              due to byte operations; this is not meant for large memory.
-Input       : volatile void* Dst - The first memory region.
-              volatile void* Src - The second memory region.
-              rme_ptr_t Num - The number of bytes to compare.
-              rme_ptr_t Size - The size to clear.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num)
-{
-    rme_ptr_t Count;
-
-    for(Count=0U;Count<Num;Count++)
-        ((volatile rme_u8_t*)Dst)[Count]=((volatile rme_u8_t*)Src)[Count];
-}
-/* End Function:_RME_Memcpy **************************************************/
-
-/* Begin Function:_RME_Distance ***********************************************
-Description : Compute the absolute distance between two numbers, when integer
-              wraparound is considered.
-Input       : rme_ptr_t Num1 - The first number.
-              rme_ptr_t Num2 - The second number.
-Output      : None.
-Return      : rme_ptr_t - The distance.
-******************************************************************************/
-rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2)
-{
-    rme_ptr_t Diff1;
-    rme_ptr_t Diff2;
-    
-    Diff1=Num1-Num2;
-    Diff2=Num2-Num1;
-    
-    if(Diff1>Diff2)
-        return Diff2;
-    else
-        return Diff1;
-}
-/* End Function:_RME_Distance ************************************************/
-
-/* Begin Function:RME_Int_Print ***********************************************
-Description : Print a signed integer on the debugging console. This integer is
-              printed as decimal with sign.
-Input       : rme_cnt_t Int - The integer to print.
-Output      : None.
-Return      : rme_cnt_t - The length of the string printed.
-******************************************************************************/
-#if(RME_DEBUG_PRINT==1U)
-rme_cnt_t RME_Int_Print(rme_cnt_t Int)
-{
-    rme_cnt_t Iter;
-    rme_cnt_t Count;
-    rme_cnt_t Num;
-    rme_cnt_t Div;
-    
-    /* how many digits are there? */
-    if(Int==0)
-    {
-        RME_COVERAGE_MARKER();
-        
-        __RME_Putchar('0');
-        return 1;
-    }
-    else if(Int<0)
-    {
-        RME_COVERAGE_MARKER();
-        
-        /* How many digits are there? */
-        Count=0;
-        Div=1;
-        Iter=-Int;
-        while(Iter!=0)
-        {
-            Iter/=10;
-            Count++;
-            Div*=10;
-        }
-        Div/=10;
-        
-        __RME_Putchar('-');
-        Iter=-Int;
-        Num=Count+1;
-        
-        while(Count>0)
-        {
-            Count--;
-            __RME_Putchar((rme_s8_t)(Iter/Div)+'0');
-            Iter=Iter%Div;
-            Div/=10;
-        }
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-        
-        /* How many digits are there? */
-        Count=0;
-        Div=1;
-        Iter=Int;
-        while(Iter!=0)
-        {
-            Iter/=10;
-            Count++;
-            Div*=10;
-        }
-        Div/=10;
-        
-        Iter=Int;
-        Num=Count;
-        
-        while(Count>0)
-        {
-            Count--;
-            __RME_Putchar((rme_s8_t)(Iter/Div)+'0');
-            Iter=Iter%Div;
-            Div/=10;
-        }
-    }
-    
-    return Num;
-}
-#endif
-/* End Function:RME_Int_Print ************************************************/
-
-/* Begin Function:RME_Hex_Print ***********************************************
-Description : Print a unsigned integer on the debugging console. This integer is
-              printed as hexadecimal.
-Input       : rme_ptr_t Uint - The unsigned integer to print.
-Output      : None.
-Return      : rme_cnt_t - The length of the string printed.
-******************************************************************************/
-#if(RME_DEBUG_PRINT==1U)
-rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
-{
-    rme_ptr_t Iter;
-    rme_ptr_t Count;
-    rme_ptr_t Num;
-    
-    /* how many digits are there? */
-    if(Uint==0U)
-    {
-        RME_COVERAGE_MARKER();
-        
-        __RME_Putchar('0');
-        return 1;
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-        
-        /* Filter out all the zeroes */
-        Count=0U;
-        Iter=Uint;
-        while((Iter>>((sizeof(rme_ptr_t)*8U)-4U))==0U)
-        {
-            Iter<<=4;
-            Count++;
-        }
-        
-        /* Count is the number of pts to print */
-        Count=-Count+sizeof(rme_ptr_t)*2U;
-        Num=Count;
-        while(Count>0U)
-        {
-            Count--;
-            Iter=(Uint>>(Count*4U))&0x0FU;
-            if(Iter<10U)
-                __RME_Putchar(((rme_s8_t)Iter)+'0');
-            else
-                __RME_Putchar(((rme_s8_t)Iter)+'A'-10);
-        }
-    }
-    
-    return (rme_cnt_t)Num;
-}
-#endif
-/* End Function:RME_Hex_Print ************************************************/
-
-/* Begin Function:RME_Str_Print ***********************************************
-Description : Print a string the kernel console.
-              This is only used for kernel-level debugging.
-Input       : rme_s8_t* String - The string to print
-Output      : None.
-Return      : rme_cnt_t - The length of the string printed, the '\0' is not included.
-******************************************************************************/
-#if(RME_DEBUG_PRINT==1U)
-rme_cnt_t RME_Str_Print(rme_s8_t* String)
-{
-    rme_ptr_t Count;
-    
-    Count=0;
-    while(Count<RME_DEBUG_PRINT_MAX)
-    {
-        if(String[Count]=='\0')
-        {
-            RME_COVERAGE_MARKER();
-            
-            break;
-        }
-        else
-        {
-            RME_COVERAGE_MARKER();
-        }
-        
-        __RME_Putchar(String[Count++]);
-    }
-    
-    return (rme_cnt_t)Count;
-}
-#endif
-/* End Function:RME_Str_Print ************************************************/
 
 /* Begin Function:_RME_Cpt_Boot_Init ******************************************
 Description : Create the first capability table in the system, at boot-time. 
@@ -3026,10 +3494,6 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         RME_COVERAGE_MARKER();
     }
     
-    /* Check if the marking is within range - unnecessary due to the kmem cap range limits
-    if((Kaddr<RME_KOM_VA_BASE)||((Kaddr+Size)>(RME_KOM_VA_BASE+RME_KOM_VA_SIZE)))
-        return RME_ERR_KOT_BMP; */
-    
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
@@ -3217,10 +3681,6 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         RME_COVERAGE_MARKER();
     }
     
-    /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
-    /* if((Kaddr<RME_KOM_VA_START)||((Kaddr+Size)>(RME_KOM_VA_START+RME_KOM_SIZE)))
-        return RME_ERR_KOT_BMP; */
-    
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
@@ -3403,52 +3863,6 @@ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
     }
 }
 /* End Function:_RME_CPU_Local_Init ******************************************/
-
-/* Begin Function:_RME_List_Crt ***********************************************
-Description : Create a doubly linked list.
-Input       : struct RME_List* Head - The pointer to the list head.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void _RME_List_Crt(struct RME_List* Head)
-{
-    Head->Prev=Head;
-    Head->Next=Head;
-}
-/* End Function:_RME_List_Crt ************************************************/
-
-/* Begin Function:_RME_List_Del ***********************************************
-Description : Delete a node from the doubly-linked list.
-Input       : struct RME_List* Prev - The previous node.
-              struct RME_List* Next - The next node.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void _RME_List_Del(struct RME_List* Prev, struct RME_List* Next)
-{
-    Next->Prev=Prev;
-    Prev->Next=Next;
-}
-/* End Function:_RME_List_Del ************************************************/
-
-/* Begin Function:_RME_List_Ins ***********************************************
-Description : Insert a node to the doubly-linked list.
-Input       : struct RME_List* New - The new node to insert.
-              struct RME_List* Prev - The previous node.
-              struct RME_List* Next - The next node.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void _RME_List_Ins(struct RME_List* New,
-                   struct RME_List* Prev,
-                   struct RME_List* Next)
-{
-    Next->Prev=New;
-    New->Next=Next;
-    New->Prev=Prev;
-    Prev->Next=New;
-}
-/* End Function:_RME_List_Ins ***********************************************/
 
 /* Begin Function:_RME_Thd_Fatal *********************************************
 Description : The fatal fault handler of RME. This handler will be called by
@@ -3662,6 +4076,33 @@ rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
 }
 /* End Function:_RME_Run_Notif ***********************************************/
 
+/* Begin Function:_RME_Thd_Pgt ************************************************
+Description : Get a thread's page table. 
+Input       : struct RME_Thd_Struct* Thd - The thread.
+Output      : None.
+Return      : struct RME_Cap_Pgt* - The page table.
+******************************************************************************/
+struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd)
+{
+    struct RME_Inv_Struct* Inv_Top;
+    
+    Inv_Top=RME_INVSTK_TOP(Thd);
+    
+    if(Inv_Top==RME_NULL)
+    {
+        RME_COVERAGE_MARKER();
+
+        return Thd->Sched.Prc->Pgt;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+
+        return Inv_Top->Prc->Pgt;
+    }
+}
+/* End Function:_RME_Thd_Pgt *************************************************/
+
 /* Begin Function:_RME_Run_Swt ************************************************
 Description : Switch the register set and page table to another thread. 
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -3674,10 +4115,8 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                        struct RME_Thd_Struct* Thd_Cur, 
                        struct RME_Thd_Struct* Thd_New)
 {
-    struct RME_Inv_Struct* Inv_Top_Cur;
     struct RME_Cap_Pgt* Pgt_Cur;
     struct RME_Reg_Struct* Reg_Cur;
-    struct RME_Inv_Struct* Inv_Top_New;
     struct RME_Cap_Pgt* Pgt_New;
     struct RME_Reg_Struct* Reg_New;
     
@@ -3697,34 +4136,8 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
 #endif
 
     /* Are we going to switch page tables? If yes, we change it now */
-    Inv_Top_Cur=RME_INVSTK_TOP(Thd_Cur);
-    Inv_Top_New=RME_INVSTK_TOP(Thd_New);
-    
-    if(Inv_Top_Cur==RME_NULL)
-    {
-        RME_COVERAGE_MARKER();
-
-        Pgt_Cur=Thd_Cur->Sched.Prc->Pgt;
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-
-        Pgt_Cur=Inv_Top_Cur->Prc->Pgt;
-    }
-    
-    if(Inv_Top_New==RME_NULL)
-    {
-        RME_COVERAGE_MARKER();
-
-        Pgt_New=Thd_New->Sched.Prc->Pgt;
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-
-        Pgt_New=Inv_Top_New->Prc->Pgt;
-    }
+    Pgt_Cur=_RME_Thd_Pgt(Thd_Cur);
+    Pgt_New=_RME_Thd_Pgt(Thd_New);
     
     /* The page tables here must be root cap */
     RME_ASSERT(RME_CAP_IS_ROOT(Pgt_Cur)!=0U);

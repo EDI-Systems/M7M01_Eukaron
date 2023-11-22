@@ -3,20 +3,21 @@ Filename    : rme_kernel.h
 Author      : pry
 Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of the kernel. Whitebox testing of all branches encapsulated
-              in macros are inspected manually carefully.
-              Note that the kernel global variables usually don't need to be 'volatile'-
-              qualified (unlike the RMP library operating system) because these kernel
-              calls are over the protection boundary. That way, there's no chance that
-              the compiler can cache values in registers since all kernel execution are
-              short-lived in nature.
-              It is indeed possible that, when the compilers are clever enough (whole-
-              program optimizations of GCC, etc.), optimize out the final stages of 
-              writes to memory, because this will not alter the behavior of the abstract 
-              machine w.r.t the current kernel trap. In this case, the 'volatile' is
-              needed. Note that this cannot be replaced by the compiler barriers: they
-              only tell the compiler that instruction shouldn't be reordered across the
-              barrier, they don't mean that writes (that are provably useless in this
+Description : The header of the kernel. Whitebox testing of all branches
+              encapsulated in macros are inspected manually carefully.
+              Note that the kernel global variables usually don't need to be 
+              'volatile'-qualified (unlike the RMP library operating system)
+              because these kernel calls are over the protection boundary. That
+              way, there's no chance that the compiler can cache values in 
+              registers since all kernel execution are short-lived in nature.
+              It is indeed possible that, when the compilers are clever enough 
+              (whole-program optimizations of GCC, etc.), optimize out the final
+              stages of writes to memory, because this will not alter the 
+              behavior of the abstract machine w.r.t. the current kernel trap.
+              In this case, the 'volatile' is needed. Note that this cannot be
+              replaced by the compiler barriers: they only tell the compiler
+              that instruction shouldn't be reordered across the barrier, and
+              don't mean that writes (that are provably useless in this
               particular kernel trap execution) cannot be optimized away.
 ******************************************************************************/
 
@@ -33,6 +34,7 @@ Description : The header of the kernel. Whitebox testing of all branches encapsu
 
 /* Power of 2 */
 #define RME_POW2(POW)                               (((rme_ptr_t)1U)<<(POW))
+#define RME_ISPOW2(X)                               ((((rme_ptr_t)(X))&(((rme_ptr_t)(X))-1U))==0U)
 /* Bit mask/address operations */
 #define RME_ALLBITS                                 (~((rme_ptr_t)0U))
 #define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8U)
@@ -636,15 +638,15 @@ while(0)
 
 /* Kernel Function ***********************************************************/
 /* Driver layer error reporting macro */
-#define RME_ERR_KFN_FAIL                         (-1)
+#define RME_ERR_KFN_FAIL                            (-1)
 /* Kernel function capability flag arrangement
 * 32-bit systems: Maximum kernel function number 2^16
 * [31        High Limit        16] [15        Low Limit        0]
 * 64-bit systems: Maximum kernel function number 2^32
 * [63        High Limit        32] [31        Low Limit        0] */
-#define RME_KFN_FLAG_HIGH(X)                       ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_KFN_FLAG_LOW(X)                        ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
-#define RME_KFN_FLAG_FULL_RANGE                    RME_MASK_START(sizeof(rme_ptr_t)*4U)
+#define RME_KFN_FLAG_HIGH(X)                        ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_KFN_FLAG_LOW(X)                         ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
+#define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_START(sizeof(rme_ptr_t)*4U)
 
 /* __RME_KERNEL_H_DEFS__ */
 #endif
@@ -1115,14 +1117,17 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
 
 /* Public C Function Prototypes **********************************************/
 /* Generic *******************************************************************/
-/* Kernel entry */
-__EXTERN__ rme_ret_t RME_Kmain(void);
-/* System call handler */
-__EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
-/* Timer interrupt handler */
-__EXTERN__ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
-__EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
-__EXTERN__ rme_ptr_t _RME_Tim_Future(void);
+/* Bit manipulations */
+__EXTERN__ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value);
+__EXTERN__ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value);
+__EXTERN__ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value);
+/* Linked list operations */
+__EXTERN__ void _RME_List_Crt(struct RME_List* Head);
+__EXTERN__ void _RME_List_Del(struct RME_List* Prev,
+                              struct RME_List* Next);
+__EXTERN__ void _RME_List_Ins(struct RME_List* New,
+                              struct RME_List* Prev,
+                              struct RME_List* Next);
 /* Memory helpers */
 __EXTERN__ void _RME_Clear(void* Addr, rme_ptr_t Size);
 __EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
@@ -1136,6 +1141,15 @@ __EXTERN__ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint);
 __EXTERN__ rme_cnt_t RME_Int_Print(rme_cnt_t Int);
 __EXTERN__ rme_cnt_t RME_Str_Print(rme_s8_t* String);
 #endif
+                                 
+/* Kernel entry */
+__EXTERN__ rme_ret_t RME_Kmain(void);
+/* System call handler */
+__EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
+/* Timer interrupt handler */
+__EXTERN__ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
+__EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
+__EXTERN__ rme_ptr_t _RME_Tim_Future(void);
 
 /* Capability Table **********************************************************/
 /* Boot-time calls */
@@ -1184,16 +1198,11 @@ __EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Flag);
 
 /* Process and Thread ********************************************************/
-/* Linked list operations */
-__EXTERN__ void _RME_List_Crt(struct RME_List* Head);
-__EXTERN__ void _RME_List_Del(struct RME_List* Prev,
-                              struct RME_List* Next);
-__EXTERN__ void _RME_List_Ins(struct RME_List* New,
-                              struct RME_List* Prev,
-                              struct RME_List* Next);
 /* Initialize per-CPU data structures */
 __EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
                                     rme_ptr_t CPUID);
+/* Thread page table consult */
+__EXTERN__ struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
 /* Thread fatal killer */
 __EXTERN__ rme_ret_t _RME_Thd_Fatal(struct RME_Reg_Struct* Reg);                              
 /* Boot-time calls */
