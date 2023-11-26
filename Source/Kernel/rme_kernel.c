@@ -165,7 +165,7 @@ dedicated assembly atomics. If LTO has been enabled, there are three cases:
     In this case, the compiler should be aware of the semantics of the assembly,
     and produce correct code.
 * Function Name Rules *********************************************************
-(1) No "_": OS entry function RME_Kmain.
+(1) No "_": OS entry function RME_Kmain and C entry "main".
 (2) "_"   : Kernel functions that are be called by kernel.
 (3) "__"  : HAL functions that are called by kernel.
 (4) "___" : HAL functions that should be called by HAL.

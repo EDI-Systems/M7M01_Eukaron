@@ -674,48 +674,88 @@ __RME_Vector:
 
 	.thumb_func
 Default_Handler:
+	.thumb_func
 IRQ0_Handler:
+	.thumb_func
 IRQ1_Handler:
+	.thumb_func
 IRQ2_Handler:
+	.thumb_func
 IRQ3_Handler:
+	.thumb_func
 IRQ4_Handler:
+	.thumb_func
 IRQ5_Handler:
+	.thumb_func
 IRQ6_Handler:
+	.thumb_func
 IRQ7_Handler:
+	.thumb_func
 IRQ8_Handler:
+	.thumb_func
 IRQ9_Handler:
 
+	.thumb_func
 IRQ10_Handler:
+	.thumb_func
 IRQ11_Handler:
+	.thumb_func
 IRQ12_Handler:
+	.thumb_func
 IRQ13_Handler:
+	.thumb_func
 IRQ14_Handler:
+	.thumb_func
 IRQ15_Handler:
+	.thumb_func
 IRQ16_Handler:
+	.thumb_func
 IRQ17_Handler:
+	.thumb_func
 IRQ18_Handler:
+	.thumb_func
 IRQ19_Handler:
 
+	.thumb_func
 IRQ20_Handler:
+	.thumb_func
 IRQ21_Handler:
+	.thumb_func
 IRQ22_Handler:
+	.thumb_func
 IRQ23_Handler:
+	.thumb_func
 IRQ24_Handler:
+	.thumb_func
 IRQ25_Handler:
+	.thumb_func
 IRQ26_Handler:
+	.thumb_func
 IRQ27_Handler:
+	.thumb_func
 IRQ28_Handler:
+	.thumb_func
 IRQ29_Handler:
 
+	.thumb_func
 IRQ30_Handler:
+	.thumb_func
 IRQ31_Handler:
+	.thumb_func
 IRQ32_Handler:
+	.thumb_func
 IRQ33_Handler:
+	.thumb_func
 IRQ34_Handler:
+	.thumb_func
 IRQ35_Handler:
+	.thumb_func
 IRQ36_Handler:
+	.thumb_func
 IRQ37_Handler:
+	.thumb_func
 IRQ38_Handler:
+	.thumb_func
 IRQ39_Handler:
 
 IRQ40_Handler:
