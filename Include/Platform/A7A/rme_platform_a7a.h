@@ -492,8 +492,8 @@ union __RME_CAV7_Pgreg
 
 /* Private Variable **********************************************************/
 #if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
-#ifndef __RME_PLATFORM_CAV7_PUBLIC__
-#define __RME_PLATFORM_CAV7_PUBLIC__
+#ifndef __RME_PLATFORM_CAV7_MEMBER__
+#define __RME_PLATFORM_CAV7_MEMBER__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEF__
@@ -1055,7 +1055,7 @@ __EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_CAV7_PUBLIC__ */
+/* __RME_PLATFORM_CAV7_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif

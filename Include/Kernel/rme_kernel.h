@@ -896,8 +896,8 @@ struct RME_Cap_Kfn
 
 /* Private Variable **********************************************************/
 #if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
-#ifndef __RME_KERNEL_PUBLIC__
-#define __RME_KERNEL_PUBLIC__
+#ifndef __RME_KERNEL_MEMBER__
+#define __RME_KERNEL_MEMBER__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEF__
@@ -1237,7 +1237,7 @@ __EXTERN__ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_KERNEL_PUBLIC__ */
+/* __RME_KERNEL_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif

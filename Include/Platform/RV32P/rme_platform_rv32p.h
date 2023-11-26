@@ -647,8 +647,8 @@ struct __RME_RV32P_Pgt_Meta
 
 /* Private Variable **********************************************************/
 #if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
-#ifndef __RME_PLATFORM_A7M_PUBLIC__
-#define __RME_PLATFORM_A7M_PUBLIC__
+#ifndef __RME_PLATFORM_A7M_MEMBER__
+#define __RME_PLATFORM_A7M_MEMBER__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEF__
@@ -912,7 +912,7 @@ __EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_A7M_PUBLIC__ */
+/* __RME_PLATFORM_A7M_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif
