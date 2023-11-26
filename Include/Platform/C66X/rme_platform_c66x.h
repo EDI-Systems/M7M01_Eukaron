@@ -6,10 +6,10 @@ Licence     : The Unlicense; see LICENSE for details.
 Description: The header of "platform_C66X.h".
 ******************************************************************************/
 
-/* Defines *******************************************************************/
-#ifdef __HDR_DEFS__
-#ifndef __RME_PLATFORM_C66X_H_DEFS__
-#define __RME_PLATFORM_C66X_H_DEFS__
+/* Define ********************************************************************/
+#ifdef __HDR_DEF__
+#ifndef __RME_PLATFORM_C66X_DEF__
+#define __RME_PLATFORM_C66X_DEF__
 /*****************************************************************************/
 /* Basic Types ***************************************************************/
 #ifndef __RME_S32_T__
@@ -43,7 +43,7 @@ typedef unsigned char rme_u8_t;
 #endif
 /* End Basic Types ***********************************************************/
 
-/* Begin Extended Types ******************************************************/
+/* Extended Types ************************************************************/
 #ifndef __RME_TID_T__
 #define __RME_TID_T__
 /* The typedef for the Thread ID */
@@ -491,21 +491,21 @@ typedef rme_s32_t rme_ret_t;
 #define RME_C66X_IERR_FPX               (1<<1) /* Fetch packet exception */
 #define RME_C66X_IERR_IFX               (1<<0) /* Instruction fetch exception */
 /*****************************************************************************/
-/* __RME_PLATFORM_C66X_H_DEFS__ */
+/* __RME_PLATFORM_C66X_DEF__ */
 #endif
-/* __HDR_DEFS__ */
+/* __HDR_DEF__ */
 #endif
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-/* Structs *******************************************************************/
-#ifdef __HDR_STRUCTS__
-#ifndef __RME_PLATFORM_C66X_H_STRUCTS__
-#define __RME_PLATFORM_C66X_H_STRUCTS__
+/* Struct ********************************************************************/
+#ifdef __HDR_STRUCT__
+#ifndef __RME_PLATFORM_C66X_STRUCT__
+#define __RME_PLATFORM_C66X_STRUCT__
 /* We used structs in the header */
 
 /* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
+#define __HDR_DEF__
+#undef __HDR_DEF__
 /*****************************************************************************/
 /* The register set struct - The first 10 parameters are passed in
  * A4, B4, A6, B6, A8, B8, A10, B10, A12, and B12 */
@@ -684,48 +684,48 @@ struct __RME_C66X_Flags
     struct __RME_C66X_Flag_Set Set1;
 };
 /*****************************************************************************/
-/* __RME_PLATFORM_C66X_H_STRUCTS__ */
+/* __RME_PLATFORM_C66X_STRUCT__ */
 #endif
-/* __HDR_STRUCTS__ */
+/* __HDR_STRUCT__ */
 #endif
-/* End Structs ***************************************************************/
+/* End Struct ****************************************************************/
 
-/* Private Global Variables **************************************************/
-#if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __RME_PLATFORM_C66X_MEMBERS__
-#define __RME_PLATFORM_C66X_MEMBERS__
+/* Private Variable **********************************************************/
+#if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
+#ifndef __RME_PLATFORM_C66X_PUBLIC__
+#define __RME_PLATFORM_C66X_PUBLIC__
 
 /* In this way we can use the data structures and definitions in the headers */
-#define __HDR_DEFS__
+#define __HDR_DEF__
 
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* If the header is not used in the public mode */
-#ifndef __HDR_PUBLIC_MEMBERS__
+#ifndef __HDR_PUBLIC__
 /*****************************************************************************/
 /* CPU booting counter */
 static rme_ptr_t RME_C66X_CPU_Cnt;
 /* Booting done indicator */
 static rme_ptr_t __RME_C66X_Boot_Done[RME_C66X_CPU_NUM];
 /*****************************************************************************/
-/* End Private Global Variables **********************************************/
+/* End Private Variable ******************************************************/
 
-/* Private C Function Prototypes *********************************************/ 
+/* Private Function **********************************************************/ 
 /*****************************************************************************/
 static rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgt* Pgt, rme_ptr_t CPUID);
 /*****************************************************************************/
 #define __EXTERN__
-/* End Private C Function Prototypes *****************************************/
+/* End Private Function ******************************************************/
 
-/* Public Global Variables ***************************************************/
-/* __HDR_PUBLIC_MEMBERS__ */
+/* Public Variable ***********************************************************/
+/* __HDR_PUBLIC__ */
 #else
 #define __EXTERN__ EXTERN 
-/* __HDR_PUBLIC_MEMBERS__ */
+/* __HDR_PUBLIC__ */
 #endif
 
 /*****************************************************************************/
@@ -740,9 +740,9 @@ EXTERN rme_ptr_t __RME_C66X_Boot_Done[8];
 __EXTERN__ struct RME_CPU_Local RME_C66X_CPU_Local[RME_C66X_CPU_NUM];
 /*****************************************************************************/
 
-/* End Public Global Variables ***********************************************/
+/* End Public Variable *******************************************************/
 
-/* Public C Function Prototypes **********************************************/
+/* Public Function ***********************************************************/
 /*****************************************************************************/
 /* Interrupts */
 EXTERN void __RME_Disable_Int(void);
@@ -820,11 +820,11 @@ __EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_C66X_MEMBERS__ */
+/* __RME_PLATFORM_C66X_PUBLIC__ */
 #endif
-/* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
+/* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif
-/* End Public C Function Prototypes ******************************************/
+/* End Public Function *******************************************************/
 
 /* End Of File ***************************************************************/
 

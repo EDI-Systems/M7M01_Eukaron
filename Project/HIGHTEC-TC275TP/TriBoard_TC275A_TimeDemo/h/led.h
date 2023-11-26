@@ -5,8 +5,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2013
 *====================================================================*/
 
-#ifndef __LED_H__
-#define __LED_H__
+#ifndef __LED__
+#define __LED__
 
 #include "bspconfig.h"
 
@@ -73,4 +73,4 @@ static __inline void InitLED(void)
   }
 #endif /* __cplusplus */
 
-#endif /* __LED_H__ */
+#endif /* __LED__ */

@@ -6,8 +6,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2014
 *====================================================================*/
 
-#ifndef __TIMER_H__
-#define __TIMER_H__
+#ifndef __TIMER__
+#define __TIMER__
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,4 +26,4 @@ void TimerSetHandler(PFV handler);
 }
 #endif /* __cplusplus */
 
-#endif /* __TIMER_H__ */
+#endif /* __TIMER__ */

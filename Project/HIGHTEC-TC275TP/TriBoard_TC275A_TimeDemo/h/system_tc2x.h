@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef __SYSTEM_TC2X_H__
-#define __SYSTEM_TC2X_H__
+#ifndef __SYSTEM_TC2X__
+#define __SYSTEM_TC2X__
 
 #include "system.h"
 
@@ -41,4 +41,4 @@ unsigned long SYSTEM_GetStmClock(void);
 }
 #endif /* __cplusplus */
 
-#endif /* __SYSTEM_TC2X_H__ */
+#endif /* __SYSTEM_TC2X__ */

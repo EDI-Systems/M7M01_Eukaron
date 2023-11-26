@@ -77,7 +77,7 @@ The ARM Cortex-A also include various FPU implementations.
 .endm
 /* End CP15 Macros ***********************************************************/
 
-/* Begin Exports *************************************************************/
+/* Export ********************************************************************/
     /* Disable all interrupts */
     .global             __RME_Disable_Int
     /* Enable all interrupts */
@@ -341,9 +341,9 @@ The ARM Cortex-A also include various FPU implementations.
     /* Vector table */
     .global             __RME_CAV7_Vector_Table
     /* Fault handlers and user handlers are exported on their spot */
-/* End Exports ***************************************************************/
+/* End Export ****************************************************************/
 
-/* Begin Imports *************************************************************/
+/* Import ********************************************************************/
     /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
     /* The fault handlerd of RME. These will be defined in C language. */
@@ -364,9 +364,9 @@ The ARM Cortex-A also include various FPU implementations.
     .global             __RME_CAV7_SMP_Tick
     /* Memory layout information - This is the actual page table mapping */
     .global             RME_CAV7_Mem_Info
-/* End Imports ***************************************************************/
+/* End Import ****************************************************************/
 
-/* Begin Memory Init *********************************************************/
+/* Memory Init ***************************************************************/
 /* Das U-Boot header is appended by the u-boot through FIT image generation.
  * We do not temper with this here, as it is unnecessary. For the .data section,
  * we are perfectly fine because it is in RAM do not even need relocation, and
@@ -538,7 +538,7 @@ __RME_CAV7_Vector_Table:
     B                   FIQ_Handler
 /* End Memory Init ***********************************************************/
 
-/* Begin Function:__RME_CAV7_XXXX_Get *****************************************
+/* Function:__RME_CAV7_XXXX_Get ***********************************************
 Description : Get the XXXX register of the CPU. These registers must be read with
               MRS/MRC instruction.
 Input       : None
@@ -823,7 +823,7 @@ __RME_CAV7_CNTHP_CTL_Get:
     CP15_GET            CRN=C14 OP1=4 CRM=C2 OP2=1
 /* End Function:__RME_CAV7_XXXX_Get ******************************************/
 
-/* Begin Function:__RME_CAV7_XXXX_DW_Get **************************************
+/* Function:__RME_CAV7_XXXX_DW_Get ********************************************
 Description : Get the XXXX register of the CPU. These registers must be read with
               MRRC instruction, and are all 64-bit double words.
 Input       : None.
@@ -851,7 +851,7 @@ __RME_CAV7_CNTHP_CVAL_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=6
 /* End Function:__RME_CAV7_XXXX_DW_Get ***************************************/
 
-/* Begin Function:__RME_CAV7_XXXX_Set *****************************************
+/* Function:__RME_CAV7_XXXX_Set ***********************************************
 Description : Set the XXXX register of the CPU.
 Input       : rme_ptr_t R0 - The XXXX value to set.
 Output      : None.
@@ -1201,7 +1201,7 @@ __RME_CAV7_CNTHP_CTL_Set:
     CP15_SET            CRN=C14 OP1=4 CRM=C2 OP2=1
 /* End Function:__RME_CAV7_XXXX_Set ******************************************/
 
-/* Begin Function:__RME_CAV7_XXXX_DW_Set **************************************
+/* Function:__RME_CAV7_XXXX_DW_Set ********************************************
 Description : Set the XXXX register of the CPU. These registers must be written
               with MCRR instruction, and are all 64-bit double words.
 Input       : rme_ptr_t R0 - The lower bits.
@@ -1223,7 +1223,7 @@ __RME_CAV7_CNTHP_CVAL_DW_Set:
     CP15_SET_DOUBLE     CRM=C14 OP=6
 /* End Function:__RME_CAV7_XXXX_DW_Set ***************************************/
 
-/* Begin Function:__RME_CAV7_Comp_Swap ****************************************
+/* Function:__RME_CAV7_Comp_Swap **********************************************
 Description : The compare-and-swap atomic instruction. If the Old value is equal to
               *Ptr, then set the *Ptr as New and return 1; else return 0.
               This implementation is optimal on Cortex-A. Many compilers will generate
@@ -1252,7 +1252,7 @@ __RME_CAV7_Comp_Swap_Fail:
     BX                  LR
 /* End Function:__RME_CAV7_Comp_Swap *****************************************/
 
-/* Begin Function:__RME_CAV7_Fetch_Add ****************************************
+/* Function:__RME_CAV7_Fetch_Add **********************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is
               pointed to by the pointer, and return the value before addition.
               On ARM, the R12 is also a scratch register that we can use.
@@ -1271,7 +1271,7 @@ __RME_CAV7_Fetch_Add:
     BX                  LR
 /* End Function:__RME_CAV7_Fetch_Add *****************************************/
 
-/* Begin Function:__RME_CAV7_Fetch_And ****************************************
+/* Function:__RME_CAV7_Fetch_And **********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -1289,7 +1289,7 @@ __RME_CAV7_Fetch_And:
     BX                  LR
 /* End Function:__RME_CAV7_Fetch_And *****************************************/
 
-/* Begin Function:__RME_CAV7_Read_Acquire *************************************
+/* Function:__RME_CAV7_Read_Acquire *******************************************
 Description : The read-acquire memory fence, to avoid read/write reorderings.
 Input       : rme_ptr_t* R0 - Address to read from.
 Output      : None.
@@ -1301,7 +1301,7 @@ __RME_CAV7_Read_Acquire:
     BX                  LR
 /* End Function:__RME_CAV7_Read_Acquire **************************************/
 
-/* Begin Function:__RME_CAV7_Write_Release ************************************
+/* Function:__RME_CAV7_Write_Release ******************************************
 Description : The write-release memory fence, to avoid read/write reorderings.
 Input       : rme_ptr_t* R0 - Address to write to.
               rme_ptr_t R1 - Content to write to the address.
@@ -1314,7 +1314,7 @@ __RME_CAV7_Write_Release:
     BX                  LR
 /* End Function:__RME_CAV7_Write_Release *************************************/
 
-/* Begin Function:__RME_Disable_Int *******************************************
+/* Function:__RME_Disable_Int *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None.
@@ -1325,7 +1325,7 @@ __RME_Disable_Int:
     BX                  LR
 /* End Function:__RME_Disable_Int ********************************************/
 
-/* Begin Function:__RME_Enable_Int ********************************************
+/* Function:__RME_Enable_Int **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
@@ -1336,7 +1336,7 @@ __RME_Enable_Int:
     BX                  LR
 /* End Function:__RME_Enable_Int *********************************************/
 
-/* Begin Function:__RME_CAV7_Halt *********************************************
+/* Function:__RME_CAV7_Halt ***************************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
@@ -1348,7 +1348,7 @@ __RME_CAV7_Halt:
     BX                  LR
 /* End Function:__RME_CAV7_Halt **********************************************/
 
-/* Begin Function:_RME_Kmain **************************************************
+/* Function:_RME_Kmain ********************************************************
 Description : The entry address of the kernel. Never returns.
 Input       : ptr_t Stack - The stack address to set SP to.
 Output      : None.
@@ -1359,7 +1359,7 @@ _RME_Kmain:
     BL                  RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
-/* Begin Function:__RME_CAV7_MSB_Get ******************************************
+/* Function:__RME_CAV7_MSB_Get ************************************************
 Description : Get the MSB of the word. The kernel is guaranteed not to call this
               function with a zero word, so we don't need to handle this edge case
               actually.
@@ -1374,7 +1374,7 @@ __RME_CAV7_MSB_Get:
     BX                  LR
 /* End Function:__RME_CAV7_MSB_Get *******************************************/
 
-/* Begin Function:__RME_Enter_User_Mode ***************************************
+/* Function:__RME_Enter_User_Mode *********************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
@@ -1394,7 +1394,7 @@ __RME_Enter_User_Mode:
     LDMIA               SP!,{PC}^
 /* End Function:__RME_Enter_User_Mode ****************************************/
 
-/* Begin Function:Reset_Handler ***********************************************
+/* Function:Reset_Handler *****************************************************
 Description : The reset handler routine. This is not used in ARM, and is thus
               a dead loop.
 Input       : None.
@@ -1406,7 +1406,7 @@ Unused_Handler:
     B                   .
 /* End Function:Reset_Handler ************************************************/
 
-/* Begin Function:Undefined_Handler *******************************************
+/* Function:Undefined_Handler *************************************************
 Description : The undefined instruction handler routine.
 Input       : None.
 Output      : None.
@@ -1447,7 +1447,7 @@ Undefined_Handler:
     RESTORE_GP_REGS
 /* End Function:Undefined_Handler ********************************************/
 
-/* Begin Function:Prefetch_Abort_Handler **************************************
+/* Function:Prefetch_Abort_Handler ********************************************
 Description : The prefetch abort handler routine.
 Input       : None.
 Output      : None.
@@ -1459,7 +1459,7 @@ Prefetch_Abort_Handler:
     RESTORE_GP_REGS
 /* End Function:Prefetch_Abort_Handler ***************************************/
 
-/* Begin Function:Data_Abort_Handler ******************************************
+/* Function:Data_Abort_Handler ************************************************
 Description : The data abort handler routine.
 Input       : None.
 Output      : None.
@@ -1471,7 +1471,7 @@ Data_Abort_Handler:
     RESTORE_GP_REGS
 /* End Function:Data_Abort_Handler *******************************************/
 
-/* Begin Function:SVC_Handler *************************************************
+/* Function:SVC_Handler *******************************************************
 Description : The SVC handler routine.
 Input       : None.
 Output      : None.
@@ -1483,7 +1483,7 @@ SVC_Handler:
     RESTORE_GP_REGS
 /* End Function:SVC_Handler **************************************************/
 
-/* Begin Function:IRQ_Handler *************************************************
+/* Function:IRQ_Handler *******************************************************
 Description : The IRQ handler routine.
 Input       : None.
 Output      : None.
@@ -1499,7 +1499,7 @@ IRQ_Handler:
     RESTORE_GP_REGS
 /* End Function:IRQ_Handler **************************************************/
 
-/* Begin Function:FIQ_Handler *************************************************
+/* Function:FIQ_Handler *******************************************************
 Description : The FIQ handler routine. Different from other routines, this routine
               will not call a C function, but should be supplied by the user him/
               herself. It is the user's responsibility to fill in anything he/she

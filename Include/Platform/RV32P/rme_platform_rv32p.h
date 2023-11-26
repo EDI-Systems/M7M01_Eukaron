@@ -6,10 +6,10 @@ Licence     : The Unlicense; see LICENSE for details.
 Description : The header of "rme_platform_rv32p.c".
 ******************************************************************************/
 
-/* Defines *******************************************************************/
-#ifdef __HDR_DEFS__
-#ifndef __RME_PLATFORM_RV32P_H_DEFS__
-#define __RME_PLATFORM_RV32P_H_DEFS__
+/* Define ********************************************************************/
+#ifdef __HDR_DEF__
+#ifndef __RME_PLATFORM_RV32P_DEF__
+#define __RME_PLATFORM_RV32P_DEF__
 /*****************************************************************************/
 /* Basic Types ***************************************************************/
 #ifndef __RME_S32_T__
@@ -43,7 +43,7 @@ typedef unsigned char rme_u8_t;
 #endif
 /* End Basic Types ***********************************************************/
 
-/* Begin Extended Types ******************************************************/
+/* Extended Types ************************************************************/
 #ifndef __RME_TID_T__
 #define __RME_TID_T__
 /* The typedef for the Thread ID */
@@ -435,21 +435,21 @@ while(0)
 #define RME_RV32P_KFN_DEBUG_EXC_ADDR_GET               (1U)
 #define RME_RV32P_KFN_DEBUG_EXC_VALUE_GET              (2U)
 /*****************************************************************************/
-/* __RME_PLATFORM_A7M_H_DEFS__ */
+/* __RME_PLATFORM_A7M_DEF__ */
 #endif
-/* __HDR_DEFS__ */
+/* __HDR_DEF__ */
 #endif
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-/* Structs *******************************************************************/
-#ifdef __HDR_STRUCTS__
-#ifndef __RME_PLATFORM_RV32P_H_STRUCTS__
-#define __RME_PLATFORM_RV32P_H_STRUCTS__
+/* Struct ********************************************************************/
+#ifdef __HDR_STRUCT__
+#ifndef __RME_PLATFORM_RV32P_STRUCT__
+#define __RME_PLATFORM_RV32P_STRUCT__
 /* We used structs in the header */
 
 /* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
+#define __HDR_DEF__
+#undef __HDR_DEF__
 /*****************************************************************************/
 /* Handler *******************************************************************/
 /* Interrupt flag structure */
@@ -639,34 +639,34 @@ struct __RME_RV32P_Pgt_Meta
     rme_ptr_t Size_Num_Order;
 };
 /*****************************************************************************/
-/* __RME_PLATFORM_A7M_H_STRUCTS__ */
+/* __RME_PLATFORM_A7M_STRUCT__ */
 #endif
-/* __HDR_STRUCTS__ */
+/* __HDR_STRUCT__ */
 #endif
-/* End Structs ***************************************************************/
+/* End Struct ****************************************************************/
 
-/* Private Global Variables **************************************************/
-#if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __RME_PLATFORM_A7M_MEMBERS__
-#define __RME_PLATFORM_A7M_MEMBERS__
+/* Private Variable **********************************************************/
+#if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
+#ifndef __RME_PLATFORM_A7M_PUBLIC__
+#define __RME_PLATFORM_A7M_PUBLIC__
 
 /* In this way we can use the data structures and definitions in the headers */
-#define __HDR_DEFS__
+#define __HDR_DEF__
 
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* If the header is not used in the public mode */
-#ifndef __HDR_PUBLIC_MEMBERS__
+#ifndef __HDR_PUBLIC__
 /*****************************************************************************/
 
 /*****************************************************************************/
-/* End Private Global Variables **********************************************/
+/* End Private Variable ******************************************************/
 
-/* Private C Function Prototypes *********************************************/
+/* Private Function **********************************************************/
 /* Generator *****************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
 EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
@@ -756,13 +756,13 @@ static rme_ret_t __RME_RV32P_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
                                             rme_ptr_t Operation);
 /*****************************************************************************/
 #define __EXTERN__
-/* End Private C Function Prototypes *****************************************/
+/* End Private Function ******************************************************/
 
-/* Public Global Variables ***************************************************/
-/* __HDR_PUBLIC_MEMBERS__ */
+/* Public Variable ***********************************************************/
+/* __HDR_PUBLIC__ */
 #else
 #define __EXTERN__ EXTERN 
-/* __HDR_PUBLIC_MEMBERS__ */
+/* __HDR_PUBLIC__ */
 #endif
 
 /*****************************************************************************/
@@ -774,9 +774,9 @@ __EXTERN__ struct RME_CPU_Local RME_RV32P_Local;
 __EXTERN__ rme_ptr_t RME_RV32P_Kot[RME_KOT_WORD_NUM];
 /*****************************************************************************/
 
-/* End Public Global Variables ***********************************************/
+/* End Public Variable *******************************************************/
 
-/* Public C Function Prototypes **********************************************/
+/* Public Function ***********************************************************/
 /* Generic *******************************************************************/
 /* Interrupts */
 EXTERN void __RME_Int_Disable(void);
@@ -912,11 +912,11 @@ __EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_A7M_MEMBERS__ */
+/* __RME_PLATFORM_A7M_PUBLIC__ */
 #endif
-/* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
+/* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif
-/* End Public C Function Prototypes ******************************************/
+/* End Public Function *******************************************************/
 
 /* End Of File ***************************************************************/
 

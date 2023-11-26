@@ -6,8 +6,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2014
 *====================================================================*/
 
-#ifndef __BSPCONFIG_H__
-#define __BSPCONFIG_H__
+#ifndef __BSPCONFIG__
+#define __BSPCONFIG__
 
 #ifdef __cplusplus
 extern "C" {
@@ -175,4 +175,4 @@ extern void _uart_init_bsp(int baudrate, void (*uart_rx_isr)(int arg), void (*ua
 #endif /* __cplusplus */
 
 
-#endif /* __BSPCONFIG_H__ */
+#endif /* __BSPCONFIG__ */

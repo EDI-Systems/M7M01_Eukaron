@@ -5,8 +5,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2014
 *====================================================================*/
 
-#ifndef __CINT_H__
-#define __CINT_H__
+#ifndef __CINT__
+#define __CINT__
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,4 +62,4 @@ extern int _install_trap_handler(int trapno, void (*handler)(int));
 }
 #endif
 
-#endif /* __CINT_H__ */
+#endif /* __CINT__ */

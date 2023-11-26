@@ -7,9 +7,9 @@ Description : The header of the RME RTOS. This header defines the error codes,
               operation flags and system call numbers in a generic way.
 ******************************************************************************/
 
-#ifndef __RME_H__
-#define __RME_H__
-/* Defines *******************************************************************/
+#ifndef __RME__
+#define __RME__
+/* Define ********************************************************************/
 
 /* Errors ********************************************************************/
 /* The base of capability table error */
@@ -528,9 +528,9 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Modify data breakpoint state */
 #define RME_KFN_DEBUG_DBP_MOD           (0xF806U)
 /* End Kernel Functions ******************************************************/
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-#endif /* __RME_H__ */
+#endif /* __RME__ */
 
 /* End Of File ***************************************************************/
 

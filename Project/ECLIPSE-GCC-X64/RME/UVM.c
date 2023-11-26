@@ -6,7 +6,7 @@ Description : The *.c code containing the array of the binary image.
               Copy the data and generate other kinds of files as needed.
 ******************************************************************************/
 
-/* Begin Contents ************************************************************/
+/* Contents ******************************************************************/
 const unsigned char UVM_Init[5712]=
 {
     0xE9,

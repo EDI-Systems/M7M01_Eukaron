@@ -17,7 +17,7 @@
 ;The above 3 registers are saved into the stack in combination(xPSR).
 ;*****************************************************************************/
 
-;/* Begin Import *************************************************************/
+;/* Import *******************************************************************/
     ;Preinitialization routine
     IMPORT              __RME_A6M_Lowlvl_Preinit
     ;The ARM C library entry
@@ -34,7 +34,7 @@
     IMPORT              __RME_A6M_Vct_Handler
 ;/* End Import ***************************************************************/
 
-;/* Begin Export *************************************************************/
+;/* Export *******************************************************************/
     ;Disable all interrupts
     EXPORT              __RME_Int_Disable
     ;Enable all interrupts
@@ -66,7 +66,7 @@
     EXPORT              ___RME_A6M_MPU_Set16
 ;/* End Export ***************************************************************/
 
-;/* Begin Entry **************************************************************/
+;/* Entry ********************************************************************/
     AREA                RME_ENTRY,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
@@ -83,7 +83,7 @@ Reset_Handler           PROC
     ALIGN
 ;/* End Entry ****************************************************************/
 
-;/* Begin Vector *************************************************************/
+;/* Vector *******************************************************************/
     AREA                RME_VECTOR,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
@@ -248,7 +248,7 @@ IRQ31_Handler
     ALIGN
 ;/* End Vector ***************************************************************/
 
-;/* Begin Function:__RME_Int_Disable ******************************************
+;/* Function:__RME_Int_Disable ************************************************
 ;Description : The function for disabling all interrupts.
 ;Input       : None.
 ;Output      : None.
@@ -268,7 +268,7 @@ __RME_Int_Disable       PROC
     ALIGN
 ;/* End Function:__RME_Int_Disable *******************************************/
 
-;/* Begin Function:__RME_Int_Enable *******************************************
+;/* Function:__RME_Int_Enable *************************************************
 ;Description : The function for enabling all interrupts.
 ;Input       : None.
 ;Output      : None.    
@@ -288,7 +288,7 @@ __RME_Int_Enable        PROC
     ALIGN
 ;/* End Function:__RME_Int_Enable ********************************************/
 
-;/* Begin Function:__RME_A6M_Barrier ******************************************
+;/* Function:__RME_A6M_Barrier ************************************************
 ;Description : A full data/instruction barrier.
 ;Input       : None.
 ;Output      : None.    
@@ -309,7 +309,7 @@ __RME_A6M_Barrier       PROC
     ALIGN
 ;/* End Function:__RME_A6M_Barrier *******************************************/
 
-;/* Begin Function:__RME_A6M_Reset ********************************************
+;/* Function:__RME_A6M_Reset **************************************************
 ;Description : A full system reset.
 ;Input       : None.
 ;Output      : None.    
@@ -336,7 +336,7 @@ __RME_A6M_Reset         PROC
     ALIGN
 ;/* End Function:__RME_A6M_Reset *********************************************/
 
-;/* Begin Function:__RME_A6M_Wait_Int *****************************************
+;/* Function:__RME_A6M_Wait_Int ***********************************************
 ;Description : Wait until a new interrupt comes, to save power.
 ;Input       : None.
 ;Output      : None.
@@ -356,7 +356,7 @@ __RME_A6M_Wait_Int      PROC
     ALIGN
 ;/* End Function:__RME_A6M_Wait_Int ******************************************/
 
-;/* Begin Function:__RME_User_Enter *******************************************
+;/* Function:__RME_User_Enter *************************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
 ;              booting. The function shall never return. This function should only
 ;              be used to boot the first process in the system.
@@ -385,7 +385,7 @@ __RME_User_Enter        PROC
     ALIGN
 ;/* End Function:__RME_User_Enter ********************************************/
 
-;/* Begin Function:SysTick_Handler ********************************************
+;/* Function:SysTick_Handler **************************************************
 ;Description : The System Tick Timer handler routine. This will in fact call a
 ;              C function to resolve the system service routines.             
 ;Input       : None.
@@ -426,7 +426,7 @@ SysTick_Handler         PROC
     ALIGN
 ;/* End Function:SysTick_Handler *********************************************/
 
-;/* Begin Function:SVC_Handler ************************************************
+;/* Function:SVC_Handler ******************************************************
 ;Description : The SVC handler routine. This will in fact call a C function to resolve
 ;              the system service routines.             
 ;Input       : None.
@@ -467,7 +467,7 @@ SVC_Handler             PROC
     ALIGN
 ;/* End Function:SVC_Handler *************************************************/
 
-;/* Begin Function:NMI/HardFault_Handler **************************************
+;/* Function:NMI/HardFault_Handler ********************************************
 ;Description : The multi-purpose handler routine. This will in fact call
 ;              a C function to resolve the system service routines.             
 ;Input       : None.
@@ -512,7 +512,7 @@ HardFault_Handler
     ALIGN
 ;/* End Function:NMI/HardFault_Handler ***************************************/
 
-;/* Begin Function:___RME_A6M_MPU_Set *****************************************
+;/* Function:___RME_A6M_MPU_Set ***********************************************
 ;Description : Set the MPU context. 1-to-8-region versions are all declared here.
 ;Input       : R0 - The pointer to the MPU content.
 ;Output      : None.

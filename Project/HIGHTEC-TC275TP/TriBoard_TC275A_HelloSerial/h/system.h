@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef __SYSTEM_H__
-#define __SYSTEM_H__
+#ifndef __SYSTEM__
+#define __SYSTEM__
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,4 +94,4 @@ void SYSTEM_DbgBreak(void);
 }
 #endif /* __cplusplus */
 
-#endif /* __SYSTEM_H__ */
+#endif /* __SYSTEM__ */

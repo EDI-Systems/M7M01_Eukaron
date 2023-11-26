@@ -20,11 +20,11 @@ The ARM Cortex-M4 include a single-precision FPU, and the Cortex-M7 will feature
 a double-precision FPU.
 ******************************************************************************/
 
-/* Begin Stacks **************************************************************/
+/* Stacks ********************************************************************/
 
 /* End Stacks ****************************************************************/
 
-/* Begin Header **************************************************************/
+/* Header ********************************************************************/
     .section            .text
     .arch               armv7-m
     .thumb_func
@@ -32,7 +32,7 @@ a double-precision FPU.
     .align              3
 /* End Header ****************************************************************/
 
-/* Begin Exports *************************************************************/
+/* Export ********************************************************************/
     /* Disable all interrupts */
     .global             __RME_Disable_Int
     /* Enable all interrupts */
@@ -51,9 +51,9 @@ a double-precision FPU.
     .global             ___RME_A7M_Thd_Cop_Restore
     /* The MPU setup routine */
     .global             ___RME_A7M_MPU_Set
-/* End Exports ***************************************************************/
+/* End Export ****************************************************************/
 
-/* Begin Imports *************************************************************/
+/* Import ********************************************************************/
     /* What CMSIS provided. Have to call these. */
     .global             SystemInit
     /* The kernel entry of RME. This will be defined in C language. */
@@ -66,9 +66,9 @@ a double-precision FPU.
     .global             __RME_A7M_Fault_Handler
     /* The generic interrupt handler for all other vectors. */
     .global             __RME_A7M_Generic_Handler
-/* End Imports ***************************************************************/
+/* End Import ****************************************************************/
 
-/* Begin Vector Table ********************************************************/
+/* Vector Table **************************************************************/
     .global             __Vectors
     .global             __Vectors_End
     .global             __initial_sp
@@ -357,11 +357,11 @@ __Vectors:
 __Vectors_End:
 /* End Vector Table **********************************************************/
 
-/* Begin Memory Init *********************************************************/
+/* Memory Init ***************************************************************/
 
 /* End Memory Init ***********************************************************/
 
-/* Begin Handlers ************************************************************/
+/* Handlers ******************************************************************/
 .macro THUMB FUNC
 	.thumb_func
     \FUNC
@@ -951,7 +951,7 @@ THUMB IRQ239_Handler:
     B                   .                   /* Capture faults */
 /* End Handlers **************************************************************/
 
-/* Begin Function:__RME_Disable_Int *******************************************
+/* Function:__RME_Disable_Int *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None. 
@@ -963,7 +963,7 @@ THUMB __RME_Disable_Int:
     BX                  LR                                                 
 /* End Function:__RME_Disable_Int ********************************************/
 
-/* Begin Function:__RME_Enable_Int ********************************************
+/* Function:__RME_Enable_Int **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
@@ -975,7 +975,7 @@ THUMB __RME_Enable_Int:
     BX                  LR
 /* End Function:__RME_Enable_Int *********************************************/
 
-/* Begin Function:__RME_A7M_Wait_Int ******************************************
+/* Function:__RME_A7M_Wait_Int ************************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
@@ -987,7 +987,7 @@ THUMB __RME_A7M_Wait_Int:
     BX                  LR
 /* End Function:__RME_A7M_Wait_Int *******************************************/
 
-/* Begin Function:_RME_Kmain **************************************************
+/* Function:_RME_Kmain ********************************************************
 Description : The entry address of the kernel. Never returns.
 Input       : ptr_t Stack - The stack address to set SP to.
 Output      : None.
@@ -999,7 +999,7 @@ THUMB _RME_Kmain:
     B                   .
 /* End Function:_RME_Kmain ***************************************************/
 
-/* Begin Function:__RME_A7M_MSB_Get *******************************************
+/* Function:__RME_A7M_MSB_Get *************************************************
 Description : Get the MSB of the word.
 Input       : ptr_t Val - The value.
 Output      : None.
@@ -1012,7 +1012,7 @@ THUMB __RME_A7M_MSB_Get:
     BX                  LR
 /* End Function:__RME_A7M_MSB_Get ********************************************/
 
-/* Begin Function:__RME_Enter_User_Mode ***************************************
+/* Function:__RME_Enter_User_Mode *********************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
@@ -1032,7 +1032,7 @@ THUMB __RME_Enter_User_Mode:
     B                   .                   /* Capture faults */
 /* End Function:__RME_Enter_User_Mode ****************************************/
 
-/* Begin Function:SysTick_Handler *********************************************
+/* Function:SysTick_Handler ***************************************************
 Description : The System Tick Timer handler routine. This will in fact call a
               C function to resolve the system service routines.             
 Input       : None.
@@ -1055,7 +1055,7 @@ THUMB SysTick_Handler:
     B                   .                   /* Capture faults */
 /* End Function:SysTick_Handler **********************************************/
 
-/* Begin Function:SVC_Handler *************************************************
+/* Function:SVC_Handler *******************************************************
 Description : The SVC handler routine. This will in fact call a C function to resolve
               the system service routines.             
 Input       : None.
@@ -1078,7 +1078,7 @@ THUMB SVC_Handler:
     B                   .                   /* Capture faults */
 /* End Function:SVC_Handler **************************************************/
 
-/* Begin Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********
+/* Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler ***************
 Description : The multi-purpose handler routine. This will in fact call
               a C function to resolve the system service routines.             
 Input       : None.
@@ -1114,7 +1114,7 @@ THUMB UsageFault_Handler:
     B                   .                   /* Capture faults */
 /* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **********/
 
-/* Begin Function:___RME_A7M_Thd_Cop_Save *************************************
+/* Function:___RME_A7M_Thd_Cop_Save *******************************************
 Description : Save the coprocessor context on switch.         
 Input       : R0 - The pointer to the coprocessor struct.
 Output      : None.
@@ -1128,7 +1128,7 @@ THUMB ___RME_A7M_Thd_Cop_Save:
     B                   .
 /* End Function:___RME_A7M_Thd_Cop_Save **************************************/
 
-/* Begin Function:___RME_A7M_Thd_Cop_Restore **********************************
+/* Function:___RME_A7M_Thd_Cop_Restore ****************************************
 Description : Restore the coprocessor context on switch.             
 Input       : R0 - The pointer to the coprocessor struct.
 Output      : None.
@@ -1142,7 +1142,7 @@ THUMB ___RME_A7M_Thd_Cop_Restore:
     B                   .
 /* End Function:___RME_A7M_Thd_Cop_Restore ***********************************/
 
-/* Begin Function:___RME_A7M_MPU_Set ******************************************
+/* Function:___RME_A7M_MPU_Set ************************************************
 Description : Set the MPU context. We write 8 registers at a time to increase efficiency.            
 Input       : R0 - The pointer to the MPU content.
 Output      : None.

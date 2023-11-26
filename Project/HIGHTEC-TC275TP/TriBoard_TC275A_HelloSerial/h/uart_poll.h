@@ -6,8 +6,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2014
 *====================================================================*/
 
-#ifndef __UART_POLL_H__
-#define __UART_POLL_H__
+#ifndef __UART_POLL__
+#define __UART_POLL__
 
 #ifdef __cplusplus
   extern "C" {
@@ -32,4 +32,4 @@ int _poll_uart(unsigned char *chr);
   }
 #endif /* __cplusplus */
 
-#endif /* __UART_POLL_H__ */
+#endif /* __UART_POLL__ */

@@ -1,0 +1,1 @@
+.include "Platform/RV32P/Chip/rme_platform_wchd8c_gcc.s"

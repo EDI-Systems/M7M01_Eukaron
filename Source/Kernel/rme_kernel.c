@@ -171,26 +171,26 @@ dedicated assembly atomics. If LTO has been enabled, there are three cases:
 (4) "___" : HAL functions that should be called by HAL.
 ******************************************************************************/
 
-/* Includes ******************************************************************/
-#define __HDR_DEFS__
+/* Include *******************************************************************/
+#define __HDR_DEF__
 #include "rme_platform.h"
 #include "Kernel/rme_kernel.h"
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 #include "rme_platform.h"
 #include "Kernel/rme_kernel.h"
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* Private include */
 #include "Kernel/rme_kernel.h"
 
-#define __HDR_PUBLIC_MEMBERS__
+#define __HDR_PUBLIC__
 #include "rme_platform.h"
-#undef __HDR_PUBLIC_MEMBERS__
-/* End Includes **************************************************************/
+#undef __HDR_PUBLIC__
+/* End Include ***************************************************************/
 
-/* Begin Function:_RME_MSB_Generic ********************************************
+/* Function:_RME_MSB_Generic **************************************************
 Description : Find the MSB's position. This is a portable solution for all
               processors; if your processor does not have fast built-in bit
               manipulation support, you can resort to this when porting.
@@ -356,7 +356,7 @@ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value)
 }
 /* End Function:_RME_MSB_Generic *********************************************/
 
-/* Begin Function:_RME_LSB_Generic ********************************************
+/* Function:_RME_LSB_Generic **************************************************
 Description : Find the LSB's position. This is a portable solution for all
               processors; if your processor does not have fast built-in bit
               manipulation support, you can resort to this when porting.
@@ -522,7 +522,7 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
 }
 /* End Function:_RME_LSB_Generic *********************************************/
 
-/* Begin Function:_RME_RBT_Generic ********************************************
+/* Function:_RME_RBT_Generic **************************************************
 Description : Reverse bit order. This is a portable solution meant for all
               processors; if your processor does not have fast built-in RBT,
               you can resort to this instead.
@@ -603,7 +603,7 @@ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value)
 }
 /* End Function:_RME_RBT_Generic *********************************************/
 
-/* Begin Function:_RME_List_Crt ***********************************************
+/* Function:_RME_List_Crt *****************************************************
 Description : Create a doubly linked list.
 Input       : struct RME_List* Head - The pointer to the list head.
 Output      : None.
@@ -616,7 +616,7 @@ void _RME_List_Crt(struct RME_List* Head)
 }
 /* End Function:_RME_List_Crt ************************************************/
 
-/* Begin Function:_RME_List_Del ***********************************************
+/* Function:_RME_List_Del *****************************************************
 Description : Delete a node from the doubly-linked list.
 Input       : struct RME_List* Prev - The previous node.
               struct RME_List* Next - The next node.
@@ -630,7 +630,7 @@ void _RME_List_Del(struct RME_List* Prev, struct RME_List* Next)
 }
 /* End Function:_RME_List_Del ************************************************/
 
-/* Begin Function:_RME_List_Ins ***********************************************
+/* Function:_RME_List_Ins *****************************************************
 Description : Insert a node to the doubly-linked list.
 Input       : struct RME_List* New - The new node to insert.
               struct RME_List* Prev - The previous node.
@@ -649,7 +649,7 @@ void _RME_List_Ins(struct RME_List* New,
 }
 /* End Function:_RME_List_Ins ************************************************/
 
-/* Begin Function:_RME_Clear **************************************************
+/* Function:_RME_Clear ********************************************************
 Description : Memset a memory area to zero. This is not fast due to byte operations;
               this is not meant for large memory. However, it is indeed secure.
 Input       : void* Addr - The address to clear.
@@ -666,7 +666,7 @@ void _RME_Clear(void* Addr, rme_ptr_t Size)
 }
 /* End Function:_RME_Clear ***************************************************/
 
-/* Begin Function:_RME_Memcmp *************************************************
+/* Function:_RME_Memcmp *******************************************************
 Description : Compare two memory segments to see if they are equal. This is not
               fast due to byte operations; this is not meant for large memory.
 Input       : const void* Ptr1 - The first memory region.
@@ -703,7 +703,7 @@ rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
 }
 /* End Function:_RME_Memcmp **************************************************/
 
-/* Begin Function:_RME_Memcpy *************************************************
+/* Function:_RME_Memcpy *******************************************************
 Description : Copy one segment of memory to another segment. This is not fast
               due to byte operations; this is not meant for large memory.
 Input       : volatile void* Dst - The first memory region.
@@ -722,7 +722,7 @@ void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num)
 }
 /* End Function:_RME_Memcpy **************************************************/
 
-/* Begin Function:_RME_Distance ***********************************************
+/* Function:_RME_Distance *****************************************************
 Description : Compute the absolute distance between two numbers, when integer
               wraparound is considered.
 Input       : rme_ptr_t Num1 - The first number.
@@ -745,7 +745,7 @@ rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2)
 }
 /* End Function:_RME_Distance ************************************************/
 
-/* Begin Function:RME_Int_Print ***********************************************
+/* Function:RME_Int_Print *****************************************************
 Description : Print a signed integer on the debugging console. This integer is
               printed as decimal with sign.
 Input       : rme_cnt_t Int - The integer to print.
@@ -830,7 +830,7 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
 #endif
 /* End Function:RME_Int_Print ************************************************/
 
-/* Begin Function:RME_Hex_Print ***********************************************
+/* Function:RME_Hex_Print *****************************************************
 Description : Print a unsigned integer on the debugging console. This integer is
               printed as hexadecimal.
 Input       : rme_ptr_t Uint - The unsigned integer to print.
@@ -892,7 +892,7 @@ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
 #endif
 /* End Function:RME_Hex_Print ************************************************/
 
-/* Begin Function:RME_Str_Print ***********************************************
+/* Function:RME_Str_Print *****************************************************
 Description : Print a string the kernel console.
               This is only used for kernel-level debugging.
 Input       : rme_s8_t* String - The string to print
@@ -926,7 +926,7 @@ rme_cnt_t RME_Str_Print(rme_s8_t* String)
 #endif
 /* End Function:RME_Str_Print ************************************************/
 
-/* Begin Function:RME_Kmain ***************************************************
+/* Function:RME_Kmain *********************************************************
 Description : The entry of the operating system.
 Input       : None.
 Output      : None.
@@ -954,7 +954,7 @@ rme_ret_t RME_Kmain(void)
 }
 /* End Function:RME_Kmain ****************************************************/
 
-/* Begin Function:_RME_Lowlvl_Check ******************************************
+/* Function:_RME_Lowlvl_Check ************************************************
 Description : Do some low-level checking for the operating system.
 Input       : None.
 Output      : None.
@@ -985,7 +985,7 @@ rme_ret_t _RME_Lowlvl_Check(void)
 }
 /* End Function:_RME_Lowlvl_Check ********************************************/
 
-/* Begin Function:_RME_Svc_Handler ********************************************
+/* Function:_RME_Svc_Handler **************************************************
 Description : The system call handler of the operating system. The register set 
               of the current thread shall be passed in as a parameter.
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -1445,7 +1445,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:_RME_Svc_Handler *********************************************/
 
-/* Begin Function:_RME_Tim_Handler ********************************************
+/* Function:_RME_Tim_Handler **************************************************
 Description : The system tick timer handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Slice - Number of slices passed since last call of
@@ -1497,7 +1497,7 @@ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice)
 }
 /* End Function:_RME_Tim_Handler *********************************************/
 
-/* Begin Function:_RME_Tim_Elapse *********************************************
+/* Function:_RME_Tim_Elapse ***************************************************
 Description : Honor the elapse of time from the last timer firing.
 Input       : rme_ptr_t Slice - Number of slices passed since last call of
                                 _RME_Tim_Elapse or _RME_Tim_Handler.
@@ -1530,7 +1530,7 @@ void _RME_Tim_Elapse(rme_ptr_t Slice)
 }
 /* End Function:_RME_Tim_Elapse **********************************************/
 
-/* Begin Function:_RME_Tim_Future *********************************************
+/* Function:_RME_Tim_Future ***************************************************
 Description : Honor the elapse of time from the last timer firing.
 Input       : None.
 Output      : None.
@@ -1544,7 +1544,7 @@ rme_ptr_t _RME_Tim_Future(void)
 }
 /* End Function:_RME_Tim_Future **********************************************/
 
-/* Begin Function:_RME_Cpt_Boot_Init ******************************************
+/* Function:_RME_Cpt_Boot_Init ************************************************
 Description : Create the first capability table in the system, at boot-time. 
               This function must be called at system startup before setting up
               any other kernel objects.
@@ -1611,7 +1611,7 @@ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
 }
 /* End Function:_RME_Cpt_Boot_Init *******************************************/
 
-/* Begin Function:_RME_Cpt_Boot_Crt *******************************************
+/* Function:_RME_Cpt_Boot_Crt *************************************************
 Description : Create a boot-time capability table at the designated memory
               address.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -1692,7 +1692,7 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Cpt_Crt ************************************************
+/* Function:_RME_Cpt_Crt ******************************************************
 Description : Create a capability table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt_Crt - The capability table that contains the 
@@ -1796,7 +1796,7 @@ rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Crt *************************************************/
 
-/* Begin Function:_RME_Cpt_Del ************************************************
+/* Function:_RME_Cpt_Del ******************************************************
 Description : Delete a layer of capability table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt_Del - The capability table that contains the
@@ -1868,7 +1868,7 @@ rme_ret_t _RME_Cpt_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Del *************************************************/
 
-/* Begin Function:_RME_Cpt_Frz ************************************************
+/* Function:_RME_Cpt_Frz ******************************************************
 Description : Freeze a capability in the capability table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt_Frz  - The capability table containing the cap
@@ -1964,7 +1964,7 @@ rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Frz *************************************************/
 
-/* Begin Function:_RME_Cpt_Add ************************************************
+/* Function:_RME_Cpt_Add ******************************************************
 Description : Delegate capability from one capability table to another.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt_Dst - The capability to the destination 
@@ -2323,7 +2323,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Add *************************************************/
 
-/* Begin Function:_RME_Cpt_Rem ************************************************
+/* Function:_RME_Cpt_Rem ******************************************************
 Description : Remove one capability from the capability table. This function
               reverts the delegation.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -2382,7 +2382,7 @@ rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Cpt_Rem *************************************************/
 
-/* Begin Function:_RME_Pgt_Boot_Crt *******************************************
+/* Function:_RME_Pgt_Boot_Crt *************************************************
 Description : Create a boot-time page table.
               This function does not require a kernel memory capability.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -2532,7 +2532,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Pgt_Boot_Add *******************************************
+/* Function:_RME_Pgt_Boot_Add *************************************************
 Description : This function is exclusively used to set up the Init process's
               memory mappings in the booting process. When the system has
               booted, it won't possible to fabricate pages like this.
@@ -2608,7 +2608,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Boot_Add ********************************************/
 
-/* Begin Function:_RME_Pgt_Boot_Con *******************************************
+/* Function:_RME_Pgt_Boot_Con *************************************************
 Description : Map a child page table from the parent page table at boot-time.
               This does not check flags.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -2736,7 +2736,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Boot_Con ********************************************/
 
-/* Begin Function:_RME_Pgt_Crt ************************************************
+/* Function:_RME_Pgt_Crt ******************************************************
 Description : Create a page table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability table that contains the newly
@@ -2892,7 +2892,7 @@ rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Crt *************************************************/
 
-/* Begin Function:_RME_Pgt_Del ************************************************
+/* Function:_RME_Pgt_Del ******************************************************
 Description : Delete a page table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability to the captbl that may contain
@@ -2967,7 +2967,7 @@ rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Del *************************************************/
 
-/* Begin Function:_RME_Pgt_Add ************************************************
+/* Function:_RME_Pgt_Add ******************************************************
 Description : Delegate a page from one page table to another. This is the only
               way to add pages to new page tables after the system boots.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -3131,7 +3131,7 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Add *************************************************/
 
-/* Begin Function:_RME_Pgt_Rem ************************************************
+/* Function:_RME_Pgt_Rem ******************************************************
 Description : Remove a page from the page table. We are doing unmapping of a
               page.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -3194,7 +3194,7 @@ rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Rem *************************************************/
 
-/* Begin Function:_RME_Pgt_Con ************************************************
+/* Function:_RME_Pgt_Con ******************************************************
 Description : Map a child page table into the parent page table, to construct
               an address space tree.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -3347,7 +3347,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Con *************************************************/
 
-/* Begin Function:_RME_Pgt_Des ************************************************
+/* Function:_RME_Pgt_Des ******************************************************
 Description : Unmap a child page table from the parent page table, destructing
               the address space tree.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -3427,7 +3427,7 @@ rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Pgt_Des *************************************************/
 
-/* Begin Function:_RME_Kot_Init ***********************************************
+/* Function:_RME_Kot_Init *****************************************************
 Description : Initialize the kernel object table according to the total kernel
               memory size, which decides the number of words in the table.
 Input       : rme_ptr_t Words - the number of words in the table.
@@ -3458,7 +3458,7 @@ rme_ret_t _RME_Kot_Init(rme_ptr_t Word)
 }
 /* End Function:_RME_Kot_Init ************************************************/
 
-/* Begin Function:_RME_Kot_Mark ***********************************************
+/* Function:_RME_Kot_Mark *****************************************************
 Description : Populate the kernel object bitmap contiguously.
 Input       : rme_ptr_t Kaddr - The kernel virtual address.
               rme_ptr_t Size - The size of the memory to populate.
@@ -3648,7 +3648,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 }
 /* End Function:_RME_Kot_Mark ************************************************/
 
-/* Begin Function:_RME_Kot_Erase **********************************************
+/* Function:_RME_Kot_Erase ****************************************************
 Description : Depopulate the kernel object bitmap contiguously. We do not need 
               CAS on erasure operations.
 Input       : rme_ptr_t Kaddr - The kernel virtual address.
@@ -3766,7 +3766,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
 }
 /* End Function:_RME_Kot_Erase ***********************************************/
 
-/* Begin Function:_RME_Kom_Boot_Crt *******************************************
+/* Function:_RME_Kom_Boot_Crt *************************************************
 Description : Create boot-time kernel memory capability. Kernel memory allow
               you to create specific types of kernel objects in a specific 
               kernel memory range. The initial kernel memory capability's
@@ -3838,7 +3838,7 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Kom_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_CPU_Local_Init *****************************************
+/* Function:_RME_CPU_Local_Init ***********************************************
 Description : Initialize the CPU-local data structure.
 Input       : struct RME_CPU_Local* Local - The pointer to the per-CPU values.
               rme_ptr_t CPUID - The CPUID of the CPU.
@@ -3864,7 +3864,7 @@ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
 }
 /* End Function:_RME_CPU_Local_Init ******************************************/
 
-/* Begin Function:_RME_Thd_Fatal *********************************************
+/* Function:_RME_Thd_Fatal ***************************************************
 Description : The fatal fault handler of RME. This handler will be called by
               the ISR that handles the exceptions. This indicates that a fatal
               exception has happened and we need to see if this thread is in a
@@ -3929,7 +3929,7 @@ rme_ret_t _RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
 }
 /* End Function:_RME_Thd_Fatal ***********************************************/
 
-/* Begin Function:_RME_Run_Ins ************************************************
+/* Function:_RME_Run_Ins ******************************************************
 Description : Insert a thread into the runqueue. In this function we do not
               check if the thread is on the current core, or is runnable,
               because it should have been checked by someone else.
@@ -3959,7 +3959,7 @@ rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd)
 }
 /* End Function:_RME_Run_Ins *************************************************/
 
-/* Begin Function:_RME_Run_Del ************************************************
+/* Function:_RME_Run_Del ******************************************************
 Description : Delete a thread from the runqueue.
 Input       : struct RME_Thd_Struct* Thd - The thread to delete.
 Output      : None.
@@ -3994,7 +3994,7 @@ rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd)
 }
 /* End Function:_RME_Run_Del *************************************************/
 
-/* Begin Function:_RME_Run_High ***********************************************
+/* Function:_RME_Run_High *****************************************************
 Description : Find the thread with the highest priority on the core.
 Input       : struct RME_CPU_Local* Local - The CPU-local data structure.
 Output      : None.
@@ -4032,7 +4032,7 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* Local)
 }
 /* End Function:_RME_Run_High ************************************************/
 
-/* Begin Function:_RME_Run_Notif **********************************************
+/* Function:_RME_Run_Notif ****************************************************
 Description : Send a notification to the thread's parent, to notify that this 
               thread is currently out of time, or have a fault.
               This function includes kernel send, so we need to call 
@@ -4076,7 +4076,7 @@ rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
 }
 /* End Function:_RME_Run_Notif ***********************************************/
 
-/* Begin Function:_RME_Thd_Pgt ************************************************
+/* Function:_RME_Thd_Pgt ******************************************************
 Description : Get a thread's page table. 
 Input       : struct RME_Thd_Struct* Thd - The thread.
 Output      : None.
@@ -4103,7 +4103,7 @@ struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd)
 }
 /* End Function:_RME_Thd_Pgt *************************************************/
 
-/* Begin Function:_RME_Run_Swt ************************************************
+/* Function:_RME_Run_Swt ******************************************************
 Description : Switch the register set and page table to another thread. 
 Input       : struct RME_Reg_Struct* Reg - The register set.
               struct RME_Thd_Struct* Thd_Cur - The current thread.
@@ -4157,7 +4157,7 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
 }
 /* End Function:_RME_Run_Swt *************************************************/
 
-/* Begin Function:_RME_Prc_Boot_Crt *******************************************
+/* Function:_RME_Prc_Boot_Crt *************************************************
 Description : Create a process. A process is in fact a protection domain
               associated with a set of capabilities.
               This function does not require a kernel memory capability, and is
@@ -4229,7 +4229,7 @@ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Prc_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Prc_Crt ************************************************
+/* Function:_RME_Prc_Crt ******************************************************
 Description : Create a process. A process is in fact a protection domain
               associated with a set of capabilities.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -4299,7 +4299,7 @@ rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Prc_Crt *************************************************/
 
-/* Begin Function:_RME_Prc_Del ************************************************
+/* Function:_RME_Prc_Del ******************************************************
 Description : Delete a process.
 Input       : struct RME_Cap_Cpt* Cpt - The capability table.
               rme_cid_t Cap_Cpt - The capability to the capability table.
@@ -4345,7 +4345,7 @@ rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Prc_Del *************************************************/
 
-/* Begin Function:_RME_Prc_Cpt ************************************************
+/* Function:_RME_Prc_Cpt ******************************************************
 Description : Change a process's capability table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Prc - The capability to the process that have been
@@ -4398,7 +4398,7 @@ rme_ret_t _RME_Prc_Cpt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Prc_Cpt *************************************************/
 
-/* Begin Function:_RME_Prc_Pgt ************************************************
+/* Function:_RME_Prc_Pgt ******************************************************
 Description : Change a process's page table.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Prc - The capability to the process that have been
@@ -4451,7 +4451,7 @@ rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Prc_Pgt *************************************************/
 
-/* Begin Function:_RME_Thd_Boot_Crt *******************************************
+/* Function:_RME_Thd_Boot_Crt *************************************************
 Description : Create a boot-time thread. The boot-time thread is per-core, and
               will have infinite budget, and has no parent. This function
               allows creation of a thread on behalf of other processors,
@@ -4579,7 +4579,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Thd_Crt ************************************************
+/* Function:_RME_Thd_Crt ******************************************************
 Description : Create a thread. A thread is the minimal kernel-level execution
               unit.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -4731,7 +4731,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Crt *************************************************/
 
-/* Begin Function:_RME_Thd_Del ************************************************
+/* Function:_RME_Thd_Del ******************************************************
 Description : Delete a thread.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table. 
               rme_cid_t Cap_Cpt - The capability to the capability table.
@@ -4805,7 +4805,7 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Del *************************************************/
 
-/* Begin Function:_RME_Thd_Exec_Set *******************************************
+/* Function:_RME_Thd_Exec_Set *************************************************
 Description : Set a thread's entry point and stack. The registers will be
               initialized with these contents.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -4879,7 +4879,7 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Exec_Set ********************************************/
 
-/* Begin Function:_RME_Thd_Sched_Bind *****************************************
+/* Function:_RME_Thd_Sched_Bind ***********************************************
 Description : Set a thread's priority level, and its scheduler thread. When
               there are any state changes on this thread, a notification will
               be sent to its scheduler thread. If the state of the thread
@@ -5142,7 +5142,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Sched_Bind ******************************************/
 
-/* Begin Function:_RME_Thd_Sched_Prio *****************************************
+/* Function:_RME_Thd_Sched_Prio ***********************************************
 Description : Change a thread's priority level. This can only be called from
               the core that have the thread bound. To facilitate scheduling,
               this system call allows up to 3 thread's priority changes per
@@ -5289,7 +5289,7 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Sched_Prio ******************************************/
 
-/* Begin Function:_RME_Thd_Sched_Free *****************************************
+/* Function:_RME_Thd_Sched_Free ***********************************************
 Description : Free a thread from its current binding. This function can only be
               executed from the same core on with the thread.
               This system call can cause a potential context switch.
@@ -5429,7 +5429,7 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Sched_Free ******************************************/
 
-/* Begin Function:_RME_Thd_Sched_Rcv ******************************************
+/* Function:_RME_Thd_Sched_Rcv ************************************************
 Description : Try to receive a notification from the scheduler queue. This
               can only be called from the same core the thread is on.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -5503,7 +5503,7 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Sched_Rcv *******************************************/
 
-/* Begin Function:_RME_Thd_Time_Xfer ******************************************
+/* Function:_RME_Thd_Time_Xfer ************************************************
 Description : Transfer time from one thread to another. This can only be called
               from the core that the thread is on, and the the two threads
               involved in the time transfer must be on the same core.
@@ -5835,7 +5835,7 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Time_Xfer *******************************************/
 
-/* Begin Function:_RME_Thd_Swt ************************************************
+/* Function:_RME_Thd_Swt ******************************************************
 Description : Switch to another thread. The thread to switch to must have the same
               preemptive priority as this thread, and have time, and not blocked.
               If trying to switch to a higher priority thread, this is impossible
@@ -6019,7 +6019,7 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Thd_Swt *************************************************/
 
-/* Begin Function:_RME_Sig_Boot_Crt *******************************************
+/* Function:_RME_Sig_Boot_Crt *************************************************
 Description : Create a boot-time kernel signal endpoint. This is only used at
               boot-time to create endpoints that are related directly to 
               hardware interrupts.
@@ -6069,7 +6069,7 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Sig_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Sig_Crt ************************************************
+/* Function:_RME_Sig_Crt ******************************************************
 Description : Create a signal endpoint.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability to the capability table to use
@@ -6116,7 +6116,7 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Sig_Crt *************************************************/
 
-/* Begin Function:_RME_Sig_Del ************************************************
+/* Function:_RME_Sig_Del ******************************************************
 Description : Delete a signal endpoint.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability to the capability table to
@@ -6165,7 +6165,7 @@ rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Sig_Del *************************************************/
 
-/* Begin Function:_RME_Kern_High **********************************************
+/* Function:_RME_Kern_High ****************************************************
 Description : Pick the thread with the highest priority to run. Always call
               this after you finish all your kernel sending stuff in the
               interrupt handler, or the kernel send will not be correct.
@@ -6237,7 +6237,7 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
 }
 /* End Function:_RME_Kern_High ***********************************************/
 
-/* Begin Function:_RME_Kern_Snd ***********************************************
+/* Function:_RME_Kern_Snd *****************************************************
 Description : Try to send a signal to an endpoint from kernel. This is intended
               to be called in the interrupt routines in the kernel, and this is
               not a system call. The capability passed in must be the root
@@ -6339,7 +6339,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
 }
 /* End Function:_RME_Kern_Snd ************************************************/
 
-/* Begin Function:_RME_Sig_Snd ************************************************
+/* Function:_RME_Sig_Snd ******************************************************
 Description : Try to send to a signal endpoint. This system call can cause
               a potential context switch.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
@@ -6470,7 +6470,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Sig_Snd *************************************************/
 
-/* Begin Function:_RME_Sig_Rcv ************************************************
+/* Function:_RME_Sig_Rcv ******************************************************
 Description : Try to receive from a signal endpoint. The rules for signal
               endpoint receive is:
               1.If a receive endpoint have many send endpoints, everyone can
@@ -6671,7 +6671,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Sig_Rcv *************************************************/
 
-/* Begin Function:_RME_Inv_Crt ************************************************
+/* Function:_RME_Inv_Crt ******************************************************
 Description : Create an invocation stub.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability to the capability table to use
@@ -6755,7 +6755,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Inv_Crt *************************************************/
 
-/* Begin Function:_RME_Inv_Del ************************************************
+/* Function:_RME_Inv_Del ******************************************************
 Description : Delete an invocation stub.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Cpt - The capability to the capability table to
@@ -6815,7 +6815,7 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Inv_Del *************************************************/
 
-/* Begin Function:_RME_Inv_Set ************************************************
+/* Function:_RME_Inv_Set ******************************************************
 Description : Set an invocation stub's entry point and stack. The registers will
               be initialized with these contents.
 Input       : struct RME_Cap_Cpt* Cpt - The capability table.
@@ -6855,7 +6855,7 @@ rme_ret_t _RME_Inv_Set(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Inv_Set *************************************************/
 
-/* Begin Function:_RME_Inv_Act ************************************************
+/* Function:_RME_Inv_Act ******************************************************
 Description : Call the invocation stub. One parameter is guaranteed; however, 
               some platforms may provide more than that.
 Input       : struct RME_Cap_Cpt* Cpt - The capability table.
@@ -6931,7 +6931,7 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Inv_Act *************************************************/
 
-/* Begin Function:_RME_Inv_Ret ************************************************
+/* Function:_RME_Inv_Ret ******************************************************
 Description : Return from the invocation function, and set the return value to
               the old register set. This function does not need a capability
               table to work.
@@ -7021,7 +7021,7 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 }
 /* End Function:_RME_Inv_Ret *************************************************/
 
-/* Begin Function:_RME_Kfn_Boot_Crt *******************************************
+/* Function:_RME_Kfn_Boot_Crt *************************************************
 Description : This function is used to create boot-time kernel call capability.
               This kind of capability that does not have a kernel object.
               Kernel function capabilities allow you to execute user-defined 
@@ -7067,7 +7067,7 @@ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:_RME_Kfn_Boot_Crt ********************************************/
 
-/* Begin Function:_RME_Kfn_Act ************************************************
+/* Function:_RME_Kfn_Act ******************************************************
 Description : Activate a kernel function.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               struct RME_Reg_Struct* Reg - The register set.

@@ -84,45 +84,48 @@ F30    $ft10      temporary (caller-save)
 F31    $ft11      temporary (caller-save)
 ******************************************************************************/
 
-/* Begin Header **************************************************************/
-    .section            .text,"ax",@progbits
-    .align              1
-/* End Header ****************************************************************/
+/* Import ********************************************************************/
+    /* Locations provided by the linker */
+    .extern             __RME_Stack
+    .extern             __RME_Global
+    .extern             __RME_Data_Load
+    .extern             __RME_Data_Start
+    .extern             __RME_Data_End
+    .extern             __RME_Zero_Start
+    .extern             __RME_Zero_End
+    /* Handlers */
+    .extern             __RME_RV32GP_Handler
+    .extern             __RME_RV32GP_Lowlvl_Preinit
+    /* Kernel entry */
+    .extern             main
+/* End Import ****************************************************************/
 
-/* Begin Exports *************************************************************/
+/* Export ********************************************************************/
     /* Disable all interrupts */
     .global             __RME_Int_Disable
     /* Enable all interrupts */
     .global             __RME_Int_Enable
-    /* Kernel main function wrapper */
-    .global             __RME_Kmain
     /* Entering of the user mode */
     .global             __RME_User_Enter
-    /* The compare-and-swap atomic instruction */
-    .global             __RME_RV32P_Comp_Swap
-    /* The fetch-and-add atomic instruction. */
-    .global             __RME_RV32P_Fetch_Add
-    /* The fetch-and-logic-and atomic instruction. */
-    .global             __RME_RV32P_Fetch_And
     /* A full barrier */
     .global             __RME_RV32P_Barrier
     /* CSR manipulations */
-    .global             __RME_RV32P_MCAUSE_Get
-    .global             __RME_RV32P_MTVAL_Set
-    .global             __RME_RV32P_MTVAL_Get
-    .global             __RME_RV32P_MCYCLE_Get
-    .global             __RME_RV32P_MISA_Get
-    .global             __RME_RV32P_MSTATUS_Get
-    .global             __RME_RV32P_MSTATUS_Set
+    .global             ___RME_RV32P_MCAUSE_Get
+    .global             ___RME_RV32P_MTVAL_Set
+    .global             ___RME_RV32P_MTVAL_Get
+    .global             ___RME_RV32P_MCYCLE_Get
+    .global             ___RME_RV32P_MISA_Get
+    .global             ___RME_RV32P_MSTATUS_Get
+    .global             ___RME_RV32P_MSTATUS_Set
     /* Handler for everything */
     .global             __RME_RV32P_Handler
     /* Coprocessor save/load */
     .global             ___RME_RV32P_Thd_Cop_Clear_RVF
-    .global             ___RME_RV32P_Thd_Cop_Clear_RVD
+    .global             ___RME_RV32P_Thd_Cop_Clear_RVFD
     .global             ___RME_RV32P_Thd_Cop_Save_RVF
-    .global             ___RME_RV32P_Thd_Cop_Save_RVD
+    .global             ___RME_RV32P_Thd_Cop_Save_RVFD
     .global             ___RME_RV32P_Thd_Cop_Load_RVF
-    .global             ___RME_RV32P_Thd_Cop_Load_RVD
+    .global             ___RME_RV32P_Thd_Cop_Load_RVFD
     /* The MPU setup routine */
     .global             ___RME_RV32P_PMP_Set1
     .global             ___RME_RV32P_PMP_Set2
@@ -140,307 +143,319 @@ F31    $ft11      temporary (caller-save)
     .global             ___RME_RV32P_PMP_Set14
     .global             ___RME_RV32P_PMP_Set15
     .global             ___RME_RV32P_PMP_Set16
-/* End Exports ***************************************************************/
+/* End Export ****************************************************************/
 
-/* Begin Imports *************************************************************/
-    .extern              __RME_RV32P_Low_Level_Preinit
-    /* The kernel entry of RME. This will be defined in C language. */
-    .extern             RME_Kmain
-/* End Imports ***************************************************************/
+/* Entry *********************************************************************/
+    .section            .text.entry_after,"ax",@progbits
+    .align              3
 
-/* Begin Function:__RME_Int_Disable *******************************************
+    .type               __RME_Entry,@function
+__RME_Entry:
+    /* Set GP and SP */
+    .option             push
+    .option             norelax
+    LA                  gp,__RME_Global
+    .option             pop
+    LA                  sp,__RME_Stack
+    /* Preinitialize hardware before any initialization */
+    CALL                __RME_RV32GP_Lowlvl_Preinit
+    /* Load data section from flash to RAM */
+    LA                  a0,__RME_Data_Load
+    LA                  a1,__RME_Data_Start
+    LA                  a2,__RME_Data_End
+__RME_Data_Load:
+    LW                  t0,(a0)
+    SW                  t0,(a1)
+    ADDI                a0,a0,4
+    ADDI                a1,a1,4
+    BLTU                a1,a2,__RME_Data_Load
+    /* Clear bss zero section */
+    LA                  a0,__RME_Zero_Start
+    LA                  a1,__RME_Zero_End
+__RME_Zero_Clear:
+    SW                  zero,(a0)
+    ADDI                a0,a0,4
+    BLTU                a0,a1,__RME_Zero_Clear
+    /* Branch to main function */
+    J                   main
+/* End Entry *****************************************************************/
+
+/* Function:__RME_Int_Disable *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None. 
 Return      : None.                                
-******************************************************************************/    
+******************************************************************************/
+    .section            .text.__rme_int_disable,"ax",@progbits
+    .align              3
+
+    .type               __RME_Int_Disable,@function
 __RME_Int_Disable:
     /* Disable all interrupts */
     CSRCI               mstatus, 8
     RET
 /* End Function:__RME_Int_Disable ********************************************/
 
-/* Begin Function:__RME_Int_Enable ********************************************
+/* Function:__RME_Int_Enable **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+    .section            .text.__rme_int_enable,"ax",@progbits
+    .align              3
+
+    .type               __RME_Int_Enable,@function
 __RME_Int_Enable:
     /* Enable all interrupts. */
     CSRSI               mstatus, 8
     RET
 /* End Function:__RME_Int_Enable *********************************************/
 
-/* Begin Function:__RME_RV32P_Barrier *****************************************
+/* Function:__RME_RV32P_Barrier ***********************************************
 Description : A full data/instruction barrier.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_barrier,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_Barrier,@function
 __RME_RV32P_Barrier:
-      FENCE
-      FENCE.I
-      RET
+    FENCE
+    FENCE.I
+    RET
 /* End Function:__RME_RV32P_Barrier ******************************************/
 
-/* Begin Function:__RME_RV32P_Comp_Swap ***************************************
-Description : The compare-and-swap atomic instruction. If the Old value is
-              equal to *Ptr, then set the *Ptr as New and return 1; else return
-              0.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t Old - The old value.
-              rme_ptr_t New - The new value.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - If successful, 1; else 0.
-******************************************************************************/
-__RME_RV32P_Comp_Swap:
-    LR.W.AQ            t0, (a0)
-    BNE                t0, a1, __RME_RV32P_Comp_Swap_Fail
-    SC.W.RL            t0, a2, (a0)
-    LI                 a0, 1
-    JR                 ra
-__RME_RV32P_Comp_Swap_Fail:
-    LI                 a0, 0
-    JR                 ra
-/* End Function:__RME_RV32P_Comp_Swap ****************************************/
-
-/* Begin Function:__RME_RV32P_Fetch_Add ***************************************
-Description : The fetch-and-add atomic instruction. Increase the value that is
-              pointed to by the pointer, and return the value before addition.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_cnt_t Addend - The number to add.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - The value before the addition.
-******************************************************************************/
-__RME_RV32P_Fetch_Add:
-    AMOADD.W.AQRL      a0, a1, (a0)
-    JR                 ra
-/* End Function:__RME_RV32P_Fetch_Add ****************************************/
-
-/* Begin Function:__RME_RV32P_Fetch_And ***************************************
-Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
-              value with the operand, and return the value before logic AND.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_cnt_t Operand - The number to logic AND with the destination.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - The value before the AND operation.
-******************************************************************************/
-__RME_RV32P_Fetch_And:
-    AMOAND.W.AQRL      a0, a1,(a0)
-    JR                 ra
-/* End Function:__RME_RV32P_Fetch_And ****************************************/
-
-/* Begin Function:__RME_Kmain *************************************************
-Description : The entry address of the kernel. Never returns.
-Input       : rme_ptr_t Stack - The stack address to set SP to.
-Output      : None.
-Return      : None.
-******************************************************************************/
-__RME_Kmain:
-    ADD                 sp, a0, x0
-    JAL                 RME_Kmain
-/* End Function:__RME_Kmain **************************************************/
-
-/* Begin Function:_RME_RV32P_MCAUSE_Get ***************************************
+/* Function:_RME_RV32P_MCAUSE_Get *********************************************
 Description : Get the MCAUSE register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - MCAUSE value.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_mcause_get,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MCAUSE_Get,@function
 __RME_RV32P_MCAUSE_Get:
     CSRR                a0, mcause
     RET
 /* End Function:_RME_RV32P_MCAUSE_Get ****************************************/
 
-/* Begin Function:_RME_RV32P_MTVAL_Get ****************************************
+/* Function:_RME_RV32P_MTVAL_Get **********************************************
 Description : Get the MTVAL register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - MCAUSE value.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_mtval_get,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MTVAL_Get,@function
 __RME_RV32P_MTVAL_Get:
     CSRR                a0, mtval
     RET
 /* End Function:_RME_RV32P_MTVAL_Get *****************************************/
 
-/* Begin Function:_RME_RV32P_MCYCLE_Get ***************************************
+/* Function:_RME_RV32P_MCYCLE_Get *********************************************
 Description : Get the MCYCLE register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - MCYCLE value.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_mcycle_get,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MCYCLE_Get,@function
 __RME_RV32P_MCYCLE_Get:
     CSRR                a0, mcycle
     RET
 /* End Function:_RME_RV32P_MCYCLE_Get ****************************************/
 
-/* Begin Function:_RME_RV32P_MISA_Get *****************************************
+/* Function:_RME_RV32P_MISA_Get ***********************************************
 Description : Get the MISA register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - MISA value.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_misa_get,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MISA_Get,@function
 __RME_RV32P_MISA_Get:
     CSRR                a0, misa
     RET
 /* End Function:_RME_RV32P_MISA_Get ******************************************/
 
-/* Begin Function:_RME_RV32P_MSTATUS_Get **************************************
+/* Function:_RME_RV32P_MSTATUS_Get ********************************************
 Description : Get the MSTATUS register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - MSTATUS value.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_mstatus_get,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MSTATUS_Get,@function
 __RME_RV32P_MSTATUS_Get:
     CSRR                a0, mstatus
     RET
 /* End Function:_RME_RV32P_MSTATUS_Get ***************************************/
 
-/* Begin Function:_RME_RV32P_MSTATUS_Set **************************************
+/* Function:_RME_RV32P_MSTATUS_Set ********************************************
 Description : Set the MSTATUS register content.
 Input       : $a0 - MSTATUS value.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_mstatus_set,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_MSTATUS_Get,@function
 __RME_RV32P_MSTATUS_Set:
     CSRW                mstatus, a0
     RET
 /* End Function:_RME_RV32P_MSTATUS_Set ***************************************/
 
-/* Begin Function:__RME_User_Enter ********************************************
+/* Function:__RME_User_Enter **************************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
-
 Input       : rme_ptr_t Entry - The user execution startpoint.
               rme_ptr_t Stack - The user stack.
               rme_ptr_t CPUID - The CPUID.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+    .section            .text.__rme_user_enter,"ax",@progbits
+    .align              3
+
+    .type               __RME_User_Enter,@function
 __RME_User_Enter:
-    /* MSTATUS_MPP = 0x00001800: FS clear, previous mode = U, previous interrupt enabled */
+    /* FS clear, previous mode = U, previous interrupt enabled */
     LI                  t0, 0x00001800
     CSRW                mstatus, t0
     CSRW                mepc, a0
     MV                  sp, a1
     MV                  a0, a2
-    /* Load sp for kernel - defined by linker script */
-    LA                  t0, __initial_stack$
-    CSRW                mscratch, t0
     MRET
 /* End Function:__RME_User_Enter *********************************************/
 
-/* Begin Function:__RME_RV32P_Handler *****************************************
+/* Function:__RME_RV32P_Handler ***********************************************
 Description : The generic handler routine. Assuming no vector mode is available
-              regardless.
+              regardless. The C program instead of this is responsible for
+              software PC adjustments before and after an exception.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+    .section            .text.__rme_rv32p_handler,"ax",@progbits
+    .align              3
+
+    .type               __RME_RV32P_Handler,@function
 __RME_RV32P_Handler:
-    CSRRW               sp, mscratch, sp
+    CSRRW               sp,mscratch,sp
     /* Allocate stack space for context saving */
-    ADDI                sp, sp, -33*4
+    ADDI                sp,sp,-33*4
     /* Save all general-purpose registers - RV32G does not have any flag registers */
-    SW                  x31, 32*4(sp)
-    SW                  x30, 31*4(sp)
-    SW                  x29, 30*4(sp)
-    SW                  x28, 29*4(sp)
-    SW                  x27, 28*4(sp)
-    SW                  x26, 27*4(sp)
-    SW                  x25, 26*4(sp)
-    SW                  x24, 25*4(sp)
-    SW                  x23, 24*4(sp)
-    SW                  x22, 23*4(sp)
-    SW                  x21, 22*4(sp)
-    SW                  x20, 21*4(sp)
-    SW                  x19, 20*4(sp)
-    SW                  x18, 19*4(sp)
-    SW                  x17, 18*4(sp)
-    SW                  x16, 17*4(sp)
-    SW                  x15, 16*4(sp)
-    SW                  x14, 15*4(sp)
-    SW                  x13, 14*4(sp)
-    SW                  x12, 13*4(sp)
-    SW                  x11, 12*4(sp)
-    SW                  x10, 11*4(sp)
-    SW                  x9, 10*4(sp)
-    SW                  x8, 9*4(sp)
-    SW                  x7, 8*4(sp)
-    SW                  x6, 7*4(sp)
-    SW                  x5, 6*4(sp)
-    SW                  x4, 5*4(sp)
-    SW                  x3, 4*4(sp)
+    SW                  x31,32*4(sp)
+    SW                  x30,31*4(sp)
+    SW                  x29,30*4(sp)
+    SW                  x28,29*4(sp)
+    SW                  x27,28*4(sp)
+    SW                  x26,27*4(sp)
+    SW                  x25,26*4(sp)
+    SW                  x24,25*4(sp)
+    SW                  x23,24*4(sp)
+    SW                  x22,23*4(sp)
+    SW                  x21,22*4(sp)
+    SW                  x20,21*4(sp)
+    SW                  x19,20*4(sp)
+    SW                  x18,19*4(sp)
+    SW                  x17,18*4(sp)
+    SW                  x16,17*4(sp)
+    SW                  x15,16*4(sp)
+    SW                  x14,15*4(sp)
+    SW                  x13,14*4(sp)
+    SW                  x12,13*4(sp)
+    SW                  x11,12*4(sp)
+    SW                  x10,11*4(sp)
+    SW                  x9,10*4(sp)
+    SW                  x8,9*4(sp)
+    SW                  x7,8*4(sp)
+    SW                  x6,7*4(sp)
+    SW                  x5,6*4(sp)
+    SW                  x4,5*4(sp)
+    SW                  x3,4*4(sp)
     /* Save sp (x2) */
-    CSRR                x3, mscratch
-    SW                  x3, 3*4(sp)
+    CSRR                x3,mscratch
+    SW                  x3,3*4(sp)
     /* Save x1 */
-    SW                  x1, 2*4(sp)
+    SW                  x1,2*4(sp)
     /* Save pc (mepc) */
-    CSRR                x3, mepc
-    SW                  x3, 1*4(sp)
+    CSRR                x3,mepc
+    SW                  x3,1*4(sp)
     /* Save mstatus */
-    CSRR                x3, mstatus
-    SW                  x3, 0*4(sp)
+    CSRR                x3,mstatus
+    SW                  x3,0*4(sp)
 
     /* Load gp for kernel - defined by linker script */
     .option push
     .option norelax
-    LA                  gp, __RME_Global
+    LA                  gp,__RME_Global
     .option pop
     /* Call system main interrupt handler */
     CALL                _RME_RV32P_Handler
 
     /* Load mstatus */
-    LW                  x3, 0*4(sp)
+    LW                  x3,0*4(sp)
     CSRW                mstatus, x3
     /* Load pc (into mepc) */
-    LW                  x3, 1*4(sp)
+    LW                  x3,1*4(sp)
     CSRW                mepc, x3
     /* Load x1 */
-    LW                  x1, 2*4(sp)
+    LW                  x1,2*4(sp)
     /* Load sp (x2, into mscratch) */
-    LW                  x3, 3*4(sp)
-    CSRW                mscratch, x3
+    LW                  x3,3*4(sp)
+    CSRW                mscratch,x3
     /* Load all general-purpose registers - RV32G does not have any flag registers */
-    LW                  x3, 4*4(sp)
-    LW                  x4, 5*4(sp)
-    LW                  x5, 6*4(sp)
-    LW                  x6, 7*4(sp)
-    LW                  x7, 8*4(sp)
-    LW                  x8, 9*4(sp)
-    LW                  x9, 10*4(sp)
-    LW                  x10, 11*4(sp)
-    LW                  x11, 12*4(sp)
-    LW                  x12, 13*4(sp)
-    LW                  x13, 14*4(sp)
-    LW                  x14, 15*4(sp)
-    LW                  x15, 16*4(sp)
-    LW                  x16, 17*4(sp)
-    LW                  x17, 18*4(sp)
-    LW                  x18, 19*4(sp)
-    LW                  x19, 20*4(sp)
-    LW                  x20, 21*4(sp)
-    LW                  x21, 22*4(sp)
-    LW                  x22, 23*4(sp)
-    LW                  x23, 24*4(sp)
-    LW                  x24, 25*4(sp)
-    LW                  x25, 26*4(sp)
-    LW                  x26, 27*4(sp)
-    LW                  x27, 28*4(sp)
-    LW                  x28, 29*4(sp)
-    LW                  x29, 30*4(sp)
-    LW                  x30, 31*4(sp)
-    LW                  x31, 32*4(sp)
-    ADDI                sp, sp, 33*4
+    LW                  x3,4*4(sp)
+    LW                  x4,5*4(sp)
+    LW                  x5,6*4(sp)
+    LW                  x6,7*4(sp)
+    LW                  x7,8*4(sp)
+    LW                  x8,9*4(sp)
+    LW                  x9,10*4(sp)
+    LW                  x10,11*4(sp)
+    LW                  x11,12*4(sp)
+    LW                  x12,13*4(sp)
+    LW                  x13,14*4(sp)
+    LW                  x14,15*4(sp)
+    LW                  x15,16*4(sp)
+    LW                  x16,17*4(sp)
+    LW                  x17,18*4(sp)
+    LW                  x18,19*4(sp)
+    LW                  x19,20*4(sp)
+    LW                  x20,21*4(sp)
+    LW                  x21,22*4(sp)
+    LW                  x22,23*4(sp)
+    LW                  x23,24*4(sp)
+    LW                  x24,25*4(sp)
+    LW                  x25,26*4(sp)
+    LW                  x26,27*4(sp)
+    LW                  x27,28*4(sp)
+    LW                  x28,29*4(sp)
+    LW                  x29,30*4(sp)
+    LW                  x30,31*4(sp)
+    LW                  x31,32*4(sp)
+    ADDI                sp,sp,33*4
     /* Return to user mode */
-    CSRRW               sp, mscratch, sp
+    CSRRW               sp,mscratch,sp
     MRET
 /* End Function:_RME_RV32P_Handler *******************************************/
 
-/* Begin Function:___RME_RV32P_Thd_Cop_Clear **********************************
+/* Function:___RME_RV32P_Thd_Cop_Clear ****************************************
 Description : Clean up the coprocessor state so that the FP information is not
               leaked when switching from a FPU-enabled thread to a FPU-disabled
               thread. Contains two versions for RVF and RVD.
@@ -449,19 +464,23 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 /* RVF */
-    .section            .text.rvf.clear,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_thd_cop_clear_rvf,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Clear_RVF,@function
 ___RME_RV32P_Thd_Cop_Clear_RVF:
     RET
 
 /* RVD */
-    .section            .text.rvd.clear,"ax"
-    .align              1
-___RME_RV32P_Thd_Cop_Clear_RVD:
+    .section            .text.___rme_rv32p_thd_cop_clear_rvfd,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Clear_RVFD,@function
+___RME_RV32P_Thd_Cop_Clear_RVFD:
     RET
 /* End Function:___RME_RV32P_Thd_Cop_Clear ***********************************/
 
-/* Begin Function:___RME_RV32P_Thd_Cop_Save ***********************************
+/* Function:___RME_RV32P_Thd_Cop_Save *****************************************
 Description : Save the coprocessor context on switch.
               Contains two versions for RVF and RVD.
 Input       : A0 - The pointer to the coprocessor struct.
@@ -469,19 +488,23 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 /* RVF */
-    .section            .text.rvf.save,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_thd_cop_save_rvf,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Save_RVF,@function
 ___RME_RV32P_Thd_Cop_Save_RVF:
     RET
 
 /* RVD */
-    .section            .text.rvd.save,"ax"
-    .align              1
-___RME_RV32P_Thd_Cop_Save_RVD:
+    .section            .text.___rme_rv32p_thd_cop_save_rvfd,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Save_RVFD,@function
+___RME_RV32P_Thd_Cop_Save_RVFD:
     RET
 /* End Function:___RME_RV32P_Thd_Cop_Save ************************************/
 
-/* Begin Function:___RME_RV32P_Thd_Cop_Load ***********************************
+/* Function:___RME_RV32P_Thd_Cop_Load *****************************************
 Description : Restore the coprocessor context on switch.
               Contains two versions for RVF and RVD.
 Input       : A0 - The pointer to the coprocessor struct.
@@ -489,19 +512,23 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 /* RVF */
-    .section            .text.rvf.load,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_thd_cop_load_rvf,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Load_RVF,@function
 ___RME_RV32P_Thd_Cop_Load_RVF:
     RET
 
 /* RVD */
-    .section            .text.rvd.load,"ax"
-    .align              1
-___RME_RV32P_Thd_Cop_Load_RVD:
+    .section            .text.___rme_rv32p_thd_cop_load_rvfd,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_Thd_Cop_Load_RVFD,@function
+___RME_RV32P_Thd_Cop_Load_RVFD:
     RET
 /* End Function:___RME_RV32P_Thd_Cop_Save ************************************/
 
-/* Begin Function:___RME_RV32P_PMP_Set ****************************************
+/* Function:___RME_RV32P_PMP_Set **********************************************
 Description : Program the entire PMP array.
 Input       : rme_ptr_t* CFG_Meta - The PMP metadata for PMPCFGs.
               rme_ptr_t* ADDR_Meta - The PMP metadata for PMPADDRs.
@@ -629,119 +656,153 @@ Return      : None.
 .endm
 
 /* Functions - in separate sections so they are stripped if not needed */
-    .section            .text.pmp1,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set1,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set1,@function
 ___RME_RV32P_PMP_Set1:
     PMPCFG_SET1
     PMPADDR_SET1
     RET
 
-    .section            .text.pmp2,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set2,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set2,@function
 ___RME_RV32P_PMP_Set2:
     PMPCFG_SET1
     PMPADDR_SET2
     RET
 
-    .section            .text.pmp3,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set3,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set3,@function
 ___RME_RV32P_PMP_Set3:
     PMPCFG_SET1
     PMPADDR_SET3
     RET
 
-    .section            .text.pmp4,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set4,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set4,@function
 ___RME_RV32P_PMP_Set4:
     PMPCFG_SET1
     PMPADDR_SET4
     RET
 
-    .section            .text.pmp5,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set5,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set5,@function
 ___RME_RV32P_PMP_Set5:
     PMPCFG_SET2
     PMPADDR_SET5
     RET
 
-    .section            .text.pmp6,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set6,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set6,@function
 ___RME_RV32P_PMP_Set6:
     PMPCFG_SET2
     PMPADDR_SET6
     RET
 
-    .section            .text.pmp7,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set7,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set7,@function
 ___RME_RV32P_PMP_Set7:
     PMPCFG_SET2
     PMPADDR_SET7
     RET
 
-    .section            .text.pmp8,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set8,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set8,@function
 ___RME_RV32P_PMP_Set8:
     PMPCFG_SET2
     PMPADDR_SET8
     RET
 
-    .section            .text.pmp9,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set9,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set9,@function
 ___RME_RV32P_PMP_Set9:
     PMPCFG_SET3
     PMPADDR_SET9
     RET
 
-    .section            .text.pmp10,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set10,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set10,@function
 ___RME_RV32P_PMP_Set10:
     PMPCFG_SET3
     PMPADDR_SET10
     RET
 
-    .section            .text.pmp11,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set11,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set11,@function
 ___RME_RV32P_PMP_Set11:
     PMPCFG_SET3
     PMPADDR_SET11
     RET
 
-    .section            .text.pmp12,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set12,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set12,@function
 ___RME_RV32P_PMP_Set12:
     PMPCFG_SET3
     PMPADDR_SET12
     RET
 
-    .section            .text.pmp13,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set13,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set13,@function
 ___RME_RV32P_PMP_Set13:
     PMPCFG_SET4
     PMPADDR_SET13
     RET
 
-    .section            .text.pmp14,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set14,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set14,@function
 ___RME_RV32P_PMP_Set14:
     PMPCFG_SET4
     PMPADDR_SET14
     RET
 
-    .section            .text.pmp15,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set15,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set15,@function
 ___RME_RV32P_PMP_Set15:
     PMPCFG_SET4
     PMPADDR_SET15
     RET
 
-    .section            .text.pmp16,"ax"
-    .align              1
+    .section            .text.___rme_rv32p_pmp_set16,"ax",@progbits
+    .align              3
+
+    .type               ___RME_RV32P_PMP_Set16,@function
 ___RME_RV32P_PMP_Set16:
     PMPCFG_SET4
     PMPADDR_SET16
     RET
 /* End Function:___RME_RV32P_PMP_Set *****************************************/
 
+    .end
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/
+

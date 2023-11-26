@@ -6,8 +6,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2014
 *====================================================================*/
 
-#ifndef __UART_INT_H__
-#define __UART_INT_H__
+#ifndef __UART_INT__
+#define __UART_INT__
 
 #ifdef __cplusplus
   extern "C" {
@@ -32,4 +32,4 @@ int _uart_sending(void);
   }
 #endif /* __cplusplus */
 
-#endif /* __UART_INT_H__ */
+#endif /* __UART_INT__ */

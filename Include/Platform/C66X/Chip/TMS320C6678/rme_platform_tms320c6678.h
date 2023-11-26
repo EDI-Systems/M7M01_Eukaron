@@ -6,7 +6,7 @@ Licence    : The Unlicense; see LICENSE for details.
 Description: The configuration file for TMS320C6678.
 ******************************************************************************/
 
-/* Defines *******************************************************************/
+/* Define ********************************************************************/
 /* Number of CPUs in the system */
 #define RME_C66X_CPU_NUM             8
 /* The virtual memory start address for the kernel objects */
@@ -94,7 +94,7 @@ do \
     RME_C66X_UART_THR=(CHAR); \
 } \
 while(0)
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
 /* End Of File ***************************************************************/
 

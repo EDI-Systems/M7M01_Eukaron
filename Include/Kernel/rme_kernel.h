@@ -21,10 +21,10 @@ Description : The header of the kernel. Whitebox testing of all branches
               particular kernel trap execution) cannot be optimized away.
 ******************************************************************************/
 
-/* Defines *******************************************************************/
-#ifdef __HDR_DEFS__
-#ifndef __RME_KERNEL_H_DEFS__
-#define __RME_KERNEL_H_DEFS__
+/* Define ********************************************************************/
+#ifdef __HDR_DEF__
+#ifndef __RME_KERNEL_DEF__
+#define __RME_KERNEL_DEF__
 /*****************************************************************************/
 /* Generic *******************************************************************/
 #define RME_NULL                                    (0U)
@@ -648,20 +648,20 @@ while(0)
 #define RME_KFN_FLAG_LOW(X)                         ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
 #define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_START(sizeof(rme_ptr_t)*4U)
 
-/* __RME_KERNEL_H_DEFS__ */
+/* __RME_KERNEL_DEF__ */
 #endif
-/* __HDR_DEFS__ */
+/* __HDR_DEF__ */
 #endif
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-/* Structs *******************************************************************/
-#ifdef __HDR_STRUCTS__
-#ifndef __RME_KERNEL_H_STRUCTS__
-#define __RME_KERNEL_H_STRUCTS__
+/* Struct ********************************************************************/
+#ifdef __HDR_STRUCT__
+#ifndef __RME_KERNEL_STRUCT__
+#define __RME_KERNEL_STRUCT__
 
 /* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
+#define __HDR_DEF__
+#undef __HDR_DEF__
 
 /*****************************************************************************/
 /* Generic *******************************************************************/
@@ -888,34 +888,34 @@ struct RME_Cap_Kfn
 };
 
 /*****************************************************************************/
-/* __RME_KERNEL_H_STRUCTS__ */
+/* __RME_KERNEL_STRUCT__ */
 #endif
-/* __HDR_STRUCTS__ */
+/* __HDR_STRUCT__ */
 #endif
-/* End Structs ***************************************************************/
+/* End Struct ****************************************************************/
 
-/* Private Global Variables **************************************************/
-#if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __RME_KERNEL_MEMBERS__
-#define __RME_KERNEL_MEMBERS__
+/* Private Variable **********************************************************/
+#if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
+#ifndef __RME_KERNEL_PUBLIC__
+#define __RME_KERNEL_PUBLIC__
 
 /* In this way we can use the data structures and definitions in the headers */
-#define __HDR_DEFS__
+#define __HDR_DEF__
 
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* If the header is not used in the public mode */
-#ifndef __HDR_PUBLIC_MEMBERS__
+#ifndef __HDR_PUBLIC__
 /*****************************************************************************/
 
 /*****************************************************************************/
-/* End Private Global Variables **********************************************/
+/* End Private Variable ******************************************************/
 
-/* Private C Function Prototypes *********************************************/
+/* Private Function **********************************************************/
 /* Generic *******************************************************************/
 static rme_ret_t _RME_Lowlvl_Check(void);
 
@@ -1100,22 +1100,22 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
 
 /*****************************************************************************/
 #define __EXTERN__
-/* End Private C Function Prototypes *****************************************/
+/* End Private Function ******************************************************/
 
-/* Public Global Variables ***************************************************/
-/* __HDR_PUBLIC_MEMBERS__ */
+/* Public Variable ***********************************************************/
+/* __HDR_PUBLIC__ */
 #else
 #define __EXTERN__ EXTERN 
-/* __HDR_PUBLIC_MEMBERS__ */
+/* __HDR_PUBLIC__ */
 #endif
 
 /*****************************************************************************/
 
 /*****************************************************************************/
 
-/* End Public Global Variables ***********************************************/
+/* End Public Variable *******************************************************/
 
-/* Public C Function Prototypes **********************************************/
+/* Public Function ***********************************************************/
 /* Generic *******************************************************************/
 /* Bit manipulations */
 __EXTERN__ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value);
@@ -1237,11 +1237,11 @@ __EXTERN__ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_KERNEL_MEMBERS__ */
+/* __RME_KERNEL_PUBLIC__ */
 #endif
-/* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
+/* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif
-/* End Public C Function Prototypes ******************************************/
+/* End Public Function *******************************************************/
 
 /* End Of File ***************************************************************/
 

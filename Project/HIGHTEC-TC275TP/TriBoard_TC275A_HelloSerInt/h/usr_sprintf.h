@@ -4,8 +4,8 @@
 *
 * Copyright HighTec EDV-Systeme GmbH 1982-2013
 *====================================================================*/
-#ifndef __USR_SPRINTF_H__
-#define __USR_SPRINTF_H__
+#ifndef __USR_SPRINTF__
+#define __USR_SPRINTF__
 
 #ifdef __cplusplus
   extern "C" {
@@ -21,4 +21,4 @@ int usr_sprintf(char *buf, char const *fmt, ...);
   }
 #endif /* __cplusplus */
 
-#endif /* __USR_SPRINTF_H__ */
+#endif /* __USR_SPRINTF__ */

@@ -5,7 +5,7 @@
 ;Description : The Cortex-M user-level assembly scheduling support of the RME RTOS.
 ;*****************************************************************************/
                 
-;/* Begin Header *************************************************************/
+;/* Header *******************************************************************/
                 ;The align is "(2^3)/8=1(Byte)." In fact it does not take effect.            
                 AREA            ARCH,CODE,READONLY,ALIGN=3                     
                 
@@ -14,7 +14,7 @@
                 PRESERVE8
 ;/* End Header ***************************************************************/
 
-;/* Begin Exports ************************************************************/
+;/* Export *******************************************************************/
                 ;User entry stub
                 EXPORT          RME_Entry
                 ;System call gate
@@ -25,15 +25,15 @@
                 EXPORT          RME_Inv_Stub
                 ;Shut the semihosting up
                 EXPORT          __user_setup_stackheap
-;/* End Exports **************************************************************/
+;/* End Export ***************************************************************/
 
-;/* Begin Imports ************************************************************/
+;/* Import *******************************************************************/
                 ;The ARM C library entrance. This will do all the dirty init jobs for us.
                 IMPORT          __main
                 ;The C routine for 
-;/* End Imports **************************************************************/
+;/* End Import ***************************************************************/
 
-;/* Begin Function:RME_Entry **************************************************
+;/* Function:RME_Entry ********************************************************
 ;Description : The entry of the process.
 ;Input       : None.
 ;Output      : None.
@@ -43,7 +43,7 @@ RME_Entry
                  BX      R0
 ;/* End Function:RME_Entry ***************************************************/
 
-;/* Begin Function:RME_Thd_Stub ***********************************************
+;/* Function:RME_Thd_Stub *****************************************************
 ;Description : The user level stub for thread creation.
 ;Input       : R4 - The entry address.
 ;              R5 - The stack address that we are using now.
@@ -55,7 +55,7 @@ RME_Thd_Stub
                 B        .                  ; Capture faults.
 ;/* End Function:RME_Thd_Stub ************************************************/
 
-;/* Begin Function:RME_Inv_Stub ***********************************************
+;/* Function:RME_Inv_Stub *****************************************************
 ;Description : The user level stub for synchronous invocation.
 ;Input       : R4 - The entry address.
 ;              R5 - The stack address that we are using now.
@@ -67,7 +67,7 @@ RME_Inv_Stub
                 B        .                  ; Capture faults.
 ;/* End Function:RME_Inv_Stub ************************************************/
 
-;/* Begin Function:RME_Svc ****************************************************
+;/* Function:RME_Svc **********************************************************
 ;Description : Trigger a system call.
 ;Input       : R4 - The system call number/other information.
 ;              R5 - Argument 1.
@@ -88,7 +88,7 @@ RME_Svc
                 B          .        ; Shouldn't reach here.       
 ;/* End Function:RME_Svc *****************************************************/
 
-;/* Begin Function:RME_Inv ****************************************************
+;/* Function:RME_Inv **********************************************************
 ;Description : Do an invocation, and get the return value for that invocation as well.
 ;Input       : R4 - The system call number/other information.
 ;              R5 - The invocation capability.
@@ -109,7 +109,7 @@ RME_Inv
                 B          .        ; Shouldn't reach here.       
 ;/* End Function:RME_Svc *****************************************************/
 
-;/* Begin Function:__user_setup_stackheap *************************************
+;/* Function:__user_setup_stackheap *******************************************
 ;Description : We place the function here to shut the SEMIHOSTING up.
 ;Input       : None.
 ;Output      : None.

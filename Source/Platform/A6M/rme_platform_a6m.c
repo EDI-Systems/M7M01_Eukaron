@@ -27,26 +27,26 @@ in a high-to-low order. This is due to the complete lack of possibility of error
 handling on this processor. All pages must be STATIC.
 ******************************************************************************/
 
-/* Includes ******************************************************************/
-#define __HDR_DEFS__
+/* Include *******************************************************************/
+#define __HDR_DEF__
 #include "Platform/A6M/rme_platform_a6m.h"
 #include "Kernel/rme_kernel.h"
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 #include "Platform/A6M/rme_platform_a6m.h"
 #include "Kernel/rme_kernel.h"
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* Private include */
 #include "Platform/A6M/rme_platform_a6m.h"
 
-#define __HDR_PUBLIC_MEMBERS__
+#define __HDR_PUBLIC__
 #include "Kernel/rme_kernel.h"
-#undef __HDR_PUBLIC_MEMBERS__
-/* End Includes **************************************************************/
+#undef __HDR_PUBLIC__
+/* End Include ***************************************************************/
 
-/* Begin Function:main ********************************************************
+/* Function:main **************************************************************
 Description : The entry of the operating system. This function is for 
               compatibility with the existing toolchains.
 Input       : None.
@@ -61,7 +61,7 @@ int main(void)
 }
 /* End Function:main *********************************************************/
 
-/* Begin Function:__RME_A6M_Comp_Swap *****************************************
+/* Function:__RME_A6M_Comp_Swap ***********************************************
 Description : The compare-and-swap atomic instruction. If the Old value is
               equal to *Ptr, then set the *Ptr as New and return 1; else return
               0.
@@ -88,7 +88,7 @@ rme_ptr_t __RME_A6M_Comp_Swap(volatile rme_ptr_t* Ptr,
 }
 /* End Function:__RME_A6M_Comp_Swap ******************************************/
 
-/* Begin Function:__RME_A6M_Fetch_Add *****************************************
+/* Function:__RME_A6M_Fetch_Add ***********************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is 
               pointed to by the pointer, and return the value before addition.
 Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
@@ -108,7 +108,7 @@ rme_ptr_t __RME_A6M_Fetch_Add(volatile rme_ptr_t* Ptr,
 }
 /* End Function:__RME_A6M_Fetch_Add ******************************************/
 
-/* Begin Function:__RME_A6M_Fetch_And *****************************************
+/* Function:__RME_A6M_Fetch_And ***********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
 Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
@@ -128,7 +128,7 @@ rme_ptr_t __RME_A6M_Fetch_And(volatile rme_ptr_t* Ptr,
 }
 /* End Function:__RME_A6M_Fetch_And ******************************************/
 
-/* Begin Function:__RME_Putchar ***********************************************
+/* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In ARMv6-M, under most circumstances, 
               we should use the ITM or serial for such outputs.
 Input       : char Char - The character to print.
@@ -144,7 +144,7 @@ rme_ptr_t __RME_Putchar(char Char)
 #endif
 /* End Function:__RME_Putchar ************************************************/
 
-/* Begin Function:__RME_CPUID_Get *********************************************
+/* Function:__RME_CPUID_Get ***************************************************
 Description : Get the CPUID. This is to identify where we are executing.
 Input       : None.
 Output      : None.
@@ -156,7 +156,7 @@ rme_ptr_t __RME_CPUID_Get(void)
 }
 /* End Function:__RME_CPUID_Get **********************************************/
 
-/* Begin Function:__RME_A6M_Exc_Handler ***************************************
+/* Function:__RME_A6M_Exc_Handler *********************************************
 Description : The fault handler of RME. All ARMv6-M's faults are considered
               fatal due to the lack of appropriate exception information.
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -192,7 +192,7 @@ void __RME_A6M_Exc_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_A6M_Exc_Handler ****************************************/
 
-/* Begin Function:__RME_A6M_Flag_Fast *****************************************
+/* Function:__RME_A6M_Flag_Fast ***********************************************
 Description : Set a fast flag in a flag set. Works for timer interrupts only.
 Input       : rme_ptr_t Base - The base address of the flagset.
               rme_ptr_t Size - The size of the flagset.
@@ -216,7 +216,7 @@ void __RME_A6M_Flag_Fast(rme_ptr_t Base,
 }
 /* End Function:__RME_A6M_Flag_Fast ******************************************/
 
-/* Begin Function:__RME_A6M_Flag_Slow *****************************************
+/* Function:__RME_A6M_Flag_Slow ***********************************************
 Description : Set a slow flag in a flag set. Works for both vectors and events.
 Input       : rme_ptr_t Base - The base address of the flagset.
               rme_ptr_t Size - The size of the flagset.
@@ -241,7 +241,7 @@ void __RME_A6M_Flag_Slow(rme_ptr_t Base,
 }
 /* End Function:__RME_A6M_Flag_Slow ******************************************/
 
-/* Begin Function:__RME_A6M_Vct_Handler ***************************************
+/* Function:__RME_A6M_Vct_Handler *********************************************
 Description : The generic interrupt handler of RME for ARMv6-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Vct_Num - The vector number. For ARMv6-M, this is in accordance
@@ -268,7 +268,7 @@ void __RME_A6M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 }
 /* End Function:__RME_A6M_Vct_Handler ****************************************/
 
-/* Begin Function:__RME_A6M_Tim_Handler ***************************************
+/* Function:__RME_A6M_Tim_Handler *********************************************
 Description : The timer interrupt handler of RME for ARMv6-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : struct RME_Reg_Struct* Reg - The update register set.
@@ -289,7 +289,7 @@ void __RME_A6M_Tim_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_A6M_Tim_Handler ****************************************/
 
-/* Begin Function:__RME_A6M_Svc_Handler ***************************************
+/* Function:__RME_A6M_Svc_Handler *********************************************
 Description : The timer interrupt handler of RME for ARMv6-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : struct RME_Reg_Struct* Reg - The update register set.
@@ -304,7 +304,7 @@ void __RME_A6M_Svc_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_A6M_Svc_Handler ****************************************/
 
-/* Begin Function:__RME_A6M_Pgt_Entry_Mod *************************************
+/* Function:__RME_A6M_Pgt_Entry_Mod *******************************************
 Description : Consult or modify the page table attributes. ARMv6-M only allows 
               consulting page table attributes but does not allow modifying them,
               because there are no architecture-specific flags.
@@ -344,7 +344,7 @@ rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_A6M_Pgt_Entry_Mod **************************************/
 
-/* Begin Function:__RME_A6M_Int_Local_Mod *************************************
+/* Function:__RME_A6M_Int_Local_Mod *******************************************
 Description : Consult or modify the local interrupt controller's vector state.
 Input       : rme_ptr_t Int_Num - The interrupt number to consult or modify.
               rme_ptr_t Operation - The operation to conduct.
@@ -396,7 +396,7 @@ rme_ret_t __RME_A6M_Int_Local_Mod(rme_ptr_t Int_Num,
 }
 /* End Function:__RME_A6M_Int_Local_Mod **************************************/
 
-/* Begin Function:__RME_A6M_Int_Local_Trig ************************************
+/* Function:__RME_A6M_Int_Local_Trig ******************************************
 Description : Trigger a CPU's local event source.
 Input       : rme_ptr_t CPUID - The ID of the CPU. For ARMv6-M, this must be 0.
               rme_ptr_t Evt_Num - The event ID.
@@ -419,7 +419,7 @@ rme_ret_t __RME_A6M_Int_Local_Trig(rme_ptr_t CPUID,
 }
 /* End Function:__RME_A6M_Int_Local_Trig *************************************/
 
-/* Begin Function:__RME_A6M_Evt_Local_Trig ************************************
+/* Function:__RME_A6M_Evt_Local_Trig ******************************************
 Description : Trigger a CPU's local event source.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t CPUID - The ID of the CPU. For ARMv6-M, this must be 0.
@@ -451,7 +451,7 @@ rme_ret_t __RME_A6M_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_A6M_Evt_Local_Trig *************************************/
 
-/* Begin Function:__RME_A6M_Prfth_Mod *****************************************
+/* Function:__RME_A6M_Prfth_Mod ***********************************************
 Description : Modify prefetcher state. Due to the fact that the ARMv6-M architectural
               prefetch is usually permanently enabled, this only controls manufacturer
               specific Flash accelerators. The accelerator is always enabled at
@@ -493,7 +493,7 @@ rme_ret_t __RME_A6M_Prfth_Mod(rme_ptr_t Prfth_ID,
 }
 /* End Function:__RME_A6M_Prfth_Mod ******************************************/
 
-/* Begin Function:__RME_A6M_Perf_CPU_Func *************************************
+/* Function:__RME_A6M_Perf_CPU_Func *******************************************
 Description : CPU feature detection for ARMv6-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Freg_ID - The capability to the thread to consult.
@@ -526,7 +526,7 @@ rme_ret_t __RME_A6M_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_A6M_Perf_CPU_Func **************************************/
 
-/* Begin Function:__RME_A6M_Perf_Mon_Mod **************************************
+/* Function:__RME_A6M_Perf_Mon_Mod ********************************************
 Description : Read or write performance monitor settings. This only works for
               a single performance counter, CYCCNT, and only works for enabling 
               or disabling operations.
@@ -565,7 +565,7 @@ rme_ret_t __RME_A6M_Perf_Mon_Mod(rme_ptr_t Perf_ID,
 }
 /* End Function:__RME_A6M_Perf_Mon_Mod ***************************************/
 
-/* Begin Function:__RME_A6M_Perf_Cycle_Mod ************************************
+/* Function:__RME_A6M_Perf_Cycle_Mod ******************************************
 Description : Cycle performance counter read or write for ARMv6-M. Only supports
               CYCCNT register.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
@@ -597,7 +597,7 @@ rme_ret_t __RME_A6M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_A6M_Perf_Cycle_Mod *************************************/
 
-/* Begin Function:__RME_A6M_Debug_Reg_Mod *************************************
+/* Function:__RME_A6M_Debug_Reg_Mod *******************************************
 Description : Debug regular register modification implementation for ARMv6-M.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -646,7 +646,7 @@ rme_ret_t __RME_A6M_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_A6M_Debug_Reg_Mod **************************************/
 
-/* Begin Function:__RME_A6M_Debug_Inv_Mod *************************************
+/* Function:__RME_A6M_Debug_Inv_Mod *******************************************
 Description : Debug invocation register modification implementation for ARMv6-M.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -706,7 +706,7 @@ rme_ret_t __RME_A6M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_A6M_Debug_Inv_Mod **************************************/
 
-/* Begin Function:__RME_A6M_Debug_Exc_Get *************************************
+/* Function:__RME_A6M_Debug_Exc_Get *******************************************
 Description : Debug exception register extraction implementation for ARMv6-M.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -746,7 +746,7 @@ rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_A6M_Debug_Exc_Get **************************************/
 
-/* Begin Function:__RME_Kfn_Handler *******************************************
+/* Function:__RME_Kfn_Handler *************************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -856,7 +856,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_Kfn_Handler ********************************************/
 
-/* Begin Function:__RME_A6M_Lowlvl_Preinit ************************************
+/* Function:__RME_A6M_Lowlvl_Preinit ******************************************
 Description : Initialize the low-level hardware, before the loading of the kernel
               even takes place.
 Input       : None.
@@ -873,7 +873,7 @@ void __RME_A6M_Lowlvl_Preinit(void)
 }
 /* End Function:__RME_A6M_Lowlvl_Preinit *************************************/
 
-/* Begin Function:__RME_A6M_NVIC_Set_Exc_Prio *********************************
+/* Function:__RME_A6M_NVIC_Set_Exc_Prio ***************************************
 Description : Set the system exception priority in ARMv6-M architecture.
 Input       : rme_cnt_t Exc - The exception number, always nagative.
               rme_ptr_t Prio - The priority to directly write into the priority
@@ -891,7 +891,7 @@ void __RME_A6M_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
 }
 /* End Function:__RME_A6M_NVIC_Set_Exc_Prio **********************************/
 
-/* Begin Function:__RME_Lowlvl_Init *******************************************
+/* Function:__RME_Lowlvl_Init *************************************************
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
@@ -941,7 +941,7 @@ void __RME_Lowlvl_Init(void)
 }
 /* End Function:__RME_Lowlvl_Init ********************************************/
 
-/* Begin Function:__RME_Boot **************************************************
+/* Function:__RME_Boot ********************************************************
 Description : Boot the first process in the system.
 Input       : None.
 Output      : None.
@@ -1032,7 +1032,7 @@ void __RME_Boot(void)
 }
 /* End Function:__RME_Boot ***************************************************/
 
-/* Begin Function:__RME_A6M_Reboot ********************************************
+/* Function:__RME_A6M_Reboot **************************************************
 Description : Reboot the MCU, including all its peripherals.
 Input       : None.
 Output      : None.
@@ -1049,7 +1049,7 @@ void __RME_A6M_Reboot(void)
 }
 /* End Function:__RME_A6M_Reboot *********************************************/
 
-/* Begin Function:__RME_Svc_Param_Get *****************************************
+/* Function:__RME_Svc_Param_Get ***********************************************
 Description : Get the system call parameters from the stack frame.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
@@ -1070,7 +1070,7 @@ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Svc_Param_Get ******************************************/
 
-/* Begin Function:__RME_Svc_Retval_Set ****************************************
+/* Function:__RME_Svc_Retval_Set **********************************************
 Description : Set the system call return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
@@ -1083,7 +1083,7 @@ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Svc_Retval_Set *****************************************/
 
-/* Begin Function:__RME_Thd_Reg_Init ******************************************
+/* Function:__RME_Thd_Reg_Init ************************************************
 Description : Initialize the register set for the thread.
 Input       : rme_ptr_t Attr - Always RME_A6M_ATTR_NONE.
               rme_ptr_t Entry - The thread entry address.
@@ -1111,7 +1111,7 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 
-/* Begin Function:__RME_Thd_Reg_Copy ******************************************
+/* Function:__RME_Thd_Reg_Copy ************************************************
 Description : Copy one set of registers into another.
 Input       : struct RME_Reg_Struct* Src - The source register set.
 Output      : struct RME_Reg_Struct* Dst - The destination register set.
@@ -1134,7 +1134,7 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
 
-/* Begin Function:__RME_Inv_Reg_Save ******************************************
+/* Function:__RME_Inv_Reg_Save ************************************************
 Description : Save the necessary registers on invocation for returning. Only the
               registers that will influence program control flow will be saved.
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -1150,7 +1150,7 @@ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
 }
 /* End Function:__RME_Inv_Reg_Save *******************************************/
 
-/* Begin Function:__RME_Inv_Reg_Restore ***************************************
+/* Function:__RME_Inv_Reg_Restore *********************************************
 Description : Restore the necessary registers for returning from an invocation.
 Input       : struct RME_Iret_Struct* Ret - The invocation return register context.
 Output      : struct RME_Reg_Struct* Reg - The register set.
@@ -1163,7 +1163,7 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
 
-/* Begin Function:__RME_Inv_Retval_Set ****************************************
+/* Function:__RME_Inv_Retval_Set **********************************************
 Description : Set the invocation return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
@@ -1176,7 +1176,7 @@ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
 }
 /* End Function:__RME_Inv_Retval_Set *****************************************/
 
-/* Begin Function:__RME_Pgt_Kom_Init ******************************************
+/* Function:__RME_Pgt_Kom_Init ************************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. In ARMv6-M, we do not need to add such pages.
 Input       : None.
@@ -1190,7 +1190,7 @@ rme_ret_t __RME_Pgt_Kom_Init(void)
 }
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
 
-/* Begin Function:__RME_Pgt_Init **********************************************
+/* Function:__RME_Pgt_Init ****************************************************
 Description : Initialize the page table data structure, according to the capability.
 Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
@@ -1232,7 +1232,7 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 }
 /* End Function:__RME_Pgt_Init ***********************************************/
 
-/* Begin Function:__RME_Pgt_Check *********************************************
+/* Function:__RME_Pgt_Check ***************************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
 Input       : rme_ptr_t Base_Addr - The start mapping address.
@@ -1262,7 +1262,7 @@ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 }
 /* End Function:__RME_Pgt_Check **********************************************/
 
-/* Begin Function:__RME_Pgt_Del_Check *****************************************
+/* Function:__RME_Pgt_Del_Check ***********************************************
 Description : Check if the page table can be deleted.
 Input       : struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
@@ -1276,7 +1276,7 @@ rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 }
 /* End Function:__RME_Pgt_Del_Check ******************************************/
 
-/* Begin Function:___RME_A6M_MPU_RASR_Gen *************************************
+/* Function:___RME_A6M_MPU_RASR_Gen *******************************************
 Description : Generate the RASR metadata for this level of page table.
 Input       : rme_ptr_t* Table - The table to generate data for. This 
                                           is directly the raw page table itself,
@@ -1343,7 +1343,7 @@ rme_ptr_t ___RME_A6M_MPU_RASR_Gen(rme_ptr_t* Table,
 }
 /* End Function:___RME_A6M_MPU_RASR_Gen **************************************/
 
-/* Begin Function:___RME_A6M_MPU_Clear ****************************************
+/* Function:___RME_A6M_MPU_Clear **********************************************
 Description : Clear the MPU setting of this directory. If it exists, clear it;
               If it does not exist, don't do anything.
 Input       : struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU metadata
@@ -1380,7 +1380,7 @@ rme_ret_t ___RME_A6M_MPU_Clear(struct __RME_A6M_MPU_Data* Top_MPU,
 }
 /* End Function:___RME_A6M_MPU_Clear *****************************************/
 
-/* Begin Function:___RME_A6M_MPU_Add ******************************************
+/* Function:___RME_A6M_MPU_Add ************************************************
 Description : Add or update the MPU entry in the top-level MPU table.
               ARMv6-M have no dynamic pages at all; all pages are static by default.
 Input       : struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU metadata.
@@ -1440,7 +1440,7 @@ rme_ret_t ___RME_A6M_MPU_Add(struct __RME_A6M_MPU_Data* Top_MPU,
 }
 /* End Function:___RME_A6M_MPU_Add *******************************************/
 
-/* Begin Function:___RME_A6M_MPU_Update ***************************************
+/* Function:___RME_A6M_MPU_Update *********************************************
 Description : Update the top-level MPU metadata for this level of page table.
 Input       : struct __RME_A6M_Pgt_Meta* Meta - This page table.
               rme_ptr_t Op_Flag - The operation flag. 1 for add, 0 for clean.
@@ -1512,7 +1512,7 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
 }
 /* End Function:___RME_A6M_MPU_Update ****************************************/
 
-/* Begin Function:___RME_A6M_Pgt_Have_Page ************************************
+/* Function:___RME_A6M_Pgt_Have_Page ******************************************
 Description : See if there are pages mapped in a directory.
 Input       : rme_ptr_t* Table - The table to detect.
               rme_ptr_t Num_Order - The number order.
@@ -1535,7 +1535,7 @@ rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
 }
 /* End Function:___RME_A6M_Pgt_Have_Page *************************************/
 
-/* Begin Function:___RME_A6M_Pgt_Have_Pgdir ***********************************
+/* Function:___RME_A6M_Pgt_Have_Pgdir *****************************************
 Description : See if there are page directories mapped mapped in a directory.
 Input       : rme_ptr_t* Table - The table to detect.
               rme_ptr_t Num_Order - The number order.
@@ -1558,7 +1558,7 @@ rme_ptr_t ___RME_A6M_Pgt_Have_Pgdir(rme_ptr_t* Table,
 }
 /* End Function:___RME_A6M_Pgt_Have_Pgdir ************************************/
 
-/* Begin Function:__RME_Pgt_Set ***********************************************
+/* Function:__RME_Pgt_Set *****************************************************
 Description : Set the processor's page table.
 Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
 Output      : None.
@@ -1610,7 +1610,7 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 }
 /* End Function:__RME_Pgt_Set ************************************************/
 
-/* Begin Function:___RME_A6M_Pgt_Refresh **************************************
+/* Function:___RME_A6M_Pgt_Refresh ********************************************
 Description : Refresh the processor's page table content to the latest.
 Input       : None.
 Output      : None.
@@ -1629,7 +1629,7 @@ void ___RME_A6M_Pgt_Refresh(void)
 }
 /* End Function:___RME_A6M_Pgt_Refresh ***************************************/
 
-/* Begin Function:__RME_Pgt_Page_Map ******************************************
+/* Function:__RME_Pgt_Page_Map ************************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
               required to have the same flags. We take advantage of this to increase
@@ -1713,7 +1713,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 }
 /* End Function:__RME_Pgt_Page_Map *******************************************/
 
-/* Begin Function:__RME_Pgt_Page_Unmap ****************************************
+/* Function:__RME_Pgt_Page_Unmap **********************************************
 Description : Unmap a page from the page table.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
@@ -1767,7 +1767,7 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
 }
 /* End Function:__RME_Pgt_Page_Unmap *****************************************/
 
-/* Begin Function:__RME_Pgt_Pgdir_Map *****************************************
+/* Function:__RME_Pgt_Pgdir_Map ***********************************************
 Description : Map a page directory into the page table. This architecture does not
               support page directory flags.
 Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
@@ -1844,7 +1844,7 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
 }
 /* End Function:__RME_Pgt_Pgdir_Map ******************************************/
 
-/* Begin Function:__RME_Pgt_Pgdir_Unmap ***************************************
+/* Function:__RME_Pgt_Pgdir_Unmap *********************************************
 Description : Unmap a page directory from the page table.
 Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap from.
               rme_ptr_t Pos - The position in the page table.
@@ -1898,7 +1898,7 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
 }
 /* End Function:__RME_Pgt_Pgdir_Unmap ****************************************/
 
-/* Begin Function:__RME_Pgt_Lookup ********************************************
+/* Function:__RME_Pgt_Lookup **************************************************
 Description : Lookup a page entry in a page directory.
 Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
@@ -1935,7 +1935,7 @@ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
 }
 /* End Function:__RME_Pgt_Lookup *********************************************/
 
-/* Begin Function:__RME_Pgt_Walk **********************************************
+/* Function:__RME_Pgt_Walk ****************************************************
 Description : Walking function for the page table. This function just does page
               table lookups. The page table that is being walked must be the top-
               level page table. The output values are optional; only pass in pointers

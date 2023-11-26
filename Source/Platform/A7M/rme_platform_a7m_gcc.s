@@ -1,8 +1,8 @@
 /******************************************************************************
-Filename    : rme_platform_a7m_asm_gcc.S
+Filename    : rme_platform_a7m_asm_gcc.s
 Author      : pry
 Date        : 19/01/2017
-Description : The Cortex-M assembly support of the RME RTOS, for gcc.
+Description : The ARMv7-M assembly support of the RME RTOS, for gcc.
 ******************************************************************************/
 
 /* The ARM Cortex-M3/4/7 Architecture *****************************************
@@ -19,20 +19,34 @@ The above 3 registers are saved into the stack in combination(xPSR).
 The ARM Cortex-M4 include a single-precision FPU, and the Cortex-M7 will feature
 a double-precision FPU.
 ******************************************************************************/
-
-/* Begin Stacks **************************************************************/
-
-/* End Stacks ****************************************************************/
-
-/* Begin Header **************************************************************/
-    .section            .text
-    .arch               armv7-m
-    .thumb_func
     .syntax             unified
-    .align              3
-/* End Header ****************************************************************/
+    .arch               armv7-m
+    .thumb
+/* Import ********************************************************************/
+    /* Locations provided by the linker */
+    .extern             __RME_Stack
+    .extern             __RME_Data_Load
+    .extern             __RME_Data_Start
+    .extern             __RME_Data_End
+    .extern             __RME_Zero_Start
+    .extern             __RME_Zero_End
+    /* Kernel entry */
+    .extern             main
+    /* Preinitialization routine */
+    .extern             __RME_A7M_Lowlvl_Preinit
+    /* The system call handler */
+    .extern             __RME_A7M_Svc_Handler
+    /* The system tick handler */
+    .extern             __RME_A7M_Tim_Handler
+    /* The memory management fault handler */
+    .extern             __RME_A7M_Exc_Handler
+    /* The generic interrupt handler for all other vectors. */
+    .extern             __RME_A7M_Vct_Handler
+/* End Import ****************************************************************/
 
-/* Begin Exports *************************************************************/
+/* Export ********************************************************************/
+    /* Entry point */
+    .global             __RME_Entry
     /* Disable all interrupts */
     .global             __RME_Int_Disable
     /* Enable all interrupts */
@@ -54,46 +68,67 @@ a double-precision FPU.
     /* The FPU register restore routine */
     .global             ___RME_A7M_Thd_Cop_Load
     /* The MPU setup routines */
-    .global              ___RME_A7M_MPU_Set1
-    .global              ___RME_A7M_MPU_Set2
-    .global              ___RME_A7M_MPU_Set3
-    .global              ___RME_A7M_MPU_Set4
-    .global              ___RME_A7M_MPU_Set5
-    .global              ___RME_A7M_MPU_Set6
-    .global              ___RME_A7M_MPU_Set7
-    .global              ___RME_A7M_MPU_Set8
-    .global              ___RME_A7M_MPU_Set9
-    .global              ___RME_A7M_MPU_Set10
-    .global              ___RME_A7M_MPU_Set11
-    .global              ___RME_A7M_MPU_Set12
-    .global              ___RME_A7M_MPU_Set13
-    .global              ___RME_A7M_MPU_Set14
-    .global              ___RME_A7M_MPU_Set15
-    .global              ___RME_A7M_MPU_Set16
-/* End Exports ***************************************************************/
+    .global             ___RME_A7M_MPU_Set1
+    .global             ___RME_A7M_MPU_Set2
+    .global             ___RME_A7M_MPU_Set3
+    .global             ___RME_A7M_MPU_Set4
+    .global             ___RME_A7M_MPU_Set5
+    .global             ___RME_A7M_MPU_Set6
+    .global             ___RME_A7M_MPU_Set7
+    .global             ___RME_A7M_MPU_Set8
+    .global             ___RME_A7M_MPU_Set9
+    .global             ___RME_A7M_MPU_Set10
+    .global             ___RME_A7M_MPU_Set11
+    .global             ___RME_A7M_MPU_Set12
+    .global             ___RME_A7M_MPU_Set13
+    .global             ___RME_A7M_MPU_Set14
+    .global             ___RME_A7M_MPU_Set15
+    .global             ___RME_A7M_MPU_Set16
+/* End Export ****************************************************************/
 
-/* Begin Imports *************************************************************/
-    /* Preinitialization routine. */
-    .global             __RME_A7M_Lowlvl_Preinit
-    .global             RME_Kmain
-    /* The system call handler of RME. C function. */
-    .global             __RME_A7M_Svc_Handler
-    /* The system tick handler of RME. C function. */
-    .global             __RME_A7M_Tim_Handler
-    /* The memory management fault handler of RME. C function. */
-    .global             __RME_A7M_Exc_Handler
-    /* The generic interrupt handler for all other vectors. */
-    .global             __RME_A7M_Vct_Handler
-/* End Imports ***************************************************************/
+/* Entry *********************************************************************/
+    .section            .text.rme_entry
+    .align              3
 
-/* Begin Vector Table ********************************************************/
-    .global             __Vectors
-    .global             __Vectors_End
-    .global             __initial_sp
+	.thumb_func
+__RME_Entry:
+    LDR                 R0, =__RME_A7M_Lowlvl_Preinit
+    BLX                 R0
+    /* Load data section from flash to RAM */
+    LDR                 R0,=__RME_Data_Start
+    LDR                 R1,=__RME_Data_End
+    LDR                 R2,=__RME_Data_Load
+__RME_Data_Load:
+    CMP                 R0,R1
+    BEQ                 __RME_Data_Done
+    LDR					R3,[R2]
+    STR                 R3,[R0]
+    ADD                 R0,#0x04
+    ADD                 R2,#0x04
+    B                   __RME_Data_Load
+__RME_Data_Done:
+    /* Clear bss zero section */
+    LDR                 R0,=__RME_Zero_Start
+    LDR                 R1,=__RME_Zero_End
+    LDR                 R2,=0x00
+__RME_Zero_Clear:
+    CMP                 R0,R1
+    BEQ                 __RME_Zero_Done
+    STR                 R2,[R0]
+    ADD                 R0,#0x04
+    B                   __RME_Zero_Clear
+__RME_Zero_Done:
+    LDR                 R0, =main
+    BX                  R0
+/* End Entry *****************************************************************/
 
-__Vectors:
-	.long 				__initial_sp  		/* Top of Stack */
-    .long               Reset_Handler       /* Reset Handler */
+/* Vector ********************************************************************/
+    .section            .text.rme_vector
+    .align              3
+
+__RME_Vector:
+	.long 				__RME_Stack  		/* Top of Stack */
+    .long               __RME_Entry         /* Reset Handler */
     .long               NMI_Handler         /* NMI Handler */
     .long               HardFault_Handler   /* Hard Fault Handler */
     .long               MemManage_Handler   /* MPU Fault Handler */
@@ -372,59 +407,7 @@ __Vectors:
     .long               IRQ237_Handler
     .long               IRQ238_Handler
     .long               IRQ239_Handler
-__Vectors_End:
-__Vectors_Size:
-/* End Vector Table **********************************************************/
 
-/* Begin Memory Init *********************************************************/
-
-/* End Memory Init ***********************************************************/
-
-/* Begin Handlers ************************************************************/
-.macro THUMB FUNC
-	.thumb_func
-    \FUNC
-.endm
-
-    .global             _sidata
-    .global             __data_start__
-    .global             __data_end__
-    .global             __bss_start__
-    .global             __bss_end__
-    .global             main
-    .extern             _start
-THUMB _start:
-THUMB Reset_Handler:
-    LDR                 R0, =__RME_A7M_Lowlvl_Preinit
-    BLX                 R0
-    /* Initialize the data section */
-    LDR                 R0,=__data_start__
-    LDR                 R1,=__data_end__
-    LDR                 R2,=_sidata
-load_data:
-    CMP                 R0,R1
-    BEQ                 load_done
-    LDR					R3,[R2]
-    STR                 R3,[R0]
-    ADD                 R0,#0x04
-    ADD                 R2,#0x04
-    B                   load_data
-load_done:
-	/* Initialize the bss section */
-    LDR                 R0,=__bss_start__
-    LDR                 R1,=__bss_end__
-    LDR                 R2,=0x00
-clear_bss:
-    CMP                 R0,R1
-    BEQ                 clear_done
-    STR                 R2,[R0]
-    ADD                 R0,#0x04
-    B                   clear_bss
-clear_done:
-    LDR                 R0, =main
-    BX                  R0
-
-THUMB Default_Handler:
     .weak               IRQ0_Handler        /* 240 External Interrupts */
     .weak               IRQ1_Handler
     .weak               IRQ2_Handler
@@ -689,269 +672,271 @@ THUMB Default_Handler:
     .weak               IRQ238_Handler
     .weak               IRQ239_Handler
 
-THUMB IRQ0_Handler:
-THUMB IRQ1_Handler:
-THUMB IRQ2_Handler:
-THUMB IRQ3_Handler:
-THUMB IRQ4_Handler:
-THUMB IRQ5_Handler:
-THUMB IRQ6_Handler:
-THUMB IRQ7_Handler:
-THUMB IRQ8_Handler:
-THUMB IRQ9_Handler:
+	.thumb_func
+Default_Handler:
+IRQ0_Handler:
+IRQ1_Handler:
+IRQ2_Handler:
+IRQ3_Handler:
+IRQ4_Handler:
+IRQ5_Handler:
+IRQ6_Handler:
+IRQ7_Handler:
+IRQ8_Handler:
+IRQ9_Handler:
 
-THUMB IRQ10_Handler:
-THUMB IRQ11_Handler:
-THUMB IRQ12_Handler:
-THUMB IRQ13_Handler:
-THUMB IRQ14_Handler:
-THUMB IRQ15_Handler:
-THUMB IRQ16_Handler:
-THUMB IRQ17_Handler:
-THUMB IRQ18_Handler:
-THUMB IRQ19_Handler:
+IRQ10_Handler:
+IRQ11_Handler:
+IRQ12_Handler:
+IRQ13_Handler:
+IRQ14_Handler:
+IRQ15_Handler:
+IRQ16_Handler:
+IRQ17_Handler:
+IRQ18_Handler:
+IRQ19_Handler:
 
-THUMB IRQ20_Handler:
-THUMB IRQ21_Handler:
-THUMB IRQ22_Handler:
-THUMB IRQ23_Handler:
-THUMB IRQ24_Handler:
-THUMB IRQ25_Handler:
-THUMB IRQ26_Handler:
-THUMB IRQ27_Handler:
-THUMB IRQ28_Handler:
-THUMB IRQ29_Handler:
+IRQ20_Handler:
+IRQ21_Handler:
+IRQ22_Handler:
+IRQ23_Handler:
+IRQ24_Handler:
+IRQ25_Handler:
+IRQ26_Handler:
+IRQ27_Handler:
+IRQ28_Handler:
+IRQ29_Handler:
 
-THUMB IRQ30_Handler:
-THUMB IRQ31_Handler:
-THUMB IRQ32_Handler:
-THUMB IRQ33_Handler:
-THUMB IRQ34_Handler:
-THUMB IRQ35_Handler:
-THUMB IRQ36_Handler:
-THUMB IRQ37_Handler:
-THUMB IRQ38_Handler:
-THUMB IRQ39_Handler:
+IRQ30_Handler:
+IRQ31_Handler:
+IRQ32_Handler:
+IRQ33_Handler:
+IRQ34_Handler:
+IRQ35_Handler:
+IRQ36_Handler:
+IRQ37_Handler:
+IRQ38_Handler:
+IRQ39_Handler:
 
-THUMB IRQ40_Handler:
-THUMB IRQ41_Handler:
-THUMB IRQ42_Handler:
-THUMB IRQ43_Handler:
-THUMB IRQ44_Handler:
-THUMB IRQ45_Handler:
-THUMB IRQ46_Handler:
-THUMB IRQ47_Handler:
-THUMB IRQ48_Handler:
-THUMB IRQ49_Handler:
+IRQ40_Handler:
+IRQ41_Handler:
+IRQ42_Handler:
+IRQ43_Handler:
+IRQ44_Handler:
+IRQ45_Handler:
+IRQ46_Handler:
+IRQ47_Handler:
+IRQ48_Handler:
+IRQ49_Handler:
 
-THUMB IRQ50_Handler:
-THUMB IRQ51_Handler:
-THUMB IRQ52_Handler:
-THUMB IRQ53_Handler:
-THUMB IRQ54_Handler:
-THUMB IRQ55_Handler:
-THUMB IRQ56_Handler:
-THUMB IRQ57_Handler:
-THUMB IRQ58_Handler:
-THUMB IRQ59_Handler:
+IRQ50_Handler:
+IRQ51_Handler:
+IRQ52_Handler:
+IRQ53_Handler:
+IRQ54_Handler:
+IRQ55_Handler:
+IRQ56_Handler:
+IRQ57_Handler:
+IRQ58_Handler:
+IRQ59_Handler:
 
-THUMB IRQ60_Handler:
-THUMB IRQ61_Handler:
-THUMB IRQ62_Handler:
-THUMB IRQ63_Handler:
-THUMB IRQ64_Handler:
-THUMB IRQ65_Handler:
-THUMB IRQ66_Handler:
-THUMB IRQ67_Handler:
-THUMB IRQ68_Handler:
-THUMB IRQ69_Handler:
+IRQ60_Handler:
+IRQ61_Handler:
+IRQ62_Handler:
+IRQ63_Handler:
+IRQ64_Handler:
+IRQ65_Handler:
+IRQ66_Handler:
+IRQ67_Handler:
+IRQ68_Handler:
+IRQ69_Handler:
  
-THUMB IRQ70_Handler:
-THUMB IRQ71_Handler:
-THUMB IRQ72_Handler:
-THUMB IRQ73_Handler:
-THUMB IRQ74_Handler:
-THUMB IRQ75_Handler:
-THUMB IRQ76_Handler:
-THUMB IRQ77_Handler:
-THUMB IRQ78_Handler:
-THUMB IRQ79_Handler:
+IRQ70_Handler:
+IRQ71_Handler:
+IRQ72_Handler:
+IRQ73_Handler:
+IRQ74_Handler:
+IRQ75_Handler:
+IRQ76_Handler:
+IRQ77_Handler:
+IRQ78_Handler:
+IRQ79_Handler:
 
-THUMB IRQ80_Handler:
-THUMB IRQ81_Handler:
-THUMB IRQ82_Handler:
-THUMB IRQ83_Handler:
-THUMB IRQ84_Handler:
-THUMB IRQ85_Handler:
-THUMB IRQ86_Handler:
-THUMB IRQ87_Handler:
-THUMB IRQ88_Handler:
-THUMB IRQ89_Handler:
+IRQ80_Handler:
+IRQ81_Handler:
+IRQ82_Handler:
+IRQ83_Handler:
+IRQ84_Handler:
+IRQ85_Handler:
+IRQ86_Handler:
+IRQ87_Handler:
+IRQ88_Handler:
+IRQ89_Handler:
  
-THUMB IRQ90_Handler:
-THUMB IRQ91_Handler:
-THUMB IRQ92_Handler:
-THUMB IRQ93_Handler:
-THUMB IRQ94_Handler:
-THUMB IRQ95_Handler:
-THUMB IRQ96_Handler:
-THUMB IRQ97_Handler:
-THUMB IRQ98_Handler:
-THUMB IRQ99_Handler:
+IRQ90_Handler:
+IRQ91_Handler:
+IRQ92_Handler:
+IRQ93_Handler:
+IRQ94_Handler:
+IRQ95_Handler:
+IRQ96_Handler:
+IRQ97_Handler:
+IRQ98_Handler:
+IRQ99_Handler:
 
-THUMB IRQ100_Handler:
-THUMB IRQ101_Handler:
-THUMB IRQ102_Handler:
-THUMB IRQ103_Handler:
-THUMB IRQ104_Handler:
-THUMB IRQ105_Handler:
-THUMB IRQ106_Handler:
-THUMB IRQ107_Handler:
-THUMB IRQ108_Handler:
-THUMB IRQ109_Handler:
+IRQ100_Handler:
+IRQ101_Handler:
+IRQ102_Handler:
+IRQ103_Handler:
+IRQ104_Handler:
+IRQ105_Handler:
+IRQ106_Handler:
+IRQ107_Handler:
+IRQ108_Handler:
+IRQ109_Handler:
 
-THUMB IRQ110_Handler:
-THUMB IRQ111_Handler:
-THUMB IRQ112_Handler:
-THUMB IRQ113_Handler:
-THUMB IRQ114_Handler:
-THUMB IRQ115_Handler:
-THUMB IRQ116_Handler:
-THUMB IRQ117_Handler:
-THUMB IRQ118_Handler:
-THUMB IRQ119_Handler:
+IRQ110_Handler:
+IRQ111_Handler:
+IRQ112_Handler:
+IRQ113_Handler:
+IRQ114_Handler:
+IRQ115_Handler:
+IRQ116_Handler:
+IRQ117_Handler:
+IRQ118_Handler:
+IRQ119_Handler:
 
-THUMB IRQ120_Handler:
-THUMB IRQ121_Handler:
-THUMB IRQ122_Handler:
-THUMB IRQ123_Handler:
-THUMB IRQ124_Handler:
-THUMB IRQ125_Handler:
-THUMB IRQ126_Handler:
-THUMB IRQ127_Handler:
-THUMB IRQ128_Handler:
-THUMB IRQ129_Handler:
+IRQ120_Handler:
+IRQ121_Handler:
+IRQ122_Handler:
+IRQ123_Handler:
+IRQ124_Handler:
+IRQ125_Handler:
+IRQ126_Handler:
+IRQ127_Handler:
+IRQ128_Handler:
+IRQ129_Handler:
 
-THUMB IRQ130_Handler:
-THUMB IRQ131_Handler:
-THUMB IRQ132_Handler:
-THUMB IRQ133_Handler:
-THUMB IRQ134_Handler:
-THUMB IRQ135_Handler:
-THUMB IRQ136_Handler:
-THUMB IRQ137_Handler:
-THUMB IRQ138_Handler:
-THUMB IRQ139_Handler:
+IRQ130_Handler:
+IRQ131_Handler:
+IRQ132_Handler:
+IRQ133_Handler:
+IRQ134_Handler:
+IRQ135_Handler:
+IRQ136_Handler:
+IRQ137_Handler:
+IRQ138_Handler:
+IRQ139_Handler:
 
-THUMB IRQ140_Handler:
-THUMB IRQ141_Handler:
-THUMB IRQ142_Handler:
-THUMB IRQ143_Handler:
-THUMB IRQ144_Handler:
-THUMB IRQ145_Handler:
-THUMB IRQ146_Handler:
-THUMB IRQ147_Handler:
-THUMB IRQ148_Handler:
-THUMB IRQ149_Handler:
+IRQ140_Handler:
+IRQ141_Handler:
+IRQ142_Handler:
+IRQ143_Handler:
+IRQ144_Handler:
+IRQ145_Handler:
+IRQ146_Handler:
+IRQ147_Handler:
+IRQ148_Handler:
+IRQ149_Handler:
 
-THUMB IRQ150_Handler:
-THUMB IRQ151_Handler:
-THUMB IRQ152_Handler:
-THUMB IRQ153_Handler:
-THUMB IRQ154_Handler:
-THUMB IRQ155_Handler:
-THUMB IRQ156_Handler:
-THUMB IRQ157_Handler:
-THUMB IRQ158_Handler:
-THUMB IRQ159_Handler:
+IRQ150_Handler:
+IRQ151_Handler:
+IRQ152_Handler:
+IRQ153_Handler:
+IRQ154_Handler:
+IRQ155_Handler:
+IRQ156_Handler:
+IRQ157_Handler:
+IRQ158_Handler:
+IRQ159_Handler:
 
-THUMB IRQ160_Handler:
-THUMB IRQ161_Handler:
-THUMB IRQ162_Handler:
-THUMB IRQ163_Handler:
-THUMB IRQ164_Handler:
-THUMB IRQ165_Handler:
-THUMB IRQ166_Handler:
-THUMB IRQ167_Handler:
-THUMB IRQ168_Handler:
-THUMB IRQ169_Handler:
+IRQ160_Handler:
+IRQ161_Handler:
+IRQ162_Handler:
+IRQ163_Handler:
+IRQ164_Handler:
+IRQ165_Handler:
+IRQ166_Handler:
+IRQ167_Handler:
+IRQ168_Handler:
+IRQ169_Handler:
  
-THUMB IRQ170_Handler:
-THUMB IRQ171_Handler:
-THUMB IRQ172_Handler:
-THUMB IRQ173_Handler:
-THUMB IRQ174_Handler:
-THUMB IRQ175_Handler:
-THUMB IRQ176_Handler:
-THUMB IRQ177_Handler:
-THUMB IRQ178_Handler:
-THUMB IRQ179_Handler:
+IRQ170_Handler:
+IRQ171_Handler:
+IRQ172_Handler:
+IRQ173_Handler:
+IRQ174_Handler:
+IRQ175_Handler:
+IRQ176_Handler:
+IRQ177_Handler:
+IRQ178_Handler:
+IRQ179_Handler:
 
-THUMB IRQ180_Handler:
-THUMB IRQ181_Handler:
-THUMB IRQ182_Handler:
-THUMB IRQ183_Handler:
-THUMB IRQ184_Handler:
-THUMB IRQ185_Handler:
-THUMB IRQ186_Handler:
-THUMB IRQ187_Handler:
-THUMB IRQ188_Handler:
-THUMB IRQ189_Handler:
+IRQ180_Handler:
+IRQ181_Handler:
+IRQ182_Handler:
+IRQ183_Handler:
+IRQ184_Handler:
+IRQ185_Handler:
+IRQ186_Handler:
+IRQ187_Handler:
+IRQ188_Handler:
+IRQ189_Handler:
  
-THUMB IRQ190_Handler:
-THUMB IRQ191_Handler:
-THUMB IRQ192_Handler:
-THUMB IRQ193_Handler:
-THUMB IRQ194_Handler:
-THUMB IRQ195_Handler:
-THUMB IRQ196_Handler:
-THUMB IRQ197_Handler:
-THUMB IRQ198_Handler:
-THUMB IRQ199_Handler:
+IRQ190_Handler:
+IRQ191_Handler:
+IRQ192_Handler:
+IRQ193_Handler:
+IRQ194_Handler:
+IRQ195_Handler:
+IRQ196_Handler:
+IRQ197_Handler:
+IRQ198_Handler:
+IRQ199_Handler:
                 
-THUMB IRQ200_Handler:
-THUMB IRQ201_Handler:
-THUMB IRQ202_Handler:
-THUMB IRQ203_Handler:
-THUMB IRQ204_Handler:
-THUMB IRQ205_Handler:
-THUMB IRQ206_Handler:
-THUMB IRQ207_Handler:
-THUMB IRQ208_Handler:
-THUMB IRQ209_Handler:
+IRQ200_Handler:
+IRQ201_Handler:
+IRQ202_Handler:
+IRQ203_Handler:
+IRQ204_Handler:
+IRQ205_Handler:
+IRQ206_Handler:
+IRQ207_Handler:
+IRQ208_Handler:
+IRQ209_Handler:
 
-THUMB IRQ210_Handler:
-THUMB IRQ211_Handler:
-THUMB IRQ212_Handler:
-THUMB IRQ213_Handler:
-THUMB IRQ214_Handler:
-THUMB IRQ215_Handler:
-THUMB IRQ216_Handler:
-THUMB IRQ217_Handler:
-THUMB IRQ218_Handler:
-THUMB IRQ219_Handler:
+IRQ210_Handler:
+IRQ211_Handler:
+IRQ212_Handler:
+IRQ213_Handler:
+IRQ214_Handler:
+IRQ215_Handler:
+IRQ216_Handler:
+IRQ217_Handler:
+IRQ218_Handler:
+IRQ219_Handler:
 
-THUMB IRQ220_Handler:
-THUMB IRQ221_Handler:
-THUMB IRQ222_Handler:
-THUMB IRQ223_Handler:
-THUMB IRQ224_Handler:
-THUMB IRQ225_Handler:
-THUMB IRQ226_Handler:
-THUMB IRQ227_Handler:
-THUMB IRQ228_Handler:
-THUMB IRQ229_Handler:
+IRQ220_Handler:
+IRQ221_Handler:
+IRQ222_Handler:
+IRQ223_Handler:
+IRQ224_Handler:
+IRQ225_Handler:
+IRQ226_Handler:
+IRQ227_Handler:
+IRQ228_Handler:
+IRQ229_Handler:
 
-THUMB IRQ230_Handler:
-THUMB IRQ231_Handler:
-THUMB IRQ232_Handler:
-THUMB IRQ233_Handler:
-THUMB IRQ234_Handler:
-THUMB IRQ235_Handler:
-THUMB IRQ236_Handler:
-THUMB IRQ237_Handler:
-THUMB IRQ238_Handler:
-THUMB IRQ239_Handler:
+IRQ230_Handler:
+IRQ231_Handler:
+IRQ232_Handler:
+IRQ233_Handler:
+IRQ234_Handler:
+IRQ235_Handler:
+IRQ236_Handler:
+IRQ237_Handler:
+IRQ238_Handler:
+IRQ239_Handler:
     PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
@@ -959,59 +944,72 @@ THUMB IRQ239_Handler:
     MOV                 R0,SP               /* Pass in the regs */
     MRS                 R1,xPSR             /* Pass in the interrupt number */
     UBFX                R1,R1,#0,#9
-    SUB                 R1,#16              /* The IRQ0's starting number is 16. we subtract it here */
+    SUB                 R1,#16              /* The IRQ0's starting number is 16; subtract */
     BL                  __RME_A7M_Vct_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11,PC}
-    B                   .                   /* Capture faults */
-/* End Handlers **************************************************************/
+    POP                 {R4-R11,PC}         /* Restore registers */
+/* End Vector ****************************************************************/
 
-/* Begin Function:__RME_Int_Disable *******************************************
+/* Function:__RME_Int_Disable *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None. 
 Return      : None.                                
-******************************************************************************/    
-THUMB __RME_Int_Disable:
-    /* Disable all interrupts (I is primask, F is faultmask.) */
+******************************************************************************/
+    .section            .text.__rme_int_disable
+    .align              3
+
+	.thumb_func
+__RME_Int_Disable:
     CPSID               I 
     BX                  LR                                                 
 /* End Function:__RME_Int_Disable ********************************************/
 
-/* Begin Function:__RME_Int_Enable ********************************************
+/* Function:__RME_Int_Enable **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB __RME_Int_Enable:
-    /* Enable all interrupts. */
+    .section            .text.__rme_int_enable
+    .align              3
+
+	.thumb_func
+__RME_Int_Enable:
     CPSIE               I 
     BX                  LR
 /* End Function:__RME_Int_Enable *********************************************/
 
-/* Begin Function:__RME_A7M_Barrier ******************************************
+/* Function:__RME_A7M_Barrier *************************************************
 Description : A full data/instruction barrier.
 Input       : None.
 Output      : None.    
 Return      : None.
-*****************************************************************************/
-THUMB __RME_A7M_Barrier:       
+******************************************************************************/
+    .section            .text.__rme_a7m_barrier
+    .align              3
+
+	.thumb_func
+__RME_A7M_Barrier:       
     DSB                 SY
     ISB                 SY
     BX                  LR
     B                   .
-/* End Function:__RME_A7M_Barrier *******************************************/
+/* End Function:__RME_A7M_Barrier ********************************************/
 
-/* Begin Function:__RME_A7M_Reset ********************************************
+/* Function:__RME_A7M_Reset ***************************************************
 Description : A full system reset.
 Input       : None.
 Output      : None.    
 Return      : None.
-*****************************************************************************/
-THUMB __RME_A7M_Reset:
+******************************************************************************/
+    .section            .text.__rme_a7m_reset
+    .align              3
+
+	.thumb_func
+__RME_A7M_Reset:
     /* Disable all interrupts */
     CPSID               I
     /* ARMv7-M Standard system reset */
@@ -1021,47 +1019,41 @@ THUMB __RME_A7M_Reset:
     ISB
     /* Deadloop */
     B                   .
-/* End Function:__RME_A7M_Reset *********************************************/
+/* End Function:__RME_A7M_Reset **********************************************/
 
-
-/* Begin Function:__RME_A7M_Wait_Int ******************************************
+/* Function:__RME_A7M_Wait_Int ************************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB __RME_A7M_Wait_Int:
-    /* Wait for interrupt */
+    .section            .text.__rme_a7m_wait_int
+    .align              3
+
+	.thumb_func
+__RME_A7M_Wait_Int:
     WFE 
     BX                  LR
 /* End Function:__RME_A7M_Wait_Int *******************************************/
 
-/* Begin Function:_RME_Kmain **************************************************
-Description : The entry address of the kernel. Never returns.
-Input       : ptr_t Stack - The stack address to set SP to.
-Output      : None.
-Return      : None.
-******************************************************************************/
-THUMB _RME_Kmain:
-    MOV                 SP,R0
-    B                   RME_Kmain
-    B                   .
-/* End Function:_RME_Kmain ***************************************************/
-
-/* Begin Function:__RME_A7M_MSB_Get *******************************************
+/* Function:__RME_A7M_MSB_Get *************************************************
 Description : Get the MSB of the word.
 Input       : ptr_t Val - The value.
 Output      : None.
 Return      : ptr_t - The MSB position.
 ******************************************************************************/
-THUMB __RME_A7M_MSB_Get:
+    .section            .text.__rme_a7m_msb_get
+    .align              3
+
+	.thumb_func
+__RME_A7M_MSB_Get:
     CLZ                 R1,R0
     MOV                 R0,#31
     SUB                 R0,R1
     BX                  LR
 /* End Function:__RME_A7M_MSB_Get ********************************************/
 
-/* Begin Function:__RME_User_Enter ***************************************
+/* Function:__RME_User_Enter **************************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
@@ -1071,25 +1063,32 @@ Input       : ptr_t Entry - The user execution startpoint.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB __RME_User_Enter:
+    .section            .text.__rme_user_enter
+    .align              3
+
+	.thumb_func
+__RME_User_Enter:
     MSR                 PSP,R1              /* Set the stack pointer */
     MOV                 R4,#0x03            /* Unprevileged thread mode */
     MSR                 CONTROL,R4
     ISB
     MOV                 R1,R0               /* Save the entry to R1 */
-    MOV                 R0,R2               /* Save CPUID(always 0) to R0 */
+    MOV                 R0,R2               /* Save CPUID(0) to R0 */
     BLX                 R1                  /* Branch to our target */
-    B                   .                   /* Capture faults */
-/* End Function:__RME_User_Enter ****************************************/
+/* End Function:__RME_User_Enter *********************************************/
 
-/* Begin Function:SysTick_Handler *********************************************
+/* Function:SysTick_Handler ***************************************************
 Description : The System Tick Timer handler routine. This will in fact call a
               C function to resolve the system service routines.             
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB SysTick_Handler:
+    .section            .text.systick_handler
+    .align              3
+
+	.thumb_func
+SysTick_Handler:
     PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
@@ -1099,77 +1098,85 @@ THUMB SysTick_Handler:
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11,PC}
-    B                   .                   /* Capture faults */
+    POP                 {R4-R11,PC}         /* Restore registers */
 /* End Function:SysTick_Handler **********************************************/
 
-/* Begin Function:SVC_Handler *************************************************
+/* Function:SVC_Handler *******************************************************
 Description : The SVC handler routine. This will in fact call a C function to resolve
               the system service routines.             
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB SVC_Handler:
-    PUSH                {R4-R11,LR}         /* Spill all the general purpose registers; empty descending */
+    .section            .text.svc_handler
+    .align              3
+
+	.thumb_func
+SVC_Handler:
+    PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               /* Pass in the pt_regs parameter, and call the handler. */
+    MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A7M_Svc_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11,PC}
-    B                   .                   /* Capture faults */
+    POP                 {R4-R11,PC}         /* Restore registers */
 /* End Function:SVC_Handler **************************************************/
 
-/* Begin Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********
+/* Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler ***************
 Description : The multi-purpose handler routine. This will in fact call
               a C function to resolve the system service routines.             
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB NMI_Handler:
+    .section            .text.system_handler
+    .align              3
+
+	.thumb_func
+NMI_Handler:
     NOP
-THUMB PendSV_Handler:
+PendSV_Handler:
     NOP
-THUMB DebugMon_Handler:
+DebugMon_Handler:
     NOP
-THUMB HardFault_Handler:
+HardFault_Handler:
     NOP
-                
-THUMB MemManage_Handler:
+MemManage_Handler:
     NOP
-THUMB BusFault_Handler:
+BusFault_Handler:
     NOP
-THUMB UsageFault_Handler:
-    PUSH                {R4-R11,LR}            /* Spill all the general purpose registers; empty descending */
+UsageFault_Handler:
+    PUSH                {R4-R11,LR}         /* Save registers */
     MRS                 R0,PSP
     PUSH                {R0}
     
-    MOV                 R0,SP               /* Pass in the pt_regs parameter, and call the handler. */
+    MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A7M_Exc_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
-    POP                 {R4-R11,PC}
-    B                   .                   /* Capture faults */
+    POP                 {R4-R11,PC}         /* Restore registers */
 /* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **********/
 
-/* Begin Function:___RME_A7M_Thd_Cop_Clear ***********************************
+/* Function:___RME_A7M_Thd_Cop_Clear ******************************************
 Description : Clean up the coprocessor state so that the FP information is not
               leaked when switching from a fpu-enabled thread to a fpu-disabled
               thread.             
 Input       : None.
 Output      : None.
 Return      : None.
-*****************************************************************************/
-THUMB ___RME_A7M_Thd_Cop_Clear:            
+******************************************************************************/
+    .section            .text.___rme_a7m_thd_cop_clear
+    .align              3
+
+	.thumb_func
+___RME_A7M_Thd_Cop_Clear:            
     /* Use DCI to avoid compilation errors when FPU not enabled */
-    LDR                 R0, =COP_CLEAR
-    .short              0xEC90              /* VLDMIA    R0!,{S0-S31} */
+    LDR                 R0,=COP_CLEAR
+    .short              0xEC90              /* VLDMIA    R0,{S0-S31} */
     .short              0x0A20              /* Clear all the FPU registers */
     MOV                 R0,#0               /* Clear FPSCR as well */
     .short              0xEEE1              /* VMSR      FPSCR, R0 */
@@ -1177,184 +1184,256 @@ THUMB ___RME_A7M_Thd_Cop_Clear:
     BX                  LR
 COP_CLEAR:
     .space               32*4
-/* End Function:___RME_A7M_Thd_Cop_Clear ************************************/
+/* End Function:___RME_A7M_Thd_Cop_Clear *************************************/
 
-/* Begin Function:___RME_A7M_Thd_Cop_Save *************************************
+/* Function:___RME_A7M_Thd_Cop_Save *******************************************
 Description : Save the coprocessor context on switch.         
 Input       : R0 - The pointer to the coprocessor struct.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB ___RME_A7M_Thd_Cop_Save:
-    /* Use DCI to avoid compilation errors when FPU not enabled. Anyway,
-     * this will not be called when FPU not enabled. */
-    .short              0xEC80
-    .short              0x8A10
+    .section            .text.___rme_a7m_thd_cop_save
+    .align              3
+
+	.thumb_func
+___RME_A7M_Thd_Cop_Save:
+    /* Use DCI to avoid compilation errors when FPU not enabled */
+    .short              0xEC80              /* VSTMIA    R0,{S16-S31} */
+    .short              0x8A10              /* Save all the FPU registers */
     BX                  LR
 /* End Function:___RME_A7M_Thd_Cop_Save **************************************/
 
-/* Begin Function:___RME_A7M_Thd_Cop_Load ************************************
-Description : Restore the coprocessor context on switch.             
-Input       : R0 - The pointer to the coprocessor struct.
-Output      : None.
-Return      : None.
-*****************************************************************************/
-THUMB ___RME_A7M_Thd_Cop_Load:
-/* Use DCI to avoid compilation errors when FPU not enabled*/
-    .short              0xEC90            /* VLDMIA    R0!,{S16-S31} */
-    .short              0x8A10            /* Restore all the FPU registers */
-    BX                  LR
-/* End Function:___RME_A7M_Thd_Cop_Load *************************************/
-
-/* Begin Function:___RME_A7M_Thd_Cop_Restore **********************************
+/* Function:___RME_A7M_Thd_Cop_Load *******************************************
 Description : Restore the coprocessor context on switch.             
 Input       : R0 - The pointer to the coprocessor struct.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-THUMB ___RME_A7M_Thd_Cop_Restore:
-    /* Use DCI to avoid compilation errors when FPU not enabled. Anyway,
-     * this will not be called when FPU not enabled. */
-    .long               0x8A10ECB0              /* VLDMIA    R0!,{S16-S31}, Restore all the FPU registers */
-    BX                  LR
-    B                   .
-/* End Function:___RME_A7M_Thd_Cop_Restore ***********************************/
+    .section            .text.___rme_a7m_thd_cop_load
+    .align              3
 
-/* Begin Function:___RME_A7M_MPU_Set ******************************************
+	.thumb_func
+___RME_A7M_Thd_Cop_Load:
+/* Use DCI to avoid compilation errors when FPU not enabled*/
+    .short              0xEC90            /* VLDMIA    R0,{S16-S31} */
+    .short              0x8A10            /* Restore all the FPU registers */
+    BX                  LR
+/* End Function:___RME_A7M_Thd_Cop_Load **************************************/
+
+/* Function:___RME_A7M_MPU_Set ************************************************
 Description : Set the MPU context. We write 8 registers at a time to increase efficiency.            
 Input       : R0 - The pointer to the MPU content.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-    .macro MPU_PRE
+    .macro              MPU_PRE
     PUSH                {R4-R9}             /* Save registers */
     LDR                 R1, =0xE000ED9C     /* The base address of MPU RBAR and all 4 registers */
     .endm
     
-    .macro MPU_SET
+    .macro              MPU_SET
     LDMIA               R0!, {R2-R3}        /* Read settings */
     STMIA               R1, {R2-R3}         /* Program */
     .endm
     
-    .macro MPU_SET2
+    .macro              MPU_SET2
     LDMIA               R0!, {R2-R5}
     STMIA               R1, {R2-R5} 
     .endm
     
-    .macro MPU_SET3
+    .macro              MPU_SET3
     LDMIA               R0!, {R2-R7}
     STMIA               R1, {R2-R7}
     .endm
     
-    .macro MPU_SET4
+    .macro              MPU_SET4
     LDMIA               R0!, {R2-R9}
     STMIA               R1, {R2-R9}
     .endm
     
-    .macro MPU_POST
+    .macro              MPU_POST
     POP                 {R4-R9}             /* Restore registers */
     ISB                                     /* Barrier */
     BX                  LR
     .endm
                         
 /* 1-region version */
-THUMB ___RME_A7M_MPU_Set:
+    .section            .text.___rme_a7m_mpu_set1
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set1:
     MPU_PRE
     MPU_SET
     MPU_POST
+
 /* 2-region version */
-THUMB ___RME_A7M_MPU_Set2:
+    .section            .text.___rme_a7m_mpu_set2
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set2:
     MPU_PRE
     MPU_SET2
     MPU_POST
+
 /* 3-region version */
-THUMB ___RME_A7M_MPU_Set3:
+    .section            .text.___rme_a7m_mpu_set3
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set3:
     MPU_PRE
     MPU_SET3
     MPU_POST
+
 /* 4-region version */
-THUMB ___RME_A7M_MPU_Set4:
+    .section            .text.___rme_a7m_mpu_set4
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set4:
     MPU_PRE
     MPU_SET4
     MPU_POST
+
 /* 5-region version */
-THUMB ___RME_A7M_MPU_Set5:
+    .section            .text.___rme_a7m_mpu_set5
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set5:
     MPU_PRE
     MPU_SET4
     MPU_SET
     MPU_POST
+
 /* 6-region version */
-THUMB ___RME_A7M_MPU_Set6:
+    .section            .text.___rme_a7m_mpu_set6
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set6:
     MPU_PRE
     MPU_SET4
     MPU_SET2
     MPU_POST
+
 /* 7-region version */
-THUMB ___RME_A7M_MPU_Set7:
+    .section            .text.___rme_a7m_mpu_set7
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set7:
     MPU_PRE
     MPU_SET4
     MPU_SET3
     MPU_POST
+
 /* 8-region version */
-THUMB ___RME_A7M_MPU_Set8:
+    .section            .text.___rme_a7m_mpu_set8
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set8:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_POST
+
 /* 9-region version */
-THUMB ___RME_A7M_MPU_Set9:
+    .section            .text.___rme_a7m_mpu_set9
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set9:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET
     MPU_POST
+
 /* 10-region version */
-THUMB ___RME_A7M_MPU_Set10:
+    .section            .text.___rme_a7m_mpu_set10
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set10:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET2
     MPU_POST
+
 /* 11-region version */
-THUMB ___RME_A7M_MPU_Set11:
+    .section            .text.___rme_a7m_mpu_set11
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set11:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET3
     MPU_POST
+
 /* 12-region version */
-THUMB ___RME_A7M_MPU_Set12:
+    .section            .text.___rme_a7m_mpu_set12
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set12:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET4
     MPU_POST
+
 /* 13-region version */
-THUMB ___RME_A7M_MPU_Set13:
+    .section            .text.___rme_a7m_mpu_set13
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set13:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET4
     MPU_SET
     MPU_POST
+
 /* 14-region version */
-THUMB ___RME_A7M_MPU_Set14:
+    .section            .text.___rme_a7m_mpu_set14
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set14:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET4
     MPU_SET2
     MPU_POST
+
 /* 15-region version */
-THUMB ___RME_A7M_MPU_Set15:
+    .section            .text.___rme_a7m_mpu_set15
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set15:
     MPU_PRE
     MPU_SET4
     MPU_SET4
     MPU_SET4
     MPU_SET3
     MPU_POST
+
 /* 16-region version */
-THUMB ___RME_A7M_MPU_Set16:
+    .section            .text.___rme_a7m_mpu_set16
+    .align              3
+
+	.thumb_func
+___RME_A7M_MPU_Set16:
     MPU_PRE
     MPU_SET4
     MPU_SET4
@@ -1367,3 +1446,4 @@ THUMB ___RME_A7M_MPU_Set16:
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/
+

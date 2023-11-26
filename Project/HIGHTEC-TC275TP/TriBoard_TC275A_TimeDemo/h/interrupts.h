@@ -5,8 +5,8 @@
 * Copyright HighTec EDV-Systeme GmbH 1982-2013
 *====================================================================*/
 
-#ifndef __INTERRUPTS_H__
-#define __INTERRUPTS_H__
+#ifndef __INTERRUPTS__
+#define __INTERRUPTS__
 
 /* Interrupt SRC IDs */
 #define SRC_ID_CPU0SBSRC		0	/* CPU 0 Software Breakpoint Service Request */
@@ -547,4 +547,4 @@ void InterruptInstall(int irqNum, isrhnd_t isrPrc, int prio, int arg);
 }
 #endif /* __cplusplus */
 
-#endif /* __INTERRUPTS_H__ */
+#endif /* __INTERRUPTS__ */

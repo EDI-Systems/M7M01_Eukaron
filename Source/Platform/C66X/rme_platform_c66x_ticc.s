@@ -12,7 +12,7 @@
 ;E1PC:READ-ONLY PC pointer.
 ;*****************************************************************************/
 
-;/* Begin Stacks *************************************************************/
+;/* Stacks *******************************************************************/
     .data
     ;The kernel stack segment is 64k-aligned as always - performed by linker script
     ;.align              65536
@@ -26,12 +26,12 @@ __RME_C66X_Stack_Addr:
     .space              4*8
 ;/* End Stacks ***************************************************************/
             
-;/* Begin Header *************************************************************/
+;/* Header *******************************************************************/
     .text
     .align              2
 ;/* End Header ***************************************************************/
 
-;/* Begin Exports ************************************************************/
+;/* Export *******************************************************************/
     ;Disable all interrupts
     .global             __RME_Disable_Int
     ;Enable all interrupts
@@ -72,9 +72,9 @@ __RME_C66X_Stack_Addr:
     .global             __RME_C66X_Set_ECR
     ;Set IERR
     .global             __RME_C66X_Get_IERR
-;/* End Exports **************************************************************/
+;/* End Export ***************************************************************/
 
-;/* Begin Imports ************************************************************/
+;/* Import *******************************************************************/
     ;The kernel entry of RME. This will be defined in C language.
     .global             RME_Kmain
     ;The kernel entry of non-booting processors. This will be defined in C language.
@@ -82,9 +82,9 @@ __RME_C66X_Stack_Addr:
     ;The generic interrupt handler for all other vectors. System calls will also
     ;be called through this. This is a C66X idiosyncrasy.
     .global             __RME_C66X_Generic_Handler
-;/* End Imports **************************************************************/
+;/* End Import ***************************************************************/
 
-;/* Begin Vector Table *******************************************************/
+;/* Vector Table *************************************************************/
     ;TI assembler alignment is in bytes
     .align              1024
     ;Vector table for the main core only
@@ -126,15 +126,15 @@ __RME_C66X_Vector_Table:
     B                   IRP
 ;/* End Vector Table *********************************************************/
 
-;/* Begin Memory Init ********************************************************/
+;/* Memory Init **************************************************************/
 
 ;/* End Memory Init **********************************************************/
 
-;/* Begin Handlers ***********************************************************/
+;/* Handlers *****************************************************************/
 
 ;/* End Handlers *************************************************************/
 
-;/* Begin Function:_RME_C66X_SMP_Kmain ****************************************
+;/* Function:_RME_C66X_SMP_Kmain **********************************************
 ;Description    : The entry address of the kernel for non-booting SMP processors.
 ;                 Never returns. This function must be aligned at at least 2^9,
 ;                 as this is required by the architecture.
@@ -152,7 +152,7 @@ _RME_C66X_SMP_Kmain:
     CALLP.S2            __RME_SMP_Kmain,B3
 ;/* End Function:_RME_C66X_SMP_Kmain *****************************************/
 
-;/* Begin Function:__RME_Disable_Int ******************************************
+;/* Function:__RME_Disable_Int ************************************************
 ;Description : The function for disabling all interrupts.
 ;Input       : None.
 ;Output      : None.    
@@ -163,7 +163,7 @@ __RME_Disable_Int:
     BNOP                B3,5
 ;/* End Function:__RME_Disable_Int *******************************************/
 
-;/* Begin Function:__RME_Enable_Int *******************************************
+;/* Function:__RME_Enable_Int *************************************************
 ;Description : The function for enabling all interrupts.
 ;Input       : None.
 ;Output      : None.
@@ -174,7 +174,7 @@ __RME_Enable_Int:
     BNOP                B3,5
 ;/* End Function:__RME_Enable_Int ********************************************/
 
-;/* Begin Function:__RME_C66X_Idle ********************************************
+;/* Function:__RME_C66X_Idle **************************************************
 ;Description : Wait until a new interrupt comes, to save power.
 ;Input       : None.
 ;Output      : None.
@@ -185,7 +185,7 @@ __RME_C66X_Idle:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Idle *********************************************/
 
-;/* Begin Function:__RME_C66X_Set_ISTP ****************************************
+;/* Function:__RME_C66X_Set_ISTP **********************************************
 ;Description : Load the interrupt vector table.
 ;Input       : rme_ptr_t A4 - The address to load into the register.
 ;Output      : None.
@@ -196,7 +196,7 @@ __RME_C66X_Set_ISTP:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Set_ISTP *****************************************/
 
-;/* Begin Function:__RME_C66X_Get_EFR *****************************************
+;/* Function:__RME_C66X_Get_EFR ***********************************************
 ;Description : Get the EFR and attempt to identify the exception cause.
 ;Input       : None.
 ;Output      : None.
@@ -208,7 +208,7 @@ __RME_C66X_Get_EFR:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Get_EFR ******************************************/
 
-;/* Begin Function:__RME_C66X_Set_ECR *****************************************
+;/* Function:__RME_C66X_Set_ECR ***********************************************
 ;Description : Set the ECR and clear the cause of the exception.
 ;Input       : rme_ptr_t A4 - The ECR content to set.
 ;Output      : None.
@@ -219,7 +219,7 @@ __RME_C66X_Set_ECR:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Set_ECR ******************************************/
 
-;/* Begin Function:__RME_C66X_Get_IERR *****************************************
+;/* Function:__RME_C66X_Get_IERR ***********************************************
 ;Description : Get the IERR and attempt to identify the error cause.
 ;Input       : None.
 ;Output      : None.
@@ -231,7 +231,7 @@ __RME_C66X_Get_IERR:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Get_IERR *****************************************/
 
-;/* Begin Function:__RME_C66X_Read_Acquire ************************************
+;/* Function:__RME_C66X_Read_Acquire ******************************************
 ;Description : Load acquire - no operation will begin until this load finishes.
 ;Input       : rme_ptr_t* A4 - The address to load from.
 ;Output      : None.
@@ -243,7 +243,7 @@ __RME_C66X_Read_Acquire:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Read_Acquire *************************************/
 
-;/* Begin Function:__RME_C66X_Write_Release ***********************************
+;/* Function:__RME_C66X_Write_Release *****************************************
 ;Description : Write release - all operations will finish before this write begins.
 ;Input       : rme_ptr_t* A4 - The address to write to.
 ;              rme_ptr_t B4 - The value to write.
@@ -256,7 +256,7 @@ __RME_C66X_Write_Release:
     BNOP                B3,5
 ;/* End Function:__RME_C66X_Write_Release ************************************/
 
-;/* Begin Function:_RME_Kmain *************************************************
+;/* Function:_RME_Kmain *******************************************************
 ;Description    : The entry address of the kernel. Never returns.
 ;Input          : rme_ptr_t Stack - The stack address to set SP to.
 ;Output         : None.
@@ -267,7 +267,7 @@ _RME_Kmain:
     CALLP.S2            RME_Kmain,B3
 ;/* End Function:_RME_Kmain **************************************************/
 
-;/* Begin Function:__RME_C66X_MSB_Get *****************************************
+;/* Function:__RME_C66X_MSB_Get ***********************************************
 ;Description    : Get the MSB of the word.
 ;Input          : rme_ptr_t Val - The value.
 ;Output         : None.
@@ -281,7 +281,7 @@ __RME_C66X_MSB_Get:
     B                   B3
 ;/* End Function:__RME_C66X_MSB_Get ******************************************/
 
-;/* Begin Function:__RME_C66X_CPUID_Get ***************************************
+;/* Function:__RME_C66X_CPUID_Get *********************************************
 ;Description    : Get the CPUID of the processor.
 ;Input          : None.
 ;Output         : None.
@@ -293,7 +293,7 @@ __RME_C66X_CPUID_Get:
 ||  B                   B3
 ;/* End Function:__RME_C66X_CPUID_Get ****************************************/
 
-;/* Begin Function:__RME_Enter_User_Mode **************************************
+;/* Function:__RME_Enter_User_Mode ********************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
 ;              booting. The function shall never return. This function should only
 ;              be used to boot the first process in the system. C66X allows user-level
@@ -318,7 +318,7 @@ __RME_Enter_User_Mode:
     B                   NRP
 ;/* End Function:__RME_Enter_User_Mode ***************************************/
 
-;/* Begin Function:___RME_C66X_Thd_Cop_Save ***********************************
+;/* Function:___RME_C66X_Thd_Cop_Save *****************************************
 ;Description : Save coprocessor context.
 ;Input       : None.
 ;Output      : A4 - The pointer to the structure.
@@ -342,7 +342,7 @@ ___RME_C66X_Thd_Cop_Save:
 ||  B                   B3
 ;/* End Function:___RME_C66X_Thd_Cop_Save ************************************/
 
-;/* Begin Function:___RME_C66X_Thd_Cop_Restore ********************************
+;/* Function:___RME_C66X_Thd_Cop_Restore **************************************
 ;Description : Save coprocessor context.
 ;Input       : A4 - The pointer to the structure.
 ;Output      : None.
@@ -366,7 +366,7 @@ ___RME_C66X_Thd_Cop_Restore:
     B                   B3
 ;/* End Function:___RME_C66X_Thd_Cop_Restore *********************************/
 
-;/* Begin Function:SVC_Handler ************************************************
+;/* Function:SVC_Handler ******************************************************
 ;Description : The SVC handler routine. This will in fact call a C function to
 ;              resolve the system service routines. This will be the entry of all
 ;              stuff: system calls, exceptions, and NMI. We need to distinguish what

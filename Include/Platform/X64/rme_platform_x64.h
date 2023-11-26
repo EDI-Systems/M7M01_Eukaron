@@ -6,11 +6,11 @@ Licence     : The Unlicense; see LICENSE for details.
 Description : The header of "platform_x64.c".
 ******************************************************************************/
 
-/* Defines *******************************************************************/
+/* Define ********************************************************************/
 #include "multiboot.h"
-#ifdef __HDR_DEFS__
-#ifndef __RME_PLATFORM_X64_H_DEFS__
-#define __RME_PLATFORM_X64_H_DEFS__
+#ifdef __HDR_DEF__
+#ifndef __RME_PLATFORM_X64_DEF__
+#define __RME_PLATFORM_X64_DEF__
 /*****************************************************************************/
 /* Basic Types ***************************************************************/
 #ifndef __RME_S64_T__
@@ -54,7 +54,7 @@ typedef unsigned char rme_u8_t;
 #endif
 /* End Basic Types ***********************************************************/
 
-/* Begin Extended Types ******************************************************/
+/* Extended Types ************************************************************/
 #ifndef __RME_TID_T__
 #define __RME_TID_T__
 /* The typedef for the Thread ID */
@@ -561,21 +561,21 @@ while(0)
 /* Microsecond delay function - not needed in most cases */
 #define RME_X64_UDELAY(US)
 /*****************************************************************************/
-/* __RME_PLATFORM_X64_H_DEFS__ */
+/* __RME_PLATFORM_X64_DEF__ */
 #endif
-/* __HDR_DEFS__ */
+/* __HDR_DEF__ */
 #endif
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-/* Structs *******************************************************************/
-#ifdef __HDR_STRUCTS__
-#ifndef __RME_PLATFORM_X64_H_STRUCTS__
-#define __RME_PLATFORM_X64_H_STRUCTS__
+/* Struct ********************************************************************/
+#ifdef __HDR_STRUCT__
+#ifndef __RME_PLATFORM_X64_STRUCT__
+#define __RME_PLATFORM_X64_STRUCT__
 /* We used structs in the header */
 
 /* Use defines in these headers */
-#define __HDR_DEFS__
-#undef __HDR_DEFS__
+#define __HDR_DEF__
+#undef __HDR_DEF__
 /*****************************************************************************/
 /* Architecture-related structures - we only target GCC so attribute packed is fine */
 /* Root System Description Pointer descriptor */
@@ -905,28 +905,28 @@ struct __RME_X64_Kern_Pgt
 	rme_ptr_t PDP[256][512];
 };
 /*****************************************************************************/
-/* __RME_PLATFORM_X64_H_STRUCTS__ */
+/* __RME_PLATFORM_X64_STRUCT__ */
 #endif
-/* __HDR_STRUCTS__ */
+/* __HDR_STRUCT__ */
 #endif
-/* End Structs ***************************************************************/
+/* End Struct ****************************************************************/
 
-/* Private Global Variables **************************************************/
-#if(!(defined __HDR_DEFS__||defined __HDR_STRUCTS__))
-#ifndef __RME_PLATFORM_X64_MEMBERS__
-#define __RME_PLATFORM_X64_MEMBERS__
+/* Private Variable **********************************************************/
+#if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
+#ifndef __RME_PLATFORM_X64_PUBLIC__
+#define __RME_PLATFORM_X64_PUBLIC__
 
 /* In this way we can use the data structures and definitions in the headers */
-#define __HDR_DEFS__
+#define __HDR_DEF__
 
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* If the header is not used in the public mode */
-#ifndef __HDR_PUBLIC_MEMBERS__
+#ifndef __HDR_PUBLIC__
 /*****************************************************************************/
 /* Is there a UART in the system? */
 static volatile rme_ptr_t RME_X64_UART_Exist;
@@ -1107,9 +1107,9 @@ static const rme_u8_t RME_X64_Boot_Code[]=
     0x00,0x00
 };
 /*****************************************************************************/
-/* End Private Global Variables **********************************************/
+/* End Private Variable ******************************************************/
 
-/* Private C Function Prototypes *********************************************/ 
+/* Private Function **********************************************************/ 
 /*****************************************************************************/
 static void __RME_X64_UART_Init(void);
 /* Find the RDSP */
@@ -1139,13 +1139,13 @@ static void __RME_X64_IOAPIC_Int_Disable(rme_ptr_t IRQ);
 static void __RME_X64_Timer_Init(void);
 /*****************************************************************************/
 #define __EXTERN__
-/* End Private C Function Prototypes *****************************************/
+/* End Private Function ******************************************************/
 
-/* Public Global Variables ***************************************************/
-/* __HDR_PUBLIC_MEMBERS__ */
+/* Public Variable ***********************************************************/
+/* __HDR_PUBLIC__ */
 #else
 #define __EXTERN__ EXTERN 
-/* __HDR_PUBLIC_MEMBERS__ */
+/* __HDR_PUBLIC__ */
 #endif
 
 /*****************************************************************************/
@@ -1154,9 +1154,9 @@ EXTERN struct __RME_X64_Kern_Pgt RME_X64_Kpgt;
 EXTERN rme_ptr_t __RME_X64_Kern_Boot_Stack[0];
 /*****************************************************************************/
 
-/* End Public Global Variables ***********************************************/
+/* End Public Variable *******************************************************/
 
-/* Public C Function Prototypes **********************************************/
+/* Public Function ***********************************************************/
 /*****************************************************************************/
 /* X64 specific */
 EXTERN rme_ptr_t __RME_X64_In(rme_ptr_t Port);
@@ -1507,11 +1507,11 @@ __EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr,
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_X64_MEMBERS__ */
+/* __RME_PLATFORM_X64_PUBLIC__ */
 #endif
-/* !(defined __HDR_DEFS__||defined __HDR_STRUCTS__) */
+/* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif
-/* End Public C Function Prototypes ******************************************/
+/* End Public Function *******************************************************/
 
 /* End Of File ***************************************************************/
 

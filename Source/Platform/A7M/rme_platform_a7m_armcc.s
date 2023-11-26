@@ -2,7 +2,7 @@
 ;Filename    : rme_platform_a7m_asm.s
 ;Author      : pry
 ;Date        : 19/01/2017
-;Description : The ARMv7-M assembly support of the RME RTOS.
+;Description : The ARMv7-M assembly support of the RME RTOS, for armcc.
 ;*****************************************************************************/
 
 ;/* The ARMv7-M Architecture **************************************************
@@ -20,7 +20,7 @@
 ;a double-precision FPU.
 ;*****************************************************************************/
 
-;/* Begin Import *************************************************************/
+;/* Import *******************************************************************/
     ;Preinitialization routine
     IMPORT              __RME_A7M_Lowlvl_Preinit
     ;The ARM C library entry
@@ -37,7 +37,7 @@
     IMPORT              __RME_A7M_Vct_Handler
 ;/* End Import ***************************************************************/
 
-;/* Begin Export *************************************************************/
+;/* Export *******************************************************************/
     ;Disable all interrupts
     EXPORT              __RME_Int_Disable
     ;Enable all interrupts
@@ -77,14 +77,15 @@
     EXPORT              ___RME_A7M_MPU_Set16
 ;/* End Export ***************************************************************/
 
-;/* Begin Entry **************************************************************/
+;/* Entry ********************************************************************/
     ;The align is "(2^3)/8=1(Byte)."
     AREA                RME_ENTRY,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
     PRESERVE8
 
-Reset_Handler           PROC
+__RME_Entry             PROC
+Reset_Handler
     LDR                 R0,=__RME_A7M_Lowlvl_Preinit
     BLX                 R0
     LDR                 R0,=__main
@@ -92,7 +93,7 @@ Reset_Handler           PROC
     ENDP
 ;/* End Entry ****************************************************************/
 
-;/* Begin Vector *************************************************************/
+;/* Vector *******************************************************************/
     AREA                RME_VECTOR,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
@@ -927,7 +928,7 @@ IRQ239_Handler
     ALIGN
 ;/* End Vector ***************************************************************/
 
-;/* Begin Function:__RME_Int_Disable ******************************************
+;/* Function:__RME_Int_Disable ************************************************
 ;Description : The function for disabling all interrupts.
 ;Input       : None.
 ;Output      : None.
@@ -947,7 +948,7 @@ __RME_Int_Disable       PROC
     ALIGN
 ;/* End Function:__RME_Int_Disable *******************************************/
 
-;/* Begin Function:__RME_Int_Enable *******************************************
+;/* Function:__RME_Int_Enable *************************************************
 ;Description : The function for enabling all interrupts.
 ;Input       : None.
 ;Output      : None.    
@@ -967,7 +968,7 @@ __RME_Int_Enable        PROC
     ALIGN
 ;/* End Function:__RME_Int_Enable ********************************************/
 
-;/* Begin Function:__RME_A7M_Barrier ******************************************
+;/* Function:__RME_A7M_Barrier ************************************************
 ;Description : A full data/instruction barrier.
 ;Input       : None.
 ;Output      : None.    
@@ -988,7 +989,7 @@ __RME_A7M_Barrier       PROC
     ALIGN
 ;/* End Function:__RME_A7M_Barrier *******************************************/
 
-;/* Begin Function:__RME_A7M_Reset ********************************************
+;/* Function:__RME_A7M_Reset **************************************************
 ;Description : A full system reset.
 ;Input       : None.
 ;Output      : None.    
@@ -1015,7 +1016,7 @@ __RME_A7M_Reset         PROC
     ALIGN
 ;/* End Function:__RME_A7M_Reset *********************************************/
 
-;/* Begin Function:__RME_A7M_Wait_Int *****************************************
+;/* Function:__RME_A7M_Wait_Int ***********************************************
 ;Description : Wait until a new interrupt comes, to save power.
 ;Input       : None.
 ;Output      : None.
@@ -1035,7 +1036,7 @@ __RME_A7M_Wait_Int      PROC
     ALIGN
 ;/* End Function:__RME_A7M_Wait_Int ******************************************/
 
-;/* Begin Function:__RME_A7M_MSB_Get ******************************************
+;/* Function:__RME_A7M_MSB_Get ************************************************
 ;Description : Get the MSB of the word.
 ;Input       : ptr_t Val - The value.
 ;Output      : None.
@@ -1057,7 +1058,7 @@ __RME_A7M_MSB_Get       PROC
     ALIGN
 ;/* End Function:__RME_A7M_MSB_Get *******************************************/
 
-;/* Begin Function:__RME_User_Enter *******************************************
+;/* Function:__RME_User_Enter *************************************************
 ;Description : Entering of the user mode, after the system finish its preliminary
 ;              booting. The function shall never return. This function should only
 ;              be used to boot the first process in the system.
@@ -1086,7 +1087,7 @@ __RME_User_Enter        PROC
     ALIGN
 ;/* End Function:__RME_User_Enter ********************************************/
 
-;/* Begin Function:SysTick_Handler ********************************************
+;/* Function:SysTick_Handler **************************************************
 ;Description : The System Tick Timer handler routine. This will in fact call a
 ;              C function to resolve the system service routines.             
 ;Input       : None.
@@ -1115,7 +1116,7 @@ SysTick_Handler         PROC
     ALIGN
 ;/* End Function:SysTick_Handler *********************************************/
 
-;/* Begin Function:SVC_Handler ************************************************
+;/* Function:SVC_Handler ******************************************************
 ;Description : The SVC handler routine. This will in fact call a C function to
 ;              resolve the system service routines.             
 ;Input       : None.
@@ -1144,7 +1145,7 @@ SVC_Handler             PROC
     ALIGN
 ;/* End Function:SVC_Handler *************************************************/
 
-;/* Begin Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler ********
+;/* Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **************
 ;Description : The multi-purpose handler routine. This will in fact call
 ;              a C function to resolve the system service routines.             
 ;Input       : None.
@@ -1185,7 +1186,7 @@ UsageFault_Handler
     ALIGN
 ;/* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler *********/
 
-;/* Begin Function:___RME_A7M_Thd_Cop_Clear ***********************************
+;/* Function:___RME_A7M_Thd_Cop_Clear *****************************************
 ;Description : Clean up the coprocessor state so that the FP information is not
 ;              leaked when switching from a FPU-enabled thread to a FPU-disabled
 ;              thread.             
@@ -1215,7 +1216,7 @@ COP_CLEAR
     SPACE               32*4
 ;/* End Function:___RME_A7M_Thd_Cop_Clear ************************************/
 
-;/* Begin Function:___RME_A7M_Thd_Cop_Save ************************************
+;/* Function:___RME_A7M_Thd_Cop_Save ******************************************
 ;Description : Save the coprocessor context on switch.         
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
@@ -1237,7 +1238,7 @@ ___RME_A7M_Thd_Cop_Save PROC
     ALIGN
 ;/* End Function:___RME_A7M_Thd_Cop_Save *************************************/
 
-;/* Begin Function:___RME_A7M_Thd_Cop_Load ************************************
+;/* Function:___RME_A7M_Thd_Cop_Load ******************************************
 ;Description : Restore the coprocessor context on switch.
 ;Input       : R0 - The pointer to the coprocessor struct.
 ;Output      : None.
@@ -1259,7 +1260,7 @@ ___RME_A7M_Thd_Cop_Load PROC
     ALIGN
 ;/* End Function:___RME_A7M_Thd_Cop_Load *************************************/
 
-;/* Begin Function:___RME_A7M_MPU_Set *****************************************
+;/* Function:___RME_A7M_MPU_Set ***********************************************
 ;Description : Set the MPU context. 1-to-16-region versions are all declared here.
 ;              Note that the ARMv7-M may support more than 16 regions. But we only
 ;              support 16 regions in our port.
@@ -1325,7 +1326,6 @@ ___RME_A7M_MPU_Set1     PROC
     REQUIRE8
     PRESERVE8
 
-    AREA                MPU2,CODE,READONLY,ALIGN=3
 ___RME_A7M_MPU_Set2     PROC
     MPU_PRE
     MPU_SET2
@@ -1569,7 +1569,6 @@ ___RME_A7M_MPU_Set16    PROC
     LTORG
     ALIGN
 ;/* End Function:___RME_A7M_MPU_Set ******************************************/
-
     END
 ;/* End Of File **************************************************************/
 

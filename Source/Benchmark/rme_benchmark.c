@@ -6,7 +6,7 @@ Licence     : The Unlicense; see LICENSE for details.
 Description : The benchmark file for RME.
 ******************************************************************************/
 
-/* Defines *******************************************************************/
+/* Define ********************************************************************/
 /* Types */
 typedef signed int  s32;
 typedef signed short s16;
@@ -108,13 +108,13 @@ struct RME_CMX_Ret_Stack
     ptr_t S14;
     ptr_t S15;
 };
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
-/* Includes ******************************************************************/
+/* Include *******************************************************************/
 #include "RME.h"
 #include "stm32f4xx.h"
 /* Need to export error codes, and size of each object, in words! */
-/* End Includes **************************************************************/
+/* End Include ***************************************************************/
 
 /* Private Variables *********************************************************/
 /* The stack of the threads - enough for 4 threads */
@@ -134,7 +134,7 @@ void RME_Same_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, 
 void RME_Same_Prc_Thd_Switch_Test(void);
 /* End Function Prototypes ***************************************************/
 
-/* Begin Function:_RME_Tsc_Init ***********************************************
+/* Function:_RME_Tsc_Init *****************************************************
 Description : The initialization of timestamp counter. 19 secs before overflowing.
 Input       : None.
 Output      : None.
@@ -156,7 +156,7 @@ void _RME_Tsc_Init(void)
 }
 /* End Function:_RME_Tsc_Init ************************************************/
 
-/* Begin Function:_RME_Stack_Init *********************************************
+/* Function:_RME_Stack_Init ***************************************************
 Description : The thread's stack initializer, initializes the thread's stack.
 Input       : None.
 Output      : None.
@@ -181,7 +181,7 @@ ptr_t _RME_Stack_Init(ptr_t Stack, ptr_t Stub, ptr_t Param1, ptr_t Param2, ptr_t
 }
 /* End Function:_RME_Stack_Init **********************************************/
 
-/* Begin Function:RME_Same_Prc_Thd_Switch_Test_Thd ***************************
+/* Function:RME_Same_Prc_Thd_Switch_Test_Thd *********************************
 Description : The thread for testing same-process thread switching performance.
 Input       : None.
 Output      : None.
@@ -201,7 +201,7 @@ void RME_Same_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, 
 }
 /* End Function:RME_Same_Prc_Thd_Switch_Test_Thd ****************************/
 
-/* Begin Function:RME_Same_Prc_Thd_Switch_Test *******************************
+/* Function:RME_Same_Prc_Thd_Switch_Test *************************************
 Description : The same-process thread switch test code.
 Input       : None.
 Output      : None.
@@ -279,7 +279,7 @@ void RME_Same_Prc_Thd_Switch_Test(void)
 }
 /* End Function:RME_Same_Prc_Thd_Switch_Test ********************************/
 
-/* Begin Function:RME_Diff_Prc_Thd_Switch_Test_Thd ***************************
+/* Function:RME_Diff_Prc_Thd_Switch_Test_Thd *********************************
 Description : The thread for testing same-process thread switching performance.
 Input       : None.
 Output      : None.
@@ -299,7 +299,7 @@ void RME_Diff_Prc_Thd_Switch_Test_Thd(ptr_t Param1, ptr_t Param2, ptr_t Param3, 
 }
 /* End Function:RME_Diff_Prc_Thd_Switch_Test_Thd ****************************/
 
-/* Begin Function:RME_Diff_Prc_Thd_Switch_Test *******************************
+/* Function:RME_Diff_Prc_Thd_Switch_Test *************************************
 Description : The same-process thread switch test code.
 Input       : None.
 Output      : None.
@@ -403,7 +403,7 @@ void RME_Diff_Prc_Thd_Switch_Test(void)
 }
 /* End Function:RME_Diff_Prc_Thd_Switch_Test ********************************/
 
-/* Begin Function:RME_Benchmark ***********************************************
+/* Function:RME_Benchmark *****************************************************
 Description : The benchmark entry, also the init thread.
 Input       : None.
 Output      : None.

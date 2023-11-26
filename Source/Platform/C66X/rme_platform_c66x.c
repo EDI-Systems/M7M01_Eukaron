@@ -6,8 +6,8 @@ Licence     : The Unlicense; see LICENSE for details.
 Description : The hardware abstraction layer for TMS320C66X DSPs.
 ******************************************************************************/
 
-/* Includes ******************************************************************/
-#define __HDR_DEFS__
+/* Include *******************************************************************/
+#define __HDR_DEF__
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_kotbl.h"
 #include "Kernel/rme_captbl.h"
@@ -15,29 +15,29 @@ Description : The hardware abstraction layer for TMS320C66X DSPs.
 #include "Kernel/rme_prcthd.h"
 #include "Kernel/rme_siginv.h"
 #include "Platform/C66X/rme_platform_c66x.h"
-#undef __HDR_DEFS__
+#undef __HDR_DEF__
 
-#define __HDR_STRUCTS__
+#define __HDR_STRUCT__
 #include "Platform/C66X/rme_platform_c66x.h"
 #include "Kernel/rme_captbl.h"
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_prcthd.h"
 #include "Kernel/rme_siginv.h"
-#undef __HDR_STRUCTS__
+#undef __HDR_STRUCT__
 
 /* Private include */
 #include "Platform/C66X/rme_platform_c66x.h"
 
-#define __HDR_PUBLIC_MEMBERS__
+#define __HDR_PUBLIC__
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_captbl.h"
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_prcthd.h"
 #include "Kernel/rme_siginv.h"
-#undef __HDR_PUBLIC_MEMBERS__
-/* End Includes **************************************************************/
+#undef __HDR_PUBLIC__
+/* End Include ***************************************************************/
 
-/* Begin Function:__RME_C66X_Comp_Swap ****************************************
+/* Function:__RME_C66X_Comp_Swap **********************************************
 Description : The compare-and-swap atomic instruction. If the Old value is equal to
               *Ptr, then set the *Ptr as New and return 1; else return 0.
               TMS320C6678 does not have atomic instructions. Instead, it have something
@@ -83,7 +83,7 @@ rme_ptr_t __RME_C66X_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
 }
 /* End Function:__RME_C66X_Comp_Swap *****************************************/
 
-/* Begin Function:__RME_C66X_Fetch_Add ****************************************
+/* Function:__RME_C66X_Fetch_Add **********************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is 
               pointed to by the pointer, and return the value before addition.
               TMS320C6678 does not have atomic instructions. Instead, it have something
@@ -123,7 +123,7 @@ rme_ptr_t __RME_C66X_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
 }
 /* End Function:__RME_C66X_Fetch_Add *****************************************/
 
-/* Begin Function:__RME_C66X_Fetch_And ****************************************
+/* Function:__RME_C66X_Fetch_And **********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
               TMS320C6678 does not have atomic instructions. Instead, it have something
@@ -163,7 +163,7 @@ rme_ptr_t __RME_C66X_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 }
 /* End Function:__RME_C66X_Fetch_And *****************************************/
 
-/* Begin Function:__RME_Putchar ***********************************************
+/* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
               we should use the ITM for such outputs.
 Input       : char Char - The character to print.
@@ -177,7 +177,7 @@ rme_ptr_t __RME_Putchar(char Char)
 }
 /* End Function:__RME_Putchar ************************************************/
 
-/* Begin Function:__RME_C66X_Timer_Init ***************************************
+/* Function:__RME_C66X_Timer_Init *********************************************
 Description : Initialize the timer and start time accounting.
 Input       : None.
 Output      : None.
@@ -200,7 +200,7 @@ void __RME_C66X_Timer_Init(void)
 }
 /* End Function:__RME_C66X_Timer_Init ****************************************/
 
-/* Begin Function:__RME_Low_Level_Init ****************************************
+/* Function:__RME_Low_Level_Init **********************************************
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
@@ -241,7 +241,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
 }
 /* End Function:__RME_Low_Level_Init *****************************************/
 
-/* Begin Function:__RME_SMP_Low_Level_Init ************************************
+/* Function:__RME_SMP_Low_Level_Init ******************************************
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
@@ -297,7 +297,7 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
 }
 /* End Function:__RME_SMP_Low_Level_Init *************************************/
 
-/* Begin Function:__RME_SMP_Kmain *********************************************
+/* Function:__RME_SMP_Kmain ***************************************************
 Description : The entry for SMP processors.
 Input       : None.
 Output      : None.
@@ -333,7 +333,7 @@ void __RME_SMP_Kmain(void)
 }
 /* End Function:__RME_SMP_Kmain **********************************************/
 
-/* Begin Function:main ********************************************************
+/* Function:main **************************************************************
 Description : The entrance of the operating system. This function is for compatibility
               with the ARM toolchain.
 Input       : None.
@@ -347,7 +347,7 @@ int main(void)
 }
 /* End Function:main *********************************************************/
 
-/* Begin Function:__RME_C66X_SMP_Init *****************************************
+/* Function:__RME_C66X_SMP_Init ***********************************************
 Description : Start all other processors, one by one.
 Input       : None.
 Output      : None.
@@ -383,7 +383,7 @@ void __RME_C66X_SMP_Init(void)
 }
 /* End Function:__RME_C66X_SMP_Init ******************************************/
 
-/* Begin Function:__RME_Boot **************************************************
+/* Function:__RME_Boot ********************************************************
 Description : Boot the first process in the system.
 Input       : None.
 Output      : None.
@@ -497,7 +497,7 @@ rme_ptr_t __RME_Boot(void)
 }
 /* End Function:__RME_Boot ***************************************************/
 
-/* Begin Function:__RME_Reboot ************************************************
+/* Function:__RME_Reboot ******************************************************
 Description : Reboot the machine, abandon all operating system states.
 Input       : None.
 Output      : None.
@@ -510,7 +510,7 @@ void __RME_Reboot(void)
 }
 /* End Function:__RME_Reboot *************************************************/
 
-/* Begin Function:__RME_Shutdown **********************************************
+/* Function:__RME_Shutdown ****************************************************
 Description : Shutdown the machine, abandon all operating system states.
 Input       : None.
 Output      : None.
@@ -523,7 +523,7 @@ void __RME_Shutdown(void)
 }
 /* End Function:__RME_Shutdown ***********************************************/
 
-/* Begin Function:__RME_Get_Syscall_Param *************************************
+/* Function:__RME_Get_Syscall_Param *******************************************
 Description : Get the system call parameters from the stack frame.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : rme_ptr_t* Svc - The system service number.
@@ -541,7 +541,7 @@ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc, rme_ptr
 }
 /* End Function:__RME_Get_Syscall_Param **************************************/
 
-/* Begin Function:__RME_Set_Syscall_Retval ************************************
+/* Function:__RME_Set_Syscall_Retval ******************************************
 Description : Set the system call return value to the stack frame. This function 
               may carry up to 4 return values. If the last 3 is not needed, just set
               them to zero.
@@ -555,7 +555,7 @@ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Syscall_Retval *************************************/
 
-/* Begin Function:__RME_Thd_Reg_Init ******************************************
+/* Function:__RME_Thd_Reg_Init ************************************************
 Description : Initialize the register set for the thread.
 Input       : rme_ptr_t Entry - The thread entry address.
               rme_ptr_t Stack - The thread stack address.
@@ -574,7 +574,7 @@ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struc
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 
-/* Begin Function:__RME_Thd_Reg_Copy ******************************************
+/* Function:__RME_Thd_Reg_Copy ************************************************
 Description : Copy one set of registers into another.
 Input       : struct RME_Reg_Struct* Src - The source register set.
 Output      : struct RME_Reg_Struct* Dst - The destination register set.
@@ -662,7 +662,7 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
 
-/* Begin Function:__RME_Thd_Cop_Init ******************************************
+/* Function:__RME_Thd_Cop_Init ************************************************
 Description : Initialize the coprocessor register set for the thread.
 Input       : struct RME_Reg_Struct* Reg - The register struct to help initialize the coprocessor.
 Output      : struct RME_Reg_Cop_Struct* Cop_Reg - The register set content generated.
@@ -680,7 +680,7 @@ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_R
 }
 /* End Function:__RME_Thd_Cop_Reg_Init ***************************************/
 
-/* Begin Function:__RME_Thd_Cop_Save ******************************************
+/* Function:__RME_Thd_Cop_Save ************************************************
 Description : Save the co-op register sets. This operation is flexible - If the
               program does not use the FPU, we do not save its context.
 Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
@@ -694,7 +694,7 @@ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_R
 }
 /* End Function:__RME_Thd_Cop_Save *******************************************/
 
-/* Begin Function:__RME_Thd_Cop_Restore ***************************************
+/* Function:__RME_Thd_Cop_Restore *********************************************
 Description : Restore the co-op register sets. This operation is flexible - If the
               FPU is not used, we do not restore its context.
 Input       : struct RME_Reg_Struct* Reg - The context, used to decide whether
@@ -708,7 +708,7 @@ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Co
 }
 /* End Function:__RME_Thd_Cop_Restore ****************************************/
 
-/* Begin Function:__RME_Inv_Reg_Save ******************************************
+/* Function:__RME_Inv_Reg_Save ************************************************
 Description : Save the necessary registers on invocation for returning. Only the
               registers that will influence program control flow will be saved.
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -722,7 +722,7 @@ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_Inv_Reg_Save *******************************************/
 
-/* Begin Function:__RME_Inv_Reg_Restore ***************************************
+/* Function:__RME_Inv_Reg_Restore *********************************************
 Description : Restore the necessary registers for returning from an invocation.
 Input       : struct RME_Iret_Struct* Ret - The invocation return register context.
 Output      : struct RME_Reg_Struct* Reg - The register set.
@@ -735,7 +735,7 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
 
-/* Begin Function:__RME_Set_Inv_Retval ****************************************
+/* Function:__RME_Set_Inv_Retval **********************************************
 Description : Set the invocation return value to the stack frame.
 Input       : rme_ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
@@ -747,7 +747,7 @@ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
-/* Begin Function:__RME_Kern_Func_Handler *************************************
+/* Function:__RME_Kern_Func_Handler *******************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
@@ -765,7 +765,7 @@ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
 
-/* Begin Function:__RME_Pgt_Set *********************************************
+/* Function:__RME_Pgt_Set ***************************************************
 Description : Set the processor's page table.
 Input       : rme_ptr_t Pgt - The virtual address of the page table.
 Output      : None.
@@ -806,7 +806,7 @@ void __RME_Pgt_Set(rme_ptr_t Pgt)
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
-/* Begin Function:__RME_C66X_MMU_Update ***************************************
+/* Function:__RME_C66X_MMU_Update *********************************************
 Description : Update the MMU contents according to the metadata.
 Input       : struct RME_Cap_Pgt* Pgt - The capability to the top-level page table.
               rme_ptr_t CPUID - The ID of the CPU.
@@ -884,7 +884,7 @@ rme_ptr_t __RME_C66X_MMU_Update(struct RME_Cap_Pgt* Pgt, rme_ptr_t CPUID)
 }
 /* End Function:__RME_C66X_MMU_Update ****************************************/
 
-/* Begin Function:__RME_C66X_Fault_Handler ************************************
+/* Function:__RME_C66X_Fault_Handler ******************************************
 Description : The fault handler of RME. In C66X, this is used to handle multiple
               faults.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
@@ -924,7 +924,7 @@ void __RME_C66X_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause)
 }
 /* End Function:__RME_C66X_Fault_Handler *************************************/
 
-/* Begin Function:__RME_C66X_Int_Handler **************************************
+/* Function:__RME_C66X_Int_Handler ********************************************
 Description : The fault handler of RME. In C66X, this is used to handle all other
               interrupts.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
@@ -938,7 +938,7 @@ void __RME_C66X_Int_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Cause)
 }
 /* End Function:__RME_C66X_Int_Handler ***************************************/
 
-/* Begin Function:__RME_C66X_Generic_Handler **********************************
+/* Function:__RME_C66X_Generic_Handler ****************************************
 Description : The generic interrupt handler of RME for C66X. In C66X, all interrupts are
               always disabled, and we will only use the NMI vector to do our job. This
               is due to the restriction that C66X allows user-level to disable interrupts,
@@ -1039,7 +1039,7 @@ void __RME_C66X_Generic_Handler(struct RME_Reg_Struct* Reg)
 }
 /* End Function:__RME_C66X_Generic_Handler ***********************************/
 
-/* Begin Function:__RME_Pgt_Kom_Init ***************************************
+/* Function:__RME_Pgt_Kom_Init *********************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
               top-level page tables. In C66X, we do not need to add such pages.
 Input       : None.
@@ -1053,7 +1053,7 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
 }
 /* End Function:__RME_Pgt_Kom_Init ****************************************/
 
-/* Begin Function:__RME_Pgt_Check *******************************************
+/* Function:__RME_Pgt_Check *************************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation. We will not
               check the start address because this is actually a MMU, but other
@@ -1093,7 +1093,7 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top,
 }
 /* End Function:__RME_Pgt_Check ********************************************/
 
-/* Begin Function:__RME_Pgt_Init ********************************************
+/* Function:__RME_Pgt_Init **************************************************
 Description : Initialize the page table data structure, according to the capability.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
 Output      : None.
@@ -1149,7 +1149,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 }
 /* End Function:__RME_Pgt_Init *********************************************/
 
-/* Begin Function:__RME_Pgt_Del_Check ***************************************
+/* Function:__RME_Pgt_Del_Check *********************************************
 Description : Check if the page table can be deleted.
 Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
 Output      : None.
@@ -1169,7 +1169,7 @@ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 }
 /* End Function:__RME_Pgt_Del_Check ****************************************/
 
-/* Begin Function:__RME_Pgt_Page_Map ****************************************
+/* Function:__RME_Pgt_Page_Map **********************************************
 Description : Map a page into the page table. If a page is mapped into the slot, the
               flags is actually placed on the metadata place because all pages are
               required to have the same flags. We take advantage of this to increase
@@ -1233,7 +1233,7 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
 }
 /* End Function:__RME_Pgt_Page_Map *****************************************/
 
-/* Begin Function:__RME_Pgt_Page_Unmap **************************************
+/* Function:__RME_Pgt_Page_Unmap ********************************************
 Description : Unmap a page from the page table.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
@@ -1273,7 +1273,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 }
 /* End Function:__RME_Pgt_Page_Unmap ***************************************/
 
-/* Begin Function:__RME_Pgt_Pgdir_Map ***************************************
+/* Function:__RME_Pgt_Pgdir_Map *********************************************
 Description : Map a page directory into the page table. This architecture does
               not support page directory flags.
 Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
@@ -1333,7 +1333,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
 }
 /* End Function:__RME_Pgt_Pgdir_Map ****************************************/
 
-/* Begin Function:__RME_Pgt_Pgdir_Unmap *************************************
+/* Function:__RME_Pgt_Pgdir_Unmap *******************************************
 Description : Unmap a page directory from the page table.
 Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
               rme_ptr_t Pos - The position in the page table.
@@ -1381,7 +1381,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 }
 /* End Function:__RME_Pgt_Pgdir_Unmap **************************************/
 
-/* Begin Function:__RME_Pgt_Lookup ******************************************
+/* Function:__RME_Pgt_Lookup ************************************************
 Description : Lookup a page entry in a page directory.
 Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
@@ -1420,7 +1420,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
 }
 /* End Function:__RME_Pgt_Lookup *******************************************/
 
-/* Begin Function:__RME_Pgt_Walk ********************************************
+/* Function:__RME_Pgt_Walk **************************************************
 Description : Walking function for the page table. This function just does page
               table lookups. The page table that is being walked must be the top-
               level page table. The output values are optional; only pass in pointers

@@ -6,7 +6,7 @@ Licence    : The Unlicense; see LICENSE for details.
 Description: The configuration file for X64 supercomputer profile.
 ******************************************************************************/
 
-/* Defines *******************************************************************/
+/* Define ********************************************************************/
 
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KOM_SLOT_ORDER          4
@@ -24,7 +24,7 @@ Description: The configuration file for X64 supercomputer profile.
 #define RME_X64_FPU_TYPE             RME_X64_FPU_AVX512
 /* Timer frequency - about 1000 ticks per second */
 #define RME_X64_TIMER_FREQ           1000
-/* End Defines ***************************************************************/
+/* End Define ****************************************************************/
 
 /* End Of File ***************************************************************/
 

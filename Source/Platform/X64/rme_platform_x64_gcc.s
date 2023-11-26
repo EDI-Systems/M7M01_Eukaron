@@ -74,7 +74,7 @@ AVX-512 registers:
 **Present only in AVX-512
 ******************************************************************************/
 
-/* Begin Exports *************************************************************/
+/* Export ********************************************************************/
     /* Disable all interrupts */
     .global             __RME_Disable_Int
     /* Enable all interrupts */
@@ -129,9 +129,9 @@ AVX-512 registers:
     .global             __RME_X64_SMP_Boot_32
 
     /* Fault handlers and user handlers are exported on their spot */
-/* End Exports ***************************************************************/
+/* End Export ****************************************************************/
 
-/* Begin Imports *************************************************************/
+/* Import ********************************************************************/
     /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
     /* The fault handler of RME. This will be defined in C language. */
@@ -146,9 +146,9 @@ AVX-512 registers:
     .global             __RME_SMP_Low_Level_Init
     /* All other processor's timer interrupt handler */
     .global             __RME_X64_SMP_Tick
-/* End Imports ***************************************************************/
+/* End Import ****************************************************************/
 
-/* Begin Memory Init *********************************************************/
+/* Memory Init ***************************************************************/
 /* Multiboot header that will be located at 0x100000 *************************/
     .section            .text
     .code32
@@ -311,7 +311,7 @@ RME_X64_Kpgt:
 __RME_X64_Kern_Boot_Stack:
 /* End Memory Init ***********************************************************/
 
-/* Begin Function:__RME_X64_In ************************************************
+/* Function:__RME_X64_In ******************************************************
 Description : The function for outputting something to an I/O port.
 Input       : ptr_t Port - The port to output to.
 Output      : None.
@@ -326,7 +326,7 @@ __RME_X64_In:
     RETQ
 /* End Function:__RME_X64_In *************************************************/
 
-/* Begin Function:__RME_X64_Out ***********************************************
+/* Function:__RME_X64_Out *****************************************************
 Description    : The function for outputting something to an I/O port.
 Input          : ptr_t Port - The port to output to.
                  ptr_t Data - The data to send to that port.
@@ -344,7 +344,7 @@ __RME_X64_Out:
     RETQ
 /* End Function:__RME_X64_Out ************************************************/
 
-/* Begin Function:__RME_X64_Read_MSR ******************************************
+/* Function:__RME_X64_Read_MSR ************************************************
 Description : The function for reading a MSR.
 Input       : ptr_t MSR - The MSR to read.
 Output      : None.
@@ -363,7 +363,7 @@ __RME_X64_Read_MSR:
     RETQ
 /* End Function:__RME_X64_Read_MSR *******************************************/
 
-/* Begin Function:__RME_X64_Write_MSR *****************************************
+/* Function:__RME_X64_Write_MSR ***********************************************
 Description : The function for writing a MSR.
 Input       : ptr_t MSR - The MSR to write.
               ptr_t Value - The value to write to it.
@@ -385,7 +385,7 @@ __RME_X64_Write_MSR:
     RETQ
 /* End Function:__RME_X64_Write_MSR ******************************************/
 
-/* Begin Function:__RME_X64_CPU_Local_Get *************************************
+/* Function:__RME_X64_CPU_Local_Get *******************************************
 Description : Get the CPU-local data structures. This is to identify where we are
               executing.
 Input       : None.
@@ -397,7 +397,7 @@ __RME_X64_CPU_Local_Get:
     RETQ
 /* End Function:__RME_X64_CPU_Local_Get **************************************/
 
-/* Begin Function:__RME_X64_CPUID_Get *****************************************
+/* Function:__RME_X64_CPUID_Get ***********************************************
 Description : The function for outputting something to an I/O port.
 Input       : ptr_t EAX - The EAX value to get the CPUID for.
               ptr_t* EBX - The EBX info.
@@ -435,7 +435,7 @@ __RME_X64_CPUID_Get:
     RETQ
 /* End Function:__RME_X64_CPUID_Get ******************************************/
 
-/* Begin Function:__RME_X64_GDT_Load ******************************************
+/* Function:__RME_X64_GDT_Load ************************************************
 Description : The function for loading the GDT. Every CPU needs to load their
               own GDT. No need to flush segment registers cause we're in 64-bit
               mode.
@@ -448,7 +448,7 @@ __RME_X64_GDT_Load:
     RETQ
 /* End Function:__RME_X64_GDT_Load *******************************************/
 
-/* Begin Function:__RME_X64_IDT_Load ******************************************
+/* Function:__RME_X64_IDT_Load ************************************************
 Description : The function for loading the IDT. Every CPU needs to load their
               own IDT.
 Input       : ptr_t* IDTR - The pointer to the IDT descriptor.
@@ -460,7 +460,7 @@ __RME_X64_IDT_Load:
     RETQ
 /* End Function:__RME_X64_IDT_Load *******************************************/
 
-/* Begin Function:__RME_X64_TSS_Load ******************************************
+/* Function:__RME_X64_TSS_Load ************************************************
 Description : The function for loading the TSS's entry in GDT.
 Input       : ptr_t TSS - The TSS's position in GDT.
 Output      : None.
@@ -471,7 +471,7 @@ __RME_X64_TSS_Load:
     RETQ
 /* End Function:__RME_X64_TSS_Load *******************************************/
 
-/* Begin Function:__RME_X64_Comp_Swap *****************************************
+/* Function:__RME_X64_Comp_Swap ***********************************************
 Description : The compare-and-swap atomic instruction. If the Old value is equal to
               *Ptr, then set the *Ptr as New and return 1; else return 0.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -491,7 +491,7 @@ __RME_X64_Comp_Swap:
     RETQ
 /* End Function:__RME_X64_Comp_Swap ******************************************/
 
-/* Begin Function:__RME_X64_Fetch_Add *****************************************
+/* Function:__RME_X64_Fetch_Add ***********************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is
               pointed to by the pointer, and return the value before addition.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -506,7 +506,7 @@ __RME_X64_Fetch_Add:
     RETQ
 /* End Function:__RME_X64_Fetch_Add ******************************************/
 
-/* Begin Function:__RME_X64_Fetch_And *****************************************
+/* Function:__RME_X64_Fetch_And ***********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -521,7 +521,7 @@ __RME_X64_Fetch_And:
     RETQ
 /* End Function:__RME_X64_Fetch_And ******************************************/
 
-/* Begin Function:__RME_X64_Write_Release *************************************
+/* Function:__RME_X64_Write_Release *******************************************
 Description : The write-release memory fence, to avoid read/write reorderings.
 Input       : None.
 Output      : None.
@@ -532,7 +532,7 @@ __RME_X64_Write_Release:
     RETQ
 /* End Function:__RME_X64_Write_Release **************************************/
 
-/* Begin Function:__RME_X64_Pgt_Set *****************************************
+/* Function:__RME_X64_Pgt_Set ***********************************************
 Description : Set the processor's page table.
 Input       : ptr_t Pgt - The physical address of the page table.
 Output      : None.
@@ -543,7 +543,7 @@ __RME_X64_Pgt_Set:
     RETQ
 /* End Function:__RME_X64_Pgt_Set ******************************************/
 
-/* Begin Function:__RME_Disable_Int *******************************************
+/* Function:__RME_Disable_Int *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None.
@@ -555,7 +555,7 @@ __RME_Disable_Int:
     RETQ
 /* End Function:__RME_Disable_Int ********************************************/
 
-/* Begin Function:__RME_Enable_Int ********************************************
+/* Function:__RME_Enable_Int **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
@@ -567,7 +567,7 @@ __RME_Enable_Int:
     RETQ
 /* End Function:__RME_Enable_Int *********************************************/
 
-/* Begin Function:__RME_X64_Halt **********************************************
+/* Function:__RME_X64_Halt ****************************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
@@ -579,7 +579,7 @@ __RME_X64_Halt:
     RETQ
 /* End Function:__RME_X64_Halt ***********************************************/
 
-/* Begin Function:_RME_Kmain **************************************************
+/* Function:_RME_Kmain ********************************************************
 Description : The entry address of the kernel. Never returns.
 Input       : ptr_t Stack - The stack address to set SP to.
 Output      : None.
@@ -590,7 +590,7 @@ _RME_Kmain:
     JMP                 RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
-/* Begin Function:__RME_X64_MSB_Get *******************************************
+/* Function:__RME_X64_MSB_Get *************************************************
 Description : Get the MSB of the word. The kernel is guaranteed not to call this
               function with a zero word, so we don't need to handle this edge case
               actually.
@@ -603,7 +603,7 @@ __RME_X64_MSB_Get:
     RETQ
 /* End Function:__RME_X64_MSB_Get ********************************************/
 
-/* Begin Function:__RME_Enter_User_Mode ***************************************
+/* Function:__RME_Enter_User_Mode *********************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
@@ -621,7 +621,7 @@ __RME_Enter_User_Mode:
     SYSRETQ
 /* End Function:__RME_Enter_User_Mode ****************************************/
 
-/* Begin Function:Fault_Handler ***********************************************
+/* Function:Fault_Handler *****************************************************
 Description : The multi-purpose fault handler routine. This macro will in fact
               call a C function to resolve the system service routines.
               x86-64 use a full descending stack model. Note that this assumes that
@@ -732,7 +732,7 @@ Fault_Handler:
     IRETQ
 /* End Function:Fault_Handler ************************************************/
 
-/* Begin Function:__RME_X64_INT_USER_Handler **********************************
+/* Function:__RME_X64_INT_USER_Handler ****************************************
 Description : The General Interrupt handler routine. This will in fact call a
               C function to resolve the system service routines.
 Input       : None.
@@ -1008,7 +1008,7 @@ User_Handler:
     IRETQ
 /* End Function:__RME_X64_INT_USER_Handler ***********************************/
 
-/* Begin Function:SysTick_SMP_Handler *****************************************
+/* Function:SysTick_SMP_Handler ***********************************************
 Description : The ticker timer handler for all other processors. This is in fact
               a handler triggered by IPI from the main processor.
 Input       : None.
@@ -1032,7 +1032,7 @@ SysTick_SMP_Handler:
     IRETQ
 /* End Function:SysTick_SMP_Handler ******************************************/
 
-/* Begin Function:SysTick_Handler *********************************************
+/* Function:SysTick_Handler ***************************************************
 Description : The System Tick Timer handler routine. This will in fact call a
               C function to resolve the system service routines.
 Input       : None.
@@ -1057,7 +1057,7 @@ SysTick_Handler:
     IRETQ
 /* End Function:SysTick_Handler **********************************************/
 
-/* Begin Function:SVC_Handler *************************************************
+/* Function:SVC_Handler *******************************************************
 Description : The SVC handler routine. This will in fact call a C function to resolve
               the system service routines. None of the segment registers will be
               preserved in all paths, and you shouldn't use them at all.
