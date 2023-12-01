@@ -62,73 +62,6 @@ int main(void)
 }
 /* End Function:main *********************************************************/
 
-/* Function:__RME_A7M_Comp_Swap ***********************************************
-Description : The compare-and-swap atomic instruction. If the Old value is
-              equal to *Ptr, then set the *Ptr as New and return 1; else return
-              0.
-              On ARMv7-M there is only one core. There's no need to do
-              anything special, and because we are already in kernel, relevant
-              interrupts are already masked by default.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_ptr_t Old - The old value.
-              rme_ptr_t New - The new value.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - If successful, 1; else 0.
-******************************************************************************/
-rme_ptr_t __RME_A7M_Comp_Swap(volatile rme_ptr_t* Ptr,
-                              rme_ptr_t Old,
-                              rme_ptr_t New)
-{
-    if(*Ptr==Old)
-    {
-        *Ptr=New;
-        return 1U;
-    }
-    
-    return 0U;
-}
-/* End Function:__RME_A7M_Comp_Swap ******************************************/
-
-/* Function:__RME_A7M_Fetch_Add ***********************************************
-Description : The fetch-and-add atomic instruction. Increase the value that is 
-              pointed to by the pointer, and return the value before addition.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_cnt_t Addend - The number to add.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - The value before the addition.
-******************************************************************************/
-rme_ptr_t __RME_A7M_Fetch_Add(volatile rme_ptr_t* Ptr,
-                              rme_cnt_t Addend)
-{
-    rme_cnt_t Old;
-    
-    Old=(rme_cnt_t)(*Ptr);
-    *Ptr=(rme_ptr_t)(Old+Addend);
-    
-    return (rme_ptr_t)Old;
-}
-/* End Function:__RME_A7M_Fetch_Add ******************************************/
-
-/* Function:__RME_A7M_Fetch_And ***********************************************
-Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
-              value with the operand, and return the value before logic AND.
-Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
-              rme_cnt_t Operand - The number to logic AND with the destination.
-Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
-Return      : rme_ptr_t - The value before the AND operation.
-******************************************************************************/
-rme_ptr_t __RME_A7M_Fetch_And(volatile rme_ptr_t* Ptr,
-                              rme_ptr_t Operand)
-{
-    rme_ptr_t Old;
-    
-    Old=*Ptr;
-    *Ptr=Old&Operand;
-    
-    return Old;
-}
-/* End Function:__RME_A7M_Fetch_And ******************************************/
-
 /* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In ARMv7-M, under most circumstances, 
               we should use the ITM or serial for such outputs.
@@ -1917,12 +1850,15 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
                         struct RME_Reg_Struct* Reg_Cur,
                         void* Cop_Cur)
 {
-    static rme_ptr_t Dirty=1U;
+    static rme_ptr_t Used=1U;
     
     /* The current thread does have FPU capability */
     if(Attr_Cur!=RME_A7M_ATTR_NONE)
     {
-        /* The current thread made use of that capability, need to save context */
+        /* The current thread made use of that capability, need to save context.
+         * this LR value can be trusted to indicate whether the thread have ever
+         * touched FPU because it is from the current thread, and must be virgin.
+         * A7M is single-core so no other CPUs could modify it on the fly. */
         if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
         {
             /* FPU MUST be enabled at this point. No possibility that we've had
@@ -1930,11 +1866,11 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
             RME_ASSERT((RME_A7M_SCB_CPACR&RME_A7M_SCB_CPACR_FPU_MASK)!=0U);
             /* In theory, when we switch from a FPU-enabled thread to a FPU-disabled
              * thread and back, we don't ever need to save and restore FPU registers.
-             * However, RME supports HYP-threads, which may need to read/write the
+             * However, RME supports HYP mapping, which may need to read/write the
              * registers in a kernel agnostic fashion. In that case, if the FPU
              * is ever put to use, its context must be saved and restored. */
             ___RME_A7M_Thd_Cop_Save(Cop_Cur);
-            Dirty=1U;
+            Used=1U;
         }
     }
     
@@ -1946,21 +1882,23 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
         if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
         {
             ___RME_A7M_Thd_Cop_Load(Cop_New);
-            Dirty=1U;
+            /* No need to set Dirty here because it will be set on next entry */
         }
         /* The next thread did not make use of the capability, clean-up its
          * FPU context. The processor automatically sets the FPCA to zero (on
          * detection that LR[4]=1), so that the exception entry stacks later
          * does not include FPU registers anymore. The FPU is therefore not
          * really turned off when the thread says it doesn't want to use FPU,
-         * but put into hibernation that does not cause more ctxsw burden. */
+         * but put into hibernation that does not cause more ctxsw burden.
+         * We need to clean up any FPU mess, otherwise if the new thread might
+         * read FPU context from other threads which is insecure. */
         else
         {
-            /* Clean up and restore to initial state, if dirty only, to save time */
-            if(Dirty!=0U)
+            /* Clean up and restore to initial state, if used only, to save time */
+            if(Used!=0U)
             {
                 ___RME_A7M_Thd_Cop_Clear();
-                Dirty=0U;
+                Used=0U;
             }
         }
     }

@@ -22,22 +22,20 @@ Description: The boot stub source file for all WCH D8C cores. These cores are
 ******************************************************************************/
 
 /* Import ********************************************************************/
-    .global         __RME_Init
+    .extern         __RME_Entry_After
 /* End Import ****************************************************************/
 
 /* Export ********************************************************************/
-    .global         _start
-    .global         __RME_Start
+    .global         __RME_Entry
 /* End Export ****************************************************************/
 
 /* Startup *******************************************************************/
-    .section        .text.startup,"ax",@progbits
+    .section        .text.rme_entry
     .option         norelax
     .option         norvc
 
-_start:
-__RME_Startup:
-    J               __RME_WCHD8C_Startup
+__RME_Entry:
+    J               __RME_WCHD8C_Entry
     /* Weird nonstandard constants that the architecture would require */
     .word           0x00000013
     .word           0x00000013
@@ -54,7 +52,7 @@ __RME_Startup:
     .word           0x00100073
     .align          1
 
-__RME_WCHD8C_Startup:
+__RME_WCHD8C_Entry:
     /* Chip-specific CORECFGR(0x0BC0): default value 0x1F */
     LI              t0,0x1F
     CSRW            0x0BC0,t0
@@ -69,18 +67,18 @@ __RME_WCHD8C_Startup:
     ORI             t0,t0,3
     CSRW            mtvec,t0
     /* Jump to real entry that further initializes */
-    J               __RME_Entry
+    J               __RME_Entry_After
 /* End Startup ***************************************************************/
 
 /* Vector ********************************************************************/
-    .section        .text.vector,"ax",@progbits
+    .section        .text.rme_vector
     .option         norvc
     .align          1
 
 __RME_Vector:
     /* System vectors - these are totally nonstandard, implementing a "numeric"
      * mode similar to ARMv7-M that is not even in the RISC-V spec */
-    .word           __RME_Start
+    .word           __RME_Entry
     .word           0
     .word           NMI_Handler                 /* NMI */
     .word           EXC_Handler                 /* Hard Fault */
@@ -365,7 +363,7 @@ __RME_Vector:
 /* End Vector ****************************************************************/
 
 /* Handler *******************************************************************/
-    .section        .text.handler, "ax", @progbits
+    .section        .text.rme_handler
     .option         rvc
     .align          1
 

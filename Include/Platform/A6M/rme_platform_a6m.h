@@ -110,14 +110,13 @@ typedef rme_s32_t rme_ret_t;
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                 RME_A6M_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A6M_Comp_Swap(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)      _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)       __RME_A6M_Fetch_Add(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)       _RME_Fetch_Add_Single(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
-#define RME_FETCH_AND(PTR,OPERAND)      __RME_A6M_Fetch_And(PTR,OPERAND)
-/* Get most/least significant bit */
+#define RME_FETCH_AND(PTR,OPERAND)      _RME_Fetch_And_Single(PTR,OPERAND)
+/* Get most significant bit */
 #define RME_MSB_GET(VAL)                _RME_MSB_Generic(VAL)
-#define RME_LSB_GET(VAL)                _RME_LSB_Generic(VAL)
 /* No read/write barriers needed on Cortex-M, because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
@@ -618,14 +617,6 @@ EXTERN void __RME_Int_Disable(void);
 EXTERN void __RME_Int_Enable(void);
 EXTERN void __RME_A6M_Barrier(void);
 EXTERN void __RME_A6M_Wait_Int(void);
-/* Atomics */
-__EXTERN__ rme_ptr_t __RME_A6M_Comp_Swap(volatile rme_ptr_t* Ptr,
-                                         rme_ptr_t Old,
-                                         rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_A6M_Fetch_Add(volatile rme_ptr_t* Ptr,
-                                         rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_A6M_Fetch_And(volatile rme_ptr_t* Ptr,
-                                         rme_ptr_t Operand);
 #if(RME_DEBUG_PRINT==1U)
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);

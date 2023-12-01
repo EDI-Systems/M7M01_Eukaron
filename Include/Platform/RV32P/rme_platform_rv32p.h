@@ -110,20 +110,17 @@ typedef rme_s32_t rme_ret_t;
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                 RME_RV32P_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_RV32P_Comp_Swap(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)      _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)       __RME_RV32P_Fetch_Add(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)       _RME_Fetch_Add_Single(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
-#define RME_FETCH_AND(PTR,OPERAND)      __RME_RV32P_Fetch_And(PTR,OPERAND)
-/* Get most/least significant bit */
+#define RME_FETCH_AND(PTR,OPERAND)      _RME_Fetch_And_Single(PTR,OPERAND)
+/* Get most significant bit */
 #define RME_MSB_GET(VAL)                _RME_MSB_Generic(VAL)
-#define RME_LSB_GET(VAL)                _RME_LSB_Generic(VAL)
 /* No read/write barriers needed on , because they are currently all
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
 #define RME_WRITE_RELEASE(X, V)         ((*(X))=(V))
-
-#define __RME_RV32P_Reset()          NVIC_SystemReset()
 /* Reboot the processor if the assert fails in this port */
 #define RME_ASSERT_FAILED(F, L, D, T)   __RME_RV32P_Reboot()
 
@@ -697,63 +694,63 @@ EXTERN void ___RME_RV32P_PMP_Set16(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
 /* Handler *******************************************************************/
 /* Fault handler */
 static void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
-                                     rme_ptr_t Mcause);
+                                    rme_ptr_t Mcause);
 /* Vector Flags **************************************************************/
 static void __RME_RV32P_Flag_Fast(rme_ptr_t Base,
-                                   rme_ptr_t Size,
-                                   rme_ptr_t Flag);
+                                  rme_ptr_t Size,
+                                  rme_ptr_t Flag);
 static void __RME_RV32P_Flag_Slow(rme_ptr_t Base,
-                                   rme_ptr_t Size,
-                                   rme_ptr_t Pos);
+                                  rme_ptr_t Size,
+                                  rme_ptr_t Pos);
 /* Page Table ****************************************************************/
 static rme_ptr_t __RME_RV32P_Rand(void);
 static rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
-                                          rme_ptr_t Paddr,
-                                          rme_ptr_t Size_Order,
-                                          rme_ptr_t Flag);
+                                         rme_ptr_t Paddr,
+                                         rme_ptr_t Size_Order,
+                                         rme_ptr_t Flag);
 /* Kernel function ***********************************************************/
 static rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
-                                         rme_cid_t Cap_Pgt,
-                                         rme_ptr_t Vaddr,
-                                         rme_ptr_t Type);
+                                           rme_cid_t Cap_Pgt,
+                                           rme_ptr_t Vaddr,
+                                           rme_ptr_t Type);
 static rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
-                                         rme_ptr_t Operation,
-                                         rme_ptr_t Param);
-static rme_ret_t __RME_RV32P_Int_Local_Trig(rme_ptr_t CPUID,
-                                          rme_ptr_t Int_Num);
-static rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
-                                             rme_ptr_t CPUID,
-                                             rme_ptr_t Evt_Num);
-
-static rme_ret_t __RME_RV32P_Cache_Maint(rme_ptr_t Cache_ID,
-                                          rme_ptr_t Operation,
-                                          rme_ptr_t Param);
-static rme_ret_t __RME_RV32P_Prfth_Mod(rme_ptr_t Prfth_ID,
-                                        rme_ptr_t Operation,
-                                        rme_ptr_t Param);
-static rme_ret_t __RME_RV32P_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
-                                            rme_ptr_t Freg_ID);
-static rme_ret_t __RME_RV32P_Perf_Mon_Mod(rme_ptr_t Perf_ID,
                                            rme_ptr_t Operation,
                                            rme_ptr_t Param);
+static rme_ret_t __RME_RV32P_Int_Local_Trig(rme_ptr_t CPUID,
+                                            rme_ptr_t Int_Num);
+static rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
+                                            rme_ptr_t CPUID,
+                                            rme_ptr_t Evt_Num);
+
+static rme_ret_t __RME_RV32P_Cache_Maint(rme_ptr_t Cache_ID,
+                                         rme_ptr_t Operation,
+                                         rme_ptr_t Param);
+static rme_ret_t __RME_RV32P_Prfth_Mod(rme_ptr_t Prfth_ID,
+                                       rme_ptr_t Operation,
+                                       rme_ptr_t Param);
+static rme_ret_t __RME_RV32P_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
+                                           rme_ptr_t Freg_ID);
+static rme_ret_t __RME_RV32P_Perf_Mon_Mod(rme_ptr_t Perf_ID,
+                                          rme_ptr_t Operation,
+                                          rme_ptr_t Param);
 static rme_ret_t __RME_RV32P_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
-                                             rme_ptr_t Cycle_ID,
-                                             rme_ptr_t Operation,
-                                             rme_ptr_t Value);
+                                            rme_ptr_t Cycle_ID,
+                                            rme_ptr_t Operation,
+                                            rme_ptr_t Value);
 static rme_ret_t __RME_RV32P_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
-                                            struct RME_Reg_Struct* Reg,
-                                            rme_cid_t Cap_Thd,
-                                            rme_ptr_t Operation,
-                                            rme_ptr_t Value);
+                                           struct RME_Reg_Struct* Reg,
+                                           rme_cid_t Cap_Thd,
+                                           rme_ptr_t Operation,
+                                           rme_ptr_t Value);
 static rme_ret_t __RME_RV32P_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
-                                            struct RME_Reg_Struct* Reg,
-                                            rme_cid_t Cap_Thd,
-                                            rme_ptr_t Operation,
-                                            rme_ptr_t Value);
+                                           struct RME_Reg_Struct* Reg,
+                                           rme_cid_t Cap_Thd,
+                                           rme_ptr_t Operation,
+                                           rme_ptr_t Value);
 static rme_ret_t __RME_RV32P_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
-                                            struct RME_Reg_Struct* Reg,
-                                            rme_cid_t Cap_Thd,
-                                            rme_ptr_t Operation);
+                                           struct RME_Reg_Struct* Reg,
+                                           rme_cid_t Cap_Thd,
+                                           rme_ptr_t Operation);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private Function ******************************************************/
@@ -784,20 +781,12 @@ EXTERN void __RME_Int_Enable(void);
 EXTERN void __RME_RV32P_Barrier(void);
 EXTERN void __RME_RV32P_Wait_Int(void);
 /* CSR manipulation */
-EXTERN rme_ptr_t __RME_RV32P_MCAUSE_Get(void);
-EXTERN rme_ptr_t __RME_RV32P_MTVAL_Get(void);
-EXTERN rme_ptr_t __RME_RV32P_MCYCLE_Get(void);
-EXTERN rme_ptr_t __RME_RV32P_MISA_Get(void);
-EXTERN rme_ptr_t __RME_RV32P_MSTATUS_Get(void);
-EXTERN void __RME_RV32P_MSTATUS_Set(rme_ptr_t Value);
-/* Atomics */
-__EXTERN__ rme_ptr_t __RME_RV32P_Comp_Swap(volatile rme_ptr_t* Ptr,
-                                            rme_ptr_t Old,
-                                            rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_RV32P_Fetch_Add(volatile rme_ptr_t* Ptr,
-                                            rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_RV32P_Fetch_And(volatile rme_ptr_t* Ptr,
-                                            rme_ptr_t Operand);
+EXTERN rme_ptr_t ___RME_RV32P_MCAUSE_Get(void);
+EXTERN rme_ptr_t ___RME_RV32P_MTVAL_Get(void);
+EXTERN rme_ptr_t ___RME_RV32P_MCYCLE_Get(void);
+EXTERN rme_ptr_t ___RME_RV32P_MISA_Get(void);
+EXTERN rme_ptr_t ___RME_RV32P_MSTATUS_Get(void);
+EXTERN void ___RME_RV32P_MSTATUS_Set(rme_ptr_t Value);
 #if(RME_DEBUG_PRINT==1U)
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);

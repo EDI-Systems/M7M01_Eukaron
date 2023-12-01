@@ -201,24 +201,24 @@ Return      : rme_ptr_t - The result. 0 will be returned for 0.
 rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value)
 {
     rme_ptr_t Bit;
-    static const rme_u8_t Table[256]=
+    static const rme_u8_t Table[256U]=
     {
-        0U, 0U, 1U, 1U, 2U, 2U, 2U, 2U, 3U, 3U, 3U, 3U, 3U, 3U, 3U, 3U,
-        4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U, 4U,
-        5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U,
-        5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U, 5U,
-        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
-        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
-        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
-        6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U, 6U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U,
-        7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U, 7U
+        0U,0U,1U,1U,2U,2U,2U,2U,3U,3U,3U,3U,3U,3U,3U,3U,
+        4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,4U,
+        5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,
+        5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,5U,
+        6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,
+        6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,
+        6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,
+        6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,6U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,
+        7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U,7U
     };
 
 #if(RME_WORD_ORDER==4U)
@@ -349,7 +349,7 @@ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value)
         }
     }
 #else
-#error Generic FFS for 128-bits & above are not implemented.
+#error Generic MSB for 128-bits & above are not implemented.
 #endif
 
     return Table[Value>>Bit]+Bit;
@@ -367,29 +367,29 @@ Return      : rme_ptr_t - The result. 0 will be returned for 0.
 rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
 {
     rme_ptr_t Bit;
-    static const rme_u8_t Table[256]=
+    static const rme_u8_t Table[256U]=
     {
-        0U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        6U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        7U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        6U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        5U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
-        4U, 0U, 1U, 0U, 2U, 0U, 1U, 0U, 3U, 0U, 1U, 0U, 2U, 0U, 1U, 0U,
+        0U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        5U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        6U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        5U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        7U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        5U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        6U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        5U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U,
+        4U,0U,1U,0U,2U,0U,1U,0U,3U,0U,1U,0U,2U,0U,1U,0U
     };
     
 #if(RME_WORD_ORDER==4U)
     /* 16-8 */
-    if((Value<<8)==0U)
+    if((Value<<8U)==0U)
     {
         RME_COVERAGE_MARKER();
         Bit=8U;
@@ -402,11 +402,11 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
     }
 #elif(RME_WORD_ORDER==5U)
     /* 31-16 */
-    if((Value<<16)==0U)
+    if((Value<<16U)==0U)
     {
         RME_COVERAGE_MARKER();
         /* 31-24 */
-        if((Value<<8)==0U)
+        if((Value<<8U)==0U)
         {
             RME_COVERAGE_MARKER();
             Bit=24U;
@@ -423,7 +423,7 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
     {
         RME_COVERAGE_MARKER();
         /* 15-8 */
-        if((Value<<24)==0U)
+        if((Value<<24U)==0U)
         {
             RME_COVERAGE_MARKER();
             Bit=8U;
@@ -437,15 +437,15 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
     }
 #elif(RME_WORD_ORDER==6U)
     /* 63-32 */
-    if((Value<<32)==0U)
+    if((Value<<32U)==0U)
     {
         RME_COVERAGE_MARKER();
         /* 63-48 */
-        if((Value<<16)==0U)
+        if((Value<<16U)==0U)
         {
             RME_COVERAGE_MARKER();
             /* 63-56 */
-            if((Value<<8)==0U)
+            if((Value<<8U)==0U)
             {
                 RME_COVERAGE_MARKER();
                 Bit=56U;
@@ -462,7 +462,7 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
         {
             RME_COVERAGE_MARKER();
             /* 47-40 */
-            if((Value<<24)==0U)
+            if((Value<<24U)==0U)
             {
                 RME_COVERAGE_MARKER();
                 Bit=40U;
@@ -480,11 +480,11 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
     {
         RME_COVERAGE_MARKER();
         /* 31-16 */
-        if((Value<<48)==0U)
+        if((Value<<48U)==0U)
         {
             RME_COVERAGE_MARKER();
             /* 31-24 */
-            if((Value<<40)==0U)
+            if((Value<<40U)==0U)
             {
                 RME_COVERAGE_MARKER();
                 Bit=24U;
@@ -501,7 +501,7 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
         {
             RME_COVERAGE_MARKER();
             /* 15-8 */
-            if((Value<<56)==0U)
+            if((Value<<56U)==0U)
             {
                 RME_COVERAGE_MARKER();
                 Bit=8U;
@@ -515,7 +515,7 @@ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value)
         }
     }
 #else
-#error Generic FLS for 128-bits & above are not implemented.
+#error Generic LSB for 128-bits & above are not implemented.
 #endif
 
     return Table[(rme_u8_t)(Value>>Bit)]+Bit;
@@ -538,50 +538,50 @@ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value)
     rme_u8_t* To;
     rme_u8_t* From;
 
-    static const rme_u8_t Table[256]=
+    static const rme_u8_t Table[256U]=
     {
-        0x00U, 0x80U, 0x40U, 0xC0U, 0x20U, 0xA0U, 0x60U, 0xE0U,
-        0x10U, 0x90U, 0x50U, 0xD0U, 0x30U, 0xB0U, 0x70U, 0xF0U,
-        0x08U, 0x88U, 0x48U, 0xC8U, 0x28U, 0xA8U, 0x68U, 0xE8U,
-        0x18U, 0x98U, 0x58U, 0xD8U, 0x38U, 0xB8U, 0x78U, 0xF8U,
-        0x04U, 0x84U, 0x44U, 0xC4U, 0x24U, 0xA4U, 0x64U, 0xE4U,
-        0x14U, 0x94U, 0x54U, 0xD4U, 0x34U, 0xB4U, 0x74U, 0xF4U,
-        0x0CU, 0x8CU, 0x4CU, 0xCCU, 0x2CU, 0xACU, 0x6CU, 0xECU,
-        0x1CU, 0x9CU, 0x5CU, 0xDCU, 0x3CU, 0xBCU, 0x7CU, 0xFCU,
-        0x02U, 0x82U, 0x42U, 0xC2U, 0x22U, 0xA2U, 0x62U, 0xE2U,
-        0x12U, 0x92U, 0x52U, 0xD2U, 0x32U, 0xB2U, 0x72U, 0xF2U,
-        0x0AU, 0x8AU, 0x4AU, 0xCAU, 0x2AU, 0xAAU, 0x6AU, 0xEAU,
-        0x1AU, 0x9AU, 0x5AU, 0xDAU, 0x3AU, 0xBAU, 0x7AU, 0xFAU,
-        0x06U, 0x86U, 0x46U, 0xC6U, 0x26U, 0xA6U, 0x66U, 0xE6U,
-        0x16U, 0x96U, 0x56U, 0xD6U, 0x36U, 0xB6U, 0x76U, 0xF6U,
-        0x0EU, 0x8EU, 0x4EU, 0xCEU, 0x2EU, 0xAEU, 0x6EU, 0xEEU,
-        0x1EU, 0x9EU, 0x5EU, 0xDEU, 0x3EU, 0xBEU, 0x7EU, 0xFEU,
-        0x01U, 0x81U, 0x41U, 0xC1U, 0x21U, 0xA1U, 0x61U, 0xE1U,
-        0x11U, 0x91U, 0x51U, 0xD1U, 0x31U, 0xB1U, 0x71U, 0xF1U,
-        0x09U, 0x89U, 0x49U, 0xC9U, 0x29U, 0xA9U, 0x69U, 0xE9U,
-        0x19U, 0x99U, 0x59U, 0xD9U, 0x39U, 0xB9U, 0x79U, 0xF9U,
-        0x05U, 0x85U, 0x45U, 0xC5U, 0x25U, 0xA5U, 0x65U, 0xE5U,
-        0x15U, 0x95U, 0x55U, 0xD5U, 0x35U, 0xB5U, 0x75U, 0xF5U,
-        0x0DU, 0x8DU, 0x4DU, 0xCDU, 0x2DU, 0xADU, 0x6DU, 0xEDU,
-        0x1DU, 0x9DU, 0x5DU, 0xDDU, 0x3DU, 0xBDU, 0x7DU, 0xFDU,
-        0x03U, 0x83U, 0x43U, 0xC3U, 0x23U, 0xA3U, 0x63U, 0xE3U,
-        0x13U, 0x93U, 0x53U, 0xD3U, 0x33U, 0xB3U, 0x73U, 0xF3U,
-        0x0BU, 0x8BU, 0x4BU, 0xCBU, 0x2BU, 0xABU, 0x6BU, 0xEBU,
-        0x1BU, 0x9BU, 0x5BU, 0xDBU, 0x3BU, 0xBBU, 0x7BU, 0xFBU,
-        0x07U, 0x87U, 0x47U, 0xC7U, 0x27U, 0xA7U, 0x67U, 0xE7U,
-        0x17U, 0x97U, 0x57U, 0xD7U, 0x37U, 0xB7U, 0x77U, 0xF7U,
-        0x0FU, 0x8FU, 0x4FU, 0xCFU, 0x2FU, 0xAFU, 0x6FU, 0xEFU,
-        0x1FU, 0x9FU, 0x5FU, 0xDFU, 0x3FU, 0xBFU, 0x7FU, 0xFFU
+        0x00U,0x80U,0x40U,0xC0U,0x20U,0xA0U,0x60U,0xE0U,
+        0x10U,0x90U,0x50U,0xD0U,0x30U,0xB0U,0x70U,0xF0U,
+        0x08U,0x88U,0x48U,0xC8U,0x28U,0xA8U,0x68U,0xE8U,
+        0x18U,0x98U,0x58U,0xD8U,0x38U,0xB8U,0x78U,0xF8U,
+        0x04U,0x84U,0x44U,0xC4U,0x24U,0xA4U,0x64U,0xE4U,
+        0x14U,0x94U,0x54U,0xD4U,0x34U,0xB4U,0x74U,0xF4U,
+        0x0CU,0x8CU,0x4CU,0xCCU,0x2CU,0xACU,0x6CU,0xECU,
+        0x1CU,0x9CU,0x5CU,0xDCU,0x3CU,0xBCU,0x7CU,0xFCU,
+        0x02U,0x82U,0x42U,0xC2U,0x22U,0xA2U,0x62U,0xE2U,
+        0x12U,0x92U,0x52U,0xD2U,0x32U,0xB2U,0x72U,0xF2U,
+        0x0AU,0x8AU,0x4AU,0xCAU,0x2AU,0xAAU,0x6AU,0xEAU,
+        0x1AU,0x9AU,0x5AU,0xDAU,0x3AU,0xBAU,0x7AU,0xFAU,
+        0x06U,0x86U,0x46U,0xC6U,0x26U,0xA6U,0x66U,0xE6U,
+        0x16U,0x96U,0x56U,0xD6U,0x36U,0xB6U,0x76U,0xF6U,
+        0x0EU,0x8EU,0x4EU,0xCEU,0x2EU,0xAEU,0x6EU,0xEEU,
+        0x1EU,0x9EU,0x5EU,0xDEU,0x3EU,0xBEU,0x7EU,0xFEU,
+        0x01U,0x81U,0x41U,0xC1U,0x21U,0xA1U,0x61U,0xE1U,
+        0x11U,0x91U,0x51U,0xD1U,0x31U,0xB1U,0x71U,0xF1U,
+        0x09U,0x89U,0x49U,0xC9U,0x29U,0xA9U,0x69U,0xE9U,
+        0x19U,0x99U,0x59U,0xD9U,0x39U,0xB9U,0x79U,0xF9U,
+        0x05U,0x85U,0x45U,0xC5U,0x25U,0xA5U,0x65U,0xE5U,
+        0x15U,0x95U,0x55U,0xD5U,0x35U,0xB5U,0x75U,0xF5U,
+        0x0DU,0x8DU,0x4DU,0xCDU,0x2DU,0xADU,0x6DU,0xEDU,
+        0x1DU,0x9DU,0x5DU,0xDDU,0x3DU,0xBDU,0x7DU,0xFDU,
+        0x03U,0x83U,0x43U,0xC3U,0x23U,0xA3U,0x63U,0xE3U,
+        0x13U,0x93U,0x53U,0xD3U,0x33U,0xB3U,0x73U,0xF3U,
+        0x0BU,0x8BU,0x4BU,0xCBU,0x2BU,0xABU,0x6BU,0xEBU,
+        0x1BU,0x9BU,0x5BU,0xDBU,0x3BU,0xBBU,0x7BU,0xFBU,
+        0x07U,0x87U,0x47U,0xC7U,0x27U,0xA7U,0x67U,0xE7U,
+        0x17U,0x97U,0x57U,0xD7U,0x37U,0xB7U,0x77U,0xF7U,
+        0x0FU,0x8FU,0x4FU,0xCFU,0x2FU,0xAFU,0x6FU,0xEFU,
+        0x1FU,0x9FU,0x5FU,0xDFU,0x3FU,0xBFU,0x7FU,0xFFU
     };
 
     Src=Value;
     To=(rme_u8_t*)(&Ret);
     From=(rme_u8_t*)(&Src);
 
-#if(RME_WORD_ORDER==4)
+#if(RME_WORD_ORDER==4U)
     To[0]=Table[From[1]];
     To[1]=Table[From[0]];
-#elif(RME_WORD_ORDER==5)
+#elif(RME_WORD_ORDER==5U)
     To[0]=Table[From[3]];
     To[1]=Table[From[2]];
     To[2]=Table[From[1]];
@@ -602,6 +602,73 @@ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value)
     return Ret;
 }
 /* End Function:_RME_RBT_Generic *********************************************/
+
+/* Function:_RME_Comp_Swap_Single *********************************************
+Description : The compare-and-swap atomic instruction. If the Old value is
+              equal to *Ptr, then set the *Ptr as New and return 1; else return
+              0.
+              This is for use on single-core processors.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
+              rme_ptr_t Old - The old value.
+              rme_ptr_t New - The new value.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
+Return      : rme_ptr_t - If successful, 1; else 0.
+******************************************************************************/
+rme_ptr_t _RME_Comp_Swap_Single(volatile rme_ptr_t* Ptr,
+                                rme_ptr_t Old,
+                                rme_ptr_t New)
+{
+    if(*Ptr==Old)
+    {
+        *Ptr=New;
+        return 1U;
+    }
+
+    return 0U;
+}
+/* End Function:_RME_Comp_Swap_Single ****************************************/
+
+/* Function:_RME_Fetch_Add_Single *********************************************
+Description : The fetch-and-add atomic instruction. Increase the value that is
+              pointed to by the pointer, and return the value before addition.
+              This is for use on single-core processors.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
+              rme_cnt_t Addend - The number to add.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
+Return      : rme_ptr_t - The value before the addition.
+*******************************************************************************/
+rme_ptr_t _RME_Fetch_Add_Single(volatile rme_ptr_t* Ptr,
+                                rme_cnt_t Addend)
+{
+    rme_cnt_t Old;
+
+    Old=(rme_cnt_t)(*Ptr);
+    *Ptr=(rme_ptr_t)(Old+Addend);
+
+    return (rme_ptr_t)Old;
+}
+/* End Function:_RME_Fetch_Add_Single ****************************************/
+
+/* Function:_RME_Fetch_And_Single *********************************************
+Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
+              value with the operand, and return the value before logic AND.
+              This is for use on single-core processors.
+Input       : volatile rme_ptr_t* Ptr - The pointer to the data.
+              rme_cnt_t Operand - The number to logic AND with the destination.
+Output      : volatile rme_ptr_t* Ptr - The pointer to the data.
+Return      : rme_ptr_t - The value before the AND operation.
+******************************************************************************/
+rme_ptr_t _RME_Fetch_And_Single(volatile rme_ptr_t* Ptr,
+                                rme_ptr_t Operand)
+{
+    rme_ptr_t Old;
+
+    Old=*Ptr;
+    *Ptr=Old&Operand;
+
+    return Old;
+}
+/* End Function:_RME_Fetch_And_Single ****************************************/
 
 /* Function:_RME_List_Crt *****************************************************
 Description : Create a doubly linked list.

@@ -59,38 +59,6 @@ Description: The configuration file for STM32L071CB.
 /* What is the FPU type? - always a no */
 #define RME_COP_NUM                                     (0U)
 
-/* Interrupts ****************************************************************/
-#define WWDG_IRQHandler                                 IRQ0_Handler        /* Window WatchDog */
-#define PVD_IRQHandler                                  IRQ1_Handler        /* PVD through EXTI Line detection */
-#define RTC_IRQHandler                                  IRQ2_Handler        /* RTC global */
-#define FLASH_IRQHandler                                IRQ3_Handler        /* FLASH global */
-#define RCC_IRQHandler                                  IRQ4_Handler        /* RCC global */
-#define EXTI0_1_IRQHandler                              IRQ5_Handler        /* EXTI Line0/1 */
-#define EXTI2_3_IRQHandler                              IRQ6_Handler        /* EXTI Line2/3 */
-#define EXTI4_15_IRQHandler                             IRQ7_Handler        /* EXTI Line4/15 */
-#define DMA1_Channel1_IRQHandler                        IRQ9_Handler        /* DMA1 Channel 0 global */
-
-#define DMA1_Channel2_3_IRQHandler                      IRQ10_Handler       /* DMA1 Channel 2/3 global */
-#define DMA1_Channel4_5_6_7_IRQHandler                  IRQ11_Handler       /* DMA1 Channel 4/5/6/7 global */
-#define ADC1_COMP_IRQHandler                            IRQ12_Handler       /* ADC and COMP global */
-#define LPTIM1_IRQHandler                               IRQ13_Handler       /* LPTIM1 global */
-#define USART4_5_IRQHandler                             IRQ14_Handler       /* USART4/5 global */
-#define TIM2_IRQHandler                                 IRQ15_Handler       /* TIM2 global */
-#define TIM3_IRQHandler                                 IRQ16_Handler       /* TIM3 global */
-#define TIM6_IRQHandler                                 IRQ17_Handler       /* TIM6 global */
-#define TIM7_IRQHandler                                 IRQ18_Handler       /* TIM7 global */
-
-#define TIM21_IRQHandler                                IRQ20_Handler       /* TIM21 global */
-#define I2C3_IRQHandler                                 IRQ21_Handler       /* I2C3 global */
-#define TIM22_IRQHandler                                IRQ22_Handler       /* TIM22 global */
-#define I2C1_IRQHandler                                 IRQ23_Handler       /* I2C1 global */
-#define I2C2_IRQHandler                                 IRQ24_Handler       /* I2C2 global */
-#define SPI1_IRQHandler                                 IRQ25_Handler       /* SPI1 global */
-#define SPI2_IRQHandler                                 IRQ26_Handler       /* SPI2 global */
-#define USART1_IRQHandler                               IRQ27_Handler       /* USART1 global */
-#define USART2_IRQHandler                               IRQ28_Handler       /* USART2 global */
-#define LPUART1_IRQHandler                              IRQ29_Handler       /* LPUART1 global */
-
 /* Initialization registers **************************************************/
 #define RME_A6M_RCC_APB1ENR                             RME_A6M_REG(0x40021038U)
 #define RME_A6M_RCC_APB1ENR_PWREN                       (1U<<28)

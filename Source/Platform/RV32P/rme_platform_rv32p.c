@@ -131,7 +131,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
     /* Get the address of this faulty address, and what caused this fault */
     Thd_Cur=RME_RV32P_Local.Thd_Cur;
     Exc=&Thd_Cur->Ctx.Reg->Exc;
-    Mtval=__RME_RV32P_MTVAL_Get();
+    Mtval=___RME_RV32P_MTVAL_Get();
 
     /* What fault is it? */
     switch(Mcause)
@@ -254,7 +254,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 {
     rme_ptr_t Mcause;
 
-    Mcause=__RME_RV32P_MCAUSE_Get();
+    Mcause=___RME_RV32P_MCAUSE_Get();
 
     /* Turn to appropriate handlers */
     if(Mcause==(RME_RV32P_MCAUSE_TIM|0x80000000U))
@@ -499,7 +499,7 @@ rme_ret_t __RME_RV32P_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
                                      rme_ptr_t Freg_ID)
 {
     /* Read dedicated feature register, but musk out bit width - we already know */
-    return __RME_RV32P_MISA_Get()&0x3FFFFFFFU;
+    return ___RME_RV32P_MISA_Get()&0x3FFFFFFFU;
 }
 /* End Function:__RME_RV32P_Perf_CPU_Func ***********************************/
 
@@ -667,18 +667,18 @@ rme_ret_t __RME_RV32P_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
     switch(RME_PARAM_D0(Operation))
     {
         /* Register read/write */
-        case RME_RV32P_KFN_DEBUG_INV_MOD_SP_GET:   {Reg->X11_A1=Inv_Struct->Ret.X2_SP;break;}
-        case RME_RV32P_KFN_DEBUG_INV_MOD_SP_SET:   {Inv_Struct->Ret.X2_SP=Value;break;}
-        case RME_RV32P_KFN_DEBUG_INV_MOD_PC_GET:   {Reg->X11_A1=Inv_Struct->Ret.PC;break;}
-        case RME_RV32P_KFN_DEBUG_INV_MOD_PC_SET:   {Inv_Struct->Ret.PC=Reg->X11_A1;break;}
+        case RME_RV32P_KFN_DEBUG_INV_MOD_SP_GET:    {Reg->X11_A1=Inv_Struct->Ret.X2_SP;break;}
+        case RME_RV32P_KFN_DEBUG_INV_MOD_SP_SET:    {Inv_Struct->Ret.X2_SP=Value;break;}
+        case RME_RV32P_KFN_DEBUG_INV_MOD_PC_GET:    {Reg->X11_A1=Inv_Struct->Ret.PC;break;}
+        case RME_RV32P_KFN_DEBUG_INV_MOD_PC_SET:    {Inv_Struct->Ret.PC=Reg->X11_A1;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0;
 }
-/* End Function:__RME_RV32P_Debug_Inv_Mod ***********************************/
+/* End Function:__RME_RV32P_Debug_Inv_Mod ************************************/
 
-/* Function:__RME_RV32P_Debug_Exc_Get ****************************************
+/* Function:__RME_RV32P_Debug_Exc_Get *****************************************
 Description : Debug exception register extraction implementation for RV32P.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -710,15 +710,15 @@ rme_ret_t __RME_RV32P_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     switch(Operation)
     {
         /* Register read */
-        case RME_RV32P_KFN_DEBUG_EXC_CAUSE_GET:    {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Cause;break;}
-        case RME_RV32P_KFN_DEBUG_EXC_ADDR_GET:     {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Addr;break;}
-        case RME_RV32P_KFN_DEBUG_EXC_VALUE_GET:    {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Value;break;}
+        case RME_RV32P_KFN_DEBUG_EXC_CAUSE_GET:     {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Cause;break;}
+        case RME_RV32P_KFN_DEBUG_EXC_ADDR_GET:      {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Addr;break;}
+        case RME_RV32P_KFN_DEBUG_EXC_VALUE_GET:     {Reg->X12_A2=Thd_Struct->Ctx.Reg->Exc.Value;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
     return 0U;
 }
-/* End Function:__RME_RV32P_Debug_Exc_Get ***********************************/
+/* End Function:__RME_RV32P_Debug_Exc_Get ************************************/
 
 /* Function:__RME_Kfn_Handler *************************************************
 Description : Handle kernel function calls.
@@ -827,9 +827,9 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
             
     return Retval;
 }
-/* End Function:__RME_Kern_Func_Handler **************************************/
+/* End Function:__RME_Kfn_Handler ********************************************/
 
-/* Function:__RME_RV32P_Lowlvl_Preinit ***************************************
+/* Function:__RME_RV32P_Lowlvl_Preinit ****************************************
 Description : Initialize the low-level hardware, before the loading of the kernel
               even takes place.
 Input       : None.
@@ -844,7 +844,7 @@ void __RME_RV32P_Lowlvl_Preinit(void)
     RME_Boot_Pre_Init();
 #endif
 }
-/* End Function:__RME_RV32P_Lowlvl_Preinit **********************************/
+/* End Function:__RME_RV32P_Lowlvl_Preinit ***********************************/
 
 /* Function:__RME_Lowlvl_Init *************************************************
 Description : Initialize the low-level hardware.
@@ -1039,9 +1039,9 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
     else
         Reg->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT;
 #endif
-    /* The entry point needs to have the last bit set to avoid RV32P mode */
+    /* The entry point */
     Reg->PC=Entry;
-    /* Put something in the SP later */
+    /* The stack */
     Reg->X2_SP=Stack;
     /* Set the parameter */
     Reg->X10_A0=Param;
@@ -1277,6 +1277,7 @@ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
 /* Function:__RME_Thd_Cop_Swap ************************************************
 Description : Swap the cop register sets. This operation is flexible - If the
               program does not use the FPU, we do not save/restore its context.
+              See ARMv7-M port for more detailed explanations.
 Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
               struct RME_Reg_Struct* Reg_New - The context to switch to.
               rme_ptr_t Attr_Cur - The attribute of the context to switch from.
@@ -1293,46 +1294,50 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
                         struct RME_Reg_Struct* Reg_Cur,
                         void* Cop_Cur)
 {
-    static rme_ptr_t Dirty=1U;
+    static rme_ptr_t Used=1U;
+    rme_ptr_t State;
 
     /* The current thread does have FPU capability */
     if(Attr_Cur!=RME_RV32P_ATTR_NONE)
     {
-        if(((Reg_Cur->MSTATUS)&RME_RV32P_MSTATUS_FPU_MASK)!=0U)
+        /* We can trust this MSTATUS */
+        State=(Reg_Cur->MSTATUS)&RME_RV32P_MSTATUS_FPU_MASK;
+        if(State==RME_RV32P_MSTATUS_FPU_DIRTY)
         {
-            /* In theory, when we switch from a FPU-enabled thread to a FPU-disabled
-             * thread and back, we don't ever need to save and restore FPU registers.
-             * However, RME supports HYP-threads, which may need to read/write the
-             * registers in a kernel agnostic fashion. In that case, if the FPU
-             * is ever put to use, its context must be saved and restored. */
+            /* In RISC-V, there is a "Clean" state which could be used to indicate that
+             * "the thread used FPU before but haven't touch the FPU from last save",
+             * and this state can aid us in skipping unnecessary FPU context saves. */
             ___RME_RV32P_Thd_Cop_Save(Cop_Cur);
-            Dirty=1U;
+            Reg_Cur->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
+            Used=1U;
         }
+        else if(State==RME_RV32P_MSTATUS_FPU_CLEAN)
+            Used=1U;
     }
 
     /* The next thread does have FPU capability */
     if(Attr_New!=RME_RV32P_ATTR_NONE)
     {
         /* Enable FPU to prepare for FPU context operations */
-        __RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT);
-        /* The next thread made use of that capability, need to load context */
-        if(((Reg_New->MSTATUS)&RME_RV32P_MSTATUS_FPU_MASK)!=0U)
-        {
+        ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT);
+        /* The next thread made use of that capability (Dirty or Clean), need to load context */
+        if(((Reg_New->MSTATUS)&RME_RV32P_MSTATUS_FPU_CLEAN)!=0U)
             ___RME_RV32P_Thd_Cop_Load(Cop_New);
-            Dirty=1U;
-        }
-        /* The next thread did not make use of the capability, clean-up its
-         * FPU context, and disable FPU */
+        /* The next thread did not make use of the capability (Init), clean-up its FPU context */
         else
         {
-            /* Clean up and restore to initial state, if dirty only, to save time */
-            if(Dirty!=0U)
+            /* Clean up and restore to initial state, if used only, to save time */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT;
+            if(Used!=0U)
             {
                 ___RME_RV32P_Thd_Cop_Clear();
-                Dirty=0U;
+                Used=0U;
             }
         }
     }
+    /* The next thread does not have such capability, disable FPU */
+    else
+        ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
 }
 #endif
 /* End Function:__RME_Thd_Cop_Swap *******************************************/
@@ -1482,7 +1487,7 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
         {
             RME_ASSERT(RME_RV32P_PMP_MODE(Cfg[Data_Cnt])==RME_RV32P_PMP_NAPOT);
             Range[Range_Cnt].Flag=RME_RV32P_PMP_PERM(Cfg[Data_Cnt]);
-            Range[Range_Cnt].Size_Order=RME_LSB_GET(~Top_Data->Addr[Data_Cnt]);
+            Range[Range_Cnt].Size_Order=_RME_LSB_Generic(~Top_Data->Addr[Data_Cnt]);
             Range[Range_Cnt].Start=Top_Data->Addr[Data_Cnt]&RME_MASK_START(Range[Range_Cnt].Size_Order+1U);
             Range[Range_Cnt].Size_Order+=3U;
             Range[Range_Cnt].End=Range[Range_Cnt].Start+RME_POW2(Range[Range_Cnt].Size_Order);

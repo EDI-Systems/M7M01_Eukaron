@@ -1121,6 +1121,14 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
 __EXTERN__ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value);
 __EXTERN__ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value);
 __EXTERN__ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value);
+/* Single-core atomics */
+__EXTERN__ rme_ptr_t _RME_Comp_Swap_Single(volatile rme_ptr_t* Ptr,
+                                           rme_ptr_t Old,
+                                           rme_ptr_t New);
+__EXTERN__ rme_ptr_t _RME_Fetch_Add_Single(volatile rme_ptr_t* Ptr,
+                                           rme_cnt_t Addend);
+__EXTERN__ rme_ptr_t _RME_Fetch_And_Single(volatile rme_ptr_t* Ptr,
+                                           rme_ptr_t Operand);
 /* Linked list operations */
 __EXTERN__ void _RME_List_Crt(struct RME_List* Head);
 __EXTERN__ void _RME_List_Del(struct RME_List* Prev,
