@@ -262,10 +262,10 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
         RME_RV32P_Timestamp++;
 
 #if(RME_RVM_GEN_ENABLE==1U)
-        __RME_RV32P_Flag_Fast(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, 1U);
+        __RME_RV32P_Flag_Fast(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,1U);
 #endif
 
-        _RME_Tim_Handler(Reg, 1U);
+        _RME_Tim_Handler(Reg,1U);
     }
     else if((Mcause&0x80000000U)!=0U)
     {
@@ -273,11 +273,11 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 
 #if(RME_RVM_GEN_ENABLE==1U)
         /* If the user wants to bypass, we skip the flag marshalling & sending process */
-        if(RME_Boot_Vct_Handler(Vct_Num)==0U)
+        if(RME_Boot_Vct_Handler(Mcause)==0U)
             return;
 #endif
 
-        __RME_RV32P_Flag_Slow(RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE, Mcause);
+        __RME_RV32P_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Mcause);
 
         _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct);
         /* Remember to pick the guy with the highest priority after we did all sends */
@@ -286,7 +286,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
     else if(Mcause==RME_RV32P_MCAUSE_U_ECALL)
         _RME_Svc_Handler(Reg);
     else
-        __RME_RV32P_Exc_Handler(Reg, Mcause);
+        __RME_RV32P_Exc_Handler(Reg,Mcause);
 
     /* Never ever allow any modifications to MSTATUS bypass checks: modifying
      * return states, or allow a FPU-disabled thread to access FPU */
@@ -327,9 +327,9 @@ rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     
     switch(Type)
     {
-        case RME_RV32P_KFN_PGT_ENTRY_MOD_GET_FLAGS: return (rme_ret_t)Flags;
-        case RME_RV32P_KFN_PGT_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
-        case RME_RV32P_KFN_PGT_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
+        case RME_RV32P_KFN_PGT_ENTRY_MOD_FLAG_GET: return (rme_ret_t)Flags;
+        case RME_RV32P_KFN_PGT_ENTRY_MOD_SZORD_GET: return (rme_ret_t)Size_Order;
+        case RME_RV32P_KFN_PGT_ENTRY_MOD_NUMORD_GET: return (rme_ret_t)Num_Order;
         default:break;
     }
     
@@ -355,27 +355,26 @@ rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
     /* Call header for chip-specific operations */
     switch(Operation)
     {
-        case RME_RV32P_KFN_INT_LOCAL_MOD_GET_STATE:
+        case RME_RV32P_KFN_INT_LOCAL_MOD_STATE_GET:
         {
-            RME_RV32P_INT_GET_STATE(Int_Num);
-            break;
+            return RME_RV32P_INT_STATE_GET(Int_Num);
         }
-        case RME_RV32P_KFN_INT_LOCAL_MOD_SET_STATE:
+        case RME_RV32P_KFN_INT_LOCAL_MOD_STATE_SET:
         {
             if(Param==0U)
-                RME_RV32P_INT_SET_DISABLE(Int_Num);
+                RME_RV32P_INT_STATE_DISABLE(Int_Num);
             else
-                RME_RV32P_INT_SET_ENABLE(Int_Num);
+                RME_RV32P_INT_STATE_ENABLE(Int_Num);
             break;
         }
-        case RME_RV32P_KFN_INT_LOCAL_MOD_GET_PRIO:
+        case RME_RV32P_KFN_INT_LOCAL_MOD_PRIO_GET:
         {
-            RME_RV32P_INT_GET_PRIO(Int_Num);
+            RME_RV32P_INT_PRIO_GET(Int_Num);
             break;
         }
-        case RME_RV32P_KFN_INT_LOCAL_MOD_SET_PRIO:
+        case RME_RV32P_KFN_INT_LOCAL_MOD_PRIO_SET:
         {
-            RME_RV32P_INT_SET_PRIO(Int_Num, Param);
+            RME_RV32P_INT_PRIO_SET(Int_Num, Param);
             break;
         }
         default:return RME_ERR_KFN_FAIL;

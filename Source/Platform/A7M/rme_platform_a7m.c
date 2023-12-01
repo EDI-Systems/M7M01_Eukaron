@@ -408,9 +408,9 @@ rme_ret_t __RME_A7M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     
     switch(Type)
     {
-        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_FLAGS: return (rme_ret_t)Flags;
-        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
-        case RME_A7M_KFN_PGT_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_FLAG_GET: return (rme_ret_t)Flags;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_SZORD_GET: return (rme_ret_t)Size_Order;
+        case RME_A7M_KFN_PGT_ENTRY_MOD_NUMORD_GET: return (rme_ret_t)Num_Order;
         default:break;
     }
     
@@ -435,14 +435,14 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
     
     switch(Operation)
     {
-        case RME_A7M_KFN_INT_LOCAL_MOD_GET_STATE:
+        case RME_A7M_KFN_INT_LOCAL_MOD_STATE_GET:
         {
             if((RME_A7M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1FU))==0U)
                 return 0U;
             else
                 return 1U;
         }
-        case RME_A7M_KFN_INT_LOCAL_MOD_SET_STATE:
+        case RME_A7M_KFN_INT_LOCAL_MOD_STATE_SET:
         {
             if(Param==0U)
                 RME_A7M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1FU);
@@ -451,11 +451,11 @@ rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num,
             
             return 0U;
         }
-        case RME_A7M_KFN_INT_LOCAL_MOD_GET_PRIO:
+        case RME_A7M_KFN_INT_LOCAL_MOD_PRIO_GET:
         {
             return RME_A7M_NVIC_IPR(Int_Num);
         }
-        case RME_A7M_KFN_INT_LOCAL_MOD_SET_PRIO:
+        case RME_A7M_KFN_INT_LOCAL_MOD_PRIO_SET:
         {
             if(Param>0xFFU)
                 return RME_ERR_KFN_FAIL;
@@ -559,7 +559,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_STATE_SET)
         {
             /* Enable or disable? */
             if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
@@ -593,7 +593,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             else
                 return RME_ERR_KFN_FAIL;
         }
-        else if(Operation==RME_A7M_KFN_CACHE_MOD_GET_STATE)
+        else if(Operation==RME_A7M_KFN_CACHE_MOD_STATE_GET)
         {
             if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0U)
                 return RME_A7M_KFN_CACHE_STATE_ENABLE;
@@ -619,7 +619,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_STATE_SET)
         {
             /* Enable or disable? */
             if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
@@ -685,7 +685,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             return RME_ERR_KFN_FAIL;
         
         /* Are we doing get or set? */
-        if(Operation==RME_A7M_KFN_CACHE_MOD_SET_STATE)
+        if(Operation==RME_A7M_KFN_CACHE_MOD_STATE_SET)
         {
             /* Enable or disable? */
             if(Param==RME_A7M_KFN_CACHE_STATE_ENABLE)
@@ -711,7 +711,7 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
             else
                 return RME_ERR_KFN_FAIL;
         }
-        else if(Operation==RME_A7M_KFN_CACHE_MOD_GET_STATE)
+        else if(Operation==RME_A7M_KFN_CACHE_MOD_STATE_GET)
         {
             /* Is it already enabled? */
             if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0U)
@@ -928,7 +928,7 @@ rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID,
     if(Prfth_ID!=0U)
         return RME_ERR_KFN_FAIL;
     
-    if(Operation==RME_A7M_KFN_PRFTH_MOD_SET_STATE)
+    if(Operation==RME_A7M_KFN_PRFTH_MOD_STATE_SET)
     {
         if(Param==RME_A7M_KFN_PRFTH_STATE_ENABLE)
             RME_A7M_PRFTH_STATE_SET(1U);
@@ -940,7 +940,7 @@ rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID,
         __RME_A7M_Barrier();
         return 0U;
     }
-    else if(Operation==RME_A7M_KFN_PRFTH_MOD_GET_STATE)
+    else if(Operation==RME_A7M_KFN_PRFTH_MOD_STATE_GET)
     {
         if(RME_A7M_PRFTH_STATE_GET()==0U)
             return RME_A7M_KFN_PRFTH_STATE_DISABLE;

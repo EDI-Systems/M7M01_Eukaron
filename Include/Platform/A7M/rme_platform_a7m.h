@@ -419,21 +419,21 @@ typedef rme_s32_t rme_ret_t;
 
 /* Platform-specific kernel function macros **********************************/
 /* Page table entry mode which property to get */
-#define RME_A7M_KFN_PGT_ENTRY_MOD_GET_FLAGS         (0U)
-#define RME_A7M_KFN_PGT_ENTRY_MOD_GET_SIZEORDER     (1U)
-#define RME_A7M_KFN_PGT_ENTRY_MOD_GET_NUMORDER      (2U)
+#define RME_A7M_KFN_PGT_ENTRY_MOD_FLAG_GET          (0U)
+#define RME_A7M_KFN_PGT_ENTRY_MOD_SZORD_GET         (1U)
+#define RME_A7M_KFN_PGT_ENTRY_MOD_NUMORD_GET        (2U)
 /* Interrupt source configuration */
-#define RME_A7M_KFN_INT_LOCAL_MOD_GET_STATE         (0U)
-#define RME_A7M_KFN_INT_LOCAL_MOD_SET_STATE         (1U)
-#define RME_A7M_KFN_INT_LOCAL_MOD_GET_PRIO          (2U)
-#define RME_A7M_KFN_INT_LOCAL_MOD_SET_PRIO          (3U)
+#define RME_A7M_KFN_INT_LOCAL_MOD_STATE_GET         (0U)
+#define RME_A7M_KFN_INT_LOCAL_MOD_STATE_SET         (1U)
+#define RME_A7M_KFN_INT_LOCAL_MOD_PRIO_GET          (2U)
+#define RME_A7M_KFN_INT_LOCAL_MOD_PRIO_SET          (3U)
 /* Cache identifier */
 #define RME_A7M_KFN_CACHE_ICACHE                    (0U)
 #define RME_A7M_KFN_CACHE_DCACHE                    (1U)
 #define RME_A7M_KFN_CACHE_BTAC                      (2U)
 /* Cache modification */
-#define RME_A7M_KFN_CACHE_MOD_GET_STATE             (0U)
-#define RME_A7M_KFN_CACHE_MOD_SET_STATE             (1U)
+#define RME_A7M_KFN_CACHE_MOD_STATE_GET             (0U)
+#define RME_A7M_KFN_CACHE_MOD_STATE_SET             (1U)
 /* Cache state */
 #define RME_A7M_KFN_CACHE_STATE_DISABLE             (0U)
 #define RME_A7M_KFN_CACHE_STATE_ENABLE              (1U)
@@ -454,8 +454,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_KFN_CACHE_CLEAN_INV_WAY             (13U)
 #define RME_A7M_KFN_CACHE_CLEAN_INV_SETWAY          (14U)
 /* Prefetcher modification */
-#define RME_A7M_KFN_PRFTH_MOD_GET_STATE             (0U)
-#define RME_A7M_KFN_PRFTH_MOD_SET_STATE             (1U)
+#define RME_A7M_KFN_PRFTH_MOD_STATE_GET             (0U)
+#define RME_A7M_KFN_PRFTH_MOD_STATE_SET             (1U)
 /* Prefetcher state */
 #define RME_A7M_KFN_PRFTH_STATE_DISABLE             (0U)
 #define RME_A7M_KFN_PRFTH_STATE_ENABLE              (1U)

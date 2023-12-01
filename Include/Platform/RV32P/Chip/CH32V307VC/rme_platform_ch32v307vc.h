@@ -49,9 +49,9 @@ Description: The configuration file for CH32V307VC.
 #define RME_RVM_KOM_DONE_FRONT                          (0x1C10U)
 
 /* Init process's first thread's entry point address */
-#define RME_RV32P_INIT_ENTRY                            (0x8010021U)
+#define RME_RV32P_INIT_ENTRY                            (0x00000000U)
 /* Init process's first thread's stack address */
-#define RME_RV32P_INIT_STACK                            (0x2001FFF0)
+#define RME_RV32P_INIT_STACK                            (0x2001FFF0U)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV32P_OSTIM_VAL                             (1440000U)
 /* Number of MPU regions available */
@@ -63,16 +63,6 @@ Description: The configuration file for CH32V307VC.
 
 /* Timer interrupt MCAUSE value */
 #define RME_RV32P_MCAUSE_TIM                            (0x8000000CU)
-
-/* CSR - RISC-V have essentially only one type of compiler: GCC/LLVM */
-#define RME_RV32P_CSR_SET(X,V) \
-do \
-{ \
-    __asm__ __volatile__("LI    t0, %1  \n\t" \
-                         "CSRW  %0, t0  \n\t" \
-                         ::"i"(X),"i"(V):"t0"); \
-} \
-while(0)
 
 /* RCC CTLR */
 #define RME_RV32P_RCC_CTLR                              RME_RV32P_REG(0x40021000U)
@@ -189,16 +179,11 @@ while(0)
 #define RME_RV32P_WAIT_INT()
 
 /* Get interrupt state */
-#define RME_RV32P_INT_GET_STATE(INT_NUM) \
-do \
-{ \
-    if((RME_RV32P_PFIC_ISR((INT_NUM)>>5U)&RME_POW2((INT_NUM)&0x1FU))!=0U) \
-        return 1; \
-} \
-while(0)
+#define RME_RV32P_INT_STATE_GET(INT_NUM)                ((RME_RV32P_PFIC_ISR((INT_NUM)>>5U)& \
+                                                          RME_POW2((INT_NUM)&0x1FU))!=0U)
 
 /* Enable interrupt */
-#define RME_RV32P_INT_SET_ENABLE(INT_NUM) \
+#define RME_RV32P_INT_STATE_ENABLE(INT_NUM) \
 do \
 { \
     RME_RV32P_PFIC_IENR((INT_NUM)>>5U)|=RME_POW2((INT_NUM)&0x1FU); \
@@ -206,7 +191,7 @@ do \
 while(0)
 
 /* Disable interrupt */
-#define RME_RV32P_INT_SET_DISABLE(INT_NUM) \
+#define RME_RV32P_INT_STATE_DISABLE(INT_NUM) \
 do \
 { \
     RME_RV32P_PFIC_IRER((INT_NUM)>>5U)|=RME_POW2((INT_NUM)&0x1FU); \
@@ -214,7 +199,7 @@ do \
 while(0)
 
 /* Get interrupt priority */
-#define RME_RV32P_INT_GET_PRIO(INT_NUM) \
+#define RME_RV32P_INT_PRIO_GET(INT_NUM) \
 do \
 { \
     return RME_RV32P_PFIC_IPRIOR(INT_NUM); \
@@ -222,7 +207,7 @@ do \
 while(0)
 
 /* Set interrupt priority */
-#define RME_RV32P_INT_SET_PRIO(INT_NUM, PRIO) \
+#define RME_RV32P_INT_PRIO_SET(INT_NUM, PRIO) \
 do \
 { \
     RME_RV32P_PFIC_IPRIOR(INT_NUM)=(PRIO); \

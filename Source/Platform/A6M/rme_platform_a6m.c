@@ -262,14 +262,14 @@ rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
     
-    if(__RME_Pgt_Walk(Pgt_Op, Vaddr, 0U, 0U, 0U, &Size_Order, &Num_Order, &Flag)!=0U)
+    if(__RME_Pgt_Walk(Pgt_Op,Vaddr,0U,0U,0U,&Size_Order,&Num_Order,&Flag)!=0U)
         return RME_ERR_KFN_FAIL;
     
     switch(Type)
     {
-        case RME_A6M_KFN_PGT_ENTRY_MOD_GET_FLAG: return (rme_ret_t)Flag;
-        case RME_A6M_KFN_PGT_ENTRY_MOD_GET_SIZEORDER: return (rme_ret_t)Size_Order;
-        case RME_A6M_KFN_PGT_ENTRY_MOD_GET_NUMORDER: return (rme_ret_t)Num_Order;
+        case RME_A6M_KFN_PGT_ENTRY_MOD_FLAG_GET: return (rme_ret_t)Flag;
+        case RME_A6M_KFN_PGT_ENTRY_MOD_SZORD_GET: return (rme_ret_t)Size_Order;
+        case RME_A6M_KFN_PGT_ENTRY_MOD_NUMORD_GET: return (rme_ret_t)Num_Order;
         default:break;
     }
     
@@ -294,14 +294,14 @@ rme_ret_t __RME_A6M_Int_Local_Mod(rme_ptr_t Int_Num,
     
     switch(Operation)
     {
-        case RME_A6M_KFN_INT_LOCAL_MOD_GET_STATE:
+        case RME_A6M_KFN_INT_LOCAL_MOD_STATE_GET:
         {
             if((RME_A6M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1FU))==0U)
                 return 0U;
             else
                 return 1U;
         }
-        case RME_A6M_KFN_INT_LOCAL_MOD_SET_STATE:
+        case RME_A6M_KFN_INT_LOCAL_MOD_STATE_SET:
         {
             if(Param==0U)
                 RME_A6M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1FU);
@@ -310,11 +310,11 @@ rme_ret_t __RME_A6M_Int_Local_Mod(rme_ptr_t Int_Num,
             
             return 0U;
         }
-        case RME_A6M_KFN_INT_LOCAL_MOD_GET_PRIO:
+        case RME_A6M_KFN_INT_LOCAL_MOD_PRIO_GET:
         {
             return RME_A6M_NVIC_IPR_GET(Int_Num);
         }
-        case RME_A6M_KFN_INT_LOCAL_MOD_SET_PRIO:
+        case RME_A6M_KFN_INT_LOCAL_MOD_PRIO_SET:
         {
             if(Param>0xFFU)
                 return RME_ERR_KFN_FAIL;
@@ -402,7 +402,7 @@ rme_ret_t __RME_A6M_Prfth_Mod(rme_ptr_t Prfth_ID,
     if(Prfth_ID!=0U)
         return RME_ERR_KFN_FAIL;
     
-    if(Operation==RME_A6M_KFN_PRFTH_MOD_SET_STATE)
+    if(Operation==RME_A6M_KFN_PRFTH_MOD_STATE_SET)
     {
         if(Param==RME_A6M_KFN_PRFTH_STATE_ENABLE)
             RME_A6M_PRFTH_STATE_SET(1U);
@@ -414,7 +414,7 @@ rme_ret_t __RME_A6M_Prfth_Mod(rme_ptr_t Prfth_ID,
         __RME_A6M_Barrier();
         return 0U;
     }
-    else if(Operation==RME_A6M_KFN_PRFTH_MOD_GET_STATE)
+    else if(Operation==RME_A6M_KFN_PRFTH_MOD_STATE_GET)
     {
         if(RME_A6M_PRFTH_STATE_GET()==0U)
             return RME_A6M_KFN_PRFTH_STATE_DISABLE;
@@ -671,7 +671,7 @@ rme_ret_t __RME_A6M_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     switch(Operation)
     {
         /* Register read */
-        case RME_A6M_KFN_DEBUG_EXC_GET_CAUSE:       {Reg->R6=Thd_Struct->Ctx.Reg->Exc.Cause;break;}
+        case RME_A6M_KFN_DEBUG_EXC_CAUSE_GET:       {Reg->R6=Thd_Struct->Ctx.Reg->Exc.Cause;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
 
