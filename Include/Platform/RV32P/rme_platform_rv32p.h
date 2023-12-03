@@ -104,9 +104,11 @@ typedef rme_s32_t rme_ret_t;
 /* Cpt size limit - not restricted */
 #define RME_CPT_ENTRY_MAX               (0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)     (RME_POW2(NUM_ORDER)*sizeof(rme_ptr_t)+sizeof(struct __RME_RV32P_Pgt_Meta))
+#define RME_PGT_SIZE_PTR(NUM_ORDER)     (RME_POW2(NUM_ORDER)*sizeof(rme_ptr_t))
+#define RME_PGT_SIZE_PERM(NUM_ORDER)    RME_ROUND_UP(RME_POW2(NUM_ORDER),RME_WORD_ORDER-3U)
+#define RME_PGT_SIZE_NOM(NUM_ORDER)     (sizeof(struct __RME_RV32P_Pgt_Meta)+RME_PGT_SIZE_PTR(NUM_ORDER)+RME_PGT_SIZE_PERM(NUM_ORDER))
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)     (RME_PGT_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_RV32P_PMP_Data))
+#define RME_PGT_SIZE_TOP(NUM_ORDER)     (sizeof(struct __RME_RV32P_PMP_Data)+RME_PGT_SIZE_NOM(NUM_ORDER))
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                 RME_RV32P_Kot
 /* Compare-and-Swap(CAS) */
@@ -259,13 +261,11 @@ while(0)
 #define RME_BOOT_INIT_KFN               (4U)
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM               (5U)
-/* The initial timer endpoint */
-#define RME_BOOT_INIT_TIM               (6U)
-/* The initial default endpoint for all other vectors */
-#define RME_BOOT_INIT_VCT               (7U)
+/* The initial timer/interrupt endpoint */
+#define RME_BOOT_INIT_VCT               (6U)
 
 /* Booting capability layout */
-#define RME_RV32P_CPT                  ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
+#define RME_RV32P_CPT                   ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 
 /* Page Table ****************************************************************/
 /* For RV32P:

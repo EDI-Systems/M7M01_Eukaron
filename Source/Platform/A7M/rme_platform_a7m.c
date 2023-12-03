@@ -678,8 +678,8 @@ rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID,
     }
     else if(Cache_ID==RME_A7M_KFN_CACHE_BTAC)
     {
-        /* Whether a BTAC exists is implementation defined. ARMv7-M3 and ARMv7-M4
-         * does not have a BTAC but ARMv7-M7 have. We need to see what processor
+        /* Whether a BTAC exists is implementation defined. Cortex-M3 and Cortex-M4
+         * does not have a BTAC but Cortex-M7 have. We need to see what processor
          * this is and decide whether this operation makes sense. */
         if(((RME_A7M_SCB_CPUID>>4)&0x0FFFU)!=0x0C27U)
             return RME_ERR_KFN_FAIL;

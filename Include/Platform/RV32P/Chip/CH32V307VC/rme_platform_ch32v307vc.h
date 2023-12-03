@@ -160,7 +160,7 @@ Description: The configuration file for CH32V307VC.
 
 /* GPIO & USART */
 #define RME_RV32P_GPIOA_CFGHR                           RME_RV32P_REG(0x40010804U)
-#define RME_RV32P_USART1_BRR                            RME_RV32P_REG(0x40010808U)
+#define RME_RV32P_USART1_BRR                            RME_RV32P_REG(0x40013808U)
 #define RME_RV32P_USART1_CTLR1                          RME_RV32P_REG(0x4001380CU)
 #define RME_RV32P_USART1_CTLR1_TE                       (0x00000008U)
 #define RME_RV32P_USART1_CTLR1_UE                       (0x00002000U)
@@ -299,7 +299,7 @@ do \
     RME_RV32P_GPIOA_CFGHR=0x488444B4U; \
     /* Enable USART1 */ \
     RME_RV32P_RCC_APB2PCENR|=RME_RV32P_RCC_APB2PCENR_USART1; \
-    RME_RV32P_USART1_BRR=1250U; \
+    RME_RV32P_USART1_BRR=0x04E2U; \
     RME_RV32P_USART1_CTLR1=RME_RV32P_USART1_CTLR1_TE; \
     RME_RV32P_USART1_CTLR2=0U; \
     RME_RV32P_USART1_CTLR3=0U; \

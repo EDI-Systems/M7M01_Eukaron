@@ -64,8 +64,7 @@ int main(void)
 /* End Function:main *********************************************************/
 
 /* Function:__RME_Putchar *****************************************************
-Description : Output a character to console. In Cortex-M, under most circumstances, 
-              we should use the ITM or serial for such outputs.
+Description : Output a character to console.
 Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
@@ -874,10 +873,82 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+struct RME_RV32P_RVF_Struct
+{
+    rme_ptr_t FCSR;
+    rme_ptr_t F0;
+    rme_ptr_t F1;
+    rme_ptr_t F2;
+    rme_ptr_t F3;
+    rme_ptr_t F4;
+    rme_ptr_t F5;
+    rme_ptr_t F6;
+    rme_ptr_t F7;
+    rme_ptr_t F8;
+    rme_ptr_t F9;
+    rme_ptr_t F10;
+    rme_ptr_t F11;
+    rme_ptr_t F12;
+    rme_ptr_t F13;
+    rme_ptr_t F14;
+    rme_ptr_t F15;
+    rme_ptr_t F16;
+    rme_ptr_t F17;
+    rme_ptr_t F18;
+    rme_ptr_t F19;
+    rme_ptr_t F20;
+    rme_ptr_t F21;
+    rme_ptr_t F22;
+    rme_ptr_t F23;
+    rme_ptr_t F24;
+    rme_ptr_t F25;
+    rme_ptr_t F26;
+    rme_ptr_t F27;
+    rme_ptr_t F28;
+    rme_ptr_t F29;
+    rme_ptr_t F30;
+    rme_ptr_t F31;
+};
+struct RME_RV32P_RVD_Struct
+{
+    rme_ptr_t FCSR;
+    rme_ptr_t F0[2];
+    rme_ptr_t F1[2];
+    rme_ptr_t F2[2];
+    rme_ptr_t F3[2];
+    rme_ptr_t F4[2];
+    rme_ptr_t F5[2];
+    rme_ptr_t F6[2];
+    rme_ptr_t F7[2];
+    rme_ptr_t F8[2];
+    rme_ptr_t F9[2];
+    rme_ptr_t F10[2];
+    rme_ptr_t F11[2];
+    rme_ptr_t F12[2];
+    rme_ptr_t F13[2];
+    rme_ptr_t F14[2];
+    rme_ptr_t F15[2];
+    rme_ptr_t F16[2];
+    rme_ptr_t F17[2];
+    rme_ptr_t F18[2];
+    rme_ptr_t F19[2];
+    rme_ptr_t F20[2];
+    rme_ptr_t F21[2];
+    rme_ptr_t F22[2];
+    rme_ptr_t F23[2];
+    rme_ptr_t F24[2];
+    rme_ptr_t F25[2];
+    rme_ptr_t F26[2];
+    rme_ptr_t F27[2];
+    rme_ptr_t F28[2];
+    rme_ptr_t F29[2];
+    rme_ptr_t F30[2];
+    rme_ptr_t F31[2];
+};
 void __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    /* volatile rme_ptr_t Size; */
+    volatile rme_ptr_t Size;
 
     Cur_Addr=RME_KOM_VA_BASE;
 
@@ -906,11 +977,8 @@ void __RME_Boot(void)
                                  RME_KOM_VA_BASE+RME_KOM_VA_SIZE-1U,
                                  RME_KOM_FLAG_ALL)==0U);
 
-    /* Create the initial kernel endpoint for timer ticks */
-    RME_RV32P_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_RV32P_CPT[RME_BOOT_INIT_TIM]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_TIM)==0);
-
-    /* Create the initial kernel endpoint for all other interrupts */
+    /* Create the initial kernel endpoint for timer ticks and interrupts */
+    RME_RV32P_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_RV32P_CPT[RME_BOOT_INIT_VCT]);
     RME_RV32P_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_RV32P_CPT[RME_BOOT_INIT_VCT]);
     RME_ASSERT(_RME_Sig_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_VCT)==0);
 
@@ -923,17 +991,16 @@ void __RME_Boot(void)
                                  RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_RV32P_Local)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
 
-    /* Print the size of some kernel objects, only used in debugging
+    /* Print the size of some kernel objects, only used in debugging */
     Size=RME_CPT_SIZE(1U);
-    RME_DBG_S("RME_CPT_SIZE:\r\n");
-    Size=RME_PGT_SIZE_TOP(0U)-sizeof(rme_ptr_t);
-    RME_DBG_S("RME_PGT_SIZE_TOP\r\n");
-    Size=RME_PGT_SIZE_NOM(0U)-sizeof(rme_ptr_t);
-    RME_DBG_S("RME_PGT_SIZE_NOM\r\n");
+    Size=RME_PGT_SIZE_TOP(0U)-2U*sizeof(rme_ptr_t);
+    Size=RME_PGT_SIZE_NOM(0U)-2U*sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    RME_DBG_S("RME_INV_SIZE:\r\n");
+    Size=RME_HYP_SIZE;
+    Size=RME_REG_SIZE(0U);
+    Size=RME_REG_SIZE(0U)+sizeof(struct RME_RV32P_RVF_Struct);
+    Size=RME_REG_SIZE(0U)+sizeof(struct RME_RV32P_RVD_Struct);
     Size=RME_THD_SIZE(0U);
-    RME_DBG_S("RME_THD_SIZE:\r\n"); */
 
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
@@ -1173,6 +1240,8 @@ Return      : rme_ptr_t - 0 - This does not have any coprocessors.
 #if(RME_COP_NUM!=0U)
 rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr)
 {
+    /* Even if the thread would specify only RVF when RVD is present, the
+     * context is still as large as RVD because they use the same coprocessor */
     if(Attr!=RME_RV32P_ATTR_NONE)
         return sizeof(struct RME_RV32P_Cop_Struct);
 
@@ -1857,7 +1926,7 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
     struct __RME_RV32P_PMP_Data* PMP_Data;
 
     PMP_Data=(struct __RME_RV32P_PMP_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
-                                             sizeof(struct __RME_RV32P_Pgt_Meta));
+                                            sizeof(struct __RME_RV32P_Pgt_Meta));
     /* Get the physical address of the page table - here we do not need any
      * conversion, because VA = PA as always. We just need to extract the MPU
      * metadata part and pass it down */

@@ -104,9 +104,9 @@ typedef rme_s32_t rme_ret_t;
 /* Cpt size limit - not restricted */
 #define RME_CPT_ENTRY_MAX               (0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)     (RME_POW2(NUM_ORDER)*sizeof(rme_ptr_t)+sizeof(struct __RME_A6M_Pgt_Meta))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)     (sizeof(struct __RME_A6M_Pgt_Meta)+RME_POW2(NUM_ORDER)*sizeof(rme_ptr_t))
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)     (RME_PGT_SIZE_NOM(NUM_ORDER)+sizeof(struct __RME_A6M_MPU_Data))
+#define RME_PGT_SIZE_TOP(NUM_ORDER)     (sizeof(struct __RME_A6M_MPU_Data)+RME_PGT_SIZE_NOM(NUM_ORDER))
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                 RME_A6M_Kot
 /* Compare-and-Swap(CAS) */

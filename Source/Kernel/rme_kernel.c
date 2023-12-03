@@ -2347,10 +2347,9 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
             
         RME_CAP_COPY(Capobj_Dst, Capobj_Src, Kom_Flag);
-        /* If this is a kernel memory cap, we need to write the range information as well.
-         * This range information is absolute address */
+        /* Write absolute range information for kernel memory caps */
         ((volatile struct RME_Cap_Kom*)Capobj_Dst)->Start=Kom_Start;
-        /* Internally, the end is stored in a full inclusive encoding for Kom_End */
+        /* The Kom_End is stored in an inclusive encoding to avoid overflow at max address */
         ((volatile struct RME_Cap_Kom*)Capobj_Dst)->End=Kom_End-1U;
     }
     else

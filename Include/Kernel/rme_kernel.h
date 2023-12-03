@@ -311,7 +311,7 @@ do \
 while(0)
 
 /* Check if the kernel memory capability range is valid.
- * CAP - The kernel memory capability to check.
+ * CAP - The kernel memory capability to check against.
  * FLAG - The flags to check against the kernel memory capability.
  * RADDR - The relative start address of the kernel object in kernel memory.
  * VADDR - The true start address of the kernel object in kernel memory, output.
