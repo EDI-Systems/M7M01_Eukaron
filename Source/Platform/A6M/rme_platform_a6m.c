@@ -1895,6 +1895,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     struct __RME_A6M_Pgt_Meta* Meta;
     rme_ptr_t* Table;
     rme_ptr_t Pos;
+    rme_ptr_t Shift;
     
     /* This must the top-level page table */
     RME_ASSERT(((Pgt_Op->Base)&RME_PGT_TOP)!=0U);
@@ -1909,8 +1910,12 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
         /* Check if the virtual address is in our range */
         if(Vaddr<RME_A6M_PGT_START(Meta->Base))
             return RME_ERR_HAL_FAIL;
-        /* Calculate where is the entry */
-        Pos=(Vaddr-RME_A6M_PGT_START(Meta->Base))>>RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
+        /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
+        Shift=RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
+        if(Shift>=RME_WORD_BITS)
+            Pos=0U;
+        else
+            Pos=(Vaddr-RME_A6M_PGT_START(Meta->Base))>>Shift;
         /* See if the entry is overrange */
         if((Pos>>RME_A6M_PGT_NUMORD(Meta->Size_Num_Order))!=0U)
             return RME_ERR_HAL_FAIL;
@@ -1923,9 +1928,19 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             if(Pgt!=RME_NULL)
                 *Pgt=(rme_ptr_t)Meta;
             if(Map_Vaddr!=RME_NULL)
-                *Map_Vaddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order));
+            {
+                if(Shift>=RME_WORD_BITS)
+                    *Map_Vaddr=RME_A6M_PGT_START(Meta->Base);
+                else
+                    *Map_Vaddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<Shift);
+            }
             if(Paddr!=RME_NULL)
-                *Paddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order));
+            {
+                if(Shift>=RME_WORD_BITS)
+                    *Paddr=RME_A6M_PGT_START(Meta->Base);
+                else
+                    *Paddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<Shift);
+            }
             if(Size_Order!=RME_NULL)
                 *Size_Order=RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
             if(Num_Order!=RME_NULL)
@@ -1950,3 +1965,4 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/
+
