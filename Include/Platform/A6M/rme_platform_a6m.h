@@ -292,10 +292,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_PGT_PTE_ADDR(X)         ((X)&0xFFFFFFFCU)
 /* The address mask for the next level page table address */
 #define RME_A6M_PGT_PGD_ADDR(X)         ((X)&0xFFFFFFFCU)
-/* Page table metadata definitions */
-#define RME_A6M_PGT_START(X)            ((X)&0xFFFFFFFEU)
-#define RME_A6M_PGT_SIZEORD(X)          ((X)>>16)
-#define RME_A6M_PGT_NUMORD(X)           ((X)&0x0000FFFFU)
 /* MPU operation flag */
 #define RME_A6M_MPU_CLR                 (0U)
 #define RME_A6M_MPU_UPD                 (1U)
@@ -319,7 +315,7 @@ typedef rme_s32_t rme_ret_t;
 /* Page table entry mode which property to get */
 #define RME_A6M_KFN_PGT_ENTRY_MOD_FLAG_GET          (0U)
 #define RME_A6M_KFN_PGT_ENTRY_MOD_SZORD_GET         (1U)
-#define RME_A6M_KFN_PGT_ENTRY_MOD_NUMORD_GET        (2U)
+#define RME_A6M_KFN_PGT_ENTRY_MOD_NMORD_GET         (2U)
 /* Interrupt source configuration */
 #define RME_A6M_KFN_INT_LOCAL_MOD_STATE_GET         (0U)
 #define RME_A6M_KFN_INT_LOCAL_MOD_STATE_SET         (1U)
@@ -448,10 +444,10 @@ struct __RME_A6M_Pgt_Meta
 {
     /* The MPU setting is always in the top level. This is a pointer to the top level */
     rme_ptr_t Toplevel;
-    /* The start mapping address of this page table */
+    /* The start mapping address of this page table, also as a top-level indicator */
     rme_ptr_t Base;
     /* The size/num order of this level */
-    rme_ptr_t Size_Num_Order;
+    rme_ptr_t Order;
     /* The page flags at this level. If any pages are mapped in, it must conform
      * to the same attributes as the older pages */
     rme_ptr_t Page_Flag;

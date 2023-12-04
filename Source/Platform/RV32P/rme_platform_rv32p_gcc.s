@@ -158,6 +158,7 @@ __RME_Entry_After:
     LA                  gp,__RME_Global
     .option             pop
     LA                  sp,__RME_Stack
+    CSRW                mscratch,sp
     /* Preinitialize hardware before any initialization */
     CALL                __RME_RV32P_Lowlvl_Preinit
     /* Load data section from flash to RAM */
@@ -324,12 +325,12 @@ Return      : None.
     .align              3
 
 __RME_User_Enter:
-    /* FS clear, previous mode = U, previous interrupt enabled */
-    LI                  t0, 0x00001800
-    CSRW                mstatus, t0
-    CSRW                mepc, a0
-    MV                  sp, a1
-    MV                  a0, a2
+    /* FS clear, previous mode = U, previous M-mode interrupt enabled */
+    LI                  t0,0x00000080
+    CSRW                mstatus,t0
+    CSRW                mepc,a0
+    MV                  sp,a1
+    MV                  a0,a2
     MRET
 /* End Function:__RME_User_Enter *********************************************/
 
@@ -395,7 +396,8 @@ __RME_RV32P_Handler:
     .option norelax
     LA                  gp,__RME_Global
     .option pop
-    /* Call system main interrupt handler */
+    /* Call system main interrupt handler with regs */
+    MV                  a0,sp
     CALL                _RME_RV32P_Handler
 
     /* Load mstatus */

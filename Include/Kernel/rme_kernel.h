@@ -549,8 +549,8 @@ while(0)
 #define RME_PGT_NOM                                 (0U)
 
 /* Size order and number order */
-#define RME_PGT_SIZEORD(X)                          ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_PGT_NUMORD(X)                           ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
+#define RME_PGT_SZORD(X)                          ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_PGT_NMORD(X)                           ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
 #define RME_PGT_ORDER(SIZE,NUM)                     (((SIZE)<<(sizeof(rme_ptr_t)*4U))|(NUM))
     
 /* Kernel Memory *************************************************************/
@@ -704,7 +704,7 @@ struct RME_Cap_Pgt
 {
     struct RME_Cap_Head Head;
     /* The entry size/number order */
-    rme_ptr_t Size_Num_Order;
+    rme_ptr_t Order;
     /* The base address of this page table.
      * Also, if this is a top-level, the last bit will be set. */
     rme_ptr_t Base;

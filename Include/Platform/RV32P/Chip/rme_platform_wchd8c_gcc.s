@@ -19,6 +19,13 @@ Description: The boot stub source file for all WCH D8C cores. These cores are
                 instruction again, so this is not an issue. We hope that the
                 manual mean "PMA checker fails" by "asychrnonus imprecise", 
                 rather than PMP checker fails.
+             3. The WCH PMP has a hidden "background range" that allow all
+                U-mode accesses by default. That said, when all PMP regions are
+                "OFF", the processor does not block any U-mode accesses. This
+                is a clear deviation from the RISC-V standard, which require
+                all such accesses to fail. The result is we will have to declare
+                the chip as having 3 MPU regions, and the last region will
+                always be programmed to block all accesses.
 ******************************************************************************/
 
 /* Import ********************************************************************/
@@ -62,6 +69,11 @@ __RME_WCHD8C_Entry:
     /* Enter machine mode, FPU/interrupt disabled for now */
     LI              t0,0x1880
     CSRW            mstatus,t0
+    /* Waste the last PMP region to block all user-level accesses */
+    LI              t0,0x18000000
+    CSRW            pmpcfg0,t0
+    LI              t0,0x1FFFFFFF
+    CSRW            pmpaddr3,t0
     /* Set vector table address with "number" mode, a WCH extension */
     LA              t0,__RME_Vector
     ORI             t0,t0,3
@@ -360,12 +372,6 @@ __RME_Vector:
     .word           IRQ237_Handler
     .word           IRQ238_Handler
     .word           IRQ239_Handler
-/* End Vector ****************************************************************/
-
-/* Handler *******************************************************************/
-    .section        .text.rme_handler
-    .option         rvc
-    .align          1
 
     .weak           NMI_Handler
     .weak           EXC_Handler
@@ -640,7 +646,6 @@ __RME_Vector:
     .weak           IRQ238_Handler
     .weak           IRQ239_Handler
 
-    .func
 Default_Handler:
 NMI_Handler:
 EXC_Handler:
@@ -915,8 +920,7 @@ IRQ237_Handler:
 IRQ238_Handler:
 IRQ239_Handler:
     J               __RME_RV32P_Handler
-    .endfunc
-/* End Handler ***************************************************************/
+/* End Vector ****************************************************************/
 
     .end
 /* End Of File ***************************************************************/

@@ -54,8 +54,8 @@ Description: The configuration file for CH32V307VC.
 #define RME_RV32P_INIT_STACK                            (0x2001FFF0U)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV32P_OSTIM_VAL                             (1440000U)
-/* Number of MPU regions available */
-#define RME_RV32P_REGION_NUM                            (4U)
+/* Number of MPU regions available - nonstandard implementation, only 3 available */
+#define RME_RV32P_REGION_NUM                            (3U)
 /* What is the FPU type? */
 #define RME_COP_NUM                                     (1U)
 #define RME_RV32P_COP_RVF                               (1U)

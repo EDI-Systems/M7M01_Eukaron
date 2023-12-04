@@ -8,21 +8,21 @@ Description : The hardware abstraction layer for RV32P PMP-based microcontroller
               use the RV32GV port instead. This port is only aware of two modes,
               M and U. The S-mode which supports MMU is not honored.
 
-* Generic Code Section *******************************************************
+* Generic Code Section ********************************************************
 Small utility functions that can be either implemented with C or assembly, and 
 the entry of the kernel. Also responsible for debug printing and CPUID getting.
 
-* Handler Code Section *******************************************************
+* Handler Code Section ********************************************************
 Contains fault handlers, generic interrupt handlers and kernel function handlers.
 
-* Initialization Code Section ************************************************
+* Initialization Code Section *************************************************
 Low-level initialization and booting. If we have multiple processors, the 
 booting of all processors are dealt with here.
 
-* Register Manipulation Section **********************************************
+* Register Manipulation Section ***********************************************
 Low-level register manipulations and parameter extractions.
 
-* Page Table Section *********************************************************
+* Page Table Section **********************************************************
 Page table related operations are all here.
 The page table implementation conforms to style II which allows sharing of page
 tables and infinite number of dynamic/static pages. The STATIC attribute here
@@ -91,7 +91,7 @@ rme_ptr_t __RME_CPUID_Get(void)
 }
 /* End Function:__RME_CPUID_Get **********************************************/
 
-/* Function:__RME_RV32P_Wait_Int *********************************************
+/* Function:__RME_RV32P_Wait_Int **********************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
@@ -102,9 +102,9 @@ void __RME_RV32P_Wait_Int(void)
     /* Calling functions implemented by risc-v library */
     RME_RV32P_WAIT_INT();
 }
-/* End Function:__RME_RV32P_Wait_Int ****************************************/
+/* End Function:__RME_RV32P_Wait_Int *****************************************/
 
-/* Function:__RME_RV32P_Exc_Handler ******************************************
+/* Function:__RME_RV32P_Exc_Handler *******************************************
 Description : The fault handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Mcause - The machine cause register.
@@ -112,7 +112,7 @@ Output      : struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
 void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
-                              rme_ptr_t Mcause)
+                             rme_ptr_t Mcause)
 {
     rme_ptr_t Mtval;
     rme_ptr_t Paddr;
@@ -125,12 +125,20 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
     struct __RME_RV32P_Pgt_Meta* Meta;
 
     /* Is it a kernel-level fault? If yes, panic */
-    RME_ASSERT((Reg->MSTATUS&RME_RV32P_MSTATUS_RET_USER)!=0U);
+    RME_ASSERT((Reg->MSTATUS&RME_RV32P_MSTATUS_RET_USER)==0U);
 
     /* Get the address of this faulty address, and what caused this fault */
     Thd_Cur=RME_RV32P_Local.Thd_Cur;
     Exc=&Thd_Cur->Ctx.Reg->Exc;
     Mtval=___RME_RV32P_MTVAL_Get();
+
+    RME_DBG_S("Mcause is 0x");
+    RME_DBG_U(Mcause);
+    RME_DBG_S(", Mtval is 0x");
+    RME_DBG_U(Mtval);
+    RME_DBG_S(", Mepc is 0x");
+    RME_DBG_U(Reg->PC);
+    RME_DBG_S("\r\n");
 
     /* What fault is it? */
     switch(Mcause)
@@ -153,6 +161,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
             Exc->Cause=Mcause;
             Exc->Addr=Reg->PC;
             Exc->Value=Mtval;
+            while(1);
             _RME_Thd_Fatal(Reg);
             return;
         }
@@ -174,16 +183,16 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
         Exc->Cause=Mcause;
         Exc->Addr=Reg->PC;
         Exc->Value=Mtval;
+        RME_DBG_S("Page not found.\r\n");
         _RME_Thd_Fatal(Reg);
         return;
     }
-
 
     /* We found the page, and need to update the PMP cache. It could be:
      * (1) a dynamic page,
      * (2) a static page on first occurrence,
      * (3) a static page swapping out another static page. */
-    Meta=(struct __RME_RV32P_Pgt_Meta*)(Prc->Pgt->Base&~RME_PGT_TOP);
+    Meta=RME_CAP_GETOBJ(Prc->Pgt,struct __RME_RV32P_Pgt_Meta*);
     if(___RME_RV32P_PMP_Update(Meta, Paddr, Size_Order, Flag)!=0)
     {
         Exc->Cause=Mcause;
@@ -191,10 +200,15 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
         Exc->Value=Mtval;
         _RME_Thd_Fatal(Reg);
     }
-}
-/* End Function:__RME_RV32P_Exc_Handler *************************************/
 
-/* Function:__RME_RV32P_Flag_Fast ********************************************
+    RME_DBG_S("PMP update successful.\r\n");
+
+    /* Reload current PMP data */
+    __RME_Pgt_Set(Prc->Pgt);
+}
+/* End Function:__RME_RV32P_Exc_Handler **************************************/
+
+/* Function:__RME_RV32P_Flag_Fast *********************************************
 Description : Set a fast flag in a flag set. Works for timer interrupts only.
 Input       : rme_ptr_t Base - The base address of the flagset.
               rme_ptr_t Size - The size of the flagset.
@@ -203,8 +217,8 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 void __RME_RV32P_Flag_Fast(rme_ptr_t Base,
-                            rme_ptr_t Size,
-                            rme_ptr_t Flag)
+                           rme_ptr_t Size,
+                           rme_ptr_t Flag)
 {
     volatile struct __RME_RVM_Flag* Set;
 
@@ -216,9 +230,9 @@ void __RME_RV32P_Flag_Fast(rme_ptr_t Base,
     /* Set the flags for this interrupt source */
     Set->Fast|=Flag;
 }
-/* End Function:__RME_RV32P_Flag_Fast ***************************************/
+/* End Function:__RME_RV32P_Flag_Fast ****************************************/
 
-/* Function:__RME_RV32P_Flag_Slow ********************************************
+/* Function:__RME_RV32P_Flag_Slow *********************************************
 Description : Set a slow flag in a flag set. Works for both vectors and events.
 Input       : rme_ptr_t Base - The base address of the flagset.
               rme_ptr_t Size - The size of the flagset.
@@ -227,8 +241,8 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 void __RME_RV32P_Flag_Slow(rme_ptr_t Base,
-                            rme_ptr_t Size,
-                            rme_ptr_t Pos)
+                           rme_ptr_t Size,
+                           rme_ptr_t Pos)
 {
     volatile struct __RME_RVM_Flag* Set;
     
@@ -241,9 +255,9 @@ void __RME_RV32P_Flag_Slow(rme_ptr_t Base,
     Set->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
     Set->Flag[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
 }
-/* End Function:__RME_RV32P_Flag_Slow ***************************************/
+/* End Function:__RME_RV32P_Flag_Slow ****************************************/
 
-/* Function:_RME_RV32P_Handler ***********************************************
+/* Function:_RME_RV32P_Handler ************************************************
 Description : The generic interrupt handler of RME for RV32P, in C.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : struct RME_Reg_Struct* Reg - The updated register set.
@@ -255,8 +269,8 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 
     Mcause=___RME_RV32P_MCAUSE_Get();
 
-    /* Turn to appropriate handlers */
-    if(Mcause==(RME_RV32P_MCAUSE_TIM|0x80000000U))
+    /* Timer handler */
+    if(Mcause==(RME_RV32P_MCAUSE_TIM|RME_RV32P_MCAUSE_INT))
     {
         RME_RV32P_Timestamp++;
 
@@ -266,7 +280,8 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 
         _RME_Tim_Handler(Reg,1U);
     }
-    else if((Mcause&0x80000000U)!=0U)
+    /* Vector handler */
+    else if((Mcause&RME_RV32P_MCAUSE_INT)!=0U)
     {
         Mcause&=0x7FFFFFFFU;
 
@@ -280,20 +295,29 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 
         _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct);
         /* Remember to pick the guy with the highest priority after we did all sends */
-        _RME_Kern_High(Reg, &RME_RV32P_Local);
+        _RME_Kern_High(Reg,&RME_RV32P_Local);
     }
+    /* System call handler */
     else if(Mcause==RME_RV32P_MCAUSE_U_ECALL)
+    {
+        /* Need to skip the ECALL */
+        Reg->PC+=sizeof(rme_ptr_t);
         _RME_Svc_Handler(Reg);
+    }
+    /* Exception handler */
     else
+    {
+        /* Attempt to reexecute the faulting instruction */
         __RME_RV32P_Exc_Handler(Reg,Mcause);
+    }
 
     /* Never ever allow any modifications to MSTATUS bypass checks: modifying
      * return states, or allow a FPU-disabled thread to access FPU */
     RME_RV32P_MSTATUS_FIX(Reg);
 }
-/* End Function:_RME_RV32P_Handler ******************************************/
+/* End Function:_RME_RV32P_Handler *******************************************/
 
-/* Function:__RME_RV32P_Pgt_Entry_Mod ****************************************
+/* Function:__RME_RV32P_Pgt_Entry_Mod *****************************************
 Description : Consult or modify the page table attributes. RV32P only allows
               consulting page table attributes but does not allow modifying them,
               because there are no architecture-specific flags.
@@ -305,9 +329,9 @@ Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
-                                  rme_cid_t Cap_Pgt,
-                                  rme_ptr_t Vaddr,
-                                  rme_ptr_t Type)
+                                    rme_cid_t Cap_Pgt,
+                                    rme_ptr_t Vaddr,
+                                    rme_ptr_t Type)
 {
     struct RME_Cap_Pgt* Pgt_Op;
     rme_ptr_t Type_Stat;
@@ -328,15 +352,15 @@ rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     {
         case RME_RV32P_KFN_PGT_ENTRY_MOD_FLAG_GET: return (rme_ret_t)Flags;
         case RME_RV32P_KFN_PGT_ENTRY_MOD_SZORD_GET: return (rme_ret_t)Size_Order;
-        case RME_RV32P_KFN_PGT_ENTRY_MOD_NUMORD_GET: return (rme_ret_t)Num_Order;
+        case RME_RV32P_KFN_PGT_ENTRY_MOD_NMORD_GET: return (rme_ret_t)Num_Order;
         default:break;
     }
     
     return RME_ERR_KFN_FAIL;
 }
-/* End Function:__RME_RV32P_Pgt_Entry_Mod ***********************************/
+/* End Function:__RME_RV32P_Pgt_Entry_Mod ************************************/
 
-/* Function:__RME_RV32P_Int_Local_Mod ****************************************
+/* Function:__RME_RV32P_Int_Local_Mod *****************************************
 Description : Consult or modify the local interrupt controller's vector state.
 Input       : rme_tid_t Int_Num - The interrupt number to consult or modify.
               rme_tid_t Operation - The operation to conduct.
@@ -345,8 +369,8 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0 or the desired value; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
-                                     rme_ptr_t Operation,
-                                     rme_ptr_t Param)
+                                    rme_ptr_t Operation,
+                                    rme_ptr_t Param)
 {
     if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
@@ -381,9 +405,9 @@ rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
 
     return 0;
 }
-/* End Function:__RME_RV32P_Int_Local_Mod ***********************************/
+/* End Function:__RME_RV32P_Int_Local_Mod ************************************/
 
-/* Function:__RME_RV32P_Int_Local_Trig ***************************************
+/* Function:__RME_RV32P_Int_Local_Trig ****************************************
 Description : Trigger a CPU's local event source.
 Input       : rme_ptr_t CPUID - The ID of the CPU.
               rme_ptr_t Evt_Num - The event ID.
@@ -391,7 +415,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Int_Local_Trig(rme_ptr_t CPUID,
-                                      rme_ptr_t Int_Num)
+                                     rme_ptr_t Int_Num)
 {
     if(Int_Num>=RME_RVM_PHYS_VCT_NUM)
         return RME_ERR_KFN_FAIL;
@@ -401,9 +425,9 @@ rme_ret_t __RME_RV32P_Int_Local_Trig(rme_ptr_t CPUID,
 
     return 0;
 }
-/* End Function:__RME_RV32P_Int_Local_Trig **********************************/
+/* End Function:__RME_RV32P_Int_Local_Trig ***********************************/
 
-/* Function:__RME_RV32P_Evt_Local_Trig ***************************************
+/* Function:__RME_RV32P_Evt_Local_Trig ****************************************
 Description : Trigger a CPU's local event source.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t CPUID - The ID of the CPU.
@@ -412,8 +436,8 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
-                                      rme_ptr_t CPUID,
-                                      rme_ptr_t Evt_Num)
+                                     rme_ptr_t CPUID,
+                                     rme_ptr_t Evt_Num)
 {
     if(Evt_Num>=RME_RVM_VIRT_EVT_NUM)
         return RME_ERR_KFN_FAIL;
@@ -430,9 +454,9 @@ rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
 
     return 0U;
 }
-/* End Function:__RME_RV32P_Evt_Local_Trig **********************************/
+/* End Function:__RME_RV32P_Evt_Local_Trig ***********************************/
 
-/* Function:__RME_RV32P_Cache_Mod ********************************************
+/* Function:__RME_RV32P_Cache_Mod *********************************************
 Description : Modify cache state. We do not make assumptions about cache contents.
 Input       : rme_ptr_t Cache_ID - The ID of the cache to enable, disable or consult.
               rme_ptr_t Operation - The operation to perform.
@@ -441,16 +465,16 @@ Output      : None.
 Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Cache_Mod(rme_ptr_t Cache_ID,
-                                 rme_ptr_t Operation,
-                                 rme_ptr_t Param)
+                                rme_ptr_t Operation,
+                                rme_ptr_t Param)
 {
     RME_RV32P_CACHE_MOD(Cache_ID, Operation, Param);
 
     return 0;
 }
-/* End Function:__RME_RV32P_Cache_Mod ***************************************/
+/* End Function:__RME_RV32P_Cache_Mod ****************************************/
 
-/* Function:__RME_RV32P_Cache_Maint ******************************************
+/* Function:__RME_RV32P_Cache_Maint *******************************************
 Description : Do cache maintenance. Integrity of the data is always protected.
 Input       : rme_ptr_t Cache_ID - The ID of the cache to do maintenance on.
               rme_ptr_t Operation - The maintenance operation to perform.
@@ -459,16 +483,16 @@ Output      : None.
 Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Cache_Maint(rme_ptr_t Cache_ID,
-                                   rme_ptr_t Operation,
-                                   rme_ptr_t Param)
+                                  rme_ptr_t Operation,
+                                  rme_ptr_t Param)
 {
     RME_RV32P_CACHE_MAINT(Cache_ID, Operation, Param);
 
     return 0;
 }
-/* End Function:__RME_RV32P_Cache_Maint *************************************/
+/* End Function:__RME_RV32P_Cache_Maint **************************************/
 
-/* Function:__RME_RV32P_Prfth_Mod ********************************************
+/* Function:__RME_RV32P_Prfth_Mod *********************************************
 Description : Modify prefetcher state.
 Input       : rme_ptr_t Prfth_ID - The ID of the prefetcher to enable, disable or consult.
               rme_ptr_t Operation - The operation to perform.
@@ -477,16 +501,16 @@ Output      : None.
 Return      : If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Prfth_Mod(rme_ptr_t Prfth_ID,
-                                 rme_ptr_t Operation,
-                                 rme_ptr_t Param)
+                                rme_ptr_t Operation,
+                                rme_ptr_t Param)
 {
     RME_RV32P_PRFTH_MOD(Prfth_ID, Operation, Param);
 
     return  0;
 }
-/* End Function:__RME_RV32P_Prfth_Mod ***************************************/
+/* End Function:__RME_RV32P_Prfth_Mod ****************************************/
 
-/* Function:__RME_RV32P_Perf_CPU_Func ****************************************
+/* Function:__RME_RV32P_Perf_CPU_Func *****************************************
 Description : CPU feature detection for RV32P.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Freg_ID - The capability to the thread to consult.
@@ -494,14 +518,14 @@ Output      : struct RME_Reg_Struct* Reg - The updated register set.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
-                                     rme_ptr_t Freg_ID)
+                                    rme_ptr_t Freg_ID)
 {
     /* Read dedicated feature register, but musk out bit width - we already know */
     return ___RME_RV32P_MISA_Get()&0x3FFFFFFFU;
 }
-/* End Function:__RME_RV32P_Perf_CPU_Func ***********************************/
+/* End Function:__RME_RV32P_Perf_CPU_Func ************************************/
 
-/* Function:__RME_RV32P_Perf_Mon_Mod *****************************************
+/* Function:__RME_RV32P_Perf_Mon_Mod ******************************************
 Description : Read or write performance monitor settings.
 Input       : rme_ptr_t Perf_ID - The performance monitor identifier.
               rme_ptr_t Operation - The operation to perform.
@@ -510,16 +534,16 @@ Output      : None.
 Return      : rme_ret_t - If successful, the desired value; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Perf_Mon_Mod(rme_ptr_t Perf_ID,
-                                    rme_ptr_t Operation,
-                                    rme_ptr_t Param)
+                                   rme_ptr_t Operation,
+                                   rme_ptr_t Param)
 {
     RME_RV32P_PERF_MON_MOD(Perf_ID, Operation, Param);
 
     return 0;
 }
-/* End Function:__RME_RV32P_Perf_Mon_Mod ************************************/
+/* End Function:__RME_RV32P_Perf_Mon_Mod *************************************/
 
-/* Function:__RME_RV32P_Perf_Cycle_Mod ***************************************
+/* Function:__RME_RV32P_Perf_Cycle_Mod ****************************************
 Description : Cycle performance counter read or write.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Cycle_ID - The performance counter to read or write.
@@ -527,17 +551,17 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the han
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
-                                      rme_ptr_t Cycle_ID,
-                                      rme_ptr_t Operation,
-                                      rme_ptr_t Value)
+                                     rme_ptr_t Cycle_ID,
+                                     rme_ptr_t Operation,
+                                     rme_ptr_t Value)
 {
     RME_RV32P_PERF_CYCLE_MOD(Cycle_ID, Operation, Value);
 
     return 0;
 }
-/* End Function:__RME_RV32P_Perf_Cycle_Mod **********************************/
+/* End Function:__RME_RV32P_Perf_Cycle_Mod ***********************************/
 
-/* Function:__RME_RV32P_Debug_Reg_Mod ****************************************
+/* Function:__RME_RV32P_Debug_Reg_Mod *****************************************
 Description : Debug regular register modification implementation for RV32P.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -548,10 +572,10 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the han
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
-                                     struct RME_Reg_Struct* Reg,
-                                     rme_cid_t Cap_Thd,
-                                     rme_ptr_t Operation,
-                                     rme_ptr_t Value)
+                                    struct RME_Reg_Struct* Reg,
+                                    rme_cid_t Cap_Thd,
+                                    rme_ptr_t Operation,
+                                    rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -612,9 +636,9 @@ rme_ret_t __RME_RV32P_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
-/* End Function:__RME_RV32P_Debug_Reg_Mod ***********************************/
+/* End Function:__RME_RV32P_Debug_Reg_Mod ************************************/
 
-/* Function:__RME_RV32P_Debug_Inv_Mod ****************************************
+/* Function:__RME_RV32P_Debug_Inv_Mod *****************************************
 Description : Debug invocation register modification implementation for RV32P.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
@@ -687,9 +711,9 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
-                                     struct RME_Reg_Struct* Reg,
-                                     rme_cid_t Cap_Thd,
-                                     rme_ptr_t Operation)
+                                    struct RME_Reg_Struct* Reg,
+                                    rme_cid_t Cap_Thd,
+                                    rme_ptr_t Operation)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -730,7 +754,10 @@ Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+EXTERN rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID,
+                                      rme_ptr_t Sub_ID,
+                                      rme_ptr_t Param1,
+                                      rme_ptr_t Param2);
 #endif
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                             struct RME_Reg_Struct* Reg,
@@ -873,82 +900,10 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-struct RME_RV32P_RVF_Struct
-{
-    rme_ptr_t FCSR;
-    rme_ptr_t F0;
-    rme_ptr_t F1;
-    rme_ptr_t F2;
-    rme_ptr_t F3;
-    rme_ptr_t F4;
-    rme_ptr_t F5;
-    rme_ptr_t F6;
-    rme_ptr_t F7;
-    rme_ptr_t F8;
-    rme_ptr_t F9;
-    rme_ptr_t F10;
-    rme_ptr_t F11;
-    rme_ptr_t F12;
-    rme_ptr_t F13;
-    rme_ptr_t F14;
-    rme_ptr_t F15;
-    rme_ptr_t F16;
-    rme_ptr_t F17;
-    rme_ptr_t F18;
-    rme_ptr_t F19;
-    rme_ptr_t F20;
-    rme_ptr_t F21;
-    rme_ptr_t F22;
-    rme_ptr_t F23;
-    rme_ptr_t F24;
-    rme_ptr_t F25;
-    rme_ptr_t F26;
-    rme_ptr_t F27;
-    rme_ptr_t F28;
-    rme_ptr_t F29;
-    rme_ptr_t F30;
-    rme_ptr_t F31;
-};
-struct RME_RV32P_RVD_Struct
-{
-    rme_ptr_t FCSR;
-    rme_ptr_t F0[2];
-    rme_ptr_t F1[2];
-    rme_ptr_t F2[2];
-    rme_ptr_t F3[2];
-    rme_ptr_t F4[2];
-    rme_ptr_t F5[2];
-    rme_ptr_t F6[2];
-    rme_ptr_t F7[2];
-    rme_ptr_t F8[2];
-    rme_ptr_t F9[2];
-    rme_ptr_t F10[2];
-    rme_ptr_t F11[2];
-    rme_ptr_t F12[2];
-    rme_ptr_t F13[2];
-    rme_ptr_t F14[2];
-    rme_ptr_t F15[2];
-    rme_ptr_t F16[2];
-    rme_ptr_t F17[2];
-    rme_ptr_t F18[2];
-    rme_ptr_t F19[2];
-    rme_ptr_t F20[2];
-    rme_ptr_t F21[2];
-    rme_ptr_t F22[2];
-    rme_ptr_t F23[2];
-    rme_ptr_t F24[2];
-    rme_ptr_t F25[2];
-    rme_ptr_t F26[2];
-    rme_ptr_t F27[2];
-    rme_ptr_t F28[2];
-    rme_ptr_t F29[2];
-    rme_ptr_t F30[2];
-    rme_ptr_t F31[2];
-};
 void __RME_Boot(void)
 {
     rme_ptr_t Cur_Addr;
-    volatile rme_ptr_t Size;
+    /* volatile rme_ptr_t Size; */
 
     Cur_Addr=RME_KOM_VA_BASE;
 
@@ -991,16 +946,15 @@ void __RME_Boot(void)
                                  RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_RV32P_Local)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
 
-    /* Print the size of some kernel objects, only used in debugging */
+    /* Print the size of some kernel objects, only used in debugging
     Size=RME_CPT_SIZE(1U);
     Size=RME_PGT_SIZE_TOP(0U)-2U*sizeof(rme_ptr_t);
     Size=RME_PGT_SIZE_NOM(0U)-2U*sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
     Size=RME_HYP_SIZE;
     Size=RME_REG_SIZE(0U);
-    Size=RME_REG_SIZE(0U)+sizeof(struct RME_RV32P_RVF_Struct);
-    Size=RME_REG_SIZE(0U)+sizeof(struct RME_RV32P_RVD_Struct);
-    Size=RME_THD_SIZE(0U);
+    Size=RME_REG_SIZE(0U)+sizeof(struct RME_RV32P_Cop_Struct);
+    Size=RME_THD_SIZE(0U); */
 
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE==1U)
@@ -1025,7 +979,7 @@ void __RME_Boot(void)
     __RME_Int_Enable();
 
     /* Boot into the init thread */
-    __RME_User_Enter(RME_RV32P_INIT_ENTRY, RME_RV32P_INIT_STACK, 0U);
+    __RME_User_Enter(RME_RV32P_INIT_ENTRY,RME_RV32P_INIT_STACK,0U);
 
     /* Should never reach here */
     while(1);
@@ -1063,6 +1017,16 @@ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
     Param[0]=Reg->X11_A1;
     Param[1]=Reg->X12_A2;
     Param[2]=Reg->X13_A3;
+
+    RME_DBG_S("Regs: 0x");
+    RME_DBG_U(Reg->X10_A0);
+    RME_DBG_S(" 0x");
+    RME_DBG_U(Reg->X11_A1);
+    RME_DBG_S(" 0x");
+    RME_DBG_U(Reg->X12_A2);
+    RME_DBG_S(" 0x");
+    RME_DBG_U(Reg->X13_A3);
+    RME_DBG_S("\r\n");
 }
 /* End Function:__RME_Svc_Param_Get ******************************************/
 
@@ -1211,22 +1175,18 @@ Return      : rme_ret_t - If 0, compatible; if RME_ERR_HAL_FAIL, incompatible.
 #if(RME_COP_NUM!=0U)
 rme_ret_t __RME_Thd_Cop_Check(rme_ptr_t Attr)
 {
-#if(RME_A7M_COP_FPV5_DP!=0U)
-    return 0;
-#elif(RME_A7M_COP_FPV5_SP!=0U)
-    if((Attr&RME_A7M_ATTR_FPV5_DP)!=0U)
+#if(RME_RV32P_COP_RVD!=0U)
+    /* No checks necessary */
+#elif(RME_RV32P_COP_RVF!=0U)
+    /* If only RVF is selected, no RVD allowed */
+    if((Attr&RME_RV32P_ATTR_RVD)!=0U)
         return RME_ERR_HAL_FAIL;
-
-    return 0;
-#elif(RME_A7M_COP_FPV4_SP!=0U)
-    if(((Attr&RME_A7M_ATTR_FPV5_DP)!=0U)||((Attr&RME_A7M_ATTR_FPV5_SP)!=0U))
-        return RME_ERR_HAL_FAIL;
-
-    return 0;
 #else
-    /* Can't happen; if there are no coprocessors, this won't be compiled */
-    RME_ASSERT(0);
+    /* Can't happen, wrong macro configs */
+#error No coprocessor selected but RME_COP_NUM is nonzero.
 #endif
+
+    return 0;
 }
 #endif
 /* End Function:__RME_Thd_Cop_Check ******************************************/
@@ -1456,17 +1416,18 @@ Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
-    volatile rme_ptr_t* Ptr;
+    rme_ptr_t* Ptr;
+    rme_u8_t* Cfg;
 
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt_Op, rme_ptr_t*);
 
     /* Initialize the causal metadata */
     ((struct __RME_RV32P_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
-    ((struct __RME_RV32P_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
+    ((struct __RME_RV32P_Pgt_Meta*)Ptr)->Order=Pgt_Op->Order;
     Ptr+=sizeof(struct __RME_RV32P_Pgt_Meta)/sizeof(rme_ptr_t);
 
-    /* Is this a top-level? If it is, we need to clean up the MPU data */
+    /* Is this a top-level? If it is, we need to clean up the PMP data */
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
     {
         ((struct __RME_RV32P_PMP_Data*)Ptr)->Static=0U;
@@ -1475,12 +1436,17 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
         for(Count=0U;Count<RME_RV32P_REGION_NUM;Count++)
             ((struct __RME_RV32P_PMP_Data*)Ptr)->Addr[Count]=0U;
 
+        /* "Nonexistent" entries appear as enabled but not allowing access for workaround */
+        Cfg=(rme_u8_t*)(((struct __RME_RV32P_PMP_Data*)Ptr)->Cfg);
+        for(Count=RME_RV32P_REGION_NUM;Count<RME_RV32P_PMPCFG_NUM*sizeof(rme_ptr_t);Count++)
+            Cfg[Count]=0x18U;
+
         Ptr+=sizeof(struct __RME_RV32P_PMP_Data)/sizeof(rme_ptr_t);
     }
 
     /* Clean up the table itself - This is could be virtually unbounded if the user
      * pass in some very large length value. Need to restrict this. */
-    for(Count=0U;Count<RME_POW2(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order));Count++)
+    for(Count=0U;Count<RME_POW2(RME_PGT_NMORD(Pgt_Op->Order));Count++)
         Ptr[Count]=0U;
 
     return 0;
@@ -1538,7 +1504,7 @@ Output      : struct __RME_RV32P_PMP_Range* Range - The decoded ranges.
 Return      : rme_ptr_t - The number of regions that are present.
 ******************************************************************************/
 rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
-                                   struct __RME_RV32P_PMP_Range* Range)
+                                  struct __RME_RV32P_PMP_Range* Range)
 {
     rme_ptr_t Data_Cnt;
     rme_ptr_t Range_Cnt;
@@ -1547,6 +1513,10 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
     Data_Cnt=0U;
     Range_Cnt=0U;
     Cfg=(rme_u8_t*)(Top_Data->Cfg);
+
+    RME_DBG_S("Cfg array Addr 0x");
+    RME_DBG_U(Cfg);
+    RME_DBG_S("\r\n");
 
     while(Data_Cnt<RME_RV32P_REGION_NUM)
     {
@@ -1558,29 +1528,32 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
             Range[Range_Cnt].Size_Order=_RME_LSB_Generic(~Top_Data->Addr[Data_Cnt]);
             Range[Range_Cnt].Start=Top_Data->Addr[Data_Cnt]&RME_MASK_START(Range[Range_Cnt].Size_Order+1U);
             Range[Range_Cnt].Size_Order+=3U;
-            Range[Range_Cnt].End=Range[Range_Cnt].Start+RME_POW2(Range[Range_Cnt].Size_Order);
+            /* Handle 32 - which is UB if shifted with */
+            if(Range[Range_Cnt].Size_Order==RME_WORD_BITS)
+            {
+                RME_ASSERT(Range[Range_Cnt].Start==0U);
+                Range[Range_Cnt].End=0U;
+            }
+            else
+                Range[Range_Cnt].End=Range[Range_Cnt].Start+RME_POW2(Range[Range_Cnt].Size_Order);
             Range_Cnt++;
             Data_Cnt++;
         }
         /* The region itself is empty, but what it follows may contain data in TOR mode */
         else
         {
-            if(Data_Cnt<(RME_RV32P_REGION_NUM-1U))
+            if((Data_Cnt<(RME_RV32P_REGION_NUM-1U))&&
+               (RME_RV32P_PMP_MODE(Cfg[Data_Cnt+1U])==RME_RV32P_PMP_TOR))
             {
-                if(RME_RV32P_PMP_MODE(Cfg[Data_Cnt+1U])==RME_RV32P_PMP_TOR)
-                {
                     Range[Range_Cnt].Flag=RME_RV32P_PMP_PERM(Cfg[Data_Cnt+1U]);
                     Range[Range_Cnt].Start=Top_Data->Addr[Data_Cnt];
                     Range[Range_Cnt].End=Top_Data->Addr[Data_Cnt+1U];
                     Range[Range_Cnt].Size_Order=0U;
                     Range_Cnt++;
                     Data_Cnt+=2U;
-                }
             }
             else
-            {
                 break;
-            }
         }
     }
 
@@ -1638,7 +1611,7 @@ Output      : None.
 Return      : rme_ptr_t - The number of entries used.
 ******************************************************************************/
 rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
-                                        rme_ptr_t Number)
+                                       rme_ptr_t Number)
 {
     rme_ptr_t Count;
     rme_ptr_t Total;
@@ -1673,8 +1646,8 @@ Output      : None.
 Return      : rme_ptr_t - The position to kick out.
 ******************************************************************************/
 rme_ptr_t ___RME_RV32P_PMP_Range_Kick(struct __RME_RV32P_PMP_Range* Range,
-                                       rme_ptr_t Number,
-                                       rme_ptr_t Add)
+                                      rme_ptr_t Number,
+                                      rme_ptr_t Add)
 {
     rme_ptr_t Rand;
     rme_ptr_t Count;
@@ -1716,10 +1689,10 @@ Return      : rme_ret_t - If successful, the current number of ranges; else
                           RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
-                                rme_ptr_t Number,
-                                rme_ptr_t Paddr,
-                                rme_ptr_t Size_Order,
-                                rme_ptr_t Flag)
+                               rme_ptr_t Number,
+                               rme_ptr_t Paddr,
+                               rme_ptr_t Size_Order,
+                               rme_ptr_t Flag)
 {
     rme_ptr_t Count;
     rme_ptr_t End;
@@ -1727,42 +1700,68 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
     rme_ptr_t Right;
     rme_ptr_t Size;
 
-    End=Paddr+RME_POW2(Size_Order);
+    RME_DBG_S("Adding range Number ");
+    RME_DBG_I(Number);
+    RME_DBG_S(" Paddr 0x");
+    RME_DBG_U(Paddr);
+    RME_DBG_S(" Szord ");
+    RME_DBG_I(Size_Order);
+    RME_DBG_S(" Flag 0x");
+    RME_DBG_U(Flag);
+    RME_DBG_S("\r\n");
+
+    /* Handle 32 */
+    if(Size_Order==RME_WORD_BITS)
+    {
+        RME_ASSERT(Paddr==0U);
+        End=0U;
+    }
+    else
+        End=Paddr+RME_POW2(Size_Order);
 
     /* There are existing entries, look them up */
+    Left=0U;
+    Right=0U;
     if(Number!=0U)
     {
-        /* Is this ever in the ranges? If yes, then there must be a permission conflict */
-        for(Count=0U;Count<Number;Count++)
+        /* Mapping in a 4GiB page. nothing must be existent, or we have a fault */
+        if(Size_Order>=RME_WORD_BITS)
+            return RME_ERR_HAL_FAIL;
+        /* Mapping in a page smaller than 4GiB */
+        else
         {
-            if(((Paddr>=Range[Number].Start)&&(Paddr<Range[Number].End))||
-               ((End>=Range[Number].Start)&&(End<Range[Number].End)))
+            /* Is this ever in the ranges? If yes, then there must be a permission conflict */
+            for(Count=0U;Count<Number;Count++)
             {
-                return RME_ERR_HAL_FAIL;
+                if(((Paddr>=Range[Number].Start)&&(Paddr<Range[Number].End))||
+                   ((End>=Range[Number].Start)&&(End<Range[Number].End)))
+                {
+                    return RME_ERR_HAL_FAIL;
+                }
             }
-        }
 
-        /* No. Find the possible position of this page between the ranges */
-        for(Count=0U;Count<Number;Count++)
-        {
-            if(Paddr<Range[Number].Start)
+            /* No. Find the possible position of this page between the ranges */
+            for(Count=0U;Count<Number;Count++)
             {
-                break;
+                if(Paddr<Range[Number].Start)
+                {
+                    break;
+                }
             }
-        }
 
-        /* Check possible adjacent ranges for possible mergers */
-        if((Count>0U)&&
-           (Range[Count-1U].End==Paddr)&&
-           (RME_RV32P_PGT_MERGE(Range[Count-1U].Flag)==RME_RV32P_PGT_MERGE(Flag)))
-        {
-            Left=1U;
-        }
-        else if((Count<Number)&&
-                (Range[Count].Start==End)&&
-                (RME_RV32P_PGT_MERGE(Range[Count].Flag)==RME_RV32P_PGT_MERGE(Flag)))
-        {
-            Right=1U;
+            /* Check possible adjacent ranges for possible mergers */
+            if((Count>0U)&&
+               (Range[Count-1U].End==Paddr)&&
+               (RME_RV32P_PGT_MERGE(Range[Count-1U].Flag)==RME_RV32P_PGT_MERGE(Flag)))
+            {
+                Left=1U;
+            }
+            else if((Count<Number)&&
+                    (Range[Count].Start==End)&&
+                    (RME_RV32P_PGT_MERGE(Range[Count].Flag)==RME_RV32P_PGT_MERGE(Flag)))
+            {
+                Right=1U;
+            }
         }
     }
     /* If there are no existing ranges, Don't bother */
@@ -1855,6 +1854,15 @@ void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
     Data_Cnt=0U;
     Cfg=(rme_u8_t*)(Top_Data->Cfg);
 
+    /* The "nonexistent" entries always default to "enable but do not allow
+     * any access", for compatibility with some of the nonstandard PMP
+     * implementations. These implementations allow U-mode accesses by default
+     * so we have to sacrifice one region for them, and report one less region
+     * to the kernel config. All PMP implementations have a even number of
+     * entries, so the unused space in PMPCFG array can be used for this purpose. */
+    Top_Data->Cfg[RME_RV32P_PMPCFG_NUM-1U]=0x18181818U;
+
+    /* Decide best use of the entries */
     for(Range_Cnt=0U;Range_Cnt<Number;Range_Cnt++)
     {
         /* Using TOR - using 2 entries */
@@ -1870,12 +1878,19 @@ void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
         else
         {
             Cfg[Data_Cnt]=RME_RV32P_PGT_MERGE(Range[Range_Cnt].Flag)|RME_RV32P_PMP_NAPOT;
-            Top_Data->Addr[Data_Cnt]=Range[Range_Cnt].Start|RME_MASK_END(Range[Range_Cnt].Size_Order-3U);
+            Top_Data->Addr[Data_Cnt]=Range[Range_Cnt].Start|RME_MASK_END(Range[Range_Cnt].Size_Order-4U);
             Data_Cnt++;
         }
     }
 
     RME_ASSERT(Data_Cnt<=RME_RV32P_REGION_NUM);
+
+    /* Disable the rest of entries */
+    while(Data_Cnt<RME_RV32P_REGION_NUM)
+    {
+        Cfg[Data_Cnt]=0U;
+        Data_Cnt++;
+    }
 }
 /* End Function:___RME_RV32P_PMP_Encode *************************************/
 
@@ -1895,17 +1910,23 @@ rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
                                    rme_ptr_t Size_Order,
                                    rme_ptr_t Flag)
 {
-    rme_ptr_t Number;
+    rme_ret_t Number;
     struct __RME_RV32P_PMP_Data* Top_Data;
     struct __RME_RV32P_PMP_Range Range[RME_RV32P_REGION_NUM+1U];
 
     Top_Data=(struct __RME_RV32P_PMP_Data*)(Top_Meta+1U);
+    RME_DBG_S("Updating PMP using Top_Meta 0x");
+    RME_DBG_U(Top_Meta);
+    RME_DBG_S(" Top_Data 0x");
+    RME_DBG_U(Top_Data);
+    RME_DBG_S("\r\n");
 
     /* Decode the PMP stuff into start/end */
     Number=___RME_RV32P_PMP_Decode(Top_Data, Range);
 
     /* Try to add the page into these ranges */
-    if(___RME_RV32P_PMP_Add(Range, Number, Paddr, Size_Order, Flag)!=0U)
+    Number=___RME_RV32P_PMP_Add(Range, Number, Paddr, Size_Order, Flag);
+    if(Number<0)
         return RME_ERR_HAL_FAIL;
 
     /* Encode things back, kicking out */
@@ -2004,8 +2025,8 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* Register into the page table - PMP updated by page faults */
     Table[Pos]=RME_RV32P_PGT_PRESENT|RME_RV32P_PGT_TERMINAL|
-               RME_ROUND_DOWN(Paddr,RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order));
-    Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))];
+               RME_ROUND_DOWN(Paddr,RME_PGT_SZORD(Pgt_Op->Order));
+    Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NMORD(Pgt_Op->Order))];
     Flagtbl[Pos]=Flag;
 
     return 0;
@@ -2087,7 +2108,7 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
 
     /* Register into the page table - PMP updated by page faults */
     Table[Pos]=RME_RV32P_PGT_PRESENT|RME_RV32P_PGT_PGD_ADDR((rme_ptr_t)Child_Meta);
-    Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))];
+    Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NMORD(Pgt_Parent->Order))];
     Flagtbl[Pos]=Flag;
 
     return 0;
@@ -2169,7 +2190,7 @@ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
     /* The flags follow the pages */
     if(Flag!=RME_NULL)
     {
-        Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))];
+        Flagtbl=(rme_u8_t*)&Table[RME_POW2(RME_PGT_NMORD(Pgt_Op->Order))];
         *Flag=Flagtbl[Pos];
     }
 
@@ -2205,6 +2226,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     rme_ptr_t* Table;
     rme_u8_t* Flagtbl;
     rme_ptr_t Pos;
+    rme_ptr_t Shift;
     rme_ptr_t Num;
     rme_u8_t Flag_Final;
 
@@ -2220,12 +2242,16 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_RV32P_PGT_START(Meta->Base))
+        if(Vaddr<RME_PGT_START(Meta->Base))
             return RME_ERR_HAL_FAIL;
-        /* Calculate where is the entry */
-        Pos=(Vaddr-RME_RV32P_PGT_START(Meta->Base))>>RME_RV32P_PGT_SIZEORD(Meta->Size_Num_Order);
+        /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
+        Shift=RME_PGT_SZORD(Meta->Order);
+        if(Shift>=RME_WORD_BITS)
+            Pos=0U;
+        else
+            Pos=(Vaddr-RME_PGT_START(Meta->Base))>>Shift;
         /* See if the entry is overrange */
-        Num=RME_POW2(RME_RV32P_PGT_NUMORD(Meta->Size_Num_Order));
+        Num=RME_POW2(RME_PGT_NMORD(Meta->Order));
         if(Pos>=Num)
             return RME_ERR_HAL_FAIL;
         /* See if the entry exists */
@@ -2239,13 +2265,23 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             if(Pgt!=RME_NULL)
                 *Pgt=(rme_ptr_t)Meta;
             if(Map_Vaddr!=RME_NULL)
-                *Map_Vaddr=RME_RV32P_PGT_START(Meta->Base)+(Pos<<RME_RV32P_PGT_SIZEORD(Meta->Size_Num_Order));
-            if(Paddr!=0U)
-                *Paddr=RME_RV32P_PGT_START(Meta->Base)+(Pos<<RME_RV32P_PGT_SIZEORD(Meta->Size_Num_Order));
+            {
+                if(Shift>=RME_WORD_BITS)
+                    *Map_Vaddr=RME_PGT_START(Meta->Base);
+                else
+                    *Map_Vaddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+            }
+            if(Paddr!=RME_NULL)
+            {
+                if(Shift>=RME_WORD_BITS)
+                    *Paddr=RME_PGT_START(Meta->Base);
+                else
+                    *Paddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+            }
             if(Size_Order!=RME_NULL)
-                *Size_Order=RME_RV32P_PGT_SIZEORD(Meta->Size_Num_Order);
+                *Size_Order=RME_PGT_SZORD(Meta->Order);
             if(Num_Order!=RME_NULL)
-                *Num_Order=RME_RV32P_PGT_NUMORD(Meta->Size_Num_Order);
+                *Num_Order=RME_PGT_NMORD(Meta->Order);
             if(Flag!=RME_NULL)
                 *Flag=Flag_Final&Flagtbl[Pos];
 

@@ -12,14 +12,13 @@ Provides some utilities and handlers that every operating system have.
 * Capability Table Code Section ***********************************************
 This section of code might be confusing if the underlying principles
 of capability-based systems is not well understood. 
-
-1> Owning a capability means you have the power to use the function
+1. Owning a capability means you have the power to use the function
    represented by that capability.
-2> Capabilities have an field called flags, which denotes what operations
+2. Capabilities have an field called flags, which denotes what operations
    is allowed on that captbl.
-3> Owning a capability to a capability table means that you have the
+3. Owning a capability to a capability table means that you have the
    power to modify the capability table's contents.
-4> Creation and deletion of kernel objects is an operation on capability
+4. Creation and deletion of kernel objects is an operation on capability
    table, thus requiring the capability to the capability table.
 
 Remember we do not check our master table to see if it is frozen, or if it is
@@ -29,7 +28,7 @@ will be checked.
 
 There are 4 basic types of operations, as listed below:
 Operation                     What it does
--------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 Create/Add-Dst                CAS the slot to CREATING state.
                               Update timestamp.
                               Create kernel object.
@@ -46,67 +45,81 @@ Delete/Removal                Check FROZEN.
 
 Hazard Table: (Operation 2 follows Operation 1)
 Operation 1    Operation 2    Reason why it is safe
--------------------------------------------------------------------------------------------
-Create         Create         Only one creation will be successful, because CREATING slot
-                              is done by CAS.
-Create         Delete         Create only set the CREATING. Delete will require a TYPE data, which will
-                              only be set after the creation completes. ABA problem cannot occur because
-                              of create-freeze quiescence.
-                              If there is no quiescence between Create-Freeze, the following may occur:
-                              Thread1: Check ---------------------------------------------- Delete(CAS)
-                              Thread2: Check - Delete - Create - Freeze -------------------------------
-                              In this case, thread 1 will perform a wrong deletion on the new capability
-                              (the CAS will be successful), but this cap is actually a new cap created
-                              by the thread 2 at the same location, not the old cap, and its quiescence
-                              may not be satisfied.
-Create         Freeze         OCCUPY only set the FROZEN. FROZEN will require that bit not set.
-Create         Add-Src        Add-Src will require a TYPE data, which will only be set after the 
-                              creation completes.
-Create         Add-Dst        Only one creation will be successful, because OCCUPY slot is done by CAS.
-Create         Remove         OCCUPY only set the FROZEN. Remove will require a TYPE data, which will
-                              only be set after the creation completes. See Create-Delete for details.
-Create         Use            OCCUPY only set the FROZEN. Use the cap will require a TYPE data, which
-                              will only be set after the creation completes.
--------------------------------------------------------------------------------------------
-Delete         Delete         Actual deletion done by CAS so only one deletion will be successful.
-Delete         Freeze         If the deletion fails and clears the FROZEN flag, nothing will be done;
-                              If it does not fail, then the cap will be erased, and the FREEZE CAS
-                              will not succeed.
-Delete         Remove         Only one will be successful because only the root can be DELETED.
+-------------------------------------------------------------------------------
+Create         Create         Only one creation will be successful, because 
+                              CREATING slot is done by CAS.
+Create         Delete         Create only set the CREATING. Delete will require
+                              a TYPE data, which will only be set after the 
+                              creation completes. ABA problem cannot occur
+                              because of create-freeze quiescence.
+                              If there is no quiescence between Create-Freeze, 
+                              the following may occur:
+                              T1: Check ---------------------------- Delete(CAS)
+                              T2: Check - Delete - Create - Freeze -------------
+                              In this case, thread 1 will perform a wrong 
+                              deletion on the new capability (the CAS will be
+                              successful), but this cap is actually a new cap 
+                              created by the thread 2 at the same location, not
+                              the old cap, and its quiescence may not be satisfied.
+Create         Freeze         OCCUPY only set the FROZEN. FROZEN will require
+                              that bit not set.
+Create         Add-Src        Add-Src will require a TYPE data, which will only
+                              be set after the creation completes.
+Create         Add-Dst        Only one creation will be successful, because 
+                              OCCUPY slot is done by CAS.
+Create         Remove         OCCUPY only set the FROZEN. Remove will require a
+                              TYPE data, which will only be set after the
+                              creation completes. See Create-Delete for details.
+Create         Use            OCCUPY only set the FROZEN. Use the cap will 
+                              require a TYPE data, which will only be set after
+                              the creation completes.
+-------------------------------------------------------------------------------
+Delete         Delete         Actual deletion done by CAS so only one deletion
+                              will be successful.
+Delete         Freeze         If the deletion fails and clears the FROZEN flag,
+                              nothing will be done;
+                              If it does not fail, then the cap will be erased,
+                              and the FREEZE CAS will not succeed.
+Delete         Remove         Only one will be successful because only the root
+                              can be DELETED.
 Delete         Others         Banned by the FROZEN flag before deletion. 
--------------------------------------------------------------------------------------------
-Freeze         Create         Create will fail because something is still in the slot.
-Freeze         Delete         Delete will fail if not FROZEN; Even if FROZEN, QUIESCENCE will ban it. 
-Freeze         Remove         Remove will fail if not FROZEN; Even if FROZEN, QUIESCENCE will ban it. 
+-------------------------------------------------------------------------------
+Freeze         Create         Create fails because slot is still OCCUPY.
+Freeze         Delete         Delete fails if not FROZEN, or not QUIESCENT.
+Freeze         Remove         Remove fails if not FROZEN, or not QUIESCENT.
 Freeze         Freeze         Freeze done by CAS, and only one will be successful.
-Freeze         Others         Freeze will ban them if they do attempt after FROZEN set.
--------------------------------------------------------------------------------------------
+Freeze         Others         Freeze bans them if they attempt after FROZEN set.
+-------------------------------------------------------------------------------
 Add-Src        Create         Impossible because something in that slot.
-Add-Src        Freeze         Cannot freeze if already increased REFCNT. If they increase REFCNT just
-                              after FROZEN set, let it be. The cap cannot be deleted because kernel
-                              will check REFCNT.
+Add-Src        Freeze         Cannot freeze if already increased REFCNT. If they
+                              increase REFCNT just after FROZEN set, let it be.
+                              The cap can't be deleted because of non-zero REFCNT.
 Add-Src        Delete         Impossible because cap not FROZEN.
 Add-Src        Remove         Impossible because cap not FROZEN.
-Add-Src        Others         These operations can be done in parallel, so it is fine.
--------------------------------------------------------------------------------------------
+Add-Src        Others         These operations can be parallel, which is fine.
+-------------------------------------------------------------------------------
 Add-Dst         ...           Conclusion same as Create operation.
--------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 Remove          ...           Conclusion same as Delete operation.
--------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 Use            Create         Impossible because something in that slot.
-Use            Delete         Impossible because not FROZEN. The use can't be from leaf caps
-                              as well because deletion will check the REFCNT, and if the REFCNT
-                              is 0, then the only case where an unsettled use can happen
-                              is that it happens within WCET time to REFCNT check time. This
-                              unsettled use must come from a leaf cap, as the use happened after the
-                              root gets FROZEN. This leaf cap itself, will set the REFCNT
-                              to 1, and it have no chance to freeze then remove itself before a WCET.
-                              The unsettled use case is thus impossible and there is no race.
-                              As long as all new reference to caps require an active cap passed in,
-                              there is no such race. Also, for cap creation, the header create step 
-                              must be the last step (after refcnt can be seen on all coes as we use
-                              write release semantics), and this ensures that no newly created leaf
-                              caps will be available for use before refcnt takes effect to all cores.
+Use            Delete         Impossible because not FROZEN. The use can't be
+                              from leaf caps as well because deletion will check
+                              the REFCNT, and if the REFCNT is 0, then the only
+                              case where an unsettled use can happen is that it
+                              happens within WCET time to REFCNT check time. This
+                              unsettled use must come from a leaf cap, as the use
+                              happened after the root gets FROZEN. This leaf cap
+                              itself, will set the REFCNT to 1, and it have no
+                              chance to freeze then remove itself before a WCET.
+                              The unsettled use case is thus impossible and there
+                              is no race. As long as all new reference to caps
+                              require an active cap passed in, there is no such
+                              race. Also, for cap creation, the header create step 
+                              must be the last step (after refcnt can be seen on
+                              all cores as we use write release semantics), and
+                              this ensures that no new leaf caps will be available
+                              for use before REFCNT is seen by all cores.
 Use            Freeze         It is fine.
 Use            Add-Src        It is fine.
 Use            Add-Dst        Impossible because something in that slot.
@@ -2570,7 +2583,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* Info init */
     Pgt_Crt->Base=Base|Is_Top;
-    Pgt_Crt->Size_Num_Order=RME_PGT_ORDER(Size_Order, Num_Order);
+    Pgt_Crt->Order=RME_PGT_ORDER(Size_Order, Num_Order);
     Pgt_Crt->ASID=0U;
 
     /* Object init - need to add all kernel pages if they are top-level */
@@ -2624,15 +2637,32 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Pgt* Pgt_Op;
     rme_ptr_t Type_Stat;
+    rme_ptr_t Szord;
     
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);    
     /* Check if the target captbl is not frozen, but don't check their properties */
     RME_CAP_CHECK(Pgt_Op, 0U);
 
-#if(RME_VA_EQU_PA==1U)
+    Szord=RME_PGT_SZORD(Pgt_Op->Order);
+#if(RME_VA_EQU_PA!=0U)
     /* Check if we force identical mapping */
-    if(Paddr!=((Pos<<RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order))+RME_PGT_START(Pgt_Op->Base)))
+    if(Szord==RME_WORD_BITS)
+    {
+        RME_COVERAGE_MARKER();
+        
+        if((Paddr!=0U)||(Pos!=0U))
+        {
+            RME_COVERAGE_MARKER();
+            
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else if(Paddr!=(RME_PGT_START(Pgt_Op->Base)+(Pos<<Szord)))
     {
         RME_COVERAGE_MARKER();
         
@@ -2645,8 +2675,8 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 #endif
 
     /* See if the mapping range and the granularity is allowed */
-    if(((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0U)||
-       ((Paddr&RME_MASK_END(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)-1U))!=0U))
+    if(((Pos>>RME_PGT_NMORD(Pgt_Op->Order))!=0U)||
+       ((Paddr&RME_MASK_END(Szord-1U))!=0U))
     {
         RME_COVERAGE_MARKER();
         
@@ -2699,13 +2729,11 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Pgt* Pgt_Child;
     volatile struct RME_Cap_Pgt* Pgt_Root;
     rme_ptr_t Type_Stat;
-
-    /* The total size order of the child table */
-    rme_ptr_t Child_Size_Ord;
-#if(RME_VA_EQU_PA==1U)
-    /* The start and end mapping address in the parent */
-    rme_ptr_t Parent_Map_Addr;
-    rme_ptr_t Parend_End_Addr;
+    rme_ptr_t Order_Child;
+    rme_ptr_t Szord_Parent;
+#if(RME_VA_EQU_PA!=0U)
+    rme_ptr_t Start_Parent;
+    rme_ptr_t End_Parent;
 #endif
     
     /* Get the capability slots */
@@ -2716,7 +2744,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Pgt_Child, 0U);
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
     {
         RME_COVERAGE_MARKER();
         
@@ -2728,9 +2756,9 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     }
     
     /* See if the child table falls within one slot of the parent table */
-    Child_Size_Ord=RME_PGT_NUMORD(Pgt_Child->Size_Num_Order)+
-                   RME_PGT_SIZEORD(Pgt_Child->Size_Num_Order);
-    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)<Child_Size_Ord)
+    Order_Child=RME_PGT_NMORD(Pgt_Child->Order)+RME_PGT_SZORD(Pgt_Child->Order);
+    Szord_Parent=RME_PGT_SZORD(Pgt_Parent->Order);
+    if(Szord_Parent<Order_Child)
     {
         RME_COVERAGE_MARKER();
         
@@ -2741,37 +2769,61 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
     }
 
-#if(RME_VA_EQU_PA==1U)
-    /* Check if the virtual address mapping is correct */
-    Parent_Map_Addr=(Pos<<RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order))+
-                    RME_PGT_START(Pgt_Parent->Base);
-    if(Pgt_Child->Base<Parent_Map_Addr)
+#if(RME_VA_EQU_PA!=0U)
+    /* Check if the child falls into the correct slot */
+    if(Szord_Parent<RME_WORD_BITS)
     {
-        RME_COVERAGE_MARKER();
-        
-        return RME_ERR_PGT_ADDR;
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-    }
-    
-    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order));
-    
-    /* If this is zero, then we are sure that overflow won't happen because start
-     * address is always aligned to the total order of the child page table */
-    if(Parend_End_Addr!=0U)
-    {
-        if((Pgt_Child->Base+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        /* Check if the virtual address mapping is correct - note that the child
+         * could also be a top-level page table. Whether constructing a top into 
+         * another top is allowed is HAL-defined. */
+        Start_Parent=RME_PGT_START(Pgt_Parent->Base)+(Pos<<Szord_Parent);
+        if(RME_PGT_START(Pgt_Child->Base)<Start_Parent)
         {
             RME_COVERAGE_MARKER();
-
+            
             return RME_ERR_PGT_ADDR;
         }
         else
         {
             RME_COVERAGE_MARKER();
         }
+        
+        End_Parent=Start_Parent+RME_POW2(Szord_Parent);
+        
+        /* If this is zero, then the parent table's slot expands to the end of 
+         * memory, and we are sure that overflow won't happen because start
+         * address is always aligned to the total order of the child table. 
+         * No UB for Order_Child here because Szord_Parent>=Order_Child */
+        if(End_Parent!=0U)
+        {
+            if((RME_PGT_START(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            {
+                RME_COVERAGE_MARKER();
+
+                return RME_ERR_PGT_ADDR;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    /* Parent is full range, check exempt */
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+#else
+    /* Force no path compression when virtual mappings are enabled */
+    if(Szord_Parent!=Order_Child)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_ADDR;
     }
     else
     {
@@ -2930,7 +2982,7 @@ rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* Info init */
     Pgt_Crt->Base=Base|Is_Top;
-    Pgt_Crt->Size_Num_Order=RME_PGT_ORDER(Size_Order, Num_Order);
+    Pgt_Crt->Order=RME_PGT_ORDER(Size_Order, Num_Order);
     Pgt_Crt->ASID=0U;
     
     /* Object init - need to add all kernel pages if they are top-level */
@@ -3014,13 +3066,13 @@ rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGT_SIZE_TOP(RME_PGT_NUMORD(Pgt_Del->Size_Num_Order));
+        Table_Size=RME_PGT_SIZE_TOP(RME_PGT_NMORD(Pgt_Del->Order));
     }
     else
     {
         RME_COVERAGE_MARKER();
 
-        Table_Size=RME_PGT_SIZE_NOM(RME_PGT_NUMORD(Pgt_Del->Size_Num_Order));
+        Table_Size=RME_PGT_SIZE_NOM(RME_PGT_NMORD(Pgt_Del->Order));
     }
     
     /* Now we can safely delete the cap */
@@ -3074,8 +3126,9 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Paddr_Src;
     rme_ptr_t Flag_Src;
     rme_ptr_t Type_Stat;
-    rme_ptr_t Src_Page_Size;
-    
+    rme_ptr_t Szord_Src;
+    rme_ptr_t Szord_Dst;
+
     /* Get the capability slots */
     RME_CPT_GETCAP(Cpt, Cap_Pgt_Dst, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Dst, Type_Stat);
     RME_CPT_GETCAP(Cpt, Cap_Pgt_Src, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Src, Type_Stat);
@@ -3094,9 +3147,11 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
     }
-            
+
     /* See if the size order relationship is correct */
-    if(RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order)>RME_PGT_SIZEORD(Pgt_Src->Size_Num_Order))
+    Szord_Dst=RME_PGT_SZORD(Pgt_Dst->Order);
+    Szord_Src=RME_PGT_SZORD(Pgt_Src->Order);
+    if(Szord_Dst>Szord_Src)
     {
         RME_COVERAGE_MARKER();
 
@@ -3106,10 +3161,10 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
     }
-    
-    /* See if the position indices are out of range */
-    if(((Pos_Dst>>RME_PGT_NUMORD(Pgt_Dst->Size_Num_Order))!=0U)||
-       ((Pos_Src>>RME_PGT_NUMORD(Pgt_Src->Size_Num_Order))!=0U))
+
+    /* See if the positions are out of range - NMORD is restricted, no UB */
+    if(((Pos_Dst>>RME_PGT_NMORD(Pgt_Dst->Order))!=0U)||
+       ((Pos_Src>>RME_PGT_NMORD(Pgt_Src->Order))!=0U))
     {
         RME_COVERAGE_MARKER();
 
@@ -3119,12 +3174,12 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
     }
-    
-    /* See if the source subposition index is out of range */
-    Src_Page_Size=RME_POW2(RME_PGT_SIZEORD(Pgt_Src->Size_Num_Order));
-    if(Src_Page_Size!=0U)
+
+    /* See if the source subposition is out of range - avoid UB */
+    if(Szord_Src<RME_WORD_BITS)
     {
-        if(Src_Page_Size<=(Index<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order)))
+        /* No UB because Szord_Dst<=Szord_Src */
+        if(RME_POW2(Szord_Src)<=(Index<<Szord_Dst))
         {
             RME_COVERAGE_MARKER();
 
@@ -3152,22 +3207,46 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COVERAGE_MARKER();
     }
 
-    /* Calculate the destination physical address */
-    Paddr_Dst=Paddr_Src+(Index<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order));
-#if(RME_VA_EQU_PA==1U)
-    /* Check if we force identical mapping. No need to check granularity here */
-    if(Paddr_Dst!=((Pos_Dst<<RME_PGT_SIZEORD(Pgt_Dst->Size_Num_Order))+
-                   RME_PGT_START(Pgt_Dst->Base)))
+    /* Calculate the destination physical address - avoid UB */
+    if(Szord_Dst<RME_WORD_BITS)
     {
         RME_COVERAGE_MARKER();
+        
+        Paddr_Dst=Paddr_Src+(Index<<Szord_Dst);
+#if(RME_VA_EQU_PA!=0U)
+        /* Check if we force identical mapping */
+        if(Paddr_Dst!=(RME_PGT_START(Pgt_Dst->Base)+(Pos_Dst<<Szord_Dst)))
+        {
+            RME_COVERAGE_MARKER();
 
-        return RME_ERR_PGT_ADDR;
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+#endif
     }
+    /* The destination is also full range */
     else
     {
         RME_COVERAGE_MARKER();
-    }
+        
+        Paddr_Dst=Paddr_Src;
+#if(RME_VA_EQU_PA!=0U)
+        if(Paddr_Dst!=RME_PGT_START(Pgt_Dst->Base))
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
 #endif
+    }
+    
     /* Analyze the flags - we do not allow expansion of access permissions */
     if(((Flag_Dst)&(~Flag_Src))!=0U)
     {
@@ -3232,7 +3311,7 @@ rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Rem->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NMORD(Pgt_Rem->Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -3284,12 +3363,11 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Pgt* Pgt_Parent;
     struct RME_Cap_Pgt* Pgt_Child;
     volatile struct RME_Cap_Pgt* Pgt_Root;
-    /* The total size order of the child table */
-    rme_ptr_t Child_Size_Ord;
-#if(RME_VA_EQU_PA==1U)
-    /* The start and end mapping address in the parent */
-    rme_ptr_t Parent_Map_Addr;
-    rme_ptr_t Parend_End_Addr;
+    rme_ptr_t Order_Child;
+    rme_ptr_t Szord_Parent;
+#if(RME_VA_EQU_PA!=0U)
+    rme_ptr_t Start_Parent;
+    rme_ptr_t End_Parent;
 #endif
     rme_ptr_t Type_Stat;
     
@@ -3313,7 +3391,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     }
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -3325,60 +3403,70 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     }
     
     /* See if the child table falls within one slot of the parent table */
-    Child_Size_Ord=RME_PGT_NUMORD(Pgt_Child->Size_Num_Order)+
-                   RME_PGT_SIZEORD(Pgt_Child->Size_Num_Order);
-
-#if(RME_VA_EQU_PA==1U)
-    /* Path-compression option available */
-    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)<Child_Size_Ord)
+    Order_Child=RME_PGT_NMORD(Pgt_Child->Order)+RME_PGT_SZORD(Pgt_Child->Order);
+    Szord_Parent=RME_PGT_SZORD(Pgt_Parent->Order);
+    if(Szord_Parent<Order_Child)
     {
         RME_COVERAGE_MARKER();
-
+        
         return RME_ERR_PGT_ADDR;
     }
     else
     {
         RME_COVERAGE_MARKER();
     }
-    
-    /* Check if the virtual address mapping is correct */
-    Parent_Map_Addr=(Pos<<RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order))+
-                    RME_PGT_START(Pgt_Parent->Base);
-    if(Pgt_Child->Base<Parent_Map_Addr)
-    {
-        RME_COVERAGE_MARKER();
 
-        return RME_ERR_PGT_ADDR;
-    }
-    else
+#if(RME_VA_EQU_PA!=0U)
+    /* Check if the child falls into the correct slot */
+    if(Szord_Parent<RME_WORD_BITS)
     {
-        RME_COVERAGE_MARKER();
-    }
-    
-    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order));
-    
-    /* If this is zero, then we are sure that overflow won't happen because start
-     * address is always aligned to the total order of the child page table */
-    if(Parend_End_Addr!=0U)
-    {
-        if((Pgt_Child->Base+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        /* Check if the virtual address mapping is correct - note that the child
+         * could also be a top-level page table. Whether constructing a top into 
+         * another top is allowed is HAL-defined. */
+        Start_Parent=RME_PGT_START(Pgt_Parent->Base)+(Pos<<Szord_Parent);
+        if(RME_PGT_START(Pgt_Child->Base)<Start_Parent)
         {
             RME_COVERAGE_MARKER();
-
+            
             return RME_ERR_PGT_ADDR;
         }
         else
         {
             RME_COVERAGE_MARKER();
         }
+        
+        End_Parent=Start_Parent+RME_POW2(Szord_Parent);
+        
+        /* If this is zero, then the parent table's slot expands to the end of 
+         * memory, and we are sure that overflow won't happen because start
+         * address is always aligned to the total order of the child table. 
+         * No UB for Order_Child here because Szord_Parent>=Order_Child */
+        if(End_Parent!=0U)
+        {
+            if((RME_PGT_START(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            {
+                RME_COVERAGE_MARKER();
+
+                return RME_ERR_PGT_ADDR;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
+    /* Parent is full range, check exempt */
     else
     {
         RME_COVERAGE_MARKER();
     }
 #else
-    /* If this is the case, then we force no path compression */
-    if(RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)!=Child_Size_Ord)
+    /* Force no path compression when virtual mappings are enabled */
+    if(Szord_Parent!=Order_Child)
     {
         RME_COVERAGE_MARKER();
 
@@ -3457,7 +3545,7 @@ rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
+    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
     {
         RME_COVERAGE_MARKER();
 
@@ -3544,9 +3632,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     /* The actual word to end the marking */
     rme_ptr_t End;
     /* The mask at the start word */
-    rme_ptr_t Start_Mask;
+    rme_ptr_t Mask_Start;
     /* The mask at the end word */
-    rme_ptr_t End_Mask;
+    rme_ptr_t Mask_End;
 
     /* Check if the marking is well aligned */
     if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
@@ -3562,11 +3650,11 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_Start=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
     End=(Kaddr+Size-1U-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_End=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
     End=End>>RME_WORD_ORDER;
     
     /* See if the start and end are in the same word */
@@ -3576,7 +3664,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
         /* Someone already populated something here */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&(Start_Mask&End_Mask))!=0U)
+        if((Old_Val&(Mask_Start&Mask_End))!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -3588,7 +3676,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         }
         
         /* Check done, do the marking with CAS */
-        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start], Old_Val, Old_Val|(Start_Mask&End_Mask))==RME_CASFAIL)
+        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start], Old_Val, Old_Val|(Mask_Start&Mask_End))==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -3606,7 +3694,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         Undo=0U;
         /* Check&Mark the start */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&Start_Mask)!=0U)
+        if((Old_Val&Mask_Start)!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -3617,7 +3705,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             RME_COVERAGE_MARKER();
         }
         
-        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start], Old_Val, Old_Val|Start_Mask)==RME_CASFAIL)
+        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start], Old_Val, Old_Val|Mask_Start)==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -3664,7 +3752,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
             /* Check&Mark the end */
             Old_Val=RME_KOT_VA_BASE[End];
-            if((Old_Val&End_Mask)!=0U)
+            if((Old_Val&Mask_End)!=0U)
             {
                 RME_COVERAGE_MARKER();
 
@@ -3674,7 +3762,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             {
                 RME_COVERAGE_MARKER();
 
-                if(RME_COMP_SWAP(&RME_KOT_VA_BASE[End], Old_Val, Old_Val|End_Mask)==RME_CASFAIL)
+                if(RME_COMP_SWAP(&RME_KOT_VA_BASE[End], Old_Val, Old_Val|Mask_End)==RME_CASFAIL)
                 {
                     RME_COVERAGE_MARKER();
 
@@ -3700,7 +3788,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             for(Count--;Count>Start;Count--)
                 RME_KOT_VA_BASE[Count]=0U;
             /* Undo the first word - need atomic instructions */
-            RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Start_Mask);
+            RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Start);
             /* Return failure */
             return RME_ERR_KOT_BMP;
         }
@@ -3730,9 +3818,9 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
     /* The actual word to end the marking */
     rme_ptr_t End;
     /* The mask at the start word */
-    rme_ptr_t Start_Mask;
+    rme_ptr_t Mask_Start;
     /* The mask at the end word */
-    rme_ptr_t End_Mask;
+    rme_ptr_t Mask_End;
     rme_ptr_t Count;
 
     /* Check if the marking is well aligned */
@@ -3749,11 +3837,11 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
     
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    Start_Mask=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_Start=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
     End=(Kaddr+Size-1U-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    End_Mask=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_End=RME_MASK_END(End&RME_MASK_END(RME_WORD_ORDER-1U));
     End=End>>RME_WORD_ORDER;
     
     /* See if the start and end are in the same word */
@@ -3762,7 +3850,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         RME_COVERAGE_MARKER();
 
         /* This address range is not fully populated */
-        if((RME_KOT_VA_BASE[Start]&(Start_Mask&End_Mask))!=(Start_Mask&End_Mask))
+        if((RME_KOT_VA_BASE[Start]&(Mask_Start&Mask_End))!=(Mask_Start&Mask_End))
         {
             RME_COVERAGE_MARKER();
 
@@ -3774,14 +3862,14 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
 
         /* Check done, do the unmarking - need atomic operations */
-        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~(Start_Mask&End_Mask));
+        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~(Mask_Start&Mask_End));
     }
     else
     {
         RME_COVERAGE_MARKER();
 
         /* Check the start */
-        if((RME_KOT_VA_BASE[Start]&Start_Mask)!=Start_Mask)
+        if((RME_KOT_VA_BASE[Start]&Mask_Start)!=Mask_Start)
         {
             RME_COVERAGE_MARKER();
 
@@ -3808,7 +3896,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
 
         /* Check the end */
-        if((RME_KOT_VA_BASE[End]&End_Mask)!=End_Mask)
+        if((RME_KOT_VA_BASE[End]&Mask_End)!=Mask_End)
         {
             RME_COVERAGE_MARKER();
 
@@ -3820,12 +3908,12 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
         
         /* Erase the start - make it atomic */
-        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Start_Mask);
+        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Start);
         /* Erase the middle - do not need atomics here */
         for(Count=Start+1U;Count<End-1U;Count++)
             RME_KOT_VA_BASE[Count]=0U;
         /* Erase the end - make it atomic */
-        RME_FETCH_AND(&(RME_KOT_VA_BASE[End]),~End_Mask);
+        RME_FETCH_AND(&(RME_KOT_VA_BASE[End]),~Mask_End);
     }
 
     return 0;

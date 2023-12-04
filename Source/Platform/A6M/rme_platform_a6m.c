@@ -5,21 +5,21 @@ Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
 Description : The hardware abstraction layer for ARMv6-M microcontrollers.
 
-* Generic Code Section *******************************************************
+* Generic Code Section ********************************************************
 Small utility functions that can be either implemented with C or assembly, and 
 the entry of the kernel. Also responsible for debug printing and CPUID getting.
 
-* Handler Code Section *******************************************************
+* Handler Code Section ********************************************************
 Contains fault handlers, generic interrupt handlers and kernel function handlers.
 
-* Initialization Code Section ************************************************
+* Initialization Code Section *************************************************
 Low-level initialization and booting. If we have multiple processors, the 
 booting of all processors are dealt with here.
 
-* Register Manipulation Section **********************************************
+* Register Manipulation Section ***********************************************
 Low-level register manipulations and parameter extractions.
 
-* Page Table Section *********************************************************
+* Page Table Section **********************************************************
 Page table related operations are all here.
 The page table conforms to page table implementation style I, which states that
 the page table trees shall not share anything and each tree must be constructed
@@ -269,7 +269,7 @@ rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     {
         case RME_A6M_KFN_PGT_ENTRY_MOD_FLAG_GET: return (rme_ret_t)Flag;
         case RME_A6M_KFN_PGT_ENTRY_MOD_SZORD_GET: return (rme_ret_t)Size_Order;
-        case RME_A6M_KFN_PGT_ENTRY_MOD_NUMORD_GET: return (rme_ret_t)Num_Order;
+        case RME_A6M_KFN_PGT_ENTRY_MOD_NMORD_GET: return (rme_ret_t)Num_Order;
         default:break;
     }
     
@@ -691,7 +691,10 @@ Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
 #if(RME_RVM_GEN_ENABLE==1U)
-extern rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+EXTERN rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID,
+                                      rme_ptr_t Sub_ID,
+                                      rme_ptr_t Param1,
+                                      rme_ptr_t Param2);
 #endif
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                             struct RME_Reg_Struct* Reg,
@@ -1140,7 +1143,7 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     /* Initialize the causal metadata */
     ((struct __RME_A6M_Pgt_Meta*)Ptr)->Base=Pgt_Op->Base;
     ((struct __RME_A6M_Pgt_Meta*)Ptr)->Toplevel=0U;
-    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Size_Num_Order=Pgt_Op->Size_Num_Order;
+    ((struct __RME_A6M_Pgt_Meta*)Ptr)->Order=Pgt_Op->Order;
     Ptr+=sizeof(struct __RME_A6M_Pgt_Meta)/sizeof(rme_ptr_t);
     
     /* Is this a top-level? If it is, we need to clean up the MPU data. In MMU
@@ -1158,7 +1161,7 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     
     /* Clean up the table itself - This is could be virtually unbounded if the user
      * pass in some very large length value */
-    for(Count=0U;Count<RME_POW2(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order));Count++)
+    for(Count=0U;Count<RME_POW2(RME_PGT_NMORD(Pgt_Op->Order));Count++)
         Ptr[Count]=0U;
     
     return 0;
@@ -1388,7 +1391,7 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
     struct __RME_A6M_MPU_Data* Top_MPU;
     
     /* Is it possible for MPU to represent this? */
-    if(RME_A6M_PGT_NUMORD(Meta->Size_Num_Order)>RME_PGT_NUM_8)
+    if(RME_PGT_NMORD(Meta->Order)>RME_PGT_NUM_8)
         return RME_ERR_HAL_FAIL;
     
     /* Get the tables */
@@ -1411,31 +1414,31 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
     {
         /* Clear the metadata - this function will never fail */
         ___RME_A6M_MPU_Clear(Top_MPU,
-                             RME_A6M_PGT_START(Meta->Base),
-                             RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
-                             RME_A6M_PGT_NUMORD(Meta->Size_Num_Order));
+                             RME_PGT_START(Meta->Base),
+                             RME_PGT_SZORD(Meta->Order),
+                             RME_PGT_NMORD(Meta->Order));
     }
     else
     {
         /* See if the RASR contains anything */
         MPU_RASR=___RME_A6M_MPU_RASR_Gen(Table, Meta->Page_Flag, 
-                                         RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
-                                         RME_A6M_PGT_NUMORD(Meta->Size_Num_Order));
+                                         RME_PGT_SZORD(Meta->Order),
+                                         RME_PGT_NMORD(Meta->Order));
         if(MPU_RASR==0U)
         {
             /* All pages are unmapped. Clear this from the MPU data */
             ___RME_A6M_MPU_Clear(Top_MPU,
-                                 RME_A6M_PGT_START(Meta->Base),
-                                 RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
-                                 RME_A6M_PGT_NUMORD(Meta->Size_Num_Order));
+                                 RME_PGT_START(Meta->Base),
+                                 RME_PGT_SZORD(Meta->Order),
+                                 RME_PGT_NMORD(Meta->Order));
         }
         else
         {
             /* At least one of the pages are there. Map it */
             if(___RME_A6M_MPU_Add(Top_MPU,
-                                  RME_A6M_PGT_START(Meta->Base),
-                                  RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order),
-                                  RME_A6M_PGT_NUMORD(Meta->Size_Num_Order),
+                                  RME_PGT_START(Meta->Base),
+                                  RME_PGT_SZORD(Meta->Order),
+                                  RME_PGT_NMORD(Meta->Order),
                                   MPU_RASR)!=0U)
                 return RME_ERR_HAL_FAIL;
         }
@@ -1595,7 +1598,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page numbers of 1, 2, 4 & 8 are representable
      * for ARMv6-M */
-    if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
+    if(RME_PGT_NMORD(Pgt_Op->Order)>RME_PGT_NUM_8)
         return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
@@ -1613,7 +1616,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* Trying to map something. Check if the pages flags are consistent. MPU
      * subregions shall share the same flags in ARMv6-M */
-    if(___RME_A6M_Pgt_Have_Page(Table, RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))==0U)
+    if(___RME_A6M_Pgt_Have_Page(Table, RME_PGT_NMORD(Pgt_Op->Order))==0U)
         Meta->Page_Flag=Flag;
     else
     {
@@ -1623,7 +1626,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     /* Register into the page table */
     Table[Pos]=RME_A6M_PGT_PRESENT|RME_A6M_PGT_TERMINAL|
-               RME_ROUND_DOWN(Paddr,RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order));
+               RME_ROUND_DOWN(Paddr,RME_PGT_SZORD(Pgt_Op->Order));
    
     /* If we are the top level or we have a top level, and we have static pages mapped in, do MPU updates */
     if((Meta->Toplevel!=0U)||(((Pgt_Op->Base)&RME_PGT_TOP)!=0U))
@@ -1663,7 +1666,7 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     /* We are doing page-based operations on this, so the page directory should
      * be MPU-representable. Only page numbers of 1, 2, 4 & 8 are representable
      * for ARMv6-M */
-    if(RME_PGT_NUMORD(Pgt_Op->Size_Num_Order)>RME_PGT_NUM_8)
+    if(RME_PGT_NMORD(Pgt_Op->Order)>RME_PGT_NUM_8)
         return RME_ERR_HAL_FAIL;
     
     /* Get the metadata */
@@ -1759,7 +1762,7 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
     /* Update MPU settings if there are static pages mapped into the source.
      * If there are any, update the MPU settings. */
     Child_Table=RME_A6M_PGT_TBL_NOM(Child_Meta);
-    if((___RME_A6M_Pgt_Have_Page(Child_Table, RME_PGT_NUMORD(Pgt_Child->Size_Num_Order))!=0U)&&
+    if((___RME_A6M_Pgt_Have_Page(Child_Table, RME_PGT_NMORD(Pgt_Child->Order))!=0U)&&
        (((Child_Meta->Page_Flag)&RME_PGT_STATIC)!=0U))
     {
         if(___RME_A6M_MPU_Update(Child_Meta, RME_A6M_MPU_UPD)==RME_ERR_HAL_FAIL)
@@ -1812,11 +1815,11 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
         return RME_ERR_HAL_FAIL;
 
     /* Check if the directory still have child directories */
-    if(___RME_A6M_Pgt_Have_Page(Table, RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
+    if(___RME_A6M_Pgt_Have_Page(Table, RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
         return RME_ERR_HAL_FAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
-    if(___RME_A6M_Pgt_Have_Pgdir(Table, RME_PGT_NUMORD(Pgt_Parent->Size_Num_Order))!=0U)
+    if(___RME_A6M_Pgt_Have_Pgdir(Table, RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
     {
         if(___RME_A6M_MPU_Update(Parent_Meta, RME_A6M_MPU_CLR)==RME_ERR_HAL_FAIL)
             return RME_ERR_HAL_FAIL;
@@ -1908,16 +1911,16 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_A6M_PGT_START(Meta->Base))
+        if(Vaddr<RME_PGT_START(Meta->Base))
             return RME_ERR_HAL_FAIL;
         /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
-        Shift=RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
+        Shift=RME_PGT_SZORD(Meta->Order);
         if(Shift>=RME_WORD_BITS)
             Pos=0U;
         else
-            Pos=(Vaddr-RME_A6M_PGT_START(Meta->Base))>>Shift;
+            Pos=(Vaddr-RME_PGT_START(Meta->Base))>>Shift;
         /* See if the entry is overrange */
-        if((Pos>>RME_A6M_PGT_NUMORD(Meta->Size_Num_Order))!=0U)
+        if((Pos>>RME_PGT_NMORD(Meta->Order))!=0U)
             return RME_ERR_HAL_FAIL;
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
         if((Table[Pos]&RME_A6M_PGT_PRESENT)==0U)
@@ -1930,21 +1933,21 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             if(Map_Vaddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Map_Vaddr=RME_A6M_PGT_START(Meta->Base);
+                    *Map_Vaddr=RME_PGT_START(Meta->Base);
                 else
-                    *Map_Vaddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Map_Vaddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
             }
             if(Paddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Paddr=RME_A6M_PGT_START(Meta->Base);
+                    *Paddr=RME_PGT_START(Meta->Base);
                 else
-                    *Paddr=RME_A6M_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Paddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
             }
             if(Size_Order!=RME_NULL)
-                *Size_Order=RME_A6M_PGT_SIZEORD(Meta->Size_Num_Order);
+                *Size_Order=RME_PGT_SZORD(Meta->Order);
             if(Num_Order!=RME_NULL)
-                *Num_Order=RME_A6M_PGT_NUMORD(Meta->Size_Num_Order);
+                *Num_Order=RME_PGT_NMORD(Meta->Order);
             if(Flag!=RME_NULL)
                 *Flag=Meta->Page_Flag;
             

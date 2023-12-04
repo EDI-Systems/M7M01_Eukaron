@@ -146,28 +146,11 @@ typedef rme_s32_t rme_ret_t;
 #define RME_RV32P_REG(X)               (*((volatile rme_ptr_t*)(X)))
 #define RME_RV32P_REGB(X)              (*((volatile rme_u8_t*)(X)))
 
-#define RME_RV32P_STK_CTLR             RME_RV32P_REG(0xE000F000U)
-#define RME_RV32P_STK_CTLR_STCLK       (1U<<2)
-#define RME_RV32P_STK_CTLR_STIE        (1U<<1)
-#define RME_RV32P_STK_CTLR_STE         (1U<<0)
-
-#define RME_RV32P_STK_CMPLR            RME_RV32P_REG(0xE000F010U)
-#define RME_RV32P_STK_CNTL             RME_RV32P_REG(0xE000F008U)
-#define RME_RV32P_STK_CNTH             RME_RV32P_REG(0xE000F00CU)
-
-#define RME_RV32P_NVIC_IPR(X)          NVIC->IPRIOR[(uint32_t)(X)];
-
-#define RME_RV32P_NVIC_GROUPING_0      (0U)
-#define RME_RV32P_NVIC_GROUPING_1      (1U)
-#define RME_RV32P_NVIC_GROUPING_2      (2U)
-#define RME_RV32P_NVIC_GROUPING_3      (3U)
-#define RME_RV32P_NVIC_GROUPING_4      (4U)
-
 /* Generic *******************************************************************/
 /* MSTATUS default initialization */
-#define RME_RV32P_MSTATUS_INIT         (0x00000080U)
-#define RME_RV32P_MSTATUS_RET_USER     (0x00001800U)
-#define RME_RV32P_MSTATUS_MASK         (0x00006000U)
+#define RME_RV32P_MSTATUS_INIT          (0x00000080U)
+#define RME_RV32P_MSTATUS_RET_USER      (0x00001800U)
+#define RME_RV32P_MSTATUS_MASK          (0x00006000U)
 #define RME_RV32P_MSTATUS_FIX(X) \
 do \
 { \
@@ -178,32 +161,31 @@ do \
 } \
 while(0)
 /* MSTATUS FPU states */
-#define RME_RV32P_MSTATUS_FPU_MASK     (0x00006000U)
-#define RME_RV32P_MSTATUS_FPU_OFF      (0x00000000U)
-#define RME_RV32P_MSTATUS_FPU_INIT     (0x00002000U)
-#define RME_RV32P_MSTATUS_FPU_CLEAN    (0x00004000U)
-#define RME_RV32P_MSTATUS_FPU_DIRTY    (0x00006000U)
+#define RME_RV32P_MSTATUS_FPU_MASK      (0x00006000U)
+#define RME_RV32P_MSTATUS_FPU_OFF       (0x00000000U)
+#define RME_RV32P_MSTATUS_FPU_INIT      (0x00002000U)
+#define RME_RV32P_MSTATUS_FPU_CLEAN     (0x00004000U)
+#define RME_RV32P_MSTATUS_FPU_DIRTY     (0x00006000U)
 /* FPU save/restore veneer choice */
 #if(RME_COP_NUM!=0U)
 #if(RME_RV32P_COP_RVD!=0U)
-#define ___RME_RV32P_Thd_Cop_Clear     ___RME_RV32P_Thd_Cop_Clear_RVD
-#define ___RME_RV32P_Thd_Cop_Save      ___RME_RV32P_Thd_Cop_Save_RVD
-#define ___RME_RV32P_Thd_Cop_Load      ___RME_RV32P_Thd_Cop_Load_RVD
+#define ___RME_RV32P_Thd_Cop_Clear      ___RME_RV32P_Thd_Cop_Clear_RVD
+#define ___RME_RV32P_Thd_Cop_Save       ___RME_RV32P_Thd_Cop_Save_RVD
+#define ___RME_RV32P_Thd_Cop_Load       ___RME_RV32P_Thd_Cop_Load_RVD
 #else
-#define ___RME_RV32P_Thd_Cop_Clear     ___RME_RV32P_Thd_Cop_Clear_RVF
-#define ___RME_RV32P_Thd_Cop_Save      ___RME_RV32P_Thd_Cop_Save_RVF
-#define ___RME_RV32P_Thd_Cop_Load      ___RME_RV32P_Thd_Cop_Load_RVF
+#define ___RME_RV32P_Thd_Cop_Clear      ___RME_RV32P_Thd_Cop_Clear_RVF
+#define ___RME_RV32P_Thd_Cop_Save       ___RME_RV32P_Thd_Cop_Save_RVF
+#define ___RME_RV32P_Thd_Cop_Load       ___RME_RV32P_Thd_Cop_Load_RVF
 #endif
 #endif
 
 /* FPU type definitions */
-#define RME_RV32P_ATTR_NONE            (0U)
-#define RME_RV32P_ATTR_RVF             (1U<<0)
-#define RME_RV32P_ATTR_RVFD            (1U<<1)
-/* Other packed and vectored insns are not supported at thme moment */
-
+#define RME_RV32P_ATTR_NONE             (0U)
+#define RME_RV32P_ATTR_RVF              (1U<<0)
+#define RME_RV32P_ATTR_RVD              (1U<<1)
 /* Handler *******************************************************************/
 /* Generic interrupt source definitions */
+#define RME_RV32P_MCAUSE_INT            (0x80000000U)
 /* Software interrupts from user/supervisor/hypervisor/machine mode */
 #define RME_RV32P_MCAUSE_U_SWI          (0x80000000U)
 #define RME_RV32P_MCAUSE_S_SWI          (0x80000001U)
@@ -287,25 +269,21 @@ while(0)
  * The rest of the bits are in the Flag[] array following these layouts. */
 
 /* Get the actual table positions */
-#define RME_RV32P_PGT_META                (sizeof(struct __RME_RV32P_Pgt_Meta)/sizeof(rme_ptr_t))
-#define RME_RV32P_PMP_DATA                (sizeof(struct __RME_RV32P_PMP_Data)/sizeof(rme_ptr_t))
-#define RME_RV32P_PGT_TBL_NOM(X)          (((rme_ptr_t*)(X))+RME_RV32P_PGT_META)
-#define RME_RV32P_PGT_TBL_TOP(X)          (((rme_ptr_t*)(X))+RME_RV32P_PGT_META+RME_RV32P_PMP_DATA)
+#define RME_RV32P_PGT_META              (sizeof(struct __RME_RV32P_Pgt_Meta)/sizeof(rme_ptr_t))
+#define RME_RV32P_PMP_DATA              (sizeof(struct __RME_RV32P_PMP_Data)/sizeof(rme_ptr_t))
+#define RME_RV32P_PGT_TBL_NOM(X)        (((rme_ptr_t*)(X))+RME_RV32P_PGT_META)
+#define RME_RV32P_PGT_TBL_TOP(X)        (((rme_ptr_t*)(X))+RME_RV32P_PGT_META+RME_RV32P_PMP_DATA)
 
 /* Page entry bit definitions */
-#define RME_RV32P_PGT_PRESENT              (1U<<0)
-#define RME_RV32P_PGT_TERMINAL             (1U<<1)
+#define RME_RV32P_PGT_PRESENT           (1U<<0)
+#define RME_RV32P_PGT_TERMINAL          (1U<<1)
 /* The address mask for the actual page address */
-#define RME_RV32P_PGT_PTE_ADDR(X)          ((X)&0xFFFFFFFCU)
+#define RME_RV32P_PGT_PTE_ADDR(X)       ((X)&0xFFFFFFFCU)
 /* The address mask for the next level page table address */
-#define RME_RV32P_PGT_PGD_ADDR(X)          ((X)&0xFFFFFFFCU)
-/* Page table metadata definitions */
-#define RME_RV32P_PGT_START(X)             ((X)&0xFFFFFFFEU)
-#define RME_RV32P_PGT_SIZEORD(X)           ((X)>>16)
-#define RME_RV32P_PGT_NUMORD(X)            ((X)&0x0000FFFFU)
+#define RME_RV32P_PGT_PGD_ADDR(X)       ((X)&0xFFFFFFFCU)
 
 /* Merge flag permissions */
-#define RME_RV32P_PGT_MERGE(X)             ((X)&(RME_PGT_READ|RME_PGT_WRITE|RME_PGT_EXECUTE))
+#define RME_RV32P_PGT_MERGE(X)          ((X)&(RME_PGT_READ|RME_PGT_WRITE|RME_PGT_EXECUTE))
 /* Decide entry mode */
 #define RME_RV32P_PGT_MODE(X) \
 do \
@@ -323,20 +301,20 @@ do \
 while(0)
 
 /* Write info to PMP */
-#define RME_RV32P_PMP_PERM(X)          ((X)&3U)
-#define RME_RV32P_PMP_READ             (1U<<0)
-#define RME_RV32P_PMP_WRITE            (1U<<1)
-#define RME_RV32P_PMP_EXECUTE          (1U<<2)
-#define RME_RV32P_PMP_MODE(X)          ((X)&(3U<<3))
-#define RME_RV32P_PMP_OFF              (0U<<3)
-#define RME_RV32P_PMP_TOR              (1U<<3)
-#define RME_RV32P_PMP_NAPOT            (3U<<3)
+#define RME_RV32P_PMP_PERM(X)           ((X)&3U)
+#define RME_RV32P_PMP_READ              (1U<<0)
+#define RME_RV32P_PMP_WRITE             (1U<<1)
+#define RME_RV32P_PMP_EXECUTE           (1U<<2)
+#define RME_RV32P_PMP_MODE(X)           ((X)&(3U<<3))
+#define RME_RV32P_PMP_OFF               (0U<<3)
+#define RME_RV32P_PMP_TOR               (1U<<3)
+#define RME_RV32P_PMP_NAPOT             (3U<<3)
 
 /* Platform-specific kernel function macros **********************************/
 /* Page table entry mode which property to get */
 #define RME_RV32P_KFN_PGT_ENTRY_MOD_FLAG_GET            (0U)
 #define RME_RV32P_KFN_PGT_ENTRY_MOD_SZORD_GET           (1U)
-#define RME_RV32P_KFN_PGT_ENTRY_MOD_NUMORD_GET          (2U)
+#define RME_RV32P_KFN_PGT_ENTRY_MOD_NMORD_GET           (2U)
 /* Interrupt source configuration */
 #define RME_RV32P_KFN_INT_LOCAL_MOD_STATE_GET           (0U)
 #define RME_RV32P_KFN_INT_LOCAL_MOD_STATE_SET           (1U)
@@ -633,7 +611,7 @@ struct __RME_RV32P_Pgt_Meta
     /* The start mapping address of this page table */
     rme_ptr_t Base;
     /* The size/num order of this level */
-    rme_ptr_t Size_Num_Order;
+    rme_ptr_t Order;
 };
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_STRUCT__ */
@@ -809,7 +787,7 @@ __EXTERN__ void __RME_Boot(void);
 
 __EXTERN__ void __RME_RV32P_Reboot(void);
 __EXTERN__ void __RME_RV32P_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
-                                            rme_ptr_t Prio);
+                                              rme_ptr_t Prio);
 __EXTERN__ void __RME_RV32P_Cache_Init(void);
 EXTERN void __RME_User_Enter(rme_ptr_t Entry,
                              rme_ptr_t Stack,
