@@ -11,9 +11,11 @@ Description: The configuration file for STM32F767IG.
 #define RME_ASSERT_CORRECT                              (0U)
 #define RME_DEBUG_PRINT                                 (1U)
 /* Generator *****************************************************************/
-/* Are we using the generator in the first place? */
+/* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
+/* Are we assuming user-managed raw memory access control? */
+#define RME_PGT_RAW_USER                                (0U)
 /* The virtual memory start address for the kernel objects */
 #define RME_KOM_VA_BASE                                 (0x20003000U)
 /* The size of the kernel object virtual memory */

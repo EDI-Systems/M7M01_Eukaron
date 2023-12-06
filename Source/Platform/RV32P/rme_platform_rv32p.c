@@ -69,7 +69,7 @@ Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DEBUG_PRINT!=0U)
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_RV32P_PUTCHAR(Char);
@@ -115,14 +115,16 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
                              rme_ptr_t Mcause)
 {
     rme_ptr_t Mtval;
+#if(RME_PGT_RAW_USER==0U)
     rme_ptr_t Paddr;
     rme_ptr_t Size_Order;
     rme_ptr_t Flag;
     struct RME_Cap_Prc* Prc;
     struct RME_Inv_Struct* Inv_Top;
+    struct __RME_RV32P_Pgt_Meta* Meta;
+#endif
     struct RME_Thd_Struct* Thd_Cur;
     struct RME_Exc_Struct* Exc;
-    struct __RME_RV32P_Pgt_Meta* Meta;
 
     /* Is it a kernel-level fault? If yes, panic */
     RME_ASSERT((Reg->MSTATUS&RME_RV32P_MSTATUS_RET_USER)==0U);
@@ -132,14 +134,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
     Exc=&Thd_Cur->Ctx.Reg->Exc;
     Mtval=___RME_RV32P_MTVAL_Get();
 
-    RME_DBG_S("Mcause is 0x");
-    RME_DBG_U(Mcause);
-    RME_DBG_S(", Mtval is 0x");
-    RME_DBG_U(Mtval);
-    RME_DBG_S(", Mepc is 0x");
-    RME_DBG_U(Reg->PC);
-    RME_DBG_S("\r\n");
-
+#if(RME_PGT_RAW_USER==0U)
     /* What fault is it? */
     switch(Mcause)
     {
@@ -161,7 +156,6 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
             Exc->Cause=Mcause;
             Exc->Addr=Reg->PC;
             Exc->Value=Mtval;
-            while(1);
             _RME_Thd_Fatal(Reg);
             return;
         }
@@ -183,7 +177,6 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
         Exc->Cause=Mcause;
         Exc->Addr=Reg->PC;
         Exc->Value=Mtval;
-        RME_DBG_S("Page not found.\r\n");
         _RME_Thd_Fatal(Reg);
         return;
     }
@@ -199,12 +192,17 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
         Exc->Addr=Reg->PC;
         Exc->Value=Mtval;
         _RME_Thd_Fatal(Reg);
+        return;
     }
-
-    RME_DBG_S("PMP update successful.\r\n");
 
     /* Reload current PMP data */
     __RME_Pgt_Set(Prc->Pgt);
+#else
+    Exc->Cause=Mcause;
+    Exc->Addr=Reg->PC;
+    Exc->Value=Mtval;
+    _RME_Thd_Fatal(Reg);
+#endif
 }
 /* End Function:__RME_RV32P_Exc_Handler **************************************/
 
@@ -274,7 +272,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
     {
         RME_RV32P_Timestamp++;
 
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
         __RME_RV32P_Flag_Fast(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,1U);
 #endif
 
@@ -285,7 +283,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
     {
         Mcause&=0x7FFFFFFFU;
 
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
         /* If the user wants to bypass, we skip the flag marshalling & sending process */
         if(RME_Boot_Vct_Handler(Mcause)==0U)
             return;
@@ -328,6 +326,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
                                     rme_cid_t Cap_Pgt,
                                     rme_ptr_t Vaddr,
@@ -358,6 +357,7 @@ rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     
     return RME_ERR_KFN_FAIL;
 }
+#endif
 /* End Function:__RME_RV32P_Pgt_Entry_Mod ************************************/
 
 /* Function:__RME_RV32P_Int_Local_Mod *****************************************
@@ -753,7 +753,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
 EXTERN rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID,
                                       rme_ptr_t Sub_ID,
                                       rme_ptr_t Param1,
@@ -776,35 +776,106 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_ASID_SET:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_TLB_LOCK:      {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_PGT_ENTRY_MOD:     {Retval=__RME_RV32P_Pgt_Entry_Mod(Cpt, (rme_cid_t)Sub_ID, Param1, Param2);break;}
+#if(RME_PGT_RAW_USER==0U)
+        case RME_KFN_PGT_ENTRY_MOD:
+        {
+            Retval=__RME_RV32P_Pgt_Entry_Mod(Cpt,
+                                             (rme_cid_t)Sub_ID,
+                                             Param1,
+                                             Param2);
+            break;
+        }
+#endif
 /* Interrupt controller operations *******************************************/
-        case RME_KFN_INT_LOCAL_MOD:     {Retval=__RME_RV32P_Int_Local_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_INT_LOCAL_MOD:
+        {
+            Retval=__RME_RV32P_Int_Local_Mod(Sub_ID,
+                                             Param1,
+                                             Param2);
+            break;
+        }
         case RME_KFN_INT_GLOBAL_MOD:    {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_INT_LOCAL_TRIG:    {Retval=__RME_RV32P_Int_Local_Trig(Sub_ID, Param1);break;} /* Never ctxsw */
-        case RME_KFN_EVT_LOCAL_TRIG:    {return __RME_RV32P_Evt_Local_Trig(Reg, Sub_ID, Param1);} /* May ctxsw */
+        case RME_KFN_INT_LOCAL_TRIG:
+        {
+            Retval=__RME_RV32P_Int_Local_Trig(Sub_ID,   /* No ctxsw, int ctxsw later */
+                                              Param1);
+            break;
+        }
+        case RME_KFN_EVT_LOCAL_TRIG:
+        {
+            return __RME_RV32P_Evt_Local_Trig(Reg,      /* May ctxsw */
+                                              Sub_ID,
+                                              Param1);
+        }
 /* Cache operations **********************************************************/
-        case RME_KFN_CACHE_MOD:         {Retval=__RME_RV32P_Cache_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_CACHE_MOD:
+        {
+            Retval=__RME_RV32P_Cache_Mod(Sub_ID,
+                                         Param1,
+                                         Param2);
+            break;
+        }
         case RME_KFN_CACHE_CONFIG:      {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_CACHE_MAINT:       {Retval=__RME_RV32P_Cache_Maint(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_CACHE_MAINT:
+        {
+            Retval=__RME_RV32P_Cache_Maint(Sub_ID,
+                                           Param1,
+                                           Param2);
+            break;
+        }
         case RME_KFN_CACHE_LOCK:        {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_PRFTH_MOD:         {Retval=__RME_RV32P_Prfth_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_PRFTH_MOD:
+        {
+            Retval=__RME_RV32P_Prfth_Mod(Sub_ID,
+                                         Param1,
+                                         Param2);
+            break;
+        }
 /* Hot plug and pull operations **********************************************/
         case RME_KFN_HPNP_PCPU_MOD:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_HPNP_LCPU_MOD:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_HPNP_PMEM_MOD:     {return RME_ERR_KFN_FAIL;}
 /* Power and frequency adjustment operations *********************************/
-        case RME_KFN_IDLE_SLEEP:        {__RME_RV32P_Wait_Int();Retval=0;break;}
-        case RME_KFN_SYS_REBOOT:        {__RME_RV32P_Reboot();while(1);break;}
+        case RME_KFN_IDLE_SLEEP:
+        {
+            __RME_RV32P_Wait_Int();
+            Retval=0;
+            break;
+        }
+        case RME_KFN_SYS_REBOOT:
+        {
+            __RME_RV32P_Reboot();
+            while(1);
+            break;
+        }
         case RME_KFN_SYS_SHDN:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_VOLT_MOD:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_FREQ_MOD:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PMOD_MOD:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_SAFETY_MOD:        {return RME_ERR_KFN_FAIL;}
 /* Performance monitoring operations *****************************************/
-        case RME_KFN_PERF_CPU_FUNC:     {Retval=__RME_RV32P_Perf_CPU_Func(Reg, Sub_ID);break;} /* Value in a3 */
-        case RME_KFN_PERF_MON_MOD:      {Retval=__RME_RV32P_Perf_Mon_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KFN_PERF_CPU_FUNC:
+        {
+            Retval=__RME_RV32P_Perf_CPU_Func(Reg,       /* Value in a3 */
+                                             Sub_ID);
+            break;
+        }
+        case RME_KFN_PERF_MON_MOD:
+        {
+            Retval=__RME_RV32P_Perf_Mon_Mod(Sub_ID,
+                                            Param1,
+                                            Param2);
+            break;
+        }
         case RME_KFN_PERF_CNT_MOD:      {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_PERF_CYCLE_MOD:    {Retval=__RME_RV32P_Perf_Cycle_Mod(Reg, Sub_ID, Param1, Param2);break;} /* Value in a3 */
+        case RME_KFN_PERF_CYCLE_MOD:
+        {
+            Retval=__RME_RV32P_Perf_Cycle_Mod(Reg,      /* Value in a3 */
+                                              Sub_ID,
+                                              Param1,
+                                              Param2);
+            break;
+        }
         case RME_KFN_PERF_DATA_MOD:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PERF_PHYS_MOD:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PERF_CUMUL_MOD:    {return RME_ERR_KFN_FAIL;}
@@ -826,20 +897,51 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_ECLV_ACT:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_ECLV_RET:          {return RME_ERR_KFN_FAIL;}
 /* Debugging operations ******************************************************/
-#if(RME_DEBUG_PRINT==1U)
-        case RME_KFN_DEBUG_PRINT:       {__RME_Putchar((rme_s8_t)Sub_ID);Retval=0;break;}
+#if(RME_DEBUG_PRINT!=0U)
+        case RME_KFN_DEBUG_PRINT:
+        {
+            __RME_Putchar((rme_s8_t)Sub_ID);
+            Retval=0;
+            break;
+        }
 #endif
-        case RME_KFN_DEBUG_REG_MOD:     {Retval=__RME_RV32P_Debug_Reg_Mod(Cpt, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KFN_DEBUG_INV_MOD:     {Retval=__RME_RV32P_Debug_Inv_Mod(Cpt, Reg, (rme_cid_t)Sub_ID, Param1, Param2);break;} /* Value in R6 */
-        case RME_KFN_DEBUG_EXC_GET:     {Retval=__RME_RV32P_Debug_Exc_Get(Cpt, Reg, (rme_cid_t)Sub_ID, Param1);break;} /* Value in R6 */
+        case RME_KFN_DEBUG_REG_MOD:
+        {
+            Retval=__RME_RV32P_Debug_Reg_Mod(Cpt,       /* Value in a3 */
+                                             Reg,
+                                             (rme_cid_t)Sub_ID,
+                                             Param1,
+                                             Param2);
+            break;
+        }
+        case RME_KFN_DEBUG_INV_MOD:
+        {
+            Retval=__RME_RV32P_Debug_Inv_Mod(Cpt,       /* Value in a3 */
+                                             Reg,
+                                             (rme_cid_t)Sub_ID,
+                                             Param1,
+                                             Param2);
+            break;
+        }
+        case RME_KFN_DEBUG_EXC_GET:
+        {
+            Retval=__RME_RV32P_Debug_Exc_Get(Cpt,       /* Value in a3 */
+                                             Reg,
+                                             (rme_cid_t)Sub_ID,
+                                             Param1);
+            break;
+        }
         case RME_KFN_DEBUG_MODE_MOD:    {return RME_ERR_KFN_FAIL;}
         case RME_KFN_DEBUG_IBP_MOD:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_DEBUG_DBP_MOD:     {return RME_ERR_KFN_FAIL;}
 /* User-defined operations ***************************************************/
         default:
         {
-#if(RME_RVM_GEN_ENABLE==1U)
-            Retval=RME_Hook_Kfn_Handler(Func_ID, Sub_ID, Param1, Param2);
+#if(RME_RVM_GEN_ENABLE!=0U)
+            Retval=RME_Hook_Kfn_Handler(Func_ID,
+                                        Sub_ID,
+                                        Param1,
+                                        Param2);
 #else
             return RME_ERR_KFN_FAIL;
 #endif
@@ -865,7 +967,7 @@ void __RME_RV32P_Lowlvl_Preinit(void)
 {
     RME_RV32P_LOWLVL_PREINIT();
     
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
     RME_Boot_Pre_Init();
 #endif
 }
@@ -902,8 +1004,42 @@ Return      : None.
 ******************************************************************************/
 void __RME_Boot(void)
 {
-    rme_ptr_t Cur_Addr;
     /* volatile rme_ptr_t Size; */
+    rme_ptr_t Cur_Addr;
+#if(RME_PGT_RAW_USER!=0U)
+    /* Initial array for raw page table mode - generic for all RV32 */
+#if(RME_RV32_REGION_NUM<=4)
+    static const rme_ptr_t RME_RV32P_Raw_Pgt_Def[5U]=
+    {
+        0x1818181FU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU
+    };
+#elif(RME_RV32_REGION_NUM<=8)
+    static const rme_ptr_t RME_RV32P_Raw_Pgt_Def[10U]=
+    {
+        0x1818181FU,0x18181818U,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU
+    };
+#elif(RME_RV32_REGION_NUM<=12)
+    static const rme_ptr_t RME_RV32P_Raw_Pgt_Def[15U]=
+    {
+        0x1818181FU,0x18181818U,0x18181818U,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU
+    };
+#else
+    static const rme_ptr_t RME_RV32P_Raw_Pgt_Def[20U]=
+    {
+        0x1818181FU,0x18181818U,0x18181818U,0x18181818U,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,
+        0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU,0xFFFFFFFFU
+    };
+#endif
+#endif
 
     Cur_Addr=RME_KOM_VA_BASE;
 
@@ -912,6 +1048,7 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_RVM_INIT_CPT_SIZE));
 
     /* Create the page table for the init process, and map in the page alloted for it */
+#if(RME_PGT_RAW_USER==0U)
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT,
                Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_4G, RME_PGT_NUM_1)==0);
@@ -922,6 +1059,10 @@ void __RME_Boot(void)
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
                                  RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT)==0U);
+#else
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
+                                 RME_BOOT_INIT_CPT, (rme_ptr_t)RME_RV32P_Raw_Pgt_Def)==0U);
+#endif
 
     /* Create the initial kernel function capability, and kernel memory capability */
     RME_ASSERT(_RME_Kfn_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KFN)==0);
@@ -957,24 +1098,26 @@ void __RME_Boot(void)
     Size=RME_THD_SIZE(0U); */
 
     /* If generator is enabled for this project, generate what is required by the generator */
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
     Cur_Addr=RME_Boot_Vct_Init(RME_RV32P_CPT, RME_BOOT_INIT_VCT+1U, Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
     RME_ASSERT(Cur_Addr==(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #else
     RME_ASSERT(Cur_Addr<(RME_KOM_VA_BASE+RME_RVM_KOM_BOOT_FRONT));
 #endif
 
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
     /* Perform post initialization */
     RME_Boot_Post_Init();
 #endif
 
     /* Enable the PMP & interrupt */
+#if(RME_PGT_RAW_USER==0U)
     RME_ASSERT(RME_CAP_IS_ROOT(RME_RV32P_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
+#endif
     __RME_Pgt_Set(RME_RV32P_Local.Thd_Cur->Sched.Prc->Pgt);
     __RME_Int_Enable();
 
@@ -1017,16 +1160,6 @@ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
     Param[0]=Reg->X11_A1;
     Param[1]=Reg->X12_A2;
     Param[2]=Reg->X13_A3;
-
-    RME_DBG_S("Regs: 0x");
-    RME_DBG_U(Reg->X10_A0);
-    RME_DBG_S(" 0x");
-    RME_DBG_U(Reg->X11_A1);
-    RME_DBG_S(" 0x");
-    RME_DBG_U(Reg->X12_A2);
-    RME_DBG_S(" 0x");
-    RME_DBG_U(Reg->X13_A3);
-    RME_DBG_S("\r\n");
 }
 /* End Function:__RME_Svc_Param_Get ******************************************/
 
@@ -1384,13 +1517,14 @@ rme_ret_t __RME_Pgt_Kom_Init(void)
 }
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
 
-/* Function:__RME_RV32P_Rand ****************************************************
+/* Function:__RME_RV32P_Rand **************************************************
 Description : The random number generator used for random replacement policy.
               RV32P have only one core, thus we make the LFSR local.
 Input       : None.
 Output      : None.
 Return      : rme_ptr_t - The random number returned.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t __RME_RV32P_Rand(void)
 {   
     static rme_ptr_t LFSR=0xACE1ACE1U;
@@ -1405,7 +1539,8 @@ rme_ptr_t __RME_RV32P_Rand(void)
     
     return LFSR;
 }
-/* End Function:__RME_RV32P_Rand ***********************************************/
+#endif
+/* End Function:__RME_RV32P_Rand *********************************************/
 
 /* Function:__RME_Pgt_Init ****************************************************
 Description : Initialize the page table data structure, according to the capability.
@@ -1413,6 +1548,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
@@ -1432,12 +1568,12 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     {
         ((struct __RME_RV32P_PMP_Data*)Ptr)->Static=0U;
         for(Count=0U;Count<RME_RV32P_PMPCFG_NUM;Count++)
-            ((struct __RME_RV32P_PMP_Data*)Ptr)->Cfg[Count]=0U;
+            ((struct __RME_RV32P_PMP_Data*)Ptr)->Raw.Cfg[Count]=0U;
         for(Count=0U;Count<RME_RV32P_REGION_NUM;Count++)
-            ((struct __RME_RV32P_PMP_Data*)Ptr)->Addr[Count]=0U;
+            ((struct __RME_RV32P_PMP_Data*)Ptr)->Raw.Addr[Count]=0U;
 
         /* "Nonexistent" entries appear as enabled but not allowing access for workaround */
-        Cfg=(rme_u8_t*)(((struct __RME_RV32P_PMP_Data*)Ptr)->Cfg);
+        Cfg=(rme_u8_t*)(((struct __RME_RV32P_PMP_Data*)Ptr)->Raw.Cfg);
         for(Count=RME_RV32P_REGION_NUM;Count<RME_RV32P_PMPCFG_NUM*sizeof(rme_ptr_t);Count++)
             Cfg[Count]=0x18U;
 
@@ -1451,6 +1587,7 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Init ***********************************************/
 
 /* Function:__RME_Pgt_Check ***************************************************
@@ -1464,6 +1601,7 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Is_Top,
                           rme_ptr_t Size_Order,
@@ -1481,6 +1619,7 @@ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
 
     return 0U;
 }
+#endif
 /* End Function:__RME_Pgt_Check **********************************************/
 
 /* Function:__RME_Pgt_Del_Check ***********************************************
@@ -1490,19 +1629,22 @@ Input       : struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     /* No special property to check */
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Del_Check ******************************************/
 
-/* Function:___RME_RV32P_PMP_Decode ******************************************
+/* Function:___RME_RV32P_PMP_Decode *******************************************
 Description : Decode PMP register data into stuff easier for processing.
 Input       : struct __RME_RV32P_PMP_Data* Top_Data - The PMP data.
 Output      : struct __RME_RV32P_PMP_Range* Range - The decoded ranges.
 Return      : rme_ptr_t - The number of regions that are present.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
                                   struct __RME_RV32P_PMP_Range* Range)
 {
@@ -1512,11 +1654,7 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
 
     Data_Cnt=0U;
     Range_Cnt=0U;
-    Cfg=(rme_u8_t*)(Top_Data->Cfg);
-
-    RME_DBG_S("Cfg array Addr 0x");
-    RME_DBG_U(Cfg);
-    RME_DBG_S("\r\n");
+    Cfg=(rme_u8_t*)(Top_Data->Raw.Cfg);
 
     while(Data_Cnt<RME_RV32P_REGION_NUM)
     {
@@ -1525,17 +1663,10 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
         {
             RME_ASSERT(RME_RV32P_PMP_MODE(Cfg[Data_Cnt])==RME_RV32P_PMP_NAPOT);
             Range[Range_Cnt].Flag=RME_RV32P_PMP_PERM(Cfg[Data_Cnt]);
-            Range[Range_Cnt].Size_Order=_RME_LSB_Generic(~Top_Data->Addr[Data_Cnt]);
-            Range[Range_Cnt].Start=Top_Data->Addr[Data_Cnt]&RME_MASK_START(Range[Range_Cnt].Size_Order+1U);
-            Range[Range_Cnt].Size_Order+=3U;
-            /* Handle 32 - which is UB if shifted with */
-            if(Range[Range_Cnt].Size_Order==RME_WORD_BITS)
-            {
-                RME_ASSERT(Range[Range_Cnt].Start==0U);
-                Range[Range_Cnt].End=0U;
-            }
-            else
-                Range[Range_Cnt].End=Range[Range_Cnt].Start+RME_POW2(Range[Range_Cnt].Size_Order);
+            Range[Range_Cnt].Order_Div4=_RME_LSB_Generic(~Top_Data->Raw.Addr[Data_Cnt])+1U;
+            Range[Range_Cnt].Start_Div4=Top_Data->Raw.Addr[Data_Cnt]&RME_MASK_START(Range[Range_Cnt].Order_Div4);
+            /* Can't be UB here, all address [34:2] */
+            Range[Range_Cnt].End_Div4=Range[Range_Cnt].Start_Div4+RME_POW2(Range[Range_Cnt].Order_Div4);
             Range_Cnt++;
             Data_Cnt++;
         }
@@ -1546,9 +1677,9 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
                (RME_RV32P_PMP_MODE(Cfg[Data_Cnt+1U])==RME_RV32P_PMP_TOR))
             {
                     Range[Range_Cnt].Flag=RME_RV32P_PMP_PERM(Cfg[Data_Cnt+1U]);
-                    Range[Range_Cnt].Start=Top_Data->Addr[Data_Cnt];
-                    Range[Range_Cnt].End=Top_Data->Addr[Data_Cnt+1U];
-                    Range[Range_Cnt].Size_Order=0U;
+                    Range[Range_Cnt].Start_Div4=Top_Data->Raw.Addr[Data_Cnt];
+                    Range[Range_Cnt].End_Div4=Top_Data->Raw.Addr[Data_Cnt+1U];
+                    Range[Range_Cnt].Order_Div4=0U;
                     Range_Cnt++;
                     Data_Cnt+=2U;
             }
@@ -1559,9 +1690,10 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
 
     return Range_Cnt;
 }
-/* End Function:___RME_RV32P_PMP_Decode *************************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Decode **************************************/
 
-/* Function:___RME_RV32P_PMP_Range_Ins ***************************************
+/* Function:___RME_RV32P_PMP_Range_Ins ****************************************
 Description : Make room for range insertion at a certain point.
 Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
               rme_ptr_t Number - The number of memory ranges.
@@ -1569,9 +1701,10 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : None.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 void ___RME_RV32P_PMP_Range_Ins(struct __RME_RV32P_PMP_Range* Range,
-                                 rme_ptr_t Number,
-                                 rme_ptr_t Pos)
+                                rme_ptr_t Number,
+                                rme_ptr_t Pos)
 {
     rme_ptr_t Count;
 
@@ -1580,9 +1713,10 @@ void ___RME_RV32P_PMP_Range_Ins(struct __RME_RV32P_PMP_Range* Range,
         Range[Count]=Range[Count-1U];
     }
 }
-/* End Function:___RME_RV32P_PMP_Range_Ins **********************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Range_Ins ***********************************/
 
-/* Function:___RME_RV32P_PMP_Range_Del ***************************************
+/* Function:___RME_RV32P_PMP_Range_Del ****************************************
 Description : Delete a range at a certain point.
 Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
               rme_ptr_t Number - The number of memory ranges.
@@ -1590,9 +1724,10 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : None.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 void ___RME_RV32P_PMP_Range_Del(struct __RME_RV32P_PMP_Range* Range,
-                                 rme_ptr_t Number,
-                                 rme_ptr_t Pos)
+                                rme_ptr_t Number,
+                                rme_ptr_t Pos)
 {
     rme_ptr_t Count;
 
@@ -1601,15 +1736,17 @@ void ___RME_RV32P_PMP_Range_Del(struct __RME_RV32P_PMP_Range* Range,
         Range[Count]=Range[Count+1U];
     }
 }
-/* End Function:___RME_RV32P_PMP_Range_Del **********************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Range_Del ***********************************/
 
-/* Function:___RME_RV32P_PMP_Range_Entry *************************************
+/* Function:___RME_RV32P_PMP_Range_Entry **************************************
 Description : Check the number of entries used with the regions.
 Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
               rme_ptr_t Number - The number of memory ranges.
 Output      : None.
 Return      : rme_ptr_t - The number of entries used.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
                                        rme_ptr_t Number)
 {
@@ -1621,7 +1758,7 @@ rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
     for(Count=0U;Count<Number;Count++)
     {
         /* TOR ranges use two entries */
-        if(Range[Count].Size_Order==0U)
+        if(Range[Count].Order_Div4==0U)
         {
             Total+=2U;
         }
@@ -1634,9 +1771,10 @@ rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
 
     return Total;
 }
-/* End Function:___RME_RV32P_PMP_Range_Entry ********************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Range_Entry *********************************/
 
-/* Function:___RME_RV32P_PMP_Range_Kick **************************************
+/* Function:___RME_RV32P_PMP_Range_Kick ***************************************
 Description : Find an entry that could be kicked out, except for the entry we
               just added.
 Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
@@ -1645,6 +1783,7 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : None.
 Return      : rme_ptr_t - The position to kick out.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_RV32P_PMP_Range_Kick(struct __RME_RV32P_PMP_Range* Range,
                                       rme_ptr_t Number,
                                       rme_ptr_t Add)
@@ -1675,9 +1814,10 @@ rme_ptr_t ___RME_RV32P_PMP_Range_Kick(struct __RME_RV32P_PMP_Range* Range,
 
     return Entry;
 }
-/* End Function:___RME_RV32P_PMP_Range_Kick *********************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Range_Kick **********************************/
 
-/* Function:___RME_RV32P_PMP_Add *********************************************
+/* Function:___RME_RV32P_PMP_Add **********************************************
 Description : Add an entry into the ranges.
 Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
               rme_ptr_t Number - The number of memory ranges.
@@ -1688,6 +1828,7 @@ Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : rme_ret_t - If successful, the current number of ranges; else
                           RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
                                rme_ptr_t Number,
                                rme_ptr_t Paddr,
@@ -1695,29 +1836,18 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
                                rme_ptr_t Flag)
 {
     rme_ptr_t Count;
-    rme_ptr_t End;
+    rme_ptr_t Start_Div4;
+    rme_ptr_t End_Div4;
+    rme_ptr_t Size_Div4;
+    rme_ptr_t Order_Div4;
     rme_ptr_t Left;
     rme_ptr_t Right;
-    rme_ptr_t Size;
+    rme_ptr_t Number_New;
 
-    RME_DBG_S("Adding range Number ");
-    RME_DBG_I(Number);
-    RME_DBG_S(" Paddr 0x");
-    RME_DBG_U(Paddr);
-    RME_DBG_S(" Szord ");
-    RME_DBG_I(Size_Order);
-    RME_DBG_S(" Flag 0x");
-    RME_DBG_U(Flag);
-    RME_DBG_S("\r\n");
-
-    /* Handle 32 */
-    if(Size_Order==RME_WORD_BITS)
-    {
-        RME_ASSERT(Paddr==0U);
-        End=0U;
-    }
-    else
-        End=Paddr+RME_POW2(Size_Order);
+    /* All PMP addresses are [33:2], thus no UB */
+    Start_Div4=Paddr>>2U;
+    Order_Div4=Size_Order-2U;
+    End_Div4=Start_Div4+RME_POW2(Order_Div4);
 
     /* There are existing entries, look them up */
     Left=0U;
@@ -1733,8 +1863,8 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
             /* Is this ever in the ranges? If yes, then there must be a permission conflict */
             for(Count=0U;Count<Number;Count++)
             {
-                if(((Paddr>=Range[Number].Start)&&(Paddr<Range[Number].End))||
-                   ((End>=Range[Number].Start)&&(End<Range[Number].End)))
+                if(((Start_Div4>=Range[Number].Start_Div4)&&(Start_Div4<Range[Number].End_Div4))||
+                   ((End_Div4>=Range[Number].Start_Div4)&&(End_Div4<Range[Number].End_Div4)))
                 {
                     return RME_ERR_HAL_FAIL;
                 }
@@ -1743,7 +1873,7 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
             /* No. Find the possible position of this page between the ranges */
             for(Count=0U;Count<Number;Count++)
             {
-                if(Paddr<Range[Number].Start)
+                if(Start_Div4<Range[Number].Start_Div4)
                 {
                     break;
                 }
@@ -1751,13 +1881,13 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
 
             /* Check possible adjacent ranges for possible mergers */
             if((Count>0U)&&
-               (Range[Count-1U].End==Paddr)&&
+               (Range[Count-1U].End_Div4==Start_Div4)&&
                (RME_RV32P_PGT_MERGE(Range[Count-1U].Flag)==RME_RV32P_PGT_MERGE(Flag)))
             {
                 Left=1U;
             }
             else if((Count<Number)&&
-                    (Range[Count].Start==End)&&
+                    (Range[Count].Start_Div4==End_Div4)&&
                     (RME_RV32P_PGT_MERGE(Range[Count].Flag)==RME_RV32P_PGT_MERGE(Flag)))
             {
                 Right=1U;
@@ -1774,65 +1904,66 @@ rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
     if((Left!=0U)&&(Right!=0U))
     {
         /* Concatenate all ranges */
-        Range[Count-1U].End=Range[Count].End;
+        Range[Count-1U].End_Div4=Range[Count].End_Div4;
         /* Should we use NAPOT or TOR? */
         RME_RV32P_PGT_MODE(Range[Count-1U]);
         /* Use aggregated flags from both sides */
         Range[Count-1U].Flag|=Flag|Range[Count].Flag;
         /* Clear the region that follow, range # decreases */
         ___RME_RV32P_PMP_Range_Del(Range,Number,Count);
-        Size=Number-1U;
+        Number_New=Number-1U;
         Count--;
     }
     /* Merge with left side only */
     else if(Left!=0U)
     {
-        Range[Count-1U].End=End;
+        Range[Count-1U].End_Div4=End_Div4;
         /* Should we use NAPOT or TOR? */
         RME_RV32P_PGT_MODE(Range[Count-1U]);
         /* Use aggregated flags from left */
         Range[Count-1U].Flag|=Flag;
         /* Range # doesn't change */
-        Size=Number;
+        Number_New=Number;
         Count--;
     }
     /* Merge with right side only, range # may increase */
     else if(Right!=0U)
     {
-        Range[Count].Start=Paddr;
+        Range[Count].Start_Div4=Start_Div4;
         /* Should we use NAPOT or TOR? */
         RME_RV32P_PGT_MODE(Range[Count]);
         /* Use aggregated flags from right */
         Range[Count].Flag|=Flag;
         /* Range # doesn't change */
-        Size=Number;
+        Number_New=Number;
     }
     /* Consider adding a new entry, range # will increase */
     else
     {
         /* Make room for the new entry, with NAPOT */
         ___RME_RV32P_PMP_Range_Ins(Range,Number,Count);
-        Range[Count].Start=Paddr;
-        Range[Count].End=End;
-        Range[Count].Size_Order=Size_Order;
+        Range[Count].Start_Div4=Start_Div4;
+        Range[Count].End_Div4=End_Div4;
+        Range[Count].Order_Div4=Order_Div4;
         Range[Count].Flag=Flag;
         /* Range # increases */
-        Size=Number+1U;
+        Number_New=Number+1U;
     }
 
     /* We've exceeded the PMP entry capacity, need to kick someone out */
-    if(___RME_RV32P_PMP_Range_Entry(Range,Size)>RME_RV32P_REGION_NUM)
+    if(___RME_RV32P_PMP_Range_Entry(Range,Number_New)>RME_RV32P_REGION_NUM)
     {
-        Count=___RME_RV32P_PMP_Range_Kick(Range,Size,Count);
-        ___RME_RV32P_PMP_Range_Del(Range,Size,Count);
-        Size--;
+        Count=___RME_RV32P_PMP_Range_Kick(Range,Number_New,Count);
+        ___RME_RV32P_PMP_Range_Del(Range,Number_New,Count);
+        Number_New--;
     }
 
-    return (rme_ret_t)(Size);
+    return (rme_ret_t)Number_New;
 }
-/* End Function:___RME_RV32P_PMP_Add ****************************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Add *****************************************/
 
-/* Function:___RME_RV32P_PMP_Encode ******************************************
+/* Function:___RME_RV32P_PMP_Encode *******************************************
 Description : Encode the entries back to PMP representation.
 Input       : struct __RME_RV32P_PMP_Data* Top_Data - The top-level page data.
               struct __RME_RV32P_PMP_Range* Range - The memory ranges.
@@ -1843,16 +1974,17 @@ Input       : struct __RME_RV32P_PMP_Data* Top_Data - The top-level page data.
 Output      : struct __RME_RV32P_PMP_Data* Top_Data - The top-level page data.
 Return      : None.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
-                              struct __RME_RV32P_PMP_Range* Range,
-                              rme_ptr_t Number)
+                             struct __RME_RV32P_PMP_Range* Range,
+                             rme_ptr_t Number)
 {
     rme_ptr_t Data_Cnt;
     rme_ptr_t Range_Cnt;
     rme_u8_t* Cfg;
 
     Data_Cnt=0U;
-    Cfg=(rme_u8_t*)(Top_Data->Cfg);
+    Cfg=(rme_u8_t*)(Top_Data->Raw.Cfg);
 
     /* The "nonexistent" entries always default to "enable but do not allow
      * any access", for compatibility with some of the nonstandard PMP
@@ -1860,25 +1992,25 @@ void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
      * so we have to sacrifice one region for them, and report one less region
      * to the kernel config. All PMP implementations have a even number of
      * entries, so the unused space in PMPCFG array can be used for this purpose. */
-    Top_Data->Cfg[RME_RV32P_PMPCFG_NUM-1U]=0x18181818U;
+    Top_Data->Raw.Cfg[RME_RV32P_PMPCFG_NUM-1U]=0x18181818U;
 
     /* Decide best use of the entries */
     for(Range_Cnt=0U;Range_Cnt<Number;Range_Cnt++)
     {
         /* Using TOR - using 2 entries */
-        if(Range[Range_Cnt].Size_Order==0U)
+        if(Range[Range_Cnt].Order_Div4==0U)
         {
             Cfg[Data_Cnt]=0U;
-            Top_Data->Addr[Data_Cnt]=Range[Range_Cnt].Start;
+            Top_Data->Raw.Addr[Data_Cnt]=Range[Range_Cnt].Start_Div4;
             Cfg[Data_Cnt+1U]=RME_RV32P_PGT_MERGE(Range[Range_Cnt].Flag)|RME_RV32P_PMP_TOR;
-            Top_Data->Addr[Data_Cnt+1U]=Range[Range_Cnt].End;
+            Top_Data->Raw.Addr[Data_Cnt+1U]=Range[Range_Cnt].End_Div4;
             Data_Cnt+=2;
         }
         /* Using NAPOT - using 1 entry */
         else
         {
             Cfg[Data_Cnt]=RME_RV32P_PGT_MERGE(Range[Range_Cnt].Flag)|RME_RV32P_PMP_NAPOT;
-            Top_Data->Addr[Data_Cnt]=Range[Range_Cnt].Start|RME_MASK_END(Range[Range_Cnt].Size_Order-4U);
+            Top_Data->Raw.Addr[Data_Cnt]=Range[Range_Cnt].Start_Div4|RME_MASK_END(Range[Range_Cnt].Order_Div4-2U);
             Data_Cnt++;
         }
     }
@@ -1892,9 +2024,10 @@ void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
         Data_Cnt++;
     }
 }
-/* End Function:___RME_RV32P_PMP_Encode *************************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Encode **************************************/
 
-/* Function:___RME_RV32P_PMP_Update ******************************************
+/* Function:___RME_RV32P_PMP_Update *******************************************
 Description : Update the top-level MPU metadata for this page.
               This always does addition, and does not do removal of mappings;
               For any removal, a full flush of PMP registers is required.
@@ -1905,21 +2038,17 @@ Input       : struct __RME_RV32P_Pgt_Meta* Top_Meta - The top-level page table.
 Output      : struct __RME_RV32P_Pgt_Meta* Top_Meta - The top-level page table.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
-                                   rme_ptr_t Paddr,
-                                   rme_ptr_t Size_Order,
-                                   rme_ptr_t Flag)
+                                  rme_ptr_t Paddr,
+                                  rme_ptr_t Size_Order,
+                                  rme_ptr_t Flag)
 {
     rme_ret_t Number;
     struct __RME_RV32P_PMP_Data* Top_Data;
     struct __RME_RV32P_PMP_Range Range[RME_RV32P_REGION_NUM+1U];
 
     Top_Data=(struct __RME_RV32P_PMP_Data*)(Top_Meta+1U);
-    RME_DBG_S("Updating PMP using Top_Meta 0x");
-    RME_DBG_U(Top_Meta);
-    RME_DBG_S(" Top_Data 0x");
-    RME_DBG_U(Top_Data);
-    RME_DBG_S("\r\n");
 
     /* Decode the PMP stuff into start/end */
     Number=___RME_RV32P_PMP_Decode(Top_Data, Range);
@@ -1934,55 +2063,69 @@ rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
 
     return 0;
 }
-/* End Function:___RME_RV32P_PMP_Update *************************************/
+#endif
+/* End Function:___RME_RV32P_PMP_Update **************************************/
 
 /* Function:__RME_Pgt_Set *****************************************************
 Description : Set the processor's page table.
 Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
+              struct RME_Raw_Pgt* Pgt - The alternative raw page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
+#else
+void __RME_Pgt_Set(rme_ptr_t Pgt)
+#endif
 {
+    struct __RME_RV32P_Raw_Pgt* Raw_Pgt;
+
+#if(RME_PGT_RAW_USER==0U)
     struct __RME_RV32P_PMP_Data* PMP_Data;
 
     PMP_Data=(struct __RME_RV32P_PMP_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
                                             sizeof(struct __RME_RV32P_Pgt_Meta));
+    Raw_Pgt=&(PMP_Data->Raw);
+#else
+    Raw_Pgt=(struct __RME_RV32P_Raw_Pgt*)Pgt;
+#endif
+
     /* Get the physical address of the page table - here we do not need any
      * conversion, because VA = PA as always. We just need to extract the MPU
      * metadata part and pass it down */
 #if(RME_RV32P_REGION_NUM==1U)
-    ___RME_RV32P_PMP_Set1(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set1(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==2U)
-    ___RME_RV32P_PMP_Set2(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set2(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==3U)
-    ___RME_RV32P_PMP_Set3(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set3(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==4U)
-    ___RME_RV32P_PMP_Set4(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set4(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==5U)
-    ___RME_RV32P_PMP_Set5(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set5(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==6U)
-    ___RME_RV32P_PMP_Set6(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set6(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==7U)
-    ___RME_RV32P_PMP_Set7(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set7(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==8U)
-    ___RME_RV32P_PMP_Set8(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set8(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==9U)
-    ___RME_RV32P_PMP_Set9(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set9(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==10U)
-    ___RME_RV32P_PMP_Set10(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set10(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==11U)
-    ___RME_RV32P_PMP_Set11(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set11(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==12U)
-    ___RME_RV32P_PMP_Set12(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set12(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==13U)
-    ___RME_RV32P_PMP_Set13(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set13(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==14U)
-    ___RME_RV32P_PMP_Set14(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set14(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==15U)
-    ___RME_RV32P_PMP_Set15(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set15(Raw_Pgt);
 #elif(RME_RV32P_REGION_NUM==16U)
-    ___RME_RV32P_PMP_Set16(PMP_Data->Cfg, PMP_Data->Addr);
+    ___RME_RV32P_PMP_Set16(Raw_Pgt);
 #endif
 }
 /* End Function:__RME_Pgt_Set ************************************************/
@@ -1997,6 +2140,7 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Paddr,
                              rme_ptr_t Pos,
@@ -2031,6 +2175,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Page_Map *******************************************/
 
 /* Function:__RME_Pgt_Page_Unmap **********************************************
@@ -2040,6 +2185,7 @@ Input       : struct RME_Cap_Pgt* - The capability to the page table to operate 
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                rme_ptr_t Pos)
 {
@@ -2065,6 +2211,7 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Page_Unmap *****************************************/
 
 /* Function:__RME_Pgt_Pgdir_Map ***********************************************
@@ -2078,6 +2225,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                               rme_ptr_t Pos,
                               struct RME_Cap_Pgt* Pgt_Child,
@@ -2113,6 +2261,7 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Pgdir_Map ******************************************/
 
 /* Function:__RME_Pgt_Pgdir_Unmap *********************************************
@@ -2123,6 +2272,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos,
                                 struct RME_Cap_Pgt* Pgt_Child)
@@ -2154,6 +2304,7 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Pgdir_Unmap ****************************************/
 
 /* Function:__RME_Pgt_Lookup **************************************************
@@ -2164,6 +2315,7 @@ Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flag - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t Pos,
                            rme_ptr_t* Paddr,
@@ -2196,6 +2348,7 @@ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Lookup *********************************************/
 
 /* Function:__RME_Pgt_Walk ****************************************************
@@ -2213,6 +2366,7 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                          rme_ptr_t Vaddr,
                          rme_ptr_t* Pgt,
@@ -2300,6 +2454,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
 
     return 0;
 }
+#endif
 /* End Function:__RME_Pgt_Walk ***********************************************/
 
 /* End Of File ***************************************************************/

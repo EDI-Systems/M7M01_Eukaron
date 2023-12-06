@@ -288,20 +288,20 @@ while(0)
 #define RME_RV32P_PGT_MODE(X) \
 do \
 { \
-    Size=(X).End-(X).Start; \
-    if(RME_ISPOW2(Size)) \
+    Size_Div4=(X).End_Div4-(X).Start_Div4; \
+    if(RME_ISPOW2(Size_Div4)) \
     { \
-        (X).Size_Order=RME_MSB_GET(Size); \
+        (X).Order_Div4=RME_MSB_GET(Size_Div4); \
     } \
     else \
     { \
-        (X).Size_Order=0U; \
+        (X).Order_Div4=0U; \
     } \
 } \
 while(0)
 
 /* Write info to PMP */
-#define RME_RV32P_PMP_PERM(X)           ((X)&3U)
+#define RME_RV32P_PMP_PERM(X)           ((X)&7U)
 #define RME_RV32P_PMP_READ              (1U<<0)
 #define RME_RV32P_PMP_WRITE             (1U<<1)
 #define RME_RV32P_PMP_EXECUTE           (1U<<2)
@@ -410,7 +410,7 @@ while(0)
 #define RME_RV32P_KFN_DEBUG_EXC_ADDR_GET                (1U)
 #define RME_RV32P_KFN_DEBUG_EXC_VALUE_GET               (2U)
 /*****************************************************************************/
-/* __RME_PLATFORM_A7M_DEF__ */
+/* __RME_PLATFORM_RV32P_DEF__ */
 #endif
 /* __HDR_DEF__ */
 #endif
@@ -571,41 +571,8 @@ struct RME_Iret_Struct
 };
 
 /* Page Table ****************************************************************/
-/* For RV32P:
- * The layout of the page entry is:
- * [31:2] Paddr - The physical address to map this page to, or the physical
- *                address of the next layer of page table. This address is
- *                always aligned to 32 bytes.
- * [1] Terminal - Is this page a terminal page, or points to another page table?
- * [0] Present - Is this entry present?
- *
- * The layout of a directory entry is:
- * [31:2] Paddr - The in-kernel physical address of the lower page directory.
- * [1] Terminal - Is this page a terminal page, or points to another page table?
- * [0] Present - Is this entry present?
- *
- * The Flag[] field decides the actual mapping of the pages and page directories.
- */
-struct __RME_RV32P_PMP_Data
-{
-    rme_ptr_t Static;
-    rme_ptr_t Cfg[RME_RV32P_PMPCFG_NUM];
-    rme_ptr_t Addr[RME_RV32P_REGION_NUM];
-};
-
-/* Decode struct for ease of processing */
-struct __RME_RV32P_PMP_Range
-{
-    /* Mapping flags */
-    rme_ptr_t Flag;
-    /* Start/end address */
-    rme_ptr_t Start;
-    rme_ptr_t End;
-    /* Whether this is a power of 2. If yes, what power? */
-    rme_ptr_t Size_Order;
-};
-
 /* Page table metadata structure */
+#if(RME_PGT_RAW_USER==0U)
 struct __RME_RV32P_Pgt_Meta
 {
     /* The start mapping address of this page table */
@@ -613,8 +580,40 @@ struct __RME_RV32P_Pgt_Meta
     /* The size/num order of this level */
     rme_ptr_t Order;
 };
+#endif
+
+/* Raw PMP cache - naked for user-level configurations only */
+struct __RME_RV32P_Raw_Pgt
+{
+    rme_ptr_t Cfg[RME_RV32P_PMPCFG_NUM];
+    rme_ptr_t Addr[RME_RV32P_REGION_NUM];
+};
+
+#if(RME_PGT_RAW_USER==0U)
+struct __RME_RV32P_PMP_Data
+{
+    /* Bitmap showing whether these are static or not */
+    rme_ptr_t Static;
+    /* The MPU data itself */
+    struct __RME_RV32P_Raw_Pgt Raw;
+};
+#endif
+
+/* Decode struct for ease of processing - all address divided by 4 */
+#if(RME_PGT_RAW_USER==0U)
+struct __RME_RV32P_PMP_Range
+{
+    /* Mapping flags */
+    rme_ptr_t Flag;
+    /* Start/end address - [33:2] instead of [31:0]; PMP is 34-bit PAE */
+    rme_ptr_t Start_Div4;
+    rme_ptr_t End_Div4;
+    /* If size/4 is a power of 2, what power? */
+    rme_ptr_t Order_Div4;
+};
+#endif
 /*****************************************************************************/
-/* __RME_PLATFORM_A7M_STRUCT__ */
+/* __RME_PLATFORM_RV32P_STRUCT__ */
 #endif
 /* __HDR_STRUCT__ */
 #endif
@@ -622,8 +621,8 @@ struct __RME_RV32P_Pgt_Meta
 
 /* Private Variable **********************************************************/
 #if(!(defined __HDR_DEF__||defined __HDR_STRUCT__))
-#ifndef __RME_PLATFORM_A7M_MEMBER__
-#define __RME_PLATFORM_A7M_MEMBER__
+#ifndef __RME_PLATFORM_RV32P_MEMBER__
+#define __RME_PLATFORM_RV32P_MEMBER__
 
 /* In this way we can use the data structures and definitions in the headers */
 #define __HDR_DEF__
@@ -652,45 +651,71 @@ EXTERN void RME_Boot_Pre_Init(void);
 EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
-/* PMP operations */
-EXTERN void ___RME_RV32P_PMP_Set1(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set2(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set3(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set4(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set5(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set6(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set7(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set8(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set9(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set10(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set11(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set12(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set13(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set14(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set15(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
-EXTERN void ___RME_RV32P_PMP_Set16(rme_ptr_t* CFG_Meta, rme_ptr_t* ADDR_Meta);
+/* PMP operations ************************************************************/
+EXTERN void ___RME_RV32P_PMP_Set1(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set2(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set3(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set4(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set5(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set6(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set7(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set8(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set9(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set10(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set11(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set12(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set13(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set14(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set15(struct __RME_RV32P_Raw_Pgt* Raw);
+EXTERN void ___RME_RV32P_PMP_Set16(struct __RME_RV32P_Raw_Pgt* Raw);
 /* Handler *******************************************************************/
 /* Fault handler */
 static void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
                                     rme_ptr_t Mcause);
-/* Vector Flags **************************************************************/
+/* Vector flags **************************************************************/
 static void __RME_RV32P_Flag_Fast(rme_ptr_t Base,
                                   rme_ptr_t Size,
                                   rme_ptr_t Flag);
 static void __RME_RV32P_Flag_Slow(rme_ptr_t Base,
                                   rme_ptr_t Size,
                                   rme_ptr_t Pos);
-/* Page Table ****************************************************************/
+/* Page table ****************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 static rme_ptr_t __RME_RV32P_Rand(void);
+static rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
+                                         struct __RME_RV32P_PMP_Range* Range);
+static void ___RME_RV32P_PMP_Range_Ins(struct __RME_RV32P_PMP_Range* Range,
+                                       rme_ptr_t Number,
+                                       rme_ptr_t Pos);
+static void ___RME_RV32P_PMP_Range_Del(struct __RME_RV32P_PMP_Range* Range,
+                                       rme_ptr_t Number,
+                                       rme_ptr_t Pos);
+static rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
+                                              rme_ptr_t Number);
+static rme_ptr_t ___RME_RV32P_PMP_Range_Kick(struct __RME_RV32P_PMP_Range* Range,
+                                             rme_ptr_t Number,
+                                             rme_ptr_t Add);
+static rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
+                                      rme_ptr_t Number,
+                                      rme_ptr_t Paddr,
+                                      rme_ptr_t Size_Order,
+                                      rme_ptr_t Flag);
+static void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
+                                    struct __RME_RV32P_PMP_Range* Range,
+                                    rme_ptr_t Number);
+
 static rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
                                          rme_ptr_t Paddr,
                                          rme_ptr_t Size_Order,
                                          rme_ptr_t Flag);
+#endif
 /* Kernel function ***********************************************************/
+#if(RME_PGT_RAW_USER==0U)
 static rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
                                            rme_cid_t Cap_Pgt,
                                            rme_ptr_t Vaddr,
                                            rme_ptr_t Type);
+#endif
 static rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
                                            rme_ptr_t Operation,
                                            rme_ptr_t Param);
@@ -699,7 +724,6 @@ static rme_ret_t __RME_RV32P_Int_Local_Trig(rme_ptr_t CPUID,
 static rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
                                             rme_ptr_t CPUID,
                                             rme_ptr_t Evt_Num);
-
 static rme_ret_t __RME_RV32P_Cache_Maint(rme_ptr_t Cache_ID,
                                          rme_ptr_t Operation,
                                          rme_ptr_t Param);
@@ -839,6 +863,7 @@ __EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
 /* Page Table ****************************************************************/
 /* Initialization */
 __EXTERN__ rme_ret_t __RME_Pgt_Kom_Init(void);
+#if(RME_PGT_RAW_USER==0U)
 __EXTERN__ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
 __EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
@@ -876,10 +901,14 @@ __EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                                     rme_ptr_t* Size_Order,
                                     rme_ptr_t* Num_Order,
                                     rme_ptr_t* Flag);
+#else
+/* Setting the page table */
+__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+#endif
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
-/* __RME_PLATFORM_A7M_MEMBER__ */
+/* __RME_PLATFORM_RV32P_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
 #endif

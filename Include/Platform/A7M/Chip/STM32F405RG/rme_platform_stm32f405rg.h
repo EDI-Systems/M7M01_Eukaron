@@ -14,6 +14,8 @@ Description: The configuration file for STM32F405RG.
 /* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
+/* Are we assuming user-managed raw memory access control? */
+#define RME_PGT_RAW_USER                                (0U)
 /* The virtual memory start address for the kernel objects */
 #define RME_KOM_VA_BASE                                 (0x10002000U)
 /* The size of the kernel object virtual memory */

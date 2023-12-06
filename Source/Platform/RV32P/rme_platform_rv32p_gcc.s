@@ -166,18 +166,22 @@ __RME_Entry_After:
     LA                  a1,__RME_Data_Start
     LA                  a2,__RME_Data_End
 __RME_Data_Load:
+    BEQ                 a1,a2,__RME_Data_Done
     LW                  t0,(a0)
     SW                  t0,(a1)
     ADDI                a0,a0,4
     ADDI                a1,a1,4
-    BLTU                a1,a2,__RME_Data_Load
+    J                   __RME_Data_Load
+__RME_Data_Done:
     /* Clear bss zero section */
     LA                  a0,__RME_Zero_Start
     LA                  a1,__RME_Zero_End
 __RME_Zero_Clear:
+    BEQ                 a0,a1,__RME_Zero_Done
     SW                  zero,(a0)
     ADDI                a0,a0,4
-    BLTU                a0,a1,__RME_Zero_Clear
+    J                   __RME_Zero_Clear
+__RME_Zero_Done:
     /* Branch to main function */
     J                   main
 /* End Entry *****************************************************************/
@@ -231,7 +235,7 @@ ___RME_RV32P_Barrier:
 Description : Get the MCAUSE register content.
 Input       : None.
 Output      : None.
-Return      : $a0 - MCAUSE value.
+Return      : a0 - MCAUSE value.
 ******************************************************************************/
     .section            .text.___rme_rv32p_mcause_get
     .align              3
@@ -245,7 +249,7 @@ ___RME_RV32P_MCAUSE_Get:
 Description : Get the MTVAL register content.
 Input       : None.
 Output      : None.
-Return      : $a0 - MCAUSE value.
+Return      : a0 - MCAUSE value.
 ******************************************************************************/
     .section            .text.___rme_rv32p_mtval_get
     .align              3
@@ -259,7 +263,7 @@ ___RME_RV32P_MTVAL_Get:
 Description : Get the MCYCLE register content.
 Input       : None.
 Output      : None.
-Return      : $a0 - MCYCLE value.
+Return      : a0 - MCYCLE value.
 ******************************************************************************/
     .section            .text.___rme_rv32p_mcycle_get
     .align              3
@@ -273,7 +277,7 @@ ___RME_RV32P_MCYCLE_Get:
 Description : Get the MISA register content.
 Input       : None.
 Output      : None.
-Return      : $a0 - MISA value.
+Return      : a0 - MISA value.
 ******************************************************************************/
     .section            .text.___rme_rv32p_misa_get
     .align              3
@@ -380,16 +384,16 @@ __RME_RV32P_Handler:
     SW                  x4,5*4(sp)
     SW                  x3,4*4(sp)
     /* Save sp (x2) */
-    CSRR                x3,mscratch
-    SW                  x3,3*4(sp)
+    CSRR                a0,mscratch
+    SW                  a0,3*4(sp)
     /* Save x1 */
     SW                  x1,2*4(sp)
     /* Save pc (mepc) */
-    CSRR                x3,mepc
-    SW                  x3,1*4(sp)
+    CSRR                a0,mepc
+    SW                  a0,1*4(sp)
     /* Save mstatus */
-    CSRR                x3,mstatus
-    SW                  x3,0*4(sp)
+    CSRR                a0,mstatus
+    SW                  a0,0*4(sp)
 
     /* Load gp for kernel - defined by linker script */
     .option push
@@ -401,16 +405,16 @@ __RME_RV32P_Handler:
     CALL                _RME_RV32P_Handler
 
     /* Load mstatus */
-    LW                  x3,0*4(sp)
-    CSRW                mstatus, x3
+    LW                  a0,0*4(sp)
+    CSRW                mstatus,a0
     /* Load pc (into mepc) */
-    LW                  x3,1*4(sp)
-    CSRW                mepc, x3
+    LW                  a0,1*4(sp)
+    CSRW                mepc,a0
     /* Load x1 */
     LW                  x1,2*4(sp)
     /* Load sp (x2, into mscratch) */
-    LW                  x3,3*4(sp)
-    CSRW                mscratch,x3
+    LW                  a0,3*4(sp)
+    CSRW                mscratch,a0
     /* Load all general-purpose registers - RV32G does not have any flag registers */
     LW                  x3,4*4(sp)
     LW                  x4,5*4(sp)
@@ -920,129 +924,128 @@ ___RME_RV32P_Thd_Cop_Load_RVD:
 
 /* Function:___RME_RV32P_PMP_Set **********************************************
 Description : Program the entire PMP array.
-Input       : rme_ptr_t* CFG_Meta - The PMP metadata for PMPCFGs.
-              rme_ptr_t* ADDR_Meta - The PMP metadata for PMPADDRs.
+Input       : a0 - The PMP metadata.
 Output      : None.
 Return      : None.
 ******************************************************************************/
     /* Configuration registers */
     .macro              PMPCFG_SET1
-    LW                  t0, 0*4(a0)
-    CSRW                pmpcfg0, t0
+    LW                  t0,0*4(a0)
+    CSRW                pmpcfg0,t0
     .endm
 
     .macro              PMPCFG_SET2
     PMPCFG_SET1
-    LW                  t0, 1*4(a0)
-    CSRW                pmpcfg1, t0
+    LW                  t0,1*4(a0)
+    CSRW                pmpcfg1,t0
     .endm
 
     .macro              PMPCFG_SET3
     PMPCFG_SET2
-    LW                  t0, 2*4(a0)
-    CSRW                pmpcfg2, t0
+    LW                  t0,2*4(a0)
+    CSRW                pmpcfg2,t0
     .endm
 
     .macro              PMPCFG_SET4
     PMPCFG_SET3
-    LW                  t0, 3*4(a0)
-    CSRW                pmpcfg3, t0
+    LW                  t0,3*4(a0)
+    CSRW                pmpcfg3,t0
     .endm
 
     /* Address registers */
     .macro              PMPADDR_SET1
-    LW                  t0, 0*4(a1)
-    CSRW                pmpaddr0, t0
+    LW                  t0,0*4(a0)
+    CSRW                pmpaddr0,t0
     .endm
 
     .macro              PMPADDR_SET2
     PMPADDR_SET1
-    LW                  t0, 1*4(a1)
-    CSRW                pmpaddr1, t0
+    LW                  t0,1*4(a0)
+    CSRW                pmpaddr1,t0
     .endm
 
     .macro              PMPADDR_SET3
     PMPADDR_SET2
-    LW                  t0, 2*4(a1)
-    CSRW                pmpaddr2, t0
+    LW                  t0,2*4(a0)
+    CSRW                pmpaddr2,t0
     .endm
 
     .macro              PMPADDR_SET4
     PMPADDR_SET3
-    LW                  t0, 3*4(a1)
-    CSRW                pmpaddr3, t0
+    LW                  t0,3*4(a0)
+    CSRW                pmpaddr3,t0
     .endm
 
     .macro              PMPADDR_SET5
     PMPADDR_SET4
-    LW                  t0, 4*4(a1)
-    CSRW                pmpaddr4, t0
+    LW                  t0,4*4(a0)
+    CSRW                pmpaddr4,t0
     .endm
 
     .macro              PMPADDR_SET6
     PMPADDR_SET5
-    LW                  t0, 5*4(a1)
-    CSRW                pmpaddr5, t0
+    LW                  t0,5*4(a0)
+    CSRW                pmpaddr5,t0
     .endm
 
     .macro              PMPADDR_SET7
     PMPADDR_SET6
-    LW                  t0, 6*4(a1)
-    CSRW                pmpaddr6, t0
+    LW                  t0,6*4(a0)
+    CSRW                pmpaddr6,t0
     .endm
 
     .macro              PMPADDR_SET8
     PMPADDR_SET7
-    LW                  t0, 7*4(a1)
-    CSRW                pmpaddr7, t0
+    LW                  t0,7*4(a0)
+    CSRW                pmpaddr7,t0
     .endm
 
     .macro              PMPADDR_SET9
     PMPADDR_SET8
-    LW                  t0, 8*4(a1)
-    CSRW                pmpaddr8, t0
+    LW                  t0,8*4(a0)
+    CSRW                pmpaddr8,t0
     .endm
 
     .macro              PMPADDR_SET10
     PMPADDR_SET9
-    LW                  t0, 9*4(a1)
-    CSRW                pmpaddr9, t0
+    LW                  t0,9*4(a0)
+    CSRW                pmpaddr9,t0
     .endm
 
     .macro              PMPADDR_SET11
     PMPADDR_SET10
-    LW                  t0, 10*4(a1)
-    CSRW                pmpaddr10, t0
+    LW                  t0,10*4(a0)
+    CSRW                pmpaddr10,t0
     .endm
 
     .macro              PMPADDR_SET12
     PMPADDR_SET11
-    LW                  t0, 11*4(a1)
-    CSRW                pmpaddr11, t0
+    LW                  t0,11*4(a0)
+    CSRW                pmpaddr11,t0
     .endm
 
     .macro              PMPADDR_SET13
     PMPADDR_SET12
-    LW                  t0, 12*4(a1)
-    CSRW                pmpaddr12, t0
+    LW                  t0,12*4(a0)
+    CSRW                pmpaddr12,t0
     .endm
 
     .macro              PMPADDR_SET14
     PMPADDR_SET13
-    LW                  t0, 13*4(a1)
-    CSRW                pmpaddr13, t0
+    LW                  t0,13*4(a0)
+    CSRW                pmpaddr13,t0
     .endm
 
     .macro              PMPADDR_SET15
     PMPADDR_SET14
-    LW                  t0, 14*4(a1)
-    CSRW                pmpaddr14, t0
+    LW                  t0,14*4(a0)
+    CSRW                pmpaddr14,t0
     .endm
 
     .macro              PMPADDR_SET16
     PMPADDR_SET15
-    LW                  t0, 15*4(a1)
-    CSRW                pmpaddr15, t0
+    LW                  t0,15*4(a0)
+    CSRW                pmpaddr15,t0
     .endm
 
 /* 1-range version */
@@ -1051,6 +1054,7 @@ Return      : None.
 
 ___RME_RV32P_PMP_Set1:
     PMPCFG_SET1
+    ADDI                a0,a0,1*4
     PMPADDR_SET1
     RET
 
@@ -1060,6 +1064,7 @@ ___RME_RV32P_PMP_Set1:
 
 ___RME_RV32P_PMP_Set2:
     PMPCFG_SET1
+    ADDI                a0,a0,1*4
     PMPADDR_SET2
     RET
 
@@ -1069,6 +1074,7 @@ ___RME_RV32P_PMP_Set2:
 
 ___RME_RV32P_PMP_Set3:
     PMPCFG_SET1
+    ADDI                a0,a0,1*4
     PMPADDR_SET3
     RET
 
@@ -1078,6 +1084,7 @@ ___RME_RV32P_PMP_Set3:
 
 ___RME_RV32P_PMP_Set4:
     PMPCFG_SET1
+    ADDI                a0,a0,1*4
     PMPADDR_SET4
     RET
 
@@ -1087,6 +1094,7 @@ ___RME_RV32P_PMP_Set4:
 
 ___RME_RV32P_PMP_Set5:
     PMPCFG_SET2
+    ADDI                a0,a0,2*4
     PMPADDR_SET5
     RET
 
@@ -1096,6 +1104,7 @@ ___RME_RV32P_PMP_Set5:
 
 ___RME_RV32P_PMP_Set6:
     PMPCFG_SET2
+    ADDI                a0,a0,2*4
     PMPADDR_SET6
     RET
 
@@ -1105,6 +1114,7 @@ ___RME_RV32P_PMP_Set6:
 
 ___RME_RV32P_PMP_Set7:
     PMPCFG_SET2
+    ADDI                a0,a0,2*4
     PMPADDR_SET7
     RET
 
@@ -1114,6 +1124,7 @@ ___RME_RV32P_PMP_Set7:
 
 ___RME_RV32P_PMP_Set8:
     PMPCFG_SET2
+    ADDI                a0,a0,2*4
     PMPADDR_SET8
     RET
 
@@ -1123,6 +1134,7 @@ ___RME_RV32P_PMP_Set8:
 
 ___RME_RV32P_PMP_Set9:
     PMPCFG_SET3
+    ADDI                a0,a0,3*4
     PMPADDR_SET9
     RET
 
@@ -1132,6 +1144,7 @@ ___RME_RV32P_PMP_Set9:
 
 ___RME_RV32P_PMP_Set10:
     PMPCFG_SET3
+    ADDI                a0,a0,3*4
     PMPADDR_SET10
     RET
 
@@ -1141,6 +1154,7 @@ ___RME_RV32P_PMP_Set10:
 
 ___RME_RV32P_PMP_Set11:
     PMPCFG_SET3
+    ADDI                a0,a0,3*4
     PMPADDR_SET11
     RET
 
@@ -1150,6 +1164,7 @@ ___RME_RV32P_PMP_Set11:
 
 ___RME_RV32P_PMP_Set12:
     PMPCFG_SET3
+    ADDI                a0,a0,3*4
     PMPADDR_SET12
     RET
 
@@ -1159,6 +1174,7 @@ ___RME_RV32P_PMP_Set12:
 
 ___RME_RV32P_PMP_Set13:
     PMPCFG_SET4
+    ADDI                a0,a0,4*4
     PMPADDR_SET13
     RET
 
@@ -1168,6 +1184,7 @@ ___RME_RV32P_PMP_Set13:
 
 ___RME_RV32P_PMP_Set14:
     PMPCFG_SET4
+    ADDI                a0,a0,4*4
     PMPADDR_SET14
     RET
 
@@ -1177,6 +1194,7 @@ ___RME_RV32P_PMP_Set14:
 
 ___RME_RV32P_PMP_Set15:
     PMPCFG_SET4
+    ADDI                a0,a0,4*4
     PMPADDR_SET15
     RET
 
@@ -1186,6 +1204,7 @@ ___RME_RV32P_PMP_Set15:
 
 ___RME_RV32P_PMP_Set16:
     PMPCFG_SET4
+    ADDI                a0,a0,4*4
     PMPADDR_SET16
     RET
 /* End Function:___RME_RV32P_PMP_Set *****************************************/

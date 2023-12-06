@@ -1049,7 +1049,9 @@ rme_ret_t _RME_Lowlvl_Check(void)
     /* Check if the struct sizes are correct */
     RME_ASSERT(sizeof(struct RME_Cap_Struct)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Cpt)==RME_CAP_SIZE);
+#if(RME_PGT_RAW_USER==0U)
     RME_ASSERT(sizeof(struct RME_Cap_Pgt)==RME_CAP_SIZE);
+#endif
     RME_ASSERT(sizeof(struct RME_Cap_Prc)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Thd)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Sig)==RME_CAP_SIZE);
@@ -1293,6 +1295,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         
         /* Page table */
+#if(RME_PGT_RAW_USER==0U)
         case RME_SVC_PGT_CRT:
         {
             RME_COVERAGE_MARKER();
@@ -1360,15 +1363,23 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                 (rme_cid_t)Param[2]);                       /* rme_cid_t Cap_Pgt_Child */
             break;
         }
-        
+#endif
         /* Process */
         case RME_SVC_PRC_CRT:
         {
+#if(RME_PGT_RAW_USER==0U)
             Retval=_RME_Prc_Crt(Cpt,
                                 (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Crt */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
                                 (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)Param[2]);                       /* rme_cid_t Cap_Pgt */
+#else
+            Retval=_RME_Prc_Crt(Cpt,
+                                (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt_Crt */
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
+                                (rme_cid_t)Param[1],                        /* rme_cid_t Cap_Cpt */
+                                (rme_ptr_t)Param[2]);                       /* rme_ptr_t Raw_Pgt */
+#endif
             break;
         }
         case RME_SVC_PRC_DEL:
@@ -1392,10 +1403,15 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_PRC_PGT:
         {
             RME_COVERAGE_MARKER();
-            
+#if(RME_PGT_RAW_USER==0U)
             Retval=_RME_Prc_Pgt(Cpt,
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
                                 (rme_cid_t)Param[1]);                       /* rme_cid_t Cap_Pgt */
+#else
+            Retval=_RME_Prc_Pgt(Cpt,
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Prc */
+                                Param[1]);                                  /* rme_ptr_t Raw_Pgt */
+#endif
             break;
         }
         
@@ -2486,6 +2502,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Cpt,
                             rme_cid_t Cap_Pgt,
@@ -2609,6 +2626,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Boot_Crt ********************************************/
 
 /* Function:_RME_Pgt_Boot_Add *************************************************
@@ -2629,6 +2647,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Pgt, 
                             rme_ptr_t Paddr,
@@ -2702,6 +2721,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Boot_Add ********************************************/
 
 /* Function:_RME_Pgt_Boot_Con *************************************************
@@ -2719,6 +2739,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Pgt_Parent,
                             rme_ptr_t Pos,
@@ -2852,6 +2873,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Boot_Con ********************************************/
 
 /* Function:_RME_Pgt_Crt ******************************************************
@@ -2880,6 +2902,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Kom,
@@ -3008,6 +3031,7 @@ rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Crt *************************************************/
 
 /* Function:_RME_Pgt_Del ******************************************************
@@ -3022,6 +3046,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Pgt)
@@ -3083,6 +3108,7 @@ rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Del *************************************************/
 
 /* Function:_RME_Pgt_Add ******************************************************
@@ -3112,6 +3138,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt, 
                        rme_cid_t Cap_Pgt_Dst,
                        rme_ptr_t Pos_Dst,
@@ -3274,6 +3301,7 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Add *************************************************/
 
 /* Function:_RME_Pgt_Rem ******************************************************
@@ -3286,6 +3314,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Pgt,
                        rme_ptr_t Pos)
@@ -3337,6 +3366,7 @@ rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Rem *************************************************/
 
 /* Function:_RME_Pgt_Con ******************************************************
@@ -3354,6 +3384,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Pgt_Parent,
                        rme_ptr_t Pos,
@@ -3499,6 +3530,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Con *************************************************/
 
 /* Function:_RME_Pgt_Des ******************************************************
@@ -3516,6 +3548,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt, 
                        rme_cid_t Cap_Pgt_Parent,
                        rme_ptr_t Pos,
@@ -3579,6 +3612,7 @@ rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
 
     return 0;
 }
+#endif
 /* End Function:_RME_Pgt_Des *************************************************/
 
 /* Function:_RME_Kot_Init *****************************************************
@@ -4234,9 +4268,13 @@ rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
 Description : Get a thread's page table. 
 Input       : struct RME_Thd_Struct* Thd - The thread.
 Output      : None.
-Return      : struct RME_Cap_Pgt* - The page table.
+Return      : struct RME_Cap_Pgt* / rme_ptr_t - The page table.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd)
+#else
+rme_ptr_t _RME_Thd_Pgt(struct RME_Thd_Struct* Thd)
+#endif
 {
     struct RME_Inv_Struct* Inv_Top;
     
@@ -4269,9 +4307,14 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                        struct RME_Thd_Struct* Thd_Cur, 
                        struct RME_Thd_Struct* Thd_New)
 {
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Pgt_Cur;
-    struct RME_Reg_Struct* Reg_Cur;
     struct RME_Cap_Pgt* Pgt_New;
+#else
+    rme_ptr_t Pgt_Cur;
+    rme_ptr_t Pgt_New;
+#endif
+    struct RME_Reg_Struct* Reg_Cur;
     struct RME_Reg_Struct* Reg_New;
     
     Reg_Cur=&(Thd_Cur->Ctx.Reg->Reg);
@@ -4293,11 +4336,17 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     Pgt_Cur=_RME_Thd_Pgt(Thd_Cur);
     Pgt_New=_RME_Thd_Pgt(Thd_New);
     
+#if(RME_PGT_RAW_USER==0U)
     /* The page tables here must be root cap */
     RME_ASSERT(RME_CAP_IS_ROOT(Pgt_Cur)!=0U);
     RME_ASSERT(RME_CAP_IS_ROOT(Pgt_New)!=0U);
+#endif
     
+#if(RME_PGT_RAW_USER==0U)
     if(RME_CAP_GETOBJ(Pgt_Cur, rme_ptr_t)!=RME_CAP_GETOBJ(Pgt_New, rme_ptr_t))
+#else
+    if(Pgt_Cur!=Pgt_New)
+#endif
     {
         RME_COVERAGE_MARKER();
         __RME_Pgt_Set(Pgt_New);
@@ -4329,31 +4378,49 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Pgt - The capability to the page table to use for
                                   this process.
                                   2-Level.
+              rme_ptr_t Raw_Pgt - Alternate user-supplied page table physical
+                                  address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Cpt_Crt,
                             rme_cid_t Cap_Prc,
                             rme_cid_t Cap_Cpt,
                             rme_cid_t Cap_Pgt)
+#else
+rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                            rme_cid_t Cap_Cpt_Crt,
+                            rme_cid_t Cap_Prc,
+                            rme_cid_t Cap_Cpt,
+                            rme_ptr_t Raw_Pgt)
+#endif
 {
     struct RME_Cap_Cpt* Cpt_Crt;
     struct RME_Cap_Cpt* Cpt_Op;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Pgt_Op;
+#endif
     struct RME_Cap_Prc* Prc_Crt;
     struct RME_Cap_Cpt* Prc_Cpt;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Prc_Pgt;
+#endif
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
     RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Crt, Type_Stat);
     RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+#if(RME_PGT_RAW_USER==0U)
     RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);
+#endif
     /* Check if the captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Crt, RME_CPT_FLAG_CRT);
     RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_PRC_CRT);
+#if(RME_PGT_RAW_USER==0U)
     RME_CAP_CHECK(Pgt_Op, RME_PGT_FLAG_PRC_CRT);
+#endif
     
     /* Get the cap slot */
     RME_CPT_GETSLOT(Cpt_Crt, Cap_Prc, struct RME_Cap_Prc*, Prc_Crt);
@@ -4367,13 +4434,21 @@ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 
     /* Info init */
     Prc_Cpt=RME_CAP_CONV_ROOT(Cpt_Op, struct RME_Cap_Cpt*);
+#if(RME_PGT_RAW_USER==0U)
     Prc_Pgt=RME_CAP_CONV_ROOT(Pgt_Op, struct RME_Cap_Pgt*);
+#endif
     Prc_Crt->Cpt=Prc_Cpt;
+#if(RME_PGT_RAW_USER==0U)
     Prc_Crt->Pgt=Prc_Pgt;
+#else
+    Prc_Crt->Pgt=Raw_Pgt;
+#endif
     
     /* Reference objects */
     RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref), 1U);
+#if(RME_PGT_RAW_USER==0U)
     RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref), 1U);
+#endif
 
     /* Establish cap */
     RME_WRITE_RELEASE(&(Prc_Crt->Head.Type_Stat),
@@ -4399,31 +4474,49 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Pgt - The capability to the page table to use for
                                   this process.
                                   2-Level.
+              rme_ptr_t Raw_Pgt - Alternate user-supplied page table physical
+                                  address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
                        rme_cid_t Cap_Cpt_Crt,
                        rme_cid_t Cap_Prc,
                        rme_cid_t Cap_Cpt,
                        rme_cid_t Cap_Pgt)
+#else
+rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Cpt_Crt,
+                       rme_cid_t Cap_Prc,
+                       rme_cid_t Cap_Cpt,
+                       rme_ptr_t Raw_Pgt)
+#endif
 {
     struct RME_Cap_Cpt* Cpt_Crt;
     struct RME_Cap_Cpt* Cpt_Op;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Pgt_Op;
+#endif
     struct RME_Cap_Prc* Prc_Crt;
     struct RME_Cap_Cpt* Prc_Cpt;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Prc_Pgt;
+#endif
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
     RME_CPT_GETCAP(Cpt, Cap_Cpt_Crt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Crt, Type_Stat);
     RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);
+#if(RME_PGT_RAW_USER==0U)
     RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_Op, Type_Stat);
+#endif
     /* Check if the captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Crt, RME_CPT_FLAG_CRT);
     RME_CAP_CHECK(Cpt_Op, RME_CPT_FLAG_PRC_CRT);
+#if(RME_PGT_RAW_USER==0U)
     RME_CAP_CHECK(Pgt_Op, RME_PGT_FLAG_PRC_CRT);
+#endif
     
     /* Get the cap slot */
     RME_CPT_GETSLOT(Cpt_Crt, Cap_Prc, struct RME_Cap_Prc*, Prc_Crt);
@@ -4437,13 +4530,21 @@ rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* Info init */
     Prc_Cpt=RME_CAP_CONV_ROOT(Cpt_Op, struct RME_Cap_Cpt*);
+#if(RME_PGT_RAW_USER==0U)
     Prc_Pgt=RME_CAP_CONV_ROOT(Pgt_Op, struct RME_Cap_Pgt*);
+#endif
     Prc_Crt->Cpt=Prc_Cpt;
+#if(RME_PGT_RAW_USER==0U)
     Prc_Crt->Pgt=Prc_Pgt;
+#else
+    Prc_Crt->Pgt=Raw_Pgt;
+#endif
     
     /* Reference objects */
     RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref), 1U);
+#if(RME_PGT_RAW_USER==0U)
     RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref), 1U);
+#endif
 
     /* Establish cap */
     RME_WRITE_RELEASE(&(Prc_Crt->Head.Type_Stat),
@@ -4472,7 +4573,9 @@ rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     /* For deletion use */
     struct RME_Cap_Cpt* Prc_Cpt;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Prc_Pgt;
+#endif
 
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Cpt, RME_CAP_TYPE_CPT, struct RME_Cap_Cpt*, Cpt_Op, Type_Stat);    
@@ -4486,14 +4589,18 @@ rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
 
     /* Remember for deletion */
     Prc_Cpt=Prc_Del->Cpt;
+#if(RME_PGT_RAW_USER==0U)
     Prc_Pgt=Prc_Del->Pgt;
+#endif
 
     /* Now we can safely delete the cap */
     RME_CAP_DELETE(Prc_Del, Type_Stat);
 
     /* Dereference caps */
     RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref), -1);
+#if(RME_PGT_RAW_USER==0U)
     RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref), -1);
+#endif
     
     return 0;
 }
@@ -4561,32 +4668,54 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Pgt - The capability to the page table to use for
                                   this process.
                                   2-Level.
+              rme_ptr_t Raw_Pgt - Alternate user-supplied page table physical
+                                  address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
-                        rme_cid_t Cap_Prc,
-                        rme_cid_t Cap_Pgt)
+                       rme_cid_t Cap_Prc,
+                       rme_cid_t Cap_Pgt)
+#else
+rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
+                       rme_cid_t Cap_Prc,
+                       rme_ptr_t Raw_Pgt)
+#endif
 {
     struct RME_Cap_Prc* Prc_Op;
+#if(RME_PGT_RAW_USER==0U)
     struct RME_Cap_Pgt* Pgt_New;
     struct RME_Cap_Pgt* Pgt_Old;
+#else
+    rme_ptr_t Pgt_Old;
+#endif
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt, Cap_Prc, RME_CAP_TYPE_PRC, struct RME_Cap_Prc*, Prc_Op, Type_Stat); 
-    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_New, Type_Stat);     
+#if(RME_PGT_RAW_USER==0U)
+    RME_CPT_GETCAP(Cpt, Cap_Pgt, RME_CAP_TYPE_PGT, struct RME_Cap_Pgt*, Pgt_New, Type_Stat);
+#endif
     /* Check if the target caps is not frozen and allows such operations */
     RME_CAP_CHECK(Prc_Op, RME_PRC_FLAG_PGT);
+#if(RME_PGT_RAW_USER==0U)
     RME_CAP_CHECK(Pgt_New, RME_PGT_FLAG_PRC_PGT);
+#endif
     
+    Pgt_Old=Prc_Op->Pgt;
+    
+#if(RME_PGT_RAW_USER==0U)
     /* Convert to root */
     Pgt_New=RME_CAP_CONV_ROOT(Pgt_New, struct RME_Cap_Pgt*);
-    
     /* Actually commit the change */
-    Pgt_Old=Prc_Op->Pgt;
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Cpt)),
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
                      (rme_ptr_t)Pgt_Old, (rme_ptr_t)Pgt_New)==RME_CASFAIL)
+#else
+    /* Actually commit the change */
+    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
+                     (rme_ptr_t)Pgt_Old, Raw_Pgt)==RME_CASFAIL)
+#endif
     {
         RME_COVERAGE_MARKER();
         
@@ -4598,8 +4727,10 @@ rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Reference new table and dereference the old table */
+#if(RME_PGT_RAW_USER==0U)
     RME_FETCH_ADD(&(Pgt_New->Head.Root_Ref), 1);
     RME_FETCH_ADD(&(Pgt_Old->Head.Root_Ref), -1);
+#endif
     
     return 0;
 }
@@ -5732,8 +5863,8 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Thd_Src - The source thread.
                                       2-Level.
               rme_ptr_t Time - The time to transfer, in slices.
-                               Use RVM_THD_INIT_TIME for revoking transfer.
-                               Use RVM_THD_INF_TIME for infinite trasnfer.
+                               Use RME_THD_INIT_TIME for revoking transfer.
+                               Use RME_THD_INF_TIME for infinite trasnfer.
 Output      : None.
 Return      : rme_ret_t - If successful, the destination time amount; or an
                           error code.
@@ -7078,7 +7209,9 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     
     /* We are assuming that we are always invoking into a new process (why use synchronous
      * invocation if you don't do so?). So we always switch page tables regardless. */
+#if(RME_PGT_RAW_USER==0U)
     RME_ASSERT(RME_CAP_IS_ROOT(Invocation->Prc->Pgt)!=0U);
+#endif
     __RME_Pgt_Set(Invocation->Prc->Pgt);
     
     return 0;
@@ -7159,15 +7292,17 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
     if(Invocation!=RME_NULL)
     {
         RME_COVERAGE_MARKER();
-        
+#if(RME_PGT_RAW_USER==0U)
         RME_ASSERT(RME_CAP_IS_ROOT(Invocation->Prc->Pgt)!=0U);
+#endif
         __RME_Pgt_Set(Invocation->Prc->Pgt);
     }
     else
     {
         RME_COVERAGE_MARKER();
-        
+#if(RME_PGT_RAW_USER==0U)
         RME_ASSERT(RME_CAP_IS_ROOT(Thread->Sched.Prc->Pgt)!=0U);
+#endif
         __RME_Pgt_Set(Thread->Sched.Prc->Pgt);
     }
     

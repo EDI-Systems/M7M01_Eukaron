@@ -10,15 +10,25 @@ Description: The boot stub source file for all WCH D8C cores. These cores are
                 attack surface. For serious applications, the binaries must be
                 scanned to confirm that they do not contain any CSR writes.
              2. The WCH manual also says that its PMP access permission faults
-                are "asychrnonus imprecise", against the RISC-V standard 
+                are "asychronous imprecise", against the RISC-V standard
                 requirement that the PMP violations are always trapped precisely 
-                at the processor. If this is the case, then a serious deviation
-                from the RISC-V standard have occurred. Extensive testing 
-                however, show that the processors always stopped precisely at
-                the access border and will try to execute the offending 
-                instruction again, so this is not an issue. We hope that the
-                manual mean "PMA checker fails" by "asychrnonus imprecise", 
-                rather than PMP checker fails.
+                at the processor. This is a serious deviation from the RISC-V
+                standard, potentially jeoparding the whole dynamic loading
+                scheme. Extensive testing show that albeit the processor always
+                stopped precisely at the offending instruction and will try to
+                execute the offending instruction again (which is what we want
+                to have), the instruction following that offending instruction
+                is already commited, causing it to be executed again on exception
+                return. The Nuclei N300 series just seem to have the same issue.
+                A general workaround for these processors are:
+                (1) In any init boot code, insert enough number of NOPs after any
+                    potentially dynamic accesses.
+                (2) When accessing any data structure, make sure the operations
+                    that follow the access are idempotent.
+                (3) If (2) is hard to guarantee, just read through the whole
+                    memory range and make sure the pages are loaded into the
+                    MPU cache.
+                (4) If (3) is unrealistic, enable RME_RVM_PGT_FIXED altogether.
              3. The WCH PMP has a hidden "background range" that allow all
                 U-mode accesses by default. That said, when all PMP regions are
                 "OFF", the processor does not block any U-mode accesses. This

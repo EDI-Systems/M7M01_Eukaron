@@ -700,6 +700,7 @@ struct RME_Cap_Cpt
 
 /* Page Table ****************************************************************/
 /* Page table capability structure */
+#if(RME_PGT_RAW_USER==0U)
 struct RME_Cap_Pgt
 {
     struct RME_Cap_Head Head;
@@ -711,6 +712,7 @@ struct RME_Cap_Pgt
     /* Address space ID, if applicable - need to convert to root cap to r/w */
     rme_ptr_t ASID;
 };
+#endif
 
 /* Kernel Memory *************************************************************/
 /* Kernel memory capability structure */
@@ -747,8 +749,13 @@ struct RME_Cap_Prc
     struct RME_Cap_Head Head;
     /* The capability table struct - need to convert to root cap to r/w */
     struct RME_Cap_Cpt* Cpt;
+#if(RME_PGT_RAW_USER==0U)
     /* The page table struct - need to convert to root cap to r/w */
     struct RME_Cap_Pgt* Pgt;
+#else
+    /* A pointer to page table in trusted memory */
+    rme_ptr_t Pgt;
+#endif
     rme_ptr_t Info[1];
 };
 
@@ -946,6 +953,7 @@ static rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
 
 /* Page Table ****************************************************************/
 /* Page table system calls */
+#if(RME_PGT_RAW_USER==0U)
 static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Kom,
@@ -977,7 +985,7 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Pgt_Parent,
                               rme_ptr_t Pos,
                               rme_cid_t Cap_Pgt_Child);
-
+#endif
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
 static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
@@ -988,20 +996,34 @@ static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                               struct RME_Thd_Struct* Thd_Cur, 
                               struct RME_Thd_Struct* Thd_New);
 /* Process system calls */
+#if(RME_PGT_RAW_USER==0U)
 static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt_Crt,
                               rme_cid_t Cap_Prc,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Pgt);
+#else
+static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
+                              rme_cid_t Cap_Cpt_Crt,
+                              rme_cid_t Cap_Prc,
+                              rme_cid_t Cap_Cpt,
+                              rme_ptr_t Raw_Pgt);
+#endif
 static rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Prc);
 static rme_ret_t _RME_Prc_Cpt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Prc,
                               rme_cid_t Cap_Cpt);
+#if(RME_PGT_RAW_USER==0U)
 static rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Prc,
                               rme_cid_t Cap_Pgt);
+#else
+static rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
+                              rme_cid_t Cap_Prc,
+                              rme_ptr_t Raw_Pgt);
+#endif
 /* Thread system calls */
 static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
@@ -1172,6 +1194,7 @@ __EXTERN__ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 
 /* Page Table ****************************************************************/
 /* Boot-time calls */
+#if(RME_PGT_RAW_USER==0U)
 __EXTERN__ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,
                                        rme_cid_t Cap_Pgt,
@@ -1189,7 +1212,7 @@ __EXTERN__ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Paddr,
                                        rme_ptr_t Pos,
                                        rme_ptr_t Flag);
-
+#endif
 /* Kernel Memory *************************************************************/
 __EXTERN__ rme_ret_t _RME_Kot_Init(rme_ptr_t Word);
 /* Kernel memory operations (in case HAL needs to allocate kernel memory) */
@@ -1210,15 +1233,27 @@ __EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 __EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
                                     rme_ptr_t CPUID);
 /* Thread page table consult */
+#if(RME_PGT_RAW_USER==0U)
 __EXTERN__ struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
+#else
+__EXTERN__ rme_ptr_t _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
+#endif
 /* Thread fatal killer */
 __EXTERN__ rme_ret_t _RME_Thd_Fatal(struct RME_Reg_Struct* Reg);                              
 /* Boot-time calls */
+#if(RME_PGT_RAW_USER==0U)
 __EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt_Crt,
                                        rme_cid_t Cap_Prc,
                                        rme_cid_t Cap_Cpt,
                                        rme_cid_t Cap_Pgt);
+#else
+__EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                       rme_cid_t Cap_Cpt_Crt,
+                                       rme_cid_t Cap_Prc,
+                                       rme_cid_t Cap_Cpt,
+                                       rme_ptr_t Raw_Pgt);
+#endif
 __EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,
                                        rme_cid_t Cap_Thd,

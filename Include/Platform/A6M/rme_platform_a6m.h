@@ -436,10 +436,11 @@ struct RME_Iret_Struct
 /* MPU entry structure */
 struct __RME_A6M_MPU_Entry
 {
-    rme_ptr_t MPU_RBAR;
-    rme_ptr_t MPU_RASR;
+    rme_ptr_t RBAR;
+    rme_ptr_t RASR;
 };
 /* Page table metadata structure */
+#if(RME_PGT_RAW_USER==0U)
 struct __RME_A6M_Pgt_Meta
 {
     /* The MPU setting is always in the top level. This is a pointer to the top level */
@@ -452,15 +453,24 @@ struct __RME_A6M_Pgt_Meta
      * to the same attributes as the older pages */
     rme_ptr_t Page_Flag;
 };
+#endif
+
+/* Raw MPU cache - naked for user-level configurations only */
+struct __RME_A6M_Raw_Pgt
+{
+    struct __RME_A6M_MPU_Entry Data[RME_A6M_REGION_NUM];
+};
 
 /* MPU metadata structure */
+#if(RME_PGT_RAW_USER==0U)
 struct __RME_A6M_MPU_Data
 {
     /* There are no static flags for ARMv6-M */
     
-    /* The MPU data itself. For ARMv6-M, the number of regions shall not exceed 16 */
-    struct __RME_A6M_MPU_Entry Data[RME_A6M_REGION_NUM];
+    /* The MPU data itself */
+    struct __RME_A6M_Raw_Pgt Raw;
 };
+#endif
 /*****************************************************************************/
 /* __RME_PLATFORM_A6M_STRUCT__ */
 #endif
@@ -501,30 +511,31 @@ EXTERN void RME_Boot_Post_Init(void);
 EXTERN void RME_Reboot_Failsafe(void);
 #endif
 /* MPU operations ***********************************************************/
-EXTERN void ___RME_A6M_MPU_Set1(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set2(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set3(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set4(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set5(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set6(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set7(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set8(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set9(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set10(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set11(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set12(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set13(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set14(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set15(rme_ptr_t* MPU_Meta);
-EXTERN void ___RME_A6M_MPU_Set16(rme_ptr_t* MPU_Meta);
-/* Vector Flags **************************************************************/
+EXTERN void ___RME_A6M_MPU_Set1(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set2(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set3(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set4(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set5(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set6(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set7(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set8(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set9(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set10(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set11(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set12(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set13(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set14(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set15(struct __RME_A6M_Raw_Pgt* Raw);
+EXTERN void ___RME_A6M_MPU_Set16(struct __RME_A6M_Raw_Pgt* Raw);
+/* Vector flags **************************************************************/
 static void __RME_A6M_Flag_Fast(rme_ptr_t Base,
                                 rme_ptr_t Size,
                                 rme_ptr_t Flag);
 static void __RME_A6M_Flag_Slow(rme_ptr_t Base,
                                 rme_ptr_t Size,
                                 rme_ptr_t Pos);
-/* Page Table ****************************************************************/
+/* Page table ****************************************************************/
+#if(RME_PGT_RAW_USER==0U)
 static rme_ptr_t ___RME_A6M_MPU_RASR_Gen(rme_ptr_t* Table,
                                          rme_ptr_t Flag, 
                                          rme_ptr_t Size_Order,
@@ -537,7 +548,7 @@ static rme_ret_t ___RME_A6M_MPU_Add(struct __RME_A6M_MPU_Data* Top_MPU,
                                     rme_ptr_t Base_Addr,
                                     rme_ptr_t Size_Order,
                                     rme_ptr_t Num_Order,
-                                    rme_ptr_t MPU_RASR);
+                                    rme_ptr_t RASR);
 static rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
                                        rme_ptr_t Op_Flag);
 static rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
@@ -545,11 +556,14 @@ static rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
 static rme_ptr_t ___RME_A6M_Pgt_Have_Pgdir(rme_ptr_t* Table,
                                            rme_ptr_t Num_Order);
 static void ___RME_A6M_Pgt_Refresh(void);
+#endif
 /* Kernel function ***********************************************************/
+#if(RME_PGT_RAW_USER==0U)
 static rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
                                          rme_cid_t Cap_Pgt,
                                          rme_ptr_t Vaddr,
                                          rme_ptr_t Type);
+#endif
 static rme_ret_t __RME_A6M_Int_Local_Mod(rme_ptr_t Int_Num,
                                          rme_ptr_t Operation,
                                          rme_ptr_t Param);
@@ -651,7 +665,7 @@ EXTERN void __RME_User_Enter(rme_ptr_t Entry,
                              rme_ptr_t Stack,
                              rme_ptr_t CPUID);
 
-/* Register Manipulation *****************************************************/
+/* Register manipulation *****************************************************/
 /* Syscall parameter */
 __EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
                                     rme_ptr_t* Svc,
@@ -675,9 +689,10 @@ __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,
 __EXTERN__ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                                      rme_ret_t Retval);
 
-/* Page Table ****************************************************************/
+/* Page table ****************************************************************/
 /* Initialization */
 __EXTERN__ rme_ret_t __RME_Pgt_Kom_Init(void);
+#if(RME_PGT_RAW_USER==0U)
 __EXTERN__ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
 __EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
@@ -715,6 +730,10 @@ __EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                                     rme_ptr_t* Size_Order,
                                     rme_ptr_t* Num_Order,
                                     rme_ptr_t* Flag);
+#else
+/* Setting the page table */
+__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+#endif
 /*****************************************************************************/
 /* Undefine "__EXTERN__" to avoid redefinition */
 #undef __EXTERN__
