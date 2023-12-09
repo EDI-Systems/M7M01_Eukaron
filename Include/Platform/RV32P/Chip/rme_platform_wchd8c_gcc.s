@@ -26,16 +26,17 @@ Description: The boot stub source file for all WCH D8C cores. These cores are
                 (2) When accessing any data structure, make sure the operations
                     that follow the access are idempotent.
                 (3) If (2) is hard to guarantee, just read through the whole
-                    memory range and make sure the pages are loaded into the
-                    MPU cache.
-                (4) If (3) is unrealistic, enable RME_RVM_PGT_FIXED altogether.
+                    memory range and make sure all pages are loaded into the
+                    PMP cache, and the PMP cache must be large enough to hold
+                    all these pages.
+                (4) If (3) is unrealistic, enable RME_PGT_RAW_USER altogether.
              3. The WCH PMP has a hidden "background range" that allow all
                 U-mode accesses by default. That said, when all PMP regions are
                 "OFF", the processor does not block any U-mode accesses. This
                 is a clear deviation from the RISC-V standard, which require
-                all such accesses to fail. The result is we will have to declare
-                the chip as having 3 MPU regions, and the last region will
-                always be programmed to block all accesses.
+                all such accesses to fail. The workaround is that we will have
+                to declare the chip as having 3 MPU regions, and the last region
+                will always be programmed to block all accesses.
 ******************************************************************************/
 
 /* Import ********************************************************************/

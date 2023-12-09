@@ -172,7 +172,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
         Prc=Inv_Top->Prc;
 
     /* The page is not found, kill the thread */
-    if(__RME_Pgt_Walk(Prc->Pgt, Mtval, 0U, 0U, &Paddr, &Size_Order, 0U, &Flag)!=0)
+    if(__RME_Pgt_Walk(Prc->Pgt,Mtval,0U,0U,&Paddr,&Size_Order,0U,&Flag)!=0)
     {
         Exc->Cause=Mcause;
         Exc->Addr=Reg->PC;
@@ -186,7 +186,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
      * (2) a static page on first occurrence,
      * (3) a static page swapping out another static page. */
     Meta=RME_CAP_GETOBJ(Prc->Pgt,struct __RME_RV32P_Pgt_Meta*);
-    if(___RME_RV32P_PMP_Update(Meta, Paddr, Size_Order, Flag)!=0)
+    if(___RME_RV32P_PMP_Update(Meta,Paddr,Size_Order,Flag)!=0)
     {
         Exc->Cause=Mcause;
         Exc->Addr=Reg->PC;
@@ -221,9 +221,9 @@ void __RME_RV32P_Flag_Fast(rme_ptr_t Base,
     volatile struct __RME_RVM_Flag* Set;
 
     /* Choose a data structure that is not locked at the moment */
-    Set=RME_RVM_FLAG_SET(Base, Size, 0U);
+    Set=RME_RVM_FLAG_SET(Base,Size,0U);
     if(Set->Lock!=0U)
-        Set=RME_RVM_FLAG_SET(Base, Size, 1U);
+        Set=RME_RVM_FLAG_SET(Base,Size,1U);
 
     /* Set the flags for this interrupt source */
     Set->Fast|=Flag;
@@ -245,9 +245,9 @@ void __RME_RV32P_Flag_Slow(rme_ptr_t Base,
     volatile struct __RME_RVM_Flag* Set;
     
     /* Choose a data structure that is not locked at the moment */
-    Set=RME_RVM_FLAG_SET(Base, Size, 0U);
+    Set=RME_RVM_FLAG_SET(Base,Size,0U);
     if(Set->Lock!=0U)
-        Set=RME_RVM_FLAG_SET(Base, Size, 1U);
+        Set=RME_RVM_FLAG_SET(Base,Size,1U);
     
     /* Set the flags for this interrupt source */
     Set->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
@@ -339,12 +339,13 @@ rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Flags;
     
     /* Get the capability slot */
-    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
+    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,
+                   struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
     
     Size_Order=0U;
     Num_Order=0U;
     Flags=0U;
-    if(__RME_Pgt_Walk(Pgt_Op, Vaddr, 0U, 0U, 0U, &Size_Order, &Num_Order, &Flags)!=0U)
+    if(__RME_Pgt_Walk(Pgt_Op,Vaddr,0U,0U,0U,&Size_Order,&Num_Order,&Flags)!=0U)
         return RME_ERR_KFN_FAIL;
     
     switch(Type)
@@ -397,7 +398,7 @@ rme_ret_t __RME_RV32P_Int_Local_Mod(rme_ptr_t Int_Num,
         }
         case RME_RV32P_KFN_INT_LOCAL_MOD_PRIO_SET:
         {
-            RME_RV32P_INT_PRIO_SET(Int_Num, Param);
+            RME_RV32P_INT_PRIO_SET(Int_Num,Param);
             break;
         }
         default:return RME_ERR_KFN_FAIL;
@@ -442,15 +443,15 @@ rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
     if(Evt_Num>=RME_RVM_VIRT_EVT_NUM)
         return RME_ERR_KFN_FAIL;
 
-    __RME_RV32P_Flag_Slow(RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE, Evt_Num);
+    __RME_RV32P_Flag_Slow(RME_RVM_VIRT_EVTF_BASE,RME_RVM_VIRT_EVTF_SIZE,Evt_Num);
     
     if(_RME_Kern_Snd(RME_RV32P_Local.Sig_Vct)!=0U)
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
-    __RME_Svc_Retval_Set(Reg, 0);
+    __RME_Svc_Retval_Set(Reg,0);
     
-    _RME_Kern_High(Reg, &RME_RV32P_Local);
+    _RME_Kern_High(Reg,&RME_RV32P_Local);
 
     return 0U;
 }
@@ -486,7 +487,7 @@ rme_ret_t __RME_RV32P_Cache_Maint(rme_ptr_t Cache_ID,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
-    RME_RV32P_CACHE_MAINT(Cache_ID, Operation, Param);
+    RME_RV32P_CACHE_MAINT(Cache_ID,Operation,Param);
 
     return 0;
 }
@@ -504,7 +505,7 @@ rme_ret_t __RME_RV32P_Prfth_Mod(rme_ptr_t Prfth_ID,
                                 rme_ptr_t Operation,
                                 rme_ptr_t Param)
 {
-    RME_RV32P_PRFTH_MOD(Prfth_ID, Operation, Param);
+    RME_RV32P_PRFTH_MOD(Prfth_ID,Operation,Param);
 
     return  0;
 }
@@ -537,7 +538,7 @@ rme_ret_t __RME_RV32P_Perf_Mon_Mod(rme_ptr_t Perf_ID,
                                    rme_ptr_t Operation,
                                    rme_ptr_t Param)
 {
-    RME_RV32P_PERF_MON_MOD(Perf_ID, Operation, Param);
+    RME_RV32P_PERF_MON_MOD(Perf_ID,Operation,Param);
 
     return 0;
 }
@@ -555,7 +556,7 @@ rme_ret_t __RME_RV32P_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
                                      rme_ptr_t Operation,
                                      rme_ptr_t Value)
 {
-    RME_RV32P_PERF_CYCLE_MOD(Cycle_ID, Operation, Value);
+    RME_RV32P_PERF_CYCLE_MOD(Cycle_ID,Operation,Value);
 
     return 0;
 }
@@ -579,13 +580,14 @@ rme_ret_t __RME_RV32P_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_CPU_Local* Local;
-    volatile rme_ptr_t* Position;
+    struct RME_CPU_Local* Local;
+    rme_ptr_t* Position;
     rme_ptr_t Register;
     rme_ptr_t Type_Stat;
 
     /* Get the capability slot */
-    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
+                   struct RME_Cap_Thd*,Thd_Op,Type_Stat);
 
     /* See if the target thread is already bound. If no or bound to other cores, we just quit */
     Local=RME_CPU_LOCAL();
@@ -596,22 +598,25 @@ rme_ret_t __RME_RV32P_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
     /* Register validity check */
     Register=Operation&(~RME_RV32P_KFN_DEBUG_REG_MOD_SET);
     if(Register<=RME_RV32P_KFN_DEBUG_REG_MOD_X31_T6)
-        Position=&(((volatile rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Reg))[Register]);
+    {
+        Position=(rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Reg);
+        Position=&(Position[Register]);
+    }
     /* See if this thread have FPU context. */
 #if(RME_COP_NUM!=0U)
-    else if((RME_THD_ATTR(Thd_Struct->Ctx.Hyp_Attr)!=0U)&&(Register<=RME_RV32P_KFN_DEBUG_REG_MOD_F31))
-    /* Double-precision FPU */
-#if(RME_RV32P_COP_RVD!=0U)
+    else if((RME_THD_ATTR(Thd_Struct->Ctx.Hyp_Attr)!=0U)&&
+            (Register<=RME_RV32P_KFN_DEBUG_REG_MOD_F31))
     {
-        if(Register==RME_RV32P_KFN_DEBUG_REG_MOD_FCSR)
-            Position=&(((volatile rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Cop))[0]);
-        else
-            Position=&(((volatile rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Cop))[(Register-RME_RV32P_KFN_DEBUG_REG_MOD_FCSR)*2U-1U]);
-    }
-    /* Single-precision FPU */
+        Position=(rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Cop);
+#if(RME_RV32P_COP_RVD!=0U)
+        /* Double-precision FPU */
+        if(Register!=RME_RV32P_KFN_DEBUG_REG_MOD_FCSR)
+            Position=&(Position[(Register-RME_RV32P_KFN_DEBUG_REG_MOD_FCSR)*2U-1U]);
 #else
-        Position=&(((volatile rme_ptr_t*)&(Thd_Struct->Ctx.Reg->Cop))[Register-RME_RV32P_KFN_DEBUG_REG_MOD_FCSR]);
+        /* Single-precision FPU */
+        Position=&(Position[Register-RME_RV32P_KFN_DEBUG_REG_MOD_FCSR]);
 #endif
+    }
 #endif
     else
         return RME_ERR_KFN_FAIL;
@@ -649,20 +654,21 @@ Output      : struct RME_Reg_Struct* Reg - The register set when exiting the han
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_RV32P_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
-                                     struct RME_Reg_Struct* Reg,
-                                     rme_cid_t Cap_Thd,
-                                     rme_ptr_t Operation,
-                                     rme_ptr_t Value)
+                                    struct RME_Reg_Struct* Reg,
+                                    rme_cid_t Cap_Thd,
+                                    rme_ptr_t Operation,
+                                    rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
-    volatile struct RME_Thd_Struct* Thd_Struct;
-    volatile struct RME_Inv_Struct* Inv_Struct;
-    volatile struct RME_CPU_Local* Local;
+    struct RME_Thd_Struct* Thd_Struct;
+    struct RME_Inv_Struct* Inv_Struct;
+    struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     rme_ptr_t Layer_Cnt;
 
     /* Get the capability slot */
-    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
+                   struct RME_Cap_Thd*,Thd_Op,Type_Stat);
 
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     Local=RME_CPU_LOCAL();
@@ -672,17 +678,17 @@ rme_ret_t __RME_RV32P_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
 
     /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
     Layer_Cnt=RME_PARAM_D1(Operation);
-    Inv_Struct=(volatile struct RME_Inv_Struct*)(Thd_Struct->Ctx.Invstk.Next);
+    Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Ctx.Invstk.Next);
     while(1U)
     {
-        if(Inv_Struct==(volatile struct RME_Inv_Struct*)&(Thd_Struct->Ctx.Invstk))
+        if(Inv_Struct==(struct RME_Inv_Struct*)&(Thd_Struct->Ctx.Invstk))
             return RME_ERR_KFN_FAIL;
 
         if(Layer_Cnt==0U)
             break;
 
         Layer_Cnt--;
-        Inv_Struct=(volatile struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
+        Inv_Struct=(struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
     }
 
     /* D0 position is the operation */
@@ -721,7 +727,8 @@ rme_ret_t __RME_RV32P_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
 
     /* Get the capability slot */
-    RME_CPT_GETCAP(Cpt, Cap_Thd, RME_CAP_TYPE_THD, struct RME_Cap_Thd*, Thd_Op, Type_Stat);
+    RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
+                   struct RME_Cap_Thd*,Thd_Op,Type_Stat);
 
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     Local=RME_CPU_LOCAL();
@@ -984,7 +991,7 @@ void __RME_Lowlvl_Init(void)
     RME_RV32P_LOWLVL_INIT();
 
     /* Initialize CPU-local data structures */
-    _RME_CPU_Local_Init(&RME_RV32P_Local, __RME_CPUID_Get());
+    _RME_CPU_Local_Init(&RME_RV32P_Local,__RME_CPUID_Get());
 
     /* We do not need to turn off lazy stacking, because even if a fault occurs,
      * it will get dropped by our handler deliberately and will not cause wrong
@@ -1044,28 +1051,48 @@ void __RME_Boot(void)
     Cur_Addr=RME_KOM_VA_BASE;
 
     /* Create the capability table for the init process */
-    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT, Cur_Addr, RME_RVM_INIT_CPT_SIZE)==0);
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,
+                                  Cur_Addr,
+                                  RME_RVM_INIT_CPT_SIZE)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_RVM_INIT_CPT_SIZE));
 
     /* Create the page table for the init process, and map in the page alloted for it */
 #if(RME_PGT_RAW_USER==0U)
     /* The top-level page table - covers 4G address range */
-    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT,
-               Cur_Addr, 0x00000000U, RME_PGT_TOP, RME_PGT_SIZE_4G, RME_PGT_NUM_1)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PGT,
+                                 Cur_Addr,
+                                 0x00000000U,
+                                 RME_PGT_TOP,
+                                 RME_PGT_SIZE_4G,
+                                 RME_PGT_NUM_1)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_1));
     /* Other memory regions will be directly added, because we do not protect them in the init process */
-    RME_ASSERT(_RME_Pgt_Boot_Add(RME_RV32P_CPT, RME_BOOT_INIT_PGT, 0x00000000U, 0U, RME_PGT_ALL_PERM)==0);
+    RME_ASSERT(_RME_Pgt_Boot_Add(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_PGT,
+                                 0x00000000U,
+                                 0U,
+                                 RME_PGT_ALL_PERM)==0);
 
     /* Activate the first process - This process cannot be deleted */
-    RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
-                                 RME_BOOT_INIT_CPT, RME_BOOT_INIT_PGT)==0U);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PRC,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PGT)==0U);
 #else
-    RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
-                                 RME_BOOT_INIT_CPT, (rme_ptr_t)RME_RV32P_Raw_Pgt_Def)==0U);
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PRC,
+                                 RME_BOOT_INIT_CPT,
+                                 (rme_ptr_t)RME_RV32P_Raw_Pgt_Def)==0U);
 #endif
 
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KFN)==0);
+    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_KFN)==0);
     RME_ASSERT(_RME_Kom_Boot_Crt(RME_RV32P_CPT,
                                  RME_BOOT_INIT_CPT,
                                  RME_BOOT_INIT_KOM,
@@ -1076,15 +1103,22 @@ void __RME_Boot(void)
     /* Create the initial kernel endpoint for timer ticks and interrupts */
     RME_RV32P_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_RV32P_CPT[RME_BOOT_INIT_VCT]);
     RME_RV32P_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_RV32P_CPT[RME_BOOT_INIT_VCT]);
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_VCT)==0);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_VCT)==0);
 
     /* Clean up the region for vectors and events */
-    _RME_Clear((void*)RME_RVM_PHYS_VCTF_BASE, RME_RVM_PHYS_VCTF_SIZE);
-    _RME_Clear((void*)RME_RVM_VIRT_EVTF_BASE, RME_RVM_VIRT_EVTF_SIZE);
+    _RME_Clear((void*)RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE);
+    _RME_Clear((void*)RME_RVM_VIRT_EVTF_BASE,RME_RVM_VIRT_EVTF_SIZE);
 
     /* Activate the first thread, and set its priority */
-    RME_ASSERT(_RME_Thd_Boot_Crt(RME_RV32P_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_THD,
-                                 RME_BOOT_INIT_PRC, Cur_Addr, 0U, &RME_RV32P_Local)==0);
+    RME_ASSERT(_RME_Thd_Boot_Crt(RME_RV32P_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_THD,
+                                 RME_BOOT_INIT_PRC,
+                                 Cur_Addr,
+                                 0U,
+                                 &RME_RV32P_Local)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
 
     /* Print the size of some kernel objects, only used in debugging
@@ -1099,7 +1133,9 @@ void __RME_Boot(void)
 
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_RVM_GEN_ENABLE!=0U)
-    Cur_Addr=RME_Boot_Vct_Init(RME_RV32P_CPT, RME_BOOT_INIT_VCT+1U, Cur_Addr);
+    Cur_Addr=RME_Boot_Vct_Init(RME_RV32P_CPT,
+                               RME_BOOT_INIT_VCT+1U,
+                               Cur_Addr);
 #endif
 
     /* Before we go into user level, make sure that the kernel object allocation is within the limits */
@@ -1398,38 +1434,70 @@ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
     RV32P_Cop->F30=0U;
     RV32P_Cop->F31=0U;
 #else
-    RV32P_Cop->F0[0]=0U, RV32P_Cop->F0[1]=0U;
-    RV32P_Cop->F1[0]=0U, RV32P_Cop->F1[1]=0U;
-    RV32P_Cop->F2[0]=0U, RV32P_Cop->F2[1]=0U;
-    RV32P_Cop->F3[0]=0U, RV32P_Cop->F3[1]=0U;
-    RV32P_Cop->F4[0]=0U, RV32P_Cop->F4[1]=0U;
-    RV32P_Cop->F5[0]=0U, RV32P_Cop->F5[1]=0U;
-    RV32P_Cop->F6[0]=0U, RV32P_Cop->F6[1]=0U;
-    RV32P_Cop->F7[0]=0U, RV32P_Cop->F7[1]=0U;
-    RV32P_Cop->F8[0]=0U, RV32P_Cop->F8[1]=0U;
-    RV32P_Cop->F9[0]=0U, RV32P_Cop->F9[1]=0U;
-    RV32P_Cop->F10[0]=0U, RV32P_Cop->F10[1]=0U;
-    RV32P_Cop->F11[0]=0U, RV32P_Cop->F11[1]=0U;
-    RV32P_Cop->F12[0]=0U, RV32P_Cop->F12[1]=0U;
-    RV32P_Cop->F13[0]=0U, RV32P_Cop->F13[1]=0U;
-    RV32P_Cop->F14[0]=0U, RV32P_Cop->F14[1]=0U;
-    RV32P_Cop->F15[0]=0U, RV32P_Cop->F15[1]=0U;
-    RV32P_Cop->F16[0]=0U, RV32P_Cop->F16[1]=0U;
-    RV32P_Cop->F17[0]=0U, RV32P_Cop->F17[1]=0U;
-    RV32P_Cop->F18[0]=0U, RV32P_Cop->F18[1]=0U;
-    RV32P_Cop->F19[0]=0U, RV32P_Cop->F19[1]=0U;
-    RV32P_Cop->F20[0]=0U, RV32P_Cop->F20[1]=0U;
-    RV32P_Cop->F21[0]=0U, RV32P_Cop->F21[1]=0U;
-    RV32P_Cop->F22[0]=0U, RV32P_Cop->F22[1]=0U;
-    RV32P_Cop->F23[0]=0U, RV32P_Cop->F23[1]=0U;
-    RV32P_Cop->F24[0]=0U, RV32P_Cop->F24[1]=0U;
-    RV32P_Cop->F25[0]=0U, RV32P_Cop->F25[1]=0U;
-    RV32P_Cop->F26[0]=0U, RV32P_Cop->F26[1]=0U;
-    RV32P_Cop->F27[0]=0U, RV32P_Cop->F27[1]=0U;
-    RV32P_Cop->F28[0]=0U, RV32P_Cop->F28[1]=0U;
-    RV32P_Cop->F29[0]=0U, RV32P_Cop->F29[1]=0U;
-    RV32P_Cop->F30[0]=0U, RV32P_Cop->F30[1]=0U;
-    RV32P_Cop->F31[0]=0U, RV32P_Cop->F31[1]=0U;
+    RV32P_Cop->F0[0]=0U;
+    RV32P_Cop->F0[1]=0U;
+    RV32P_Cop->F1[0]=0U;
+    RV32P_Cop->F1[1]=0U;
+    RV32P_Cop->F2[0]=0U;
+    RV32P_Cop->F2[1]=0U;
+    RV32P_Cop->F3[0]=0U;
+    RV32P_Cop->F3[1]=0U;
+    RV32P_Cop->F4[0]=0U;
+    RV32P_Cop->F4[1]=0U;
+    RV32P_Cop->F5[0]=0U;
+    RV32P_Cop->F5[1]=0U;
+    RV32P_Cop->F6[0]=0U;
+    RV32P_Cop->F6[1]=0U;
+    RV32P_Cop->F7[0]=0U;
+    RV32P_Cop->F7[1]=0U;
+    RV32P_Cop->F8[0]=0U;
+    RV32P_Cop->F8[1]=0U;
+    RV32P_Cop->F9[0]=0U;
+    RV32P_Cop->F9[1]=0U;
+    RV32P_Cop->F10[0]=0U;
+    RV32P_Cop->F10[1]=0U;
+    RV32P_Cop->F11[0]=0U;
+    RV32P_Cop->F11[1]=0U;
+    RV32P_Cop->F12[0]=0U;
+    RV32P_Cop->F12[1]=0U;
+    RV32P_Cop->F13[0]=0U;
+    RV32P_Cop->F13[1]=0U;
+    RV32P_Cop->F14[0]=0U;
+    RV32P_Cop->F14[1]=0U;
+    RV32P_Cop->F15[0]=0U;
+    RV32P_Cop->F15[1]=0U;
+    RV32P_Cop->F16[0]=0U;
+    RV32P_Cop->F16[1]=0U;
+    RV32P_Cop->F17[0]=0U;
+    RV32P_Cop->F17[1]=0U;
+    RV32P_Cop->F18[0]=0U;
+    RV32P_Cop->F18[1]=0U;
+    RV32P_Cop->F19[0]=0U;
+    RV32P_Cop->F19[1]=0U;
+    RV32P_Cop->F20[0]=0U;
+    RV32P_Cop->F20[1]=0U;
+    RV32P_Cop->F21[0]=0U;
+    RV32P_Cop->F21[1]=0U;
+    RV32P_Cop->F22[0]=0U;
+    RV32P_Cop->F22[1]=0U;
+    RV32P_Cop->F23[0]=0U;
+    RV32P_Cop->F23[1]=0U;
+    RV32P_Cop->F24[0]=0U;
+    RV32P_Cop->F24[1]=0U;
+    RV32P_Cop->F25[0]=0U;
+    RV32P_Cop->F25[1]=0U;
+    RV32P_Cop->F26[0]=0U;
+    RV32P_Cop->F26[1]=0U;
+    RV32P_Cop->F27[0]=0U;
+    RV32P_Cop->F27[1]=0U;
+    RV32P_Cop->F28[0]=0U;
+    RV32P_Cop->F28[1]=0U;
+    RV32P_Cop->F29[0]=0U;
+    RV32P_Cop->F29[1]=0U;
+    RV32P_Cop->F30[0]=0U;
+    RV32P_Cop->F30[1]=0U;
+    RV32P_Cop->F31[0]=0U;
+    RV32P_Cop->F31[1]=0U;
 #endif
 }
 #endif
@@ -1516,31 +1584,6 @@ rme_ret_t __RME_Pgt_Kom_Init(void)
     return 0;
 }
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
-
-/* Function:__RME_RV32P_Rand **************************************************
-Description : The random number generator used for random replacement policy.
-              RV32P have only one core, thus we make the LFSR local.
-Input       : None.
-Output      : None.
-Return      : rme_ptr_t - The random number returned.
-******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
-rme_ptr_t __RME_RV32P_Rand(void)
-{   
-    static rme_ptr_t LFSR=0xACE1ACE1U;
-    
-    if((LFSR&0x01U)!=0U)
-    {
-        LFSR>>=1;
-        LFSR^=0xB400B400U;
-    }
-    else
-        LFSR>>=1;
-    
-    return LFSR;
-}
-#endif
-/* End Function:__RME_RV32P_Rand *********************************************/
 
 /* Function:__RME_Pgt_Init ****************************************************
 Description : Initialize the page table data structure, according to the capability.
@@ -1637,6 +1680,31 @@ rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 }
 #endif
 /* End Function:__RME_Pgt_Del_Check ******************************************/
+
+/* Function:__RME_RV32P_Rand **************************************************
+Description : The random number generator used for random replacement policy.
+              RV32P have only one core, thus we make the LFSR local.
+Input       : None.
+Output      : None.
+Return      : rme_ptr_t - The random number returned.
+******************************************************************************/
+#if(RME_PGT_RAW_USER==0U)
+rme_ptr_t __RME_RV32P_Rand(void)
+{   
+    static rme_ptr_t LFSR=0xACE1ACE1U;
+    
+    if((LFSR&0x01U)!=0U)
+    {
+        LFSR>>=1;
+        LFSR^=0xB400B400U;
+    }
+    else
+        LFSR>>=1;
+    
+    return LFSR;
+}
+#endif
+/* End Function:__RME_RV32P_Rand *********************************************/
 
 /* Function:___RME_RV32P_PMP_Decode *******************************************
 Description : Decode PMP register data into stuff easier for processing.
@@ -2051,15 +2119,15 @@ rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
     Top_Data=(struct __RME_RV32P_PMP_Data*)(Top_Meta+1U);
 
     /* Decode the PMP stuff into start/end */
-    Number=___RME_RV32P_PMP_Decode(Top_Data, Range);
+    Number=___RME_RV32P_PMP_Decode(Top_Data,Range);
 
     /* Try to add the page into these ranges */
-    Number=___RME_RV32P_PMP_Add(Range, Number, Paddr, Size_Order, Flag);
+    Number=___RME_RV32P_PMP_Add(Range,Number,Paddr,Size_Order,Flag);
     if(Number<0)
         return RME_ERR_HAL_FAIL;
 
     /* Encode things back, kicking out */
-    ___RME_RV32P_PMP_Encode(Top_Data, Range, Number);
+    ___RME_RV32P_PMP_Encode(Top_Data,Range,Number);
 
     return 0;
 }
@@ -2203,7 +2271,8 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
 
     /* Check if we are trying to remove something that does not exist, or trying to
      * remove a page directory */
-    if(((Table[Pos]&RME_RV32P_PGT_PRESENT)==0)||((Table[Pos]&RME_RV32P_PGT_TERMINAL)==0U))
+    if(((Table[Pos]&RME_RV32P_PGT_PRESENT)==0)||
+       ((Table[Pos]&RME_RV32P_PGT_TERMINAL)==0U))
         return RME_ERR_HAL_FAIL;
 
     /* We don't update the PMP: if mapping removal is needed, do a manual flush */
@@ -2291,12 +2360,13 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
         Table=RME_RV32P_PGT_TBL_NOM(Parent_Meta);
 
     /* Check if we try to remove something nonexistent, or a page */
-    if(((Table[Pos]&RME_RV32P_PGT_PRESENT)==0U)||((Table[Pos]&RME_RV32P_PGT_TERMINAL)!=0U))
+    if(((Table[Pos]&RME_RV32P_PGT_PRESENT)==0U)||
+       ((Table[Pos]&RME_RV32P_PGT_TERMINAL)!=0U))
         return RME_ERR_HAL_FAIL;
 
     /* See if the child page table is actually mapped there */
     Child_Meta=(struct __RME_RV32P_Pgt_Meta*)RME_RV32P_PGT_PGD_ADDR(Table[Pos]);
-    if(Child_Meta!=RME_CAP_GETOBJ(Pgt_Child, struct __RME_RV32P_Pgt_Meta*))
+    if(Child_Meta!=RME_CAP_GETOBJ(Pgt_Child,struct __RME_RV32P_Pgt_Meta*))
         return RME_ERR_HAL_FAIL;
 
     /* We don't update the PMP: if mapping removal is needed, do a manual flush */
@@ -2388,7 +2458,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     RME_ASSERT(((Pgt_Op->Base)&RME_PGT_TOP)!=0U);
 
     /* Get the table and start lookup */
-    Meta=RME_CAP_GETOBJ(Pgt_Op, struct __RME_RV32P_Pgt_Meta*);
+    Meta=RME_CAP_GETOBJ(Pgt_Op,struct __RME_RV32P_Pgt_Meta*);
     Table=RME_RV32P_PGT_TBL_TOP(Meta);
 
     /* Do lookup recursively */
