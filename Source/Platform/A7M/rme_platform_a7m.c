@@ -328,7 +328,7 @@ void __RME_A7M_Flag_Slow(rme_ptr_t Base,
 Description : The generic interrupt handler of RME for ARMv7-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Vct_Num - The vector number. For ARMv7-M, this is in accordance
-                                   with the ARMv7-M architecture reference manual.
+                                  with the ARMv7-M architecture reference manual.
 Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/

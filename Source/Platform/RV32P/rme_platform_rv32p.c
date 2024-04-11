@@ -1506,7 +1506,6 @@ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
 /* Function:__RME_Thd_Cop_Swap ************************************************
 Description : Swap the cop register sets. This operation is flexible - If the
               program does not use the FPU, we do not save/restore its context.
-              See ARMv7-M port for more detailed explanations.
 Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
               struct RME_Reg_Struct* Reg_New - The context to switch to.
               rme_ptr_t Attr_Cur - The attribute of the context to switch from.
