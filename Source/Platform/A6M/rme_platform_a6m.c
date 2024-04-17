@@ -1586,7 +1586,7 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
     {
         /* Clear the metadata - this function will never fail */
         ___RME_A6M_MPU_Clear(Top_MPU,
-                             RME_PGT_START(Meta->Base),
+                             RME_PGT_BASE(Meta->Base),
                              RME_PGT_SZORD(Meta->Order),
                              RME_PGT_NMORD(Meta->Order));
     }
@@ -1600,7 +1600,7 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
         {
             /* All pages are unmapped. Clear this from the MPU data */
             ___RME_A6M_MPU_Clear(Top_MPU,
-                                 RME_PGT_START(Meta->Base),
+                                 RME_PGT_BASE(Meta->Base),
                                  RME_PGT_SZORD(Meta->Order),
                                  RME_PGT_NMORD(Meta->Order));
         }
@@ -1608,7 +1608,7 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
         {
             /* At least one of the pages are there. Map it */
             if(___RME_A6M_MPU_Add(Top_MPU,
-                                  RME_PGT_START(Meta->Base),
+                                  RME_PGT_BASE(Meta->Base),
                                   RME_PGT_SZORD(Meta->Order),
                                   RME_PGT_NMORD(Meta->Order),
                                   RASR)!=0U)
@@ -2113,14 +2113,14 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_PGT_START(Meta->Base))
+        if(Vaddr<RME_PGT_BASE(Meta->Base))
             return RME_ERR_HAL_FAIL;
         /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
         Shift=RME_PGT_SZORD(Meta->Order);
         if(Shift>=RME_WORD_BITS)
             Pos=0U;
         else
-            Pos=(Vaddr-RME_PGT_START(Meta->Base))>>Shift;
+            Pos=(Vaddr-RME_PGT_BASE(Meta->Base))>>Shift;
         /* See if the entry is overrange */
         if((Pos>>RME_PGT_NMORD(Meta->Order))!=0U)
             return RME_ERR_HAL_FAIL;
@@ -2135,16 +2135,16 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             if(Map_Vaddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Map_Vaddr=RME_PGT_START(Meta->Base);
+                    *Map_Vaddr=RME_PGT_BASE(Meta->Base);
                 else
-                    *Map_Vaddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Map_Vaddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);
             }
             if(Paddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Paddr=RME_PGT_START(Meta->Base);
+                    *Paddr=RME_PGT_BASE(Meta->Base);
                 else
-                    *Paddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Paddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);
             }
             if(Size_Order!=RME_NULL)
                 *Size_Order=RME_PGT_SZORD(Meta->Order);

@@ -2127,8 +2127,8 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Src_Type;
     
     /* These variables are only used for kernel memory checks */
+    rme_ptr_t Kom_Begin;
     rme_ptr_t Kom_End;
-    rme_ptr_t Kom_Start;
     rme_ptr_t Kom_Flag;
 
     /* Get the capability slots */
@@ -2170,8 +2170,8 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Dewarn some compilers that complain about uninitialized variables */
+    Kom_Begin=0U;
     Kom_End=0U;
-    Kom_Start=0U;
     Kom_Flag=0U;
     
     /* Is there a flag conflict? - For page tables, we have different checking mechanisms */
@@ -2274,16 +2274,17 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COVERAGE_MARKER();
         
+        /* The Kom_End here is exclusive */
+        Kom_Begin=RME_KOM_FLAG_LOW(Flag,Ext_Flag);
         Kom_End=RME_KOM_FLAG_HIGH(Flag,Ext_Flag);
-        Kom_Start=RME_KOM_FLAG_LOW(Flag,Ext_Flag);
         Kom_Flag=RME_KOM_FLAG_KOM(Ext_Flag);
         
         /* Round start and end to the slot boundary, if we are using slots bigger than 64 bytes */
 #if(RME_KOM_SLOT_ORDER>6U)
         Kom_End=RME_ROUND_DOWN(Kom_End,RME_KOM_SLOT_ORDER);
-        Kom_Start=RME_ROUND_UP(Kom_Start,RME_KOM_SLOT_ORDER);
+        Kom_Begin=RME_ROUND_UP(Kom_Begin,RME_KOM_SLOT_ORDER);
 #endif
-        if(Kom_End<=Kom_Start)
+        if(Kom_End<=Kom_Begin)
         {
             RME_COVERAGE_MARKER();
             
@@ -2295,8 +2296,8 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
 
         /* Convert relative addresses to absolute addresses and check for overflow */
-        Kom_Start+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Start;
-        if(Kom_Start<((volatile struct RME_Cap_Kom*)Capobj_Src)->Start)
+        Kom_Begin+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
+        if(Kom_Begin<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin)
         {
             RME_COVERAGE_MARKER();
             
@@ -2306,8 +2307,8 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
         }
-        Kom_End+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Start;
-        if(Kom_End<((volatile struct RME_Cap_Kom*)Capobj_Src)->Start)
+        Kom_End+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
+        if(Kom_End<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin)
         {
             RME_COVERAGE_MARKER();
             
@@ -2319,7 +2320,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
 
         /* Check the ranges of kernel memory */
-        if(((volatile struct RME_Cap_Kom*)Capobj_Src)->Start>Kom_Start)
+        if(((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin>Kom_Begin)
         {
             RME_COVERAGE_MARKER();
             
@@ -2329,6 +2330,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         {
             RME_COVERAGE_MARKER();
         }
+        /* Internal encoding of 'end' is inclusive */
         if(((volatile struct RME_Cap_Kom*)Capobj_Src)->End<(Kom_End-1U))
         {
             RME_COVERAGE_MARKER();
@@ -2412,7 +2414,7 @@ rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             
         RME_CAP_COPY(Capobj_Dst,Capobj_Src,Kom_Flag);
         /* Write absolute range information for kernel memory caps */
-        ((volatile struct RME_Cap_Kom*)Capobj_Dst)->Start=Kom_Start;
+        ((volatile struct RME_Cap_Kom*)Capobj_Dst)->Begin=Kom_Begin;
         /* The Kom_End encoded inclusively to avoid overflow at max address */
         ((volatile struct RME_Cap_Kom*)Capobj_Dst)->End=Kom_End-1U;
     }
@@ -2725,7 +2727,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
             RME_COVERAGE_MARKER();
         }
     }
-    else if(Paddr!=(RME_PGT_START(Pgt_Op->Base)+(Pos<<Szord)))
+    else if(Paddr!=(RME_PGT_BASE(Pgt_Op->Base)+(Pos<<Szord)))
     {
         RME_COVERAGE_MARKER();
         
@@ -2797,7 +2799,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Order_Child;
     rme_ptr_t Szord_Parent;
 #if(RME_VA_EQU_PA!=0U)
-    rme_ptr_t Start_Parent;
+    rme_ptr_t Begin_Parent;
     rme_ptr_t End_Parent;
 #endif
     
@@ -2843,8 +2845,8 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
         /* Check if the virtual address mapping is correct - note that the child
          * could also be a top-level page table. Whether constructing a top into 
          * another top is allowed is HAL-defined. */
-        Start_Parent=RME_PGT_START(Pgt_Parent->Base)+(Pos<<Szord_Parent);
-        if(RME_PGT_START(Pgt_Child->Base)<Start_Parent)
+        Begin_Parent=RME_PGT_BASE(Pgt_Parent->Base)+(Pos<<Szord_Parent);
+        if(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent)
         {
             RME_COVERAGE_MARKER();
             
@@ -2855,7 +2857,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
             RME_COVERAGE_MARKER();
         }
         
-        End_Parent=Start_Parent+RME_POW2(Szord_Parent);
+        End_Parent=Begin_Parent+RME_POW2(Szord_Parent);
         
         /* If this is zero, then the parent table's slot expands to the end of 
          * memory, and we are sure that overflow won't happen because start
@@ -2863,7 +2865,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
          * No UB for Order_Child here because Szord_Parent>=Order_Child */
         if(End_Parent!=0U)
         {
-            if((RME_PGT_START(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            if((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
             {
                 RME_COVERAGE_MARKER();
 
@@ -3297,7 +3299,7 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         Paddr_Dst=Paddr_Src+(Index<<Szord_Dst);
 #if(RME_VA_EQU_PA!=0U)
         /* Check if we force identical mapping */
-        if(Paddr_Dst!=(RME_PGT_START(Pgt_Dst->Base)+(Pos_Dst<<Szord_Dst)))
+        if(Paddr_Dst!=(RME_PGT_BASE(Pgt_Dst->Base)+(Pos_Dst<<Szord_Dst)))
         {
             RME_COVERAGE_MARKER();
 
@@ -3316,7 +3318,7 @@ rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         
         Paddr_Dst=Paddr_Src;
 #if(RME_VA_EQU_PA!=0U)
-        if(Paddr_Dst!=RME_PGT_START(Pgt_Dst->Base))
+        if(Paddr_Dst!=RME_PGT_BASE(Pgt_Dst->Base))
         {
             RME_COVERAGE_MARKER();
 
@@ -3453,7 +3455,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Order_Child;
     rme_ptr_t Szord_Parent;
 #if(RME_VA_EQU_PA!=0U)
-    rme_ptr_t Start_Parent;
+    rme_ptr_t Begin_Parent;
     rme_ptr_t End_Parent;
 #endif
     rme_ptr_t Type_Stat;
@@ -3512,8 +3514,8 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
         /* Check if the virtual address mapping is correct - note that the child
          * could also be a top-level page table. Whether constructing a top into 
          * another top is allowed is HAL-defined. */
-        Start_Parent=RME_PGT_START(Pgt_Parent->Base)+(Pos<<Szord_Parent);
-        if(RME_PGT_START(Pgt_Child->Base)<Start_Parent)
+        Begin_Parent=RME_PGT_BASE(Pgt_Parent->Base)+(Pos<<Szord_Parent);
+        if(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent)
         {
             RME_COVERAGE_MARKER();
             
@@ -3524,7 +3526,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
             RME_COVERAGE_MARKER();
         }
         
-        End_Parent=Start_Parent+RME_POW2(Szord_Parent);
+        End_Parent=Begin_Parent+RME_POW2(Szord_Parent);
         
         /* If this is zero, then the parent table's slot expands to the end of 
          * memory, and we are sure that overflow won't happen because start
@@ -3532,7 +3534,7 @@ rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
          * No UB for Order_Child here because Szord_Parent>=Order_Child */
         if(End_Parent!=0U)
         {
-            if((RME_PGT_START(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            if((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
             {
                 RME_COVERAGE_MARKER();
 
@@ -3726,8 +3728,8 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     rme_ptr_t Start;
     /* The actual word to end the marking */
     rme_ptr_t End;
-    /* The mask at the start word */
-    rme_ptr_t Mask_Start;
+    /* The mask at the begin word */
+    rme_ptr_t Mask_Begin;
     /* The mask at the end word */
     rme_ptr_t Mask_End;
 
@@ -3745,7 +3747,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    Mask_Start=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_Begin=RME_MASK_BEGIN(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
     End=(Kaddr+Size-1U-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
@@ -3759,7 +3761,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
         /* Someone already populated something here */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&(Mask_Start&Mask_End))!=0U)
+        if((Old_Val&(Mask_Begin&Mask_End))!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -3773,7 +3775,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         /* Check done, do the marking with CAS */
         if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
                          Old_Val,
-                         Old_Val|(Mask_Start&Mask_End))==RME_CASFAIL)
+                         Old_Val|(Mask_Begin&Mask_End))==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -3791,7 +3793,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         Undo=0U;
         /* Check&Mark the start */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&Mask_Start)!=0U)
+        if((Old_Val&Mask_Begin)!=0U)
         {
             RME_COVERAGE_MARKER();
 
@@ -3804,7 +3806,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         
         if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
                          Old_Val,
-                         Old_Val|Mask_Start)==RME_CASFAIL)
+                         Old_Val|Mask_Begin)==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -3893,7 +3895,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
                 RME_KOT_VA_BASE[Count]=0U;
             }
             /* Undo the first word - need atomic instructions */
-            RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Start);
+            RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Begin);
             /* Return failure */
             return RME_ERR_KOT_BMP;
         }
@@ -3922,8 +3924,8 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
     rme_ptr_t Start;
     /* The actual word to end the marking */
     rme_ptr_t End;
-    /* The mask at the start word */
-    rme_ptr_t Mask_Start;
+    /* The mask at the begin word */
+    rme_ptr_t Mask_Begin;
     /* The mask at the end word */
     rme_ptr_t Mask_End;
     rme_ptr_t Count;
@@ -3942,7 +3944,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
     
     /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
-    Mask_Start=RME_MASK_START(Start&RME_MASK_END(RME_WORD_ORDER-1U));
+    Mask_Begin=RME_MASK_BEGIN(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
     
     End=(Kaddr+Size-1U-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
@@ -3955,7 +3957,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         RME_COVERAGE_MARKER();
 
         /* This address range is not fully populated */
-        if((RME_KOT_VA_BASE[Start]&(Mask_Start&Mask_End))!=(Mask_Start&Mask_End))
+        if((RME_KOT_VA_BASE[Start]&(Mask_Begin&Mask_End))!=(Mask_Begin&Mask_End))
         {
             RME_COVERAGE_MARKER();
 
@@ -3967,14 +3969,14 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
 
         /* Check done, do the unmarking - need atomic operations */
-        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~(Mask_Start&Mask_End));
+        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~(Mask_Begin&Mask_End));
     }
     else
     {
         RME_COVERAGE_MARKER();
 
         /* Check the start */
-        if((RME_KOT_VA_BASE[Start]&Mask_Start)!=Mask_Start)
+        if((RME_KOT_VA_BASE[Start]&Mask_Begin)!=Mask_Begin)
         {
             RME_COVERAGE_MARKER();
 
@@ -4013,7 +4015,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
         
         /* Erase the start - make it atomic */
-        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Start);
+        RME_FETCH_AND(&(RME_KOT_VA_BASE[Start]),~Mask_Begin);
         /* Erase the middle - do not need atomics here */
         for(Count=Start+1U;Count<End-1U;Count++)
         {
@@ -4038,7 +4040,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
                                   2-Level.
               rme_cid_t Cap_Kom - The capability to the kernel memory.
                                   1-Level.
-              rme_ptr_t Start - The start address of the kernel memory, aligned
+              rme_ptr_t Begin - The begin address of the kernel memory, aligned
                                 to kotbl granularity.
               rme_ptr_t End - The end address of the kernel memory, aligned to
                               kotbl granularity, then -1.
@@ -4050,13 +4052,13 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Cpt,
                             rme_cid_t Cap_Kom,
-                            rme_ptr_t Start,
+                            rme_ptr_t Begin,
                             rme_ptr_t End,
                             rme_ptr_t Flag)
 {
     struct RME_Cap_Cpt* Cpt_Op;
     volatile struct RME_Cap_Kom* Kom_Crt;
-    rme_ptr_t Kom_Start;
+    rme_ptr_t Kom_Begin;
     rme_ptr_t Kom_End;
     rme_ptr_t Type_Stat;
     
@@ -4074,10 +4076,10 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     /* Align addresses */
 #if(RME_KOM_SLOT_ORDER>6U)
     Kom_End=RME_ROUND_DOWN(End+1U,RME_KOM_SLOT_ORDER);
-    Kom_Start=RME_ROUND_UP(Start,RME_KOM_SLOT_ORDER);
+    Kom_Begin=RME_ROUND_UP(Start,RME_KOM_SLOT_ORDER);
 #else
     Kom_End=RME_ROUND_DOWN(End+1U,6U);
-    Kom_Start=RME_ROUND_UP(Start,6U);
+    Kom_Begin=RME_ROUND_UP(Begin,6U);
 #endif
 
     /* Must at least allow creation of something */
@@ -4089,7 +4091,7 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Kom_Crt->Head.Flag=Flag;
     
     /* Info init */
-    Kom_Crt->Start=Kom_Start;
+    Kom_Crt->Begin=Kom_Begin;
     Kom_Crt->End=Kom_End-1U;
 
     /* Establish cap */

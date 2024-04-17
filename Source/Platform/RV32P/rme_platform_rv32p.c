@@ -1731,7 +1731,7 @@ rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
             RME_ASSERT(RME_RV32P_PMP_MODE(Cfg[Data_Cnt])==RME_RV32P_PMP_NAPOT);
             Range[Range_Cnt].Flag=RME_RV32P_PMP_PERM(Cfg[Data_Cnt]);
             Range[Range_Cnt].Order_Div4=_RME_LSB_Generic(~Top_Data->Raw.Addr[Data_Cnt])+1U;
-            Range[Range_Cnt].Start_Div4=Top_Data->Raw.Addr[Data_Cnt]&RME_MASK_START(Range[Range_Cnt].Order_Div4);
+            Range[Range_Cnt].Start_Div4=Top_Data->Raw.Addr[Data_Cnt]&RME_MASK_BEGIN(Range[Range_Cnt].Order_Div4);
             /* Can't be UB here, all address [34:2] */
             Range[Range_Cnt].End_Div4=Range[Range_Cnt].Start_Div4+RME_POW2(Range[Range_Cnt].Order_Div4);
             Range_Cnt++;
@@ -2465,14 +2465,14 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
     while(1)
     {
         /* Check if the virtual address is in our range */
-        if(Vaddr<RME_PGT_START(Meta->Base))
+        if(Vaddr<RME_PGT_BASE(Meta->Base))
             return RME_ERR_HAL_FAIL;
         /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
         Shift=RME_PGT_SZORD(Meta->Order);
         if(Shift>=RME_WORD_BITS)
             Pos=0U;
         else
-            Pos=(Vaddr-RME_PGT_START(Meta->Base))>>Shift;
+            Pos=(Vaddr-RME_PGT_BASE(Meta->Base))>>Shift;
         /* See if the entry is overrange */
         Num=RME_POW2(RME_PGT_NMORD(Meta->Order));
         if(Pos>=Num)
@@ -2490,16 +2490,16 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             if(Map_Vaddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Map_Vaddr=RME_PGT_START(Meta->Base);
+                    *Map_Vaddr=RME_PGT_BASE(Meta->Base);
                 else
-                    *Map_Vaddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Map_Vaddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);
             }
             if(Paddr!=RME_NULL)
             {
                 if(Shift>=RME_WORD_BITS)
-                    *Paddr=RME_PGT_START(Meta->Base);
+                    *Paddr=RME_PGT_BASE(Meta->Base);
                 else
-                    *Paddr=RME_PGT_START(Meta->Base)+(Pos<<Shift);
+                    *Paddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);
             }
             if(Size_Order!=RME_NULL)
                 *Size_Order=RME_PGT_SZORD(Meta->Order);

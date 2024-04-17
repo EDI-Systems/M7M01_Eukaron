@@ -39,14 +39,14 @@ Description : The header of the kernel. Whitebox testing of all branches
 #define RME_ALLBITS                                 (~((rme_ptr_t)0U))
 #define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8U)
 #define RME_POSITIVE_BITS                           (RME_ALLBITS>>1)
-/* Apply this mask to keep START to MSB bits */
-#define RME_MASK_START(START)                       ((RME_ALLBITS)<<(START))
+/* Apply this mask to keep BEGIN to MSB bits */
+#define RME_MASK_BEGIN(BEGIN)                       ((RME_ALLBITS)<<(BEGIN))
 /* Apply this mask to keep LSB to END bits */
 #define RME_MASK_END(END)                           ((RME_ALLBITS)>>(RME_WORD_BITS-1-(END)))
-/* Apply this mask to keep START to END bits, START < END */
-#define RME_MASK(START,END)                         ((RME_MASK_START(START))&(RME_MASK_END(END)))
+/* Apply this mask to keep BEGIN to END bits, BEGIN < END */
+#define RME_MASK(BEGIN,END)                         ((RME_MASK_BEGIN(BEGIN))&(RME_MASK_END(END)))
 /* Round the number down & up to a power of 2 */
-#define RME_ROUND_DOWN(NUM,POW)                     ((NUM)&(RME_MASK_START(POW)))
+#define RME_ROUND_DOWN(NUM,POW)                     ((NUM)&(RME_MASK_BEGIN(POW)))
 #define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1U),POW)
 /* Check if address is aligned on word boundary */
 #define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))==0U)
@@ -313,8 +313,8 @@ while(0)
 /* Check if the kernel memory capability range is valid.
  * CAP - The kernel memory capability to check against.
  * FLAG - The flags to check against the kernel memory capability.
- * RADDR - The relative start address of the kernel object in kernel memory.
- * VADDR - The true start address of the kernel object in kernel memory, output.
+ * RADDR - The relative begin address of the kernel object in kernel memory.
+ * VADDR - The true begin address of the kernel object in kernel memory, output.
  * SIZE - The size of the kernel memory trunk. */
 /* This have wraparounds now */
 #define RME_KOM_CHECK(CAP, FLAG, RADDR, VADDR, SIZE) \
@@ -324,11 +324,11 @@ do \
     if(RME_UNLIKELY(((CAP)->Head.Flag&(FLAG))!=(FLAG))) \
         return RME_ERR_CPT_FLAG; \
     /* Convert relative address to virtual address */ \
-    (VADDR)=(RADDR)+(CAP)->Start; \
-    /* Check start boundary and its possible wraparound */ \
+    (VADDR)=(RADDR)+(CAP)->Begin; \
+    /* Check begin boundary and its possible wraparound */ \
     if(RME_UNLIKELY((VADDR)<(RADDR))) \
         return RME_ERR_CPT_FLAG; \
-    if(RME_UNLIKELY(((CAP)->Start>(VADDR)))) \
+    if(RME_UNLIKELY(((CAP)->Begin>(VADDR)))) \
         return RME_ERR_CPT_FLAG; \
     /* Check end boundary and its possible wraparound */ \
     if(RME_UNLIKELY((((VADDR)+(SIZE))<(VADDR)))) \
@@ -527,7 +527,7 @@ while(0)
 /* Default driver layer error - return anything smaller than 0 is ok */
 #define RME_ERR_HAL_FAIL                            (-1)
 
-/* Page table flag arrangement
+/* Page table flag arrangement - limits are inclusive
 * 32-bit systems: Maximum page table size 2^12 = 4096
 * [31    High Limit    20] [19    Low Limit    8][7    Flag    0]
 * 64-bit systems: Maximum page table size 2^28 = 268435456
@@ -541,16 +541,16 @@ while(0)
 /* Permission flags */
 #define RME_PGT_FLAG_FLAG(X)                        ((X)&RME_MASK_END(7U))
 /* The initial flag of boot-time page table - allows all range delegation access only */
-#define RME_PGT_FLAG_FULL_RANGE                     RME_MASK_START(sizeof(rme_ptr_t)*4U+4U)
+#define RME_PGT_FLAG_FULL_RANGE                     RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U+4U)
 
-/* Page table start address/top-level attributes */
-#define RME_PGT_START(X)                            ((X)&RME_MASK_START(1U))
+/* Page table base address/top-level attributes */
+#define RME_PGT_BASE(X)                             ((X)&RME_MASK_BEGIN(1U))
 #define RME_PGT_TOP                                 (1U)
 #define RME_PGT_NOM                                 (0U)
 
 /* Size order and number order */
-#define RME_PGT_SZORD(X)                          ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_PGT_NMORD(X)                           ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
+#define RME_PGT_SZORD(X)                            ((X)>>(sizeof(rme_ptr_t)*4U))
+#define RME_PGT_NMORD(X)                            ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
 #define RME_PGT_ORDER(SIZE,NUM)                     (((SIZE)<<(sizeof(rme_ptr_t)*4U))|(NUM))
     
 /* Kernel Memory *************************************************************/
@@ -563,8 +563,8 @@ while(0)
  * 64-bit systems:
  * [63          High Limit[64:32]         32] [31       Low Limit[64:32]       0]  Flags
  * [63 High Limit[31: 6] 38] [37 Reserved 32] [31 Low Limit[31: 6] 6] [5 Flags 0]  Ext_Flag */
-#define RME_KOM_FLAG_HIGH_F(FLAG)                   ((FLAG)&RME_MASK_START(sizeof(rme_ptr_t)*4U))
-#define RME_KOM_FLAG_HIGH_E(EFLAG)                  (((EFLAG)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_START(6U))
+#define RME_KOM_FLAG_HIGH_F(FLAG)                   ((FLAG)&RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U))
+#define RME_KOM_FLAG_HIGH_E(EFLAG)                  (((EFLAG)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_BEGIN(6U))
 #define RME_KOM_FLAG_HIGH(FLAG, EFLAG)              (RME_KOM_FLAG_HIGH_F(FLAG)|RME_KOM_FLAG_HIGH_E(EFLAG))
 #define RME_KOM_FLAG_LOW_F(FLAG)                    ((FLAG)<<(sizeof(rme_ptr_t)*4U))
 #define RME_KOM_FLAG_LOW_E(EFLAG)                   ((EFLAG)&RME_MASK(sizeof(rme_ptr_t)*4U-1U,6U))
@@ -646,7 +646,7 @@ while(0)
 * [63        High Limit        32] [31        Low Limit        0] */
 #define RME_KFN_FLAG_HIGH(X)                        ((X)>>(sizeof(rme_ptr_t)*4U))
 #define RME_KFN_FLAG_LOW(X)                         ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
-#define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_START(sizeof(rme_ptr_t)*4U)
+#define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U)
 
 /* __RME_KERNEL_DEF__ */
 #endif
@@ -719,9 +719,9 @@ struct RME_Cap_Pgt
 struct RME_Cap_Kom
 {
     struct RME_Cap_Head Head;
-    /* The start address of the allowed kernel memory */
-    rme_ptr_t Start;
-    /* The end address of the allowed kernel memory */
+    /* The begin address of the allowed kernel memory */
+    rme_ptr_t Begin;
+    /* The end address of the allowed kernel memory - internally inclusive */
     rme_ptr_t End;
     rme_ptr_t Info[1];
 };
@@ -1224,7 +1224,7 @@ __EXTERN__ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
 __EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                                        rme_cid_t Cap_Cpt,
                                        rme_cid_t Cap_Kom,
-                                       rme_ptr_t Start,
+                                       rme_ptr_t Begin,
                                        rme_ptr_t End,
                                        rme_ptr_t Flag);
 
