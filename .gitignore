@@ -51,25 +51,33 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Unneeded history and documents
-Documents/*
-!Documents/CN_M7M1_Microkernel-RTOS-User-Manual.pdf
-!Documents/EN_M7M1_Microkernel-RTOS-User-Manual.pdf
-!Documents/Demo/
-
-# Keil/eclipse specific
-Project/**/Debug/*
-!Project/ECLIPSE-GCC-X64/RME/Debug/*
-!Project/ECLIPSE-GCC-STM32F767IGT6/RME/Debug/*
-*.tmp
+# Keil specific
+Project/**/Debug/
+Project/RVMDK-*/RTE/
+Project/RVMDK-*/DebugConfig/
+Project/RVMDK-*/RMP.BAT/
 *.uvgui*
 *.uvopt*
 *.dep
 *.TMP
-RME.asm
+*.axf
+*.lnp
+*.log
+*.log.*
+*.build_log.*
+*.scvd
+*Log.txt
+JLinkLog.txt
+JLinkSettings.ini
 
-# CCS specific
-Project/**/.jxbrowser-data/**
-Project/**/.metadata/**
-Project/**/.tempFiles/**
-Project/**/.jxbrowser-data/**
+# CCS/Eclipse specific
+Project/**/.jxbrowser-data/
+Project/**/.metadata/
+Project/**/.tempFiles/
+Project/**/.jxbrowser.userdata/
+Project/**/RemoteSystemsTempFiles/
+
+#MPLAB X specific
+Project/MPLAB-*/RMP.X/.generated_files
+Project/MPLAB-*/RMP.X/disassembly
+Project/MPLAB-*/RMP.X/dist
