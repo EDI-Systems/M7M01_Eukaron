@@ -1031,17 +1031,17 @@ rme_ret_t RME_Kmain(void)
 {
     /* Disable all interrupts first */
     __RME_Int_Disable();
-    /* Some low-level checks to make sure the correctness of the core */
+    /* Some low-level kernel assertions */
     _RME_Lowlvl_Check();
     /* Hardware low-level init */
     __RME_Lowlvl_Init();
-    /* Initialize the kernel page tables */
+    /* Initialize the kernel page tables or memory mappings */
     __RME_Pgt_Kom_Init();
     
     /* Initialize the kernel object allocation table - default init */
     _RME_Kot_Init(RME_KOT_WORD_NUM);
     
-    /* Boot into the first process, and handle it all the other cases&enable the interrupt */
+    /* Boot into the first process */
     __RME_Boot();
     
     /* Should never reach here */

@@ -1,9 +1,14 @@
 /******************************************************************************
-Filename   : rme_platform_ch32v307vc.h
-Author     : pry
-Date       : 24/06/2017
-Licence    : The Unlicense; see LICENSE for details.
-Description: The configuration file for CH32V307VC.
+Filename    : rme_platform_ch32v307vc.h
+Author      : pry
+Date        : 24/06/2017
+Licence     : The Unlicense; see LICENSE for details.
+Description : The configuration file for CH32V307VC.  This chip carries multiple
+              esoteric features; see the rme_platform_wchd8c_gcc.s for details.
+              This test assumes 128k RAM/192k Flash to leave RME with sufficient
+              RAM space to operate (which is NOT the factory default 64k+256k).
+              When other configurations aer desired, modify the .rvc files to
+              indicate this change, and program the fuse bits accordingly.
 ******************************************************************************/
 
 /* Define ********************************************************************/
