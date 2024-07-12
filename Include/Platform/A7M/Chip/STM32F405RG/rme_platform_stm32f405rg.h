@@ -8,36 +8,35 @@ Description: The configuration file for STM32F405RG.
 
 /* Define ********************************************************************/
 /* Debugging *****************************************************************/
-#define RME_ASSERT_CORRECT                              (0U)
-#define RME_DEBUG_PRINT                                 (1U)
+#define RME_ASSERT_ENABLE                               (1U)
+#define RME_DBGLOG_ENABLE                               (1U)
 /* Generator *****************************************************************/
 /* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
+/* Are we using raw memory mappings? */
+#define RME_PGT_RAW_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
-/* Are we assuming user-managed raw memory access control? */
-#define RME_PGT_RAW_USER                                (0U)
-/* The virtual memory start address for the kernel objects */
+/* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x10002000U)
-/* The size of the kernel object virtual memory */
+/* Kernel object virtual memory size */
 #define RME_KOM_VA_SIZE                                 (0x6000U)
-/* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
+/* Hypervisor context virtual memory base - set to 0 if no VM */
 #define RME_HYP_VA_BASE                                 (0x20000000U)
-/* The size of the hypervisor reserved virtual memory */
+/* Hypervisor context virtual memory size - set to 0 if no VM */
 #define RME_HYP_VA_SIZE                                 (0x20000U)
-/* The granularity of kernel memory allocation, in bytes */
+/* Kernel memory allocation granularity order */
 #define RME_KOM_SLOT_ORDER                              (4U)
 /* Kernel stack size and address */
 #define RME_KSTK_VA_BASE                                (0x10000FF0U)
 #define RME_KSTK_VA_SIZE                                (0x400U)
-/* The maximum number of preemption priority levels in the system.
- * This parameter must be divisible by the word length - 32 is usually sufficient */
+/* The maximum number of preemption priorities */
 #define RME_PREEMPT_PRIO_NUM                            (32U)
 
-/* Physical vector number, flag area base and its size */
+/* Physical vector number, flag area base and size */
 #define RME_RVM_PHYS_VCT_NUM                            (82U)
 #define RME_RVM_PHYS_VCTF_BASE                          (0x10005C00U)
 #define RME_RVM_PHYS_VCTF_SIZE                          (0x200U)
-/* Virtual event number, flag area base and its size */
+/* Virtual event number, flag area base and size */
 #define RME_RVM_VIRT_EVT_NUM                            (20U)
 #define RME_RVM_VIRT_EVTF_BASE                          (0x10005E00U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x200U)
@@ -77,32 +76,32 @@ Description: The configuration file for STM32F405RG.
 
 /* Initialization registers **************************************************/
 #define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840U)
-#define RME_A7M_RCC_APB1ENR_PWREN                       (1U<<28)
+#define RME_A7M_RCC_APB1ENR_PWREN                       RME_POW2(28U)
 
 #define RME_A7M_PWR_CR1                                 RME_A7M_REG(0x40007000U)
-#define RME_A7M_PWR_CR1_VOS_SCALE1                      (1U<<14)
+#define RME_A7M_PWR_CR1_VOS_SCALE1                      RME_POW2(14U)
 
 #define RME_A7M_RCC_CR                                  RME_A7M_REG(0x40023800U)
-#define RME_A7M_RCC_CR_HSEON                            (1U<<16)
-#define RME_A7M_RCC_CR_HSERDY                           (1U<<17)
-#define RME_A7M_RCC_CR_PLLON                            (1U<<24)
-#define RME_A7M_RCC_CR_PLLRDY                           (1U<<25)
+#define RME_A7M_RCC_CR_HSEON                            RME_POW2(16U)
+#define RME_A7M_RCC_CR_HSERDY                           RME_POW2(17U)
+#define RME_A7M_RCC_CR_PLLON                            RME_POW2(24U)
+#define RME_A7M_RCC_CR_PLLRDY                           RME_POW2(25U)
 
 #define RME_A7M_RCC_PLLCFGR                             RME_A7M_REG(0x40023804U)
-#define RME_A7M_RCC_PLLCFGR_SOURCE_HSE                  (1U<<22)
+#define RME_A7M_RCC_PLLCFGR_SOURCE_HSE                  RME_POW2(22U)
 #define RME_A7M_RCC_PLLCFGR_PLLM(X)                     (X)
-#define RME_A7M_RCC_PLLCFGR_PLLN(X)                     ((X)<<6)
-#define RME_A7M_RCC_PLLCFGR_PLLP(X)                     ((((X)>>1)-1U)<<16)
-#define RME_A7M_RCC_PLLCFGR_PLLQ(X)                     ((X)<<24)
-#define RME_A7M_RCC_PLLCFGR_PLLR(X)                     ((X)<<28)
+#define RME_A7M_RCC_PLLCFGR_PLLN(X)                     RME_FIELD(X,6U)
+#define RME_A7M_RCC_PLLCFGR_PLLP(X)                     RME_FIELD(((X)>>1)-1U,16U)
+#define RME_A7M_RCC_PLLCFGR_PLLQ(X)                     RME_FIELD(X,24U)
+#define RME_A7M_RCC_PLLCFGR_PLLR(X)                     RME_FIELD(X,28U)
 
 #define RME_A7M_RCC_CIR                                 RME_A7M_REG(0x4002380CU)
 
 #define RME_A7M_FLASH_ACR                               RME_A7M_REG(0x40023C00U)
 #define RME_A7M_FLASH_ACR_LATENCY(X)                    RME_A7M_FLASH_ACR=((RME_A7M_FLASH_ACR&~0x0FU)|(X))
-#define RME_A7M_FLASH_ACR_PRFTEN                        (1U<<8)
-#define RME_A7M_FLASH_ACR_ICEN                          (1U<<9)
-#define RME_A7M_FLASH_ACR_DCEN                          (1U<<10)
+#define RME_A7M_FLASH_ACR_PRFTEN                        RME_POW2(8U)
+#define RME_A7M_FLASH_ACR_ICEN                          RME_POW2(9U)
+#define RME_A7M_FLASH_ACR_DCEN                          RME_POW2(10U)
 
 #define RME_A7M_RCC_CFGR                                RME_A7M_REG(0x40023808U)
 #define RME_A7M_RCC_CFGR_PCLK1(X)                       RME_A7M_RCC_CFGR=(RME_A7M_RCC_CFGR&~0x1C00U)|((X)<<10)
@@ -119,13 +118,13 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_RCC_CFGR_HCLK_DIV16                     (0x07U)
 
 #define RME_A7M_TIM4_SR                                 RME_A7M_REG(0x40000810U)
-#define RME_A7M_TIM_FLAG_UPDATE                         (1U<<0)
+#define RME_A7M_TIM_FLAG_UPDATE                         RME_POW2(0U)
 
 #define RME_A7M_RCC_AHB1ENR                             RME_A7M_REG(0x40023830U)
-#define RME_A7M_RCC_AHB1ENR_GPIOBEN                     (1U<<1)
+#define RME_A7M_RCC_AHB1ENR_GPIOBEN                     RME_POW2(1U)
 
 #define RME_A7M_RCC_APB2ENR                             RME_A7M_REG(0x40023844U)
-#define RME_A7M_RCC_APB2ENR_USART1EN                    (1U<<4)
+#define RME_A7M_RCC_APB2ENR_USART1EN                    RME_POW2(4U)
 
 #define RME_A7M_GPIOB_MODER                             RME_A7M_REG(0x40020400U)
 #define RME_A7M_GPIOB_OTYPER                            RME_A7M_REG(0x40020404U)
@@ -171,7 +170,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011010U)
 #define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011014U)
 
-#define RME_A7M_USART1_CR1_UE                           (1U<<13)
+#define RME_A7M_USART1_CR1_UE                           RME_POW2(13U)
 
 /* Preinitialization of critical hardware */
 #define RME_A7M_LOWLVL_PREINIT() \
@@ -239,7 +238,7 @@ do \
 } \
 while(0)
 
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
 /* Other low-level initialization stuff - clock and serial */
 #define RME_A7M_LOWLVL_INIT() \
 do \

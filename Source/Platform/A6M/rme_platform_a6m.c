@@ -70,7 +70,7 @@ Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_A6M_PUTCHAR(Char);
@@ -172,7 +172,7 @@ void __RME_A6M_Flag_Slow(rme_ptr_t Base,
     
     /* Set the flags for this interrupt source */
     Set->Group|=RME_POW2(Pos>>RME_WORD_ORDER);
-    Set->Flag[Pos>>RME_WORD_ORDER]|=RME_POW2(Pos&RME_MASK_END(RME_WORD_ORDER-1U));
+    RME_BITMAP_SET(Set->Flag,Pos);
 }
 /* End Function:__RME_A6M_Flag_Slow ******************************************/
 
@@ -250,7 +250,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_A6M_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt, 
                                   rme_cid_t Cap_Pgt,
                                   rme_ptr_t Vaddr,
@@ -700,12 +700,6 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
-EXTERN rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID,
-                                      rme_ptr_t Sub_ID,
-                                      rme_ptr_t Param1,
-                                      rme_ptr_t Param2);
-#endif
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                             struct RME_Reg_Struct* Reg,
                             rme_ptr_t Func_ID,
@@ -723,7 +717,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_ASID_SET:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_TLB_LOCK:      {return RME_ERR_KFN_FAIL;}
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
         case RME_KFN_PGT_ENTRY_MOD:
         {
             Retval=__RME_A6M_Pgt_Entry_Mod(Cpt,
@@ -831,7 +825,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_ECLV_ACT:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_ECLV_RET:          {return RME_ERR_KFN_FAIL;}
 /* Debugging operations ******************************************************/
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
         case RME_KFN_DEBUG_PRINT:
         {
             __RME_Putchar((rme_s8_t)Sub_ID);
@@ -986,7 +980,7 @@ void __RME_Boot(void)
 {
     /* volatile rme_ptr_t Size; */
     rme_ptr_t Cur_Addr;
-#if(RME_PGT_RAW_USER!=0U)
+#if(RME_PGT_RAW_ENABLE!=0U)
     /* Initial array for raw page table mode - generic for all ARMv6-M */
     static const rme_ptr_t RME_A6M_Raw_Pgt_Def[32U]=
     {
@@ -1018,7 +1012,7 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_RVM_INIT_CPT_SIZE));
 
     /* Create the page table for the init process, and map in the page alloted for it */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A6M_CPT,
                                  RME_BOOT_INIT_CPT,
@@ -1111,7 +1105,7 @@ void __RME_Boot(void)
 #endif
 
     /* Enable the MPU & interrupt */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     RME_ASSERT(RME_CAP_IS_ROOT(RME_A6M_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
 #endif
     __RME_Pgt_Set(RME_A6M_Local.Thd_Cur->Sched.Prc->Pgt);
@@ -1284,13 +1278,77 @@ rme_ret_t __RME_Pgt_Kom_Init(void)
 }
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
 
+/* Function:__RME_Pgt_Set *****************************************************
+Description : Set the processor's page table.
+Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
+              rme_ptr_t Pgt - The alternative raw page table.
+Output      : None.
+Return      : None.
+******************************************************************************/
+#if(RME_PGT_RAW_ENABLE==0U)
+void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
+#else
+void __RME_Pgt_Set(rme_ptr_t Pgt)
+#endif
+{
+    struct __RME_A6M_Raw_Pgt* Raw_Pgt;
+    
+#if(RME_PGT_RAW_ENABLE==0U)
+    struct __RME_A6M_MPU_Data* MPU_Data;
+    
+    MPU_Data=(struct __RME_A6M_MPU_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
+                                          sizeof(struct __RME_A6M_Pgt_Meta));
+    Raw_Pgt=&(MPU_Data->Raw);
+#else
+    Raw_Pgt=(struct __RME_A6M_Raw_Pgt*)Pgt;
+#endif
+
+    /* Get the physical address of the page table - here we do not need any 
+     * conversion, because VA = PA as always. We just need to extract the MPU
+     * metadata part and pass it down */
+#if(RME_A6M_REGION_NUM==1U)
+    ___RME_A6M_MPU_Set1(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==2U)
+    ___RME_A6M_MPU_Set2(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==3U)
+    ___RME_A6M_MPU_Set3(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==4U)
+    ___RME_A6M_MPU_Set4(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==5U)
+    ___RME_A6M_MPU_Set5(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==6U)
+    ___RME_A6M_MPU_Set6(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==7U)
+    ___RME_A6M_MPU_Set7(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==8U)
+    ___RME_A6M_MPU_Set8(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==9U)
+    ___RME_A6M_MPU_Set9(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==10U)
+    ___RME_A6M_MPU_Set10(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==11U)
+    ___RME_A6M_MPU_Set11(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==12U)
+    ___RME_A6M_MPU_Set12(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==13U)
+    ___RME_A6M_MPU_Set13(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==14U)
+    ___RME_A6M_MPU_Set14(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==15U)
+    ___RME_A6M_MPU_Set15(Raw_Pgt);
+#elif(RME_A6M_REGION_NUM==16U)
+    ___RME_A6M_MPU_Set16(Raw_Pgt);
+#endif
+}
+/* End Function:__RME_Pgt_Set ************************************************/
+
 /* Function:__RME_Pgt_Init ****************************************************
 Description : Initialize the page table data structure, according to the capability.
 Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
@@ -1325,7 +1383,6 @@ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Init ***********************************************/
 
 /* Function:__RME_Pgt_Check ***************************************************
@@ -1339,7 +1396,6 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Is_Top, 
                           rme_ptr_t Size_Order,
@@ -1357,7 +1413,6 @@ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
     
     return 0U;
 }
-#endif
 /* End Function:__RME_Pgt_Check **********************************************/
 
 /* Function:__RME_Pgt_Del_Check ***********************************************
@@ -1366,14 +1421,12 @@ Input       : struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     /* We don't need to check the directory mapping status (whether we are 
      * parent or children) anymore because this is done in the kernel */
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Del_Check ******************************************/
 
 /* Function:___RME_A6M_MPU_RASR_Gen *******************************************
@@ -1387,7 +1440,6 @@ Input       : rme_ptr_t* Table - The table to generate data for. This
 Output      : struct __RME_A6M_MPU_Entry* Entry - The data generated.
 Return      : rme_ptr_t - The RASR value returned.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_A6M_MPU_RASR_Gen(rme_ptr_t* Table,
                                   rme_ptr_t Flag, 
                                   rme_ptr_t Size_Order,
@@ -1443,7 +1495,6 @@ rme_ptr_t ___RME_A6M_MPU_RASR_Gen(rme_ptr_t* Table,
     
     return RASR;
 }
-#endif
 /* End Function:___RME_A6M_MPU_RASR_Gen **************************************/
 
 /* Function:___RME_A6M_MPU_Clear **********************************************
@@ -1456,7 +1507,6 @@ Input       : struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU metadata
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t ___RME_A6M_MPU_Clear(struct __RME_A6M_MPU_Data* Top_MPU, 
                                rme_ptr_t Base_Addr,
                                rme_ptr_t Size_Order,
@@ -1482,7 +1532,6 @@ rme_ret_t ___RME_A6M_MPU_Clear(struct __RME_A6M_MPU_Data* Top_MPU,
     
     return 0;
 }
-#endif
 /* End Function:___RME_A6M_MPU_Clear *****************************************/
 
 /* Function:___RME_A6M_MPU_Add ************************************************
@@ -1496,7 +1545,6 @@ Input       : struct __RME_A6M_MPU_Data* Top_MPU - The top-level MPU metadata.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t ___RME_A6M_MPU_Add(struct __RME_A6M_MPU_Data* Top_MPU, 
                              rme_ptr_t Base_Addr,
                              rme_ptr_t Size_Order,
@@ -1544,7 +1592,6 @@ rme_ret_t ___RME_A6M_MPU_Add(struct __RME_A6M_MPU_Data* Top_MPU,
 
     return 0;
 }
-#endif
 /* End Function:___RME_A6M_MPU_Add *******************************************/
 
 /* Function:___RME_A6M_MPU_Update *********************************************
@@ -1554,7 +1601,6 @@ Input       : struct __RME_A6M_Pgt_Meta* Meta - This page table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
                                 rme_ptr_t Op_Flag)
 {
@@ -1618,7 +1664,6 @@ rme_ret_t ___RME_A6M_MPU_Update(struct __RME_A6M_Pgt_Meta* Meta,
     
     return 0;
 }
-#endif
 /* End Function:___RME_A6M_MPU_Update ****************************************/
 
 /* Function:___RME_A6M_Pgt_Have_Page ******************************************
@@ -1628,7 +1673,6 @@ Input       : rme_ptr_t* Table - The table to detect.
 Output      : None.
 Return      : rme_ptr_t - If there are no pages mapped in, 0; else 1.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
                                    rme_ptr_t Num_Order)
 {
@@ -1643,7 +1687,6 @@ rme_ptr_t ___RME_A6M_Pgt_Have_Page(rme_ptr_t* Table,
     
     return 0U;
 }
-#endif
 /* End Function:___RME_A6M_Pgt_Have_Page *************************************/
 
 /* Function:___RME_A6M_Pgt_Have_Pgdir *****************************************
@@ -1653,7 +1696,6 @@ Input       : rme_ptr_t* Table - The table to detect.
 Output      : None.
 Return      : rme_ptr_t - If there are no pages mapped in, 0; else 1.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ptr_t ___RME_A6M_Pgt_Have_Pgdir(rme_ptr_t* Table,
                                     rme_ptr_t Num_Order)
 {
@@ -1668,72 +1710,7 @@ rme_ptr_t ___RME_A6M_Pgt_Have_Pgdir(rme_ptr_t* Table,
     
     return 0;
 }
-#endif
 /* End Function:___RME_A6M_Pgt_Have_Pgdir ************************************/
-
-/* Function:__RME_Pgt_Set *****************************************************
-Description : Set the processor's page table.
-Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
-              rme_ptr_t Pgt - The alternative raw page table.
-Output      : None.
-Return      : None.
-******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
-void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
-#else
-void __RME_Pgt_Set(rme_ptr_t Pgt)
-#endif
-{
-    struct __RME_A6M_Raw_Pgt* Raw_Pgt;
-    
-#if(RME_PGT_RAW_USER==0U)
-    struct __RME_A6M_MPU_Data* MPU_Data;
-    
-    MPU_Data=(struct __RME_A6M_MPU_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
-                                          sizeof(struct __RME_A6M_Pgt_Meta));
-    Raw_Pgt=&(MPU_Data->Raw);
-#else
-    Raw_Pgt=(struct __RME_A6M_Raw_Pgt*)Pgt;
-#endif
-
-    /* Get the physical address of the page table - here we do not need any 
-     * conversion, because VA = PA as always. We just need to extract the MPU
-     * metadata part and pass it down */
-#if(RME_A6M_REGION_NUM==1U)
-    ___RME_A6M_MPU_Set1(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==2U)
-    ___RME_A6M_MPU_Set2(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==3U)
-    ___RME_A6M_MPU_Set3(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==4U)
-    ___RME_A6M_MPU_Set4(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==5U)
-    ___RME_A6M_MPU_Set5(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==6U)
-    ___RME_A6M_MPU_Set6(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==7U)
-    ___RME_A6M_MPU_Set7(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==8U)
-    ___RME_A6M_MPU_Set8(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==9U)
-    ___RME_A6M_MPU_Set9(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==10U)
-    ___RME_A6M_MPU_Set10(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==11U)
-    ___RME_A6M_MPU_Set11(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==12U)
-    ___RME_A6M_MPU_Set12(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==13U)
-    ___RME_A6M_MPU_Set13(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==14U)
-    ___RME_A6M_MPU_Set14(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==15U)
-    ___RME_A6M_MPU_Set15(Raw_Pgt);
-#elif(RME_A6M_REGION_NUM==16U)
-    ___RME_A6M_MPU_Set16(Raw_Pgt);
-#endif
-}
-/* End Function:__RME_Pgt_Set ************************************************/
 
 /* Function:___RME_A6M_Pgt_Refresh ********************************************
 Description : Refresh the processor's page table content to the latest.
@@ -1741,7 +1718,6 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 void ___RME_A6M_Pgt_Refresh(void)
 {
     struct RME_Thd_Struct* Thd_Cur;
@@ -1753,7 +1729,6 @@ void ___RME_A6M_Pgt_Refresh(void)
     
     __RME_Pgt_Set(_RME_Thd_Pgt(Thd_Cur));
 }
-#endif
 /* End Function:___RME_A6M_Pgt_Refresh ***************************************/
 
 /* Function:__RME_Pgt_Page_Map ************************************************
@@ -1770,7 +1745,6 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Paddr,
                              rme_ptr_t Pos,
@@ -1839,7 +1813,6 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
     
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Page_Map *******************************************/
 
 /* Function:__RME_Pgt_Page_Unmap **********************************************
@@ -1849,7 +1822,6 @@ Input       : struct RME_Cap_Pgt* - The capability to the page table to operate 
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                rme_ptr_t Pos)
 {
@@ -1895,7 +1867,6 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
     
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Page_Unmap *****************************************/
 
 /* Function:__RME_Pgt_Pgdir_Map ***********************************************
@@ -1909,7 +1880,6 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                               rme_ptr_t Pos, 
                               struct RME_Cap_Pgt* Pgt_Child,
@@ -1974,7 +1944,6 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
 
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Pgdir_Map ******************************************/
 
 /* Function:__RME_Pgt_Pgdir_Unmap *********************************************
@@ -1985,7 +1954,6 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos, 
                                 struct RME_Cap_Pgt* Pgt_Child)
@@ -2030,7 +1998,6 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
 
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Pgdir_Unmap ****************************************/
 
 /* Function:__RME_Pgt_Lookup **************************************************
@@ -2041,7 +2008,6 @@ Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flag - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t Pos,
                            rme_ptr_t* Paddr,
@@ -2069,7 +2035,6 @@ rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
 
     return 0;
 }
-#endif
 /* End Function:__RME_Pgt_Lookup *********************************************/
 
 /* Function:__RME_Pgt_Walk ****************************************************
@@ -2087,7 +2052,6 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
 rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                          rme_ptr_t Vaddr,
                          rme_ptr_t* Pgt,
@@ -2117,7 +2081,7 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
             return RME_ERR_HAL_FAIL;
         /* Calculate entry position - shifting by RME_WORD_BITS or more is UB */
         Shift=RME_PGT_SZORD(Meta->Order);
-        if(Shift>=RME_WORD_BITS)
+        if(Shift>=RME_WORD_BIT)
             Pos=0U;
         else
             Pos=(Vaddr-RME_PGT_BASE(Meta->Base))>>Shift;
@@ -2134,14 +2098,14 @@ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                 *Pgt=(rme_ptr_t)Meta;
             if(Map_Vaddr!=RME_NULL)
             {
-                if(Shift>=RME_WORD_BITS)
+                if(Shift>=RME_WORD_BIT)
                     *Map_Vaddr=RME_PGT_BASE(Meta->Base);
                 else
                     *Map_Vaddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);
             }
             if(Paddr!=RME_NULL)
             {
-                if(Shift>=RME_WORD_BITS)
+                if(Shift>=RME_WORD_BIT)
                     *Paddr=RME_PGT_BASE(Meta->Base);
                 else
                     *Paddr=RME_PGT_BASE(Meta->Base)+(Pos<<Shift);

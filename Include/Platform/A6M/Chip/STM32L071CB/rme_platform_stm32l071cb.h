@@ -8,36 +8,35 @@ Description: The configuration file for STM32L071CB.
 
 /* Define ********************************************************************/
 /* Debugging *****************************************************************/
-#define RME_ASSERT_CORRECT                              (0U)
-#define RME_DEBUG_PRINT                                 (1U)
+#define RME_ASSERT_ENABLE                               (1U)
+#define RME_DBGLOG_ENABLE                               (1U)
 /* Generator *****************************************************************/
 /* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
+/* Are we using raw memory mappings? */
+#define RME_PGT_RAW_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
-/* Are we assuming user-managed raw memory access control? */
-#define RME_PGT_RAW_USER                                (0U)
-/* The virtual memory start address for the kernel objects */
+/* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x10002000U)
-/* The size of the kernel object virtual memory */
+/* Kernel object virtual memory size */
 #define RME_KOM_VA_SIZE                                 (0x6000U)
-/* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
+/* Hypervisor context virtual memory base - set to 0 if no VM */
 #define RME_HYP_VA_BASE                                 (0x20000000U)
-/* The size of the hypervisor reserved virtual memory */
+/* Hypervisor context virtual memory size - set to 0 if no VM */
 #define RME_HYP_VA_SIZE                                 (0x20000U)
-/* The granularity of kernel memory allocation, in bytes */
+/* Kernel memory allocation granularity order */
 #define RME_KOM_SLOT_ORDER                              (4U)
-/* Kernel stack size and address */
+/* Kernel stack base and size */
 #define RME_KSTK_VA_BASE                                (0x10000FF0U)
 #define RME_KSTK_VA_SIZE                                (0x400U)
-/* The maximum number of preemption priority levels in the system.
- * This parameter must be divisible by the word length - 32 is usually sufficient */
+/* The maximum number of preemption priorities */
 #define RME_PREEMPT_PRIO_NUM                            (32U)
 
-/* Physical vector number, flag area base and its size */
+/* Physical vector number, flag area base and size */
 #define RME_RVM_PHYS_VCT_NUM                            (32U)
 #define RME_RVM_PHYS_VCTF_BASE                          (0x20002C00U)
 #define RME_RVM_PHYS_VCTF_SIZE                          (0x100U)
-/* Virtual event number, flag area base and its size */
+/* Virtual event number, flag area base and size */
 #define RME_RVM_VIRT_EVT_NUM                            (10U)
 #define RME_RVM_VIRT_EVTF_BASE                          (0x20002E00U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x100U)
@@ -63,16 +62,16 @@ Description: The configuration file for STM32L071CB.
 
 /* Initialization registers **************************************************/
 #define RME_A6M_RCC_APB1ENR                             RME_A6M_REG(0x40021038U)
-#define RME_A6M_RCC_APB1ENR_PWREN                       (1U<<28)
+#define RME_A6M_RCC_APB1ENR_PWREN                       RME_POW2(28U)
 
 #define RME_A6M_RCC_CR                                  RME_A6M_REG(0x40021000U)
-#define RME_A6M_RCC_CR_HSEON                            (1U<<16)
-#define RME_A6M_RCC_CR_HSERDY                           (1U<<17)
-#define RME_A6M_RCC_CR_PLLON                            (1U<<24)
-#define RME_A6M_RCC_CR_PLLRDY                           (1U<<25)
+#define RME_A6M_RCC_CR_HSEON                            RME_POW2(16U)
+#define RME_A6M_RCC_CR_HSERDY                           RME_POW2(17U)
+#define RME_A6M_RCC_CR_PLLON                            RME_POW2(24U)
+#define RME_A6M_RCC_CR_PLLRDY                           RME_POW2(25U)
 
 #define RME_A6M_RCC_CFGR                                RME_A6M_REG(0x4002100CU)
-#define RME_A6M_RCC_CFGR_SOURCE_HSE                     (1U<<16)
+#define RME_A6M_RCC_CFGR_SOURCE_HSE                     RME_POW2(16U)
 #define RME_A6M_RCC_CFGR_SW_PLL                         (3U)
 
 #define RME_A6M_RCC_CFGR_PLLMUL3                        (0x00000000U)
@@ -115,16 +114,16 @@ Description: The configuration file for STM32L071CB.
 
 #define RME_A6M_FLASH_ACR                               RME_A6M_REG(0x40022000U)
 #define RME_A6M_FLASH_ACR_LATENCY                       (1U)
-#define RME_A6M_FLASH_ACR_PRFTEN                        (1U<<1)
+#define RME_A6M_FLASH_ACR_PRFTEN                        RME_POW2(1U)
 
 #define RME_A6M_PWR_CR                                  RME_A6M_REG(0x40007000U)
-#define RME_A6M_PWR_CR_VOS0                             (1U<<11)
+#define RME_A6M_PWR_CR_VOS0                             RME_POW2(11U)
 
 #define RME_A6M_RCC_IOPENR                              RME_A6M_REG(0x4002102CU)
-#define RME_A6M_RCC_IOPENR_IOPAEN                       (1U<<0)
+#define RME_A6M_RCC_IOPENR_IOPAEN                       RME_POW2(0U)
 
 #define RME_A6M_RCC_APB2ENR                             RME_A6M_REG(0x40021034U)
-#define RME_A6M_RCC_APB2ENR_USART1EN                    (1U<<14)
+#define RME_A6M_RCC_APB2ENR_USART1EN                    RME_POW2(14U)
 
 #define RME_A6M_GPIOA_MODER                             RME_A6M_REG(0x50000000U)
 #define RME_A6M_GPIOA_OTYPER                            RME_A6M_REG(0x50000004U)
@@ -171,7 +170,7 @@ Description: The configuration file for STM32L071CB.
 #define RME_A6M_USART1_CR2                              RME_A6M_REG(0x40013804U)
 #define RME_A6M_USART1_CR3                              RME_A6M_REG(0x40013808U)
 
-#define RME_A6M_USART1_CR1_UE                           (1U<<0)
+#define RME_A6M_USART1_CR1_UE                           RME_POW2(0U)
 
 /* Preinitialization of critical hardware */
 #define RME_A6M_LOWLVL_PREINIT() \
@@ -228,7 +227,7 @@ do \
 } \
 while(0)
 
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
 /* Other low-level initialization stuff - clock and serial */
 #define RME_A6M_LOWLVL_INIT() \
 do \

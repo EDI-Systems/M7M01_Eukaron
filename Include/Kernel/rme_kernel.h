@@ -32,56 +32,137 @@ Description : The header of the kernel. Whitebox testing of all branches
 #define RME_EMPTY                                   (0U)
 #define RME_CASFAIL                                 (0U)
 
+/* Dewarn compiler */
+#define RME_USE(X)                                  ((void)(X))
+
 /* Power of 2 */
-#define RME_POW2(POW)                               (((rme_ptr_t)1U)<<(POW))
-#define RME_ISPOW2(X)                               ((((rme_ptr_t)(X))&(((rme_ptr_t)(X))-1U))==0U)
-/* Bit mask/address operations */
-#define RME_ALLBITS                                 (~((rme_ptr_t)0U))
-#define RME_WORD_BITS                               (sizeof(rme_ptr_t)*8U)
-#define RME_POSITIVE_BITS                           (RME_ALLBITS>>1)
-/* Apply this mask to keep BEGIN to MSB bits */
-#define RME_MASK_BEGIN(BEGIN)                       ((RME_ALLBITS)<<(BEGIN))
-/* Apply this mask to keep LSB to END bits */
-#define RME_MASK_END(END)                           ((RME_ALLBITS)>>(RME_WORD_BITS-1-(END)))
-/* Apply this mask to keep BEGIN to END bits, BEGIN < END */
+#define RME_FIELD(VAL,POW)                          (((rme_ptr_t)(VAL))<<(POW))
+#define RME_POW2(POW)                               RME_FIELD(1U,POW)
+#define RME_IS_POW2(X)                              ((((rme_ptr_t)(X))&(((rme_ptr_t)(X))-1U))==0U)
+/* Word size */
+#define RME_WORD_BIT                                RME_POW2(RME_WORD_ORDER)
+#define RME_WORD_BYTE                               (RME_WORD_BIT>>3)
+#define RME_WORD_BIT_O1                             (RME_WORD_BYTE)
+#define RME_WORD_BIT_O2                             (RME_WORD_BYTE*2U)
+#define RME_WORD_BIT_O3                             (RME_WORD_BYTE*3U)
+#define RME_WORD_BIT_O4                             (RME_WORD_BYTE*4U)
+#define RME_WORD_BIT_O5                             (RME_WORD_BYTE*5U)
+#define RME_WORD_BIT_O6                             (RME_WORD_BYTE*6U)
+#define RME_WORD_BIT_O7                             (RME_WORD_BYTE*7U)
+#define RME_WORD_BIT_Q1                             RME_WORD_BIT_O2
+#define RME_WORD_BIT_Q2                             RME_WORD_BIT_O4
+#define RME_WORD_BIT_Q3                             RME_WORD_BIT_O6
+#define RME_WORD_BIT_D1                             RME_WORD_BIT_Q2
+/* Bit mask */
+#define RME_MASK_FULL                               (~((rme_ptr_t)0U))
+#define RME_MASK_WORD                               (~(RME_MASK_FULL<<RME_WORD_ORDER))
+#define RME_MASK_WORD_O                             RME_MASK_END(RME_WORD_BIT_O1-1U)
+#define RME_MASK_WORD_Q                             RME_MASK_END(RME_WORD_BIT_Q1-1U)
+#define RME_MASK_WORD_D                             RME_MASK_END(RME_WORD_BIT_D1-1U)
+/* Mask to keep BEGIN to MSB bits */
+#define RME_MASK_BEGIN(BEGIN)                       ((RME_MASK_FULL)<<(BEGIN))
+/* Mask to keep LSB to END bits */
+#define RME_MASK_END(END)                           ((RME_MASK_FULL)>>(RME_WORD_BIT-1U-(END)))
+/* Mask to keep BEGIN to END bits, BEGIN < END */
 #define RME_MASK(BEGIN,END)                         ((RME_MASK_BEGIN(BEGIN))&(RME_MASK_END(END)))
 /* Round the number down & up to a power of 2 */
 #define RME_ROUND_DOWN(NUM,POW)                     ((NUM)&(RME_MASK_BEGIN(POW)))
 #define RME_ROUND_UP(NUM,POW)                       RME_ROUND_DOWN((NUM)+RME_MASK_END(POW-1U),POW)
 /* Check if address is aligned on word boundary */
 #define RME_IS_ALIGNED(ADDR)                        (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))==0U)
-#define RME_NOT_ALIGNED(ADDR)                       (((ADDR)&RME_MASK_END(RME_WORD_ORDER-4U))!=0U)
+/* Bitmap */
+#define RME_BITMAP_SET(BMP,POS)                     ((BMP)[(POS)>>RME_WORD_ORDER]|=RME_POW2((POS)&RME_MASK_WORD))
+#define RME_BITMAP_CLR(BMP,POS)                     ((BMP)[(POS)>>RME_WORD_ORDER]&=~RME_POW2((POS)&RME_MASK_WORD))
+#define RME_BITMAP_IS_SET(BMP,POS)                  (((BMP)[(POS)>>RME_WORD_ORDER]&RME_POW2((POS)&RME_MASK_WORD))!=0U)
+
+/* Maximum logging length */
+#define RME_DBGLOG_MAX                              (255U)
+
+/* Debug logging macros */
+#if(RME_DBGLOG_ENABLE!=0U)
+#define RME_DBG_I(INT)                              RME_Int_Print((rme_cnt_t)(INT))
+#define RME_DBG_H(HEX)                              RME_Hex_Print((rme_ptr_t)(HEX))
+#define RME_DBG_S(STR)                              RME_Str_Print((const rme_s8_t*)(STR))
+#else
+#define RME_DBG_I(INT)
+#define RME_DBG_H(HEX)
+#define RME_DBG_S(STR)
+#endif
+
+/* Logging macro */
+#ifndef RME_LOG
+#define RME_LOG_OP(F,L,D,T)                         RME_Log(F,L,D,T)
+#else
+#define RME_LOG_OP(F,L,D,T)                         RME_LOG(F,L,D,T)
+#endif
+
+/* Failure macro */
+#ifndef RME_ASSERT_FAIL
+#define RME_ASSERT_FAIL_OP(F,L,D,T)
+#else
+#define RME_ASSERT_FAIL_OP(F,L,D,T)                 RME_ASSERT_FAIL(F,L,D,T)
+#endif
+
+/* Assert macro - used only in internal development */
+#if(RME_ASSERT_ENABLE!=0U)
+#define RME_ASSERT(X) \
+do \
+{ \
+    if(!(X)) \
+    { \
+        RME_LOG_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
+        RME_ASSERT_FAIL_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
+        while(1); \
+    } \
+} \
+while(0)
+#else
+#define RME_ASSERT(X) \
+do \
+{ \
+    RME_USE(X); \
+} \
+while(0)
+#endif
+
+/* Coverage marker enabling */
+#ifdef RME_COV_LINE_NUM
+#define RME_COV_WORD_NUM                            (RME_ROUND_UP(RME_COV_LINE_NUM,RME_WORD_ORDER)>>RME_WORD_ORDER)
+#define RME_COV_MARKER()                            RME_BITMAP_SET(RME_Cov,__LINE__)
+#else
+#define RME_COV_MARKER()
+#endif
+
 /* Bit field extraction macros for easy extraction of parameters
 [MSB                                 PARAMS                                 LSB]
 [                  D1                  ][                  D0                  ]
 [        Q3        ][        Q2        ][        Q1        ][        Q0        ]
-[   O7   ][   O6   ][   O5   ][   O4   ][   O3   ][   O2   ][   O1   ][   O0   ] 
-*/
+[   O7   ][   O6   ][   O5   ][   O4   ][   O3   ][   O2   ][   O1   ][   O0   ] */
 /* Cut in half */
-#define RME_PARAM_D1(X)                             ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_PARAM_D0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
+#define RME_PARAM_D1(X)                             ((X)>>RME_WORD_BIT_D1)
+#define RME_PARAM_D0(X)                             ((X)&RME_MASK_WORD_D)
 /* Cut into 4 parts */
-#define RME_PARAM_Q3(X)                             ((X)>>(sizeof(rme_ptr_t)*6U))
-#define RME_PARAM_Q2(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
-#define RME_PARAM_Q1(X)                             (((X)>>(sizeof(rme_ptr_t)*2U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
-#define RME_PARAM_Q0(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
+#define RME_PARAM_Q3(X)                             ((X)>>RME_WORD_BIT_Q3)
+#define RME_PARAM_Q2(X)                             (((X)>>RME_WORD_BIT_Q2)&RME_MASK_WORD_Q)
+#define RME_PARAM_Q1(X)                             (((X)>>RME_WORD_BIT_Q1)&RME_MASK_WORD_Q)
+#define RME_PARAM_Q0(X)                             ((X)&RME_MASK_WORD_Q)
 /* Cut into 8 parts */
-#define RME_PARAM_O7(X)                             ((X)>>(sizeof(rme_ptr_t)*7U))
-#define RME_PARAM_O6(X)                             (((X)>>(sizeof(rme_ptr_t)*6U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O5(X)                             (((X)>>(sizeof(rme_ptr_t)*5U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O4(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O3(X)                             (((X)>>(sizeof(rme_ptr_t)*3U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O2(X)                             (((X)>>(sizeof(rme_ptr_t)*2U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O1(X)                             (((X)>>(sizeof(rme_ptr_t)*1U))&RME_MASK_END(sizeof(rme_ptr_t)-1U))
-#define RME_PARAM_O0(X)                             ((X)&RME_MASK_END(sizeof(rme_ptr_t)-1U))
+#define RME_PARAM_O7(X)                             ((X)>>RME_WORD_BIT_O7)
+#define RME_PARAM_O6(X)                             (((X)>>RME_WORD_BIT_O6)&RME_MASK_WORD_O)
+#define RME_PARAM_O5(X)                             (((X)>>RME_WORD_BIT_O5)&RME_MASK_WORD_O)
+#define RME_PARAM_O4(X)                             (((X)>>RME_WORD_BIT_O4)&RME_MASK_WORD_O)
+#define RME_PARAM_O3(X)                             (((X)>>RME_WORD_BIT_O3)&RME_MASK_WORD_O)
+#define RME_PARAM_O2(X)                             (((X)>>RME_WORD_BIT_O2)&RME_MASK_WORD_O)
+#define RME_PARAM_O1(X)                             (((X)>>RME_WORD_BIT_O1)&RME_MASK_WORD_O)
+#define RME_PARAM_O0(X)                             ((X)&RME_MASK_WORD_O)
 
 /* This is the special one used for delegation, and used for kernel memory
  * capability only because it is very complicated. Other capabilities will not use this */
-#define RME_PARAM_KM(SVC, CID)                      (((SVC)<<(sizeof(rme_ptr_t)*4U))|(CID))
+#define RME_PARAM_KM(SVC,CID)                       (RME_FIELD(SVC,RME_WORD_BIT_D1)|(CID))
 /* This is the special one used for page table top-level flags */
 #define RME_PARAM_PT(X)                             ((X)&0x01U)
 /* The page table creation extra parameter packed in the svc number */
-#define RME_PARAM_PC(SVC)                           ((SVC)>>((sizeof(rme_ptr_t)<<1)))
+#define RME_PARAM_PC(SVC)                           ((SVC)>>RME_WORD_BIT_D1)
 
 /* The return procedure of a possible context switch - If successful, the function itself
  * is responsible for setting the parameters; If failed, we set the parameters for it.
@@ -96,73 +177,8 @@ do \
 } \
 while(0)
 
-/* The system service numbers are defined here. This is included in both user level 
- * and kernel level */
+/* The system call numbers are included in both user level and kernel level */
 #include "rme.h"
-
-#if(RME_DEBUG_PRINT==1U)
-/* Debugging */
-#define RME_DEBUG_PRINT_MAX                         (256U)
-/* Printk macros */
-#define RME_DBG_I(INT)                              RME_Int_Print((rme_cnt_t)(INT))
-#define RME_DBG_U(UINT)                             RME_Hex_Print((rme_ptr_t)(UINT))
-#define RME_DBG_S(STR)                              RME_Str_Print((rme_s8_t*)(STR))
-#else
-#define RME_DBG_I(INT)                              while(0U)
-#define RME_DBG_U(UINT)                             while(0U)
-#define RME_DBG_S(STR)                              while(0U)
-#endif
-
-#if(RME_ASSERT_CORRECT==0U)
-/* Assert macro - used only in internal development */
-#define RME_ASSERT(X) \
-do \
-{ \
-    if(RME_UNLIKELY((X)==0)) \
-    { \
-        RME_DBG_S("\r\n***\r\nKernel panic - not syncing:\r\n"); \
-        RME_DBG_S(__FILE__); \
-        RME_DBG_S(" , Line "); \
-        RME_DBG_I(__LINE__); \
-        RME_DBG_S("\r\n"); \
-        RME_DBG_S(__DATE__); \
-        RME_DBG_S(" , "); \
-        RME_DBG_S(__TIME__); \
-        RME_DBG_S("\r\n"); \
-        RME_ASSERT_FAILED(__FILE__, __LINE__, __DATE__, __TIME__); \
-        while(1U); \
-    } \
-} \
-while(0)
-#else
-#define RME_ASSERT(X) \
-do \
-{ \
-    if(RME_UNLIKELY((X)==0)) {} \
-} \
-while(0)
-#endif
-
-/* Coverage testing marker */
-/* #define RME_COVERAGE */
-/* Test marker macro */
-#ifdef RME_COVERAGE
-#define RME_COVERAGE_LINES                          (8192U)
-#define RME_COVERAGE_MARKER() \
-do \
-{ \
-    RME_Coverage[__LINE__]++; \
-    RME_Coverage[0U]=RME_Coverage[__LINE__]; \
-} \
-while(0)
-#else
-#define RME_COVERAGE_MARKER() \
-do \
-{ \
-    \
-} \
-while(0)
-#endif
 
 /* Kernel Object Table *******************************************************/
 /* Bitmap reference error */
@@ -171,33 +187,33 @@ while(0)
 /* Number of slots, and size of each slot */
 #define RME_KOT_SLOT_NUM                            (RME_KOM_VA_SIZE>>RME_KOM_SLOT_ORDER)
 #define RME_KOT_SLOT_SIZE                           RME_POW2(RME_KOM_SLOT_ORDER)
-#define RME_KOT_WORD_NUM                            (RME_ROUND_UP(RME_KOT_SLOT_NUM, RME_WORD_ORDER)>>RME_WORD_ORDER)
+#define RME_KOT_WORD_NUM                            (RME_ROUND_UP(RME_KOT_SLOT_NUM,RME_WORD_ORDER)>>RME_WORD_ORDER)
 
 /* Round the kernel object size to the entry slot size */
-#define RME_KOM_ROUND(X)                            RME_ROUND_UP(X, RME_KOM_SLOT_ORDER)
+#define RME_KOM_ROUND(X)                            RME_ROUND_UP(X,RME_KOM_SLOT_ORDER)
 
 /* Capability Table **********************************************************/
-/* Capability size macro */
-#define RME_CAP_SIZE                                (sizeof(rme_ptr_t)*8U)
+/* Capability size macro - always 8 full machine words */
+#define RME_CAP_SIZE                                (RME_WORD_BYTE*8U)
 /* Capability table size calculation macro */
 #define RME_CPT_SIZE(NUM)                           (sizeof(struct RME_Cap_Struct)*(NUM))
 /* The operation inline macros on the capabilities */
-/* Refcnt_Type:example for 32-bit and 64-bit systems
+/* Type_Stat: example for 32-bit and 64-bit systems
  * 32-bit system:
- * [31    Type   24][23  Status  16][15              Attribute                0]
+ * [31    Type   24] [23  Status  16] [15              Attribute                0]
  * 64-bit system:
- * [63    Type   48][47  Status  32][31              Attribute                0]
+ * [63    Type   48] [47  Status  32] [31              Attribute                0]
  * Refcnt is used to track delegation, and also in the case of process creation,
  * used to track if the capability table or the page table is referenced.
  * Frozen is a fine-grained lock to lock the entries involved so that no parallel
  *        create/destroy/alteration operations on them can be done. If one of the
  *        locks failed, we will give up all the locks, and retry.
  * Type is a field denoting what is it. */
-#define RME_CAP_TYPE_STAT(TYPE,STAT,ATTR)           ((((rme_ptr_t)(TYPE))<<(sizeof(rme_ptr_t)*6U))| \
-                                                     (((rme_ptr_t)(STAT))<<(sizeof(rme_ptr_t)*4U))|(ATTR))
-                                                     
+#define RME_CAP_TYPE_STAT(TYPE,STAT,ATTR)           (RME_FIELD(TYPE,RME_WORD_BIT_Q3)| \
+                                                     RME_FIELD(STAT,RME_WORD_BIT_Q2)|(ATTR))
+
 /* Capability types */
-#define RME_CAP_TYPE(X)                             ((X)>>(sizeof(rme_ptr_t)*6U))
+#define RME_CAP_TYPE(X)                             ((X)>>RME_WORD_BIT_Q3)
 /* Empty */
 #define RME_CAP_TYPE_NOP                            (0U)
 /* Kernel function */
@@ -217,26 +233,27 @@ while(0)
 /* Asynchronous signal endpoint */
 #define RME_CAP_TYPE_SIG                            (8U)
 
-/* Capability statuses */
-#define RME_CAP_STAT(X)                             (((X)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_END((sizeof(rme_ptr_t)*2U)-1U))
+/* Capability status */
+#define RME_CAP_STAT(X)                             (((X)>>RME_WORD_BIT_Q2)&RME_MASK_WORD_Q)
 /* Valid capability */
 #define RME_CAP_STAT_VALID                          (0U)
 /* Capability under creation */
 #define RME_CAP_STAT_CREATING                       (1U)
 /* Frozen capability */
 #define RME_CAP_STAT_FROZEN                         (2U)
-/* Capability attributes */
-#define RME_CAP_ATTR(X)                             ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
+
+/* Capability attributes - currently only ROOT and LEAF are present */
+#define RME_CAP_ATTR(X)                             ((X)&RME_MASK_WORD_D)
 /* Root capability */
 #define RME_CAP_ATTR_ROOT                           (0U)
 /* Leaf capability */
 #define RME_CAP_ATTR_LEAF                           (1U)
 
 /* Is this cap quiescent? Yes-1, No-0 */
-#if(RME_QUIE_TIME!=0)
-#if(RME_WORD_ORDER==5)
+#if(RME_QUIE_TIME!=0U)
+#if(RME_WORD_ORDER==5U)
 /* If this is a 32-bit system, need to consider overflows */
-#define RME_CAP_QUIE(X)                             (_RME_Distance((RME_TIMESTAMP),(X))>RME_QUIE_TIME)
+#define RME_CAP_QUIE(X)                             (_RME_Diff((RME_TIMESTAMP),(X))>RME_QUIE_TIME)
 #else
 #define RME_CAP_QUIE(X)                             (((RME_TIMESTAMP)-(X))>RME_QUIE_TIME)
 #endif
@@ -250,25 +267,25 @@ while(0)
                                                      ((TYPE)(X)):((TYPE)((X)->Head.Root_Ref)))
 /* Get the object */
 #define RME_CAP_GETOBJ(X,TYPE)                      ((TYPE)((X)->Head.Object))
-/* 1-layer capid addressing:
+/* 1-layer capid addressing: 
  * 32-bit systems: Capid range 0x00 - 0x7F
- * [15             Reserved             8][7  2L(0)][6    Table(Master)   0]
+ * [15             Reserved             8] [7  2L(0)] [6    Table(Master)   0]
  * 64-bit systems: Capid range 0x0000 - 0x7FFF
- * [31             Reserved            16][15 2L(0)][14   Table(Master)   0]
+ * [31             Reserved            16] [15 2L(0)] [14   Table(Master)   0]
  * 2-layer capid addressing:
  * 32-bit systems: Capid range 0x00 - 0x7F
- * [15 Reserved][14 High Table(Master)  8][7  2L(1)][6   Low Table(Child) 0]
+ * [15 Reserved][14 High Table(Master)  8] [7  2L(1)] [6   Low Table(Child) 0]
  * 64-bit systems: Capid range 0x0000 - 0x7FFF
- * [31 Reserved][30 High Table(Master) 16][15 2L(1)][14  Low Table(Child) 0] */
-#define RME_CID_NULL                                (1<<(sizeof(rme_ptr_t)*4U-1U))
+ * [31 Reserved][30 High Table(Master) 16] [15 2L(1)] [14  Low Table(Child) 0] */
+#define RME_CID_NULL                                ((rme_cid_t)RME_POW2(RME_WORD_BIT_D1-1U))
 /* See if the capid is a 2-level representation */
-#define RME_CID_2L                                  (1<<(sizeof(rme_ptr_t)*2U-1U))
+#define RME_CID_2L                                  RME_POW2(RME_WORD_BIT_Q1-1U)
 /* Make 2-level capability */
-#define RME_CID(X,Y)                                (((X)<<(sizeof(rme_ptr_t)*2U))|(Y)|RME_CID_2L)
+#define RME_CID(X,Y)                                ((rme_cid_t)(RME_FIELD(X,RME_WORD_BIT_Q1)|((rme_ptr_t)(Y))|RME_CID_2L))
 /* High-level capability table capability position */
-#define RME_CAP_H(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))>>(sizeof(rme_ptr_t)*2U)))
+#define RME_CAP_H(X)                                (((rme_ptr_t)(X))>>RME_WORD_BIT_Q1)
 /* Low-level capability table capability position */
-#define RME_CAP_L(X)                                ((rme_ptr_t)(((rme_ptr_t)(X))&RME_MASK_END(sizeof(rme_ptr_t)*2U-2U)))
+#define RME_CAP_L(X)                                (((rme_ptr_t)(X))&RME_MASK_END(RME_WORD_BIT_Q1-2U))
 
 /* When we are clearing capabilities */
 #define RME_CAP_CLEAR(X) \
@@ -474,13 +491,13 @@ while(0)
 do \
 { \
     /* See if this is a 2-level cap */ \
-    if(((CAP_NUM)&RME_CID_2L)==0U) \
+    if((((rme_ptr_t)(CAP_NUM))&RME_CID_2L)==0U) \
     { \
         /* Check if the captbl is over range */ \
         if(RME_UNLIKELY(((rme_ptr_t)(CAP_NUM))>=((CPT)->Entry_Num))) \
             return RME_ERR_CPT_RANGE; \
         /* Get the cap slot and check the type */ \
-        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT, struct RME_Cap_Struct*)[(CAP_NUM)]); \
+        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT,struct RME_Cap_Struct*)[(CAP_NUM)]); \
         /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
         (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Stat)); \
         /* See if the capability is frozen */ \
@@ -497,7 +514,7 @@ do \
         if(RME_UNLIKELY(RME_CAP_H(CAP_NUM)>=((CPT)->Entry_Num))) \
             return RME_ERR_CPT_RANGE; \
         /* Get the cap slot */ \
-        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT, struct RME_Cap_Cpt*)[RME_CAP_H(CAP_NUM)]); \
+        (PARAM)=(TYPE)(&RME_CAP_GETOBJ(CPT,struct RME_Cap_Cpt*)[RME_CAP_H(CAP_NUM)]); \
         /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
         (TEMP)=RME_READ_ACQUIRE(&((PARAM)->Head.Type_Stat)); \
         /* See if the capability table is frozen for deletion or removal */ \
@@ -529,19 +546,19 @@ while(0)
 
 /* Page table flag arrangement - limits are inclusive
 * 32-bit systems: Maximum page table size 2^12 = 4096
-* [31    High Limit    20] [19    Low Limit    8][7    Flag    0]
+* [31    High Limit    20] [19    Low Limit    8] [7    Flag    0]
 * 64-bit systems: Maximum page table size 2^28 = 268435456
-* [63    High Limit    36] [35    Low Limit    8][7    Flag    0] */
+* [63    High Limit    36] [35    Low Limit    8] [7    Flag    0] */
 /* Maximum number of entries in a page table */
-#define RME_PGT_MAX_ENTRY                           RME_POW2(sizeof(rme_ptr_t)*4U-4U)
+#define RME_PGT_MAX_ENTRY                           RME_POW2(RME_WORD_BIT_D1-4U)
 /* Range high limit */ 
-#define RME_PGT_FLAG_HIGH(X)                        ((X)>>(sizeof(rme_ptr_t)*4U+4U))
+#define RME_PGT_FLAG_HIGH(X)                        ((X)>>(RME_WORD_BIT_D1+4U))
 /* Range low limit */
-#define RME_PGT_FLAG_LOW(X)                         (((X)>>8)&RME_MASK_END(sizeof(rme_ptr_t)*4U-5U))
+#define RME_PGT_FLAG_LOW(X)                         (((X)>>8)&RME_MASK_END(RME_WORD_BIT_D1-5U))
 /* Permission flags */
 #define RME_PGT_FLAG_FLAG(X)                        ((X)&RME_MASK_END(7U))
 /* The initial flag of boot-time page table - allows all range delegation access only */
-#define RME_PGT_FLAG_FULL_RANGE                     RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U+4U)
+#define RME_PGT_FLAG_FULL_RANGE                     RME_MASK_BEGIN(RME_WORD_BIT_D1+4U)
 
 /* Page table base address/top-level attributes */
 #define RME_PGT_BASE(X)                             ((X)&RME_MASK_BEGIN(1U))
@@ -549,9 +566,9 @@ while(0)
 #define RME_PGT_NOM                                 (0U)
 
 /* Size order and number order */
-#define RME_PGT_SZORD(X)                            ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_PGT_NMORD(X)                            ((X)&RME_MASK_END(sizeof(rme_ptr_t)*4U-1U))
-#define RME_PGT_ORDER(SIZE,NUM)                     (((SIZE)<<(sizeof(rme_ptr_t)*4U))|(NUM))
+#define RME_PGT_SZORD(X)                            ((X)>>RME_WORD_BIT_D1)
+#define RME_PGT_NMORD(X)                            ((X)&RME_MASK_WORD_D)
+#define RME_PGT_ORDER(SIZE,NUM)                     (RME_FIELD(SIZE,RME_WORD_BYTE*4U)|(NUM))
     
 /* Kernel Memory *************************************************************/
 /* Kernel memory function capability flag arrangement - extended flags used, 
@@ -563,36 +580,34 @@ while(0)
  * 64-bit systems:
  * [63          High Limit[64:32]         32] [31       Low Limit[64:32]       0]  Flags
  * [63 High Limit[31: 6] 38] [37 Reserved 32] [31 Low Limit[31: 6] 6] [5 Flags 0]  Ext_Flag */
-#define RME_KOM_FLAG_HIGH_F(FLAG)                   ((FLAG)&RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U))
-#define RME_KOM_FLAG_HIGH_E(EFLAG)                  (((EFLAG)>>(sizeof(rme_ptr_t)*4U))&RME_MASK_BEGIN(6U))
+#define RME_KOM_FLAG_HIGH_F(FLAG)                   ((FLAG)&RME_MASK_BEGIN(RME_WORD_BIT_D1))
+#define RME_KOM_FLAG_HIGH_E(EFLAG)                  (((EFLAG)>>RME_WORD_BIT_D1)&RME_MASK_BEGIN(6U))
 #define RME_KOM_FLAG_HIGH(FLAG, EFLAG)              (RME_KOM_FLAG_HIGH_F(FLAG)|RME_KOM_FLAG_HIGH_E(EFLAG))
-#define RME_KOM_FLAG_LOW_F(FLAG)                    ((FLAG)<<(sizeof(rme_ptr_t)*4U))
-#define RME_KOM_FLAG_LOW_E(EFLAG)                   ((EFLAG)&RME_MASK(sizeof(rme_ptr_t)*4U-1U,6U))
+#define RME_KOM_FLAG_LOW_F(FLAG)                    RME_FIELD(FLAG,RME_WORD_BIT_D1)
+#define RME_KOM_FLAG_LOW_E(EFLAG)                   ((EFLAG)&RME_MASK(RME_WORD_BIT_D1-1U,6U))
 #define RME_KOM_FLAG_LOW(FLAG, EFLAG)               (RME_KOM_FLAG_LOW_F(FLAG)|RME_KOM_FLAG_LOW_E(EFLAG))
 #define RME_KOM_FLAG_KOM(EFLAG)                     ((EFLAG)&RME_MASK(5U,0U))
 
 /* Process and Thread ********************************************************/
-/* Thread states */
-/* The thread is currently running */
-#define RME_THD_RUNNING                             (0U)
-/* The thread is currently ready for scheduling */
-#define RME_THD_READY                               (1U)
-/* The thread is currently blocked on a asynchronous send endpoint */
-#define RME_THD_BLOCKED                             (2U)
-/* The thread just ran out of time */
-#define RME_THD_TIMEOUT                             (3U)
-/* The thread is stopped due to an unhandled exception */
-#define RME_THD_EXC_PEND                            (4U)
+/* Thread state flag arrangement - just plain state */
+/* Thread is currently ready for scheduling */
+#define RME_THD_READY                               (0U)
+/* Thread is currently blocked on a asynchronous send endpoint */
+#define RME_THD_BLOCKED                             (1U)
+/* Thread just ran out of time */
+#define RME_THD_TIMEOUT                             (2U)
+/* Thread is stopped due to an unhandled exception */
+#define RME_THD_EXCPEND                             (3U)
 
 /* Priority level bitmap */
-#define RME_PRIO_WORD_NUM                           (RME_PREEMPT_PRIO_NUM>>RME_WORD_ORDER)
+#define RME_PRIO_WORD_NUM                           (RME_ROUND_UP(RME_PREEMPT_PRIO_NUM,RME_WORD_ORDER)>>RME_WORD_ORDER)
 
 /* Thread binding state */
-#define RME_THD_FREE                                ((struct RME_CPU_Local*)RME_ALLBITS)
+#define RME_THD_FREE                                ((struct RME_CPU_Local*)RME_MASK_FULL)
 /* Thread sched rcv faulty state */
-#define RME_THD_EXC_FLAG                            RME_POW2(RME_WORD_BITS-2U)
+#define RME_THD_EXC_FLAG                            RME_POW2(RME_WORD_BIT-2U)
 /* Init thread infinite time marker */
-#define RME_THD_INIT_TIME                           (RME_ALLBITS>>1)
+#define RME_THD_INIT_TIME                           (RME_MASK_FULL>>1)
 /* Other thread infinite time marker */
 #define RME_THD_INF_TIME                            (RME_THD_INIT_TIME-1U)
 
@@ -600,15 +615,18 @@ while(0)
  * 32-bit systems:
  * [16               Attr              7] [6 Is_Hyp] [5        Reserved        0]  Svc
  * 64-bit systems:
- * [32               Attr              7] [6 Is_Hyp] [5        Reserved        0]  Svc */
-#define RME_THD_HYP_FLAG                            RME_POW2(RME_WORD_BITS-1U)
-#define RME_THD_ATTR(X)                             ((X)&(RME_ALLBITS>>1))
+ * [32               Attr              7] [6 Is_Hyp] [5        Reserved        0]  Svc
+ * Hyp_Attr:
+ * [63/31 Is_Hyp] [62/30                       Attr                             ]
+ */
+#define RME_THD_HYP_FLAG                            RME_POW2(RME_WORD_BIT-1U)
+#define RME_THD_ATTR(X)                             ((X)&(RME_MASK_FULL>>1))
 
 #define RME_HYP_SIZE                                sizeof(struct RME_Thd_Struct)
 #if(RME_COP_NUM!=0U)
-#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-sizeof(rme_ptr_t)+__RME_Thd_Cop_Size(X))
+#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-RME_WORD_BYTE+__RME_Thd_Cop_Size(X))
 #else
-#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-sizeof(rme_ptr_t))
+#define RME_REG_SIZE(X)                             (sizeof(struct RME_Thd_Reg)-RME_WORD_BYTE)
 #endif
 #define RME_THD_SIZE(X)                             (RME_HYP_SIZE+RME_REG_SIZE(X))
     
@@ -624,7 +642,7 @@ while(0)
 
 /* Signal and Invocation *****************************************************/
 /* The maximum number of signals on an endpoint */
-#define RME_MAX_SIG_NUM                             (RME_ALLBITS>>1)
+#define RME_MAX_SIG_NUM                             (RME_MASK_FULL>>1)
 
 /* The kernel object sizes */
 #define RME_SIG_SIZE                                sizeof(struct RME_Sig_Struct)
@@ -644,9 +662,9 @@ while(0)
 * [31        High Limit        16] [15        Low Limit        0]
 * 64-bit systems: Maximum kernel function number 2^32
 * [63        High Limit        32] [31        Low Limit        0] */
-#define RME_KFN_FLAG_HIGH(X)                        ((X)>>(sizeof(rme_ptr_t)*4U))
-#define RME_KFN_FLAG_LOW(X)                         ((X)&RME_MASK_END((sizeof(rme_ptr_t)*4U)-1U))
-#define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_BEGIN(sizeof(rme_ptr_t)*4U)
+#define RME_KFN_FLAG_HIGH(X)                        ((X)>>RME_WORD_BIT_D1)
+#define RME_KFN_FLAG_LOW(X)                         ((X)&RME_MASK_WORD_D)
+#define RME_KFN_FLAG_FULL_RANGE                     RME_MASK_BEGIN(RME_WORD_BYTE*4U)
 
 /* __RME_KERNEL_DEF__ */
 #endif
@@ -670,7 +688,7 @@ struct RME_Cap_Head
 {
     /* The type, status */
     rme_ptr_t Type_Stat;
-    /* The root capability (for non-root caps), or the reference count from everything else (for root caps) */
+    /* The root capability (non-root caps), or the reference count (root caps) */
     rme_ptr_t Root_Ref;
     /* The suboperation capability flags */
     rme_ptr_t Flag;
@@ -700,16 +718,18 @@ struct RME_Cap_Cpt
 
 /* Page Table ****************************************************************/
 /* Page table capability structure */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 struct RME_Cap_Pgt
 {
     struct RME_Cap_Head Head;
     /* The entry size/number order */
     rme_ptr_t Order;
-    /* The base address of this page table.
-     * Also, if this is a top-level, the last bit will be set. */
+    /* The base virtual address of this page table, only used when path compression
+     * is enabled. Also, when this layer is a top-level, the last bit will be set. */
     rme_ptr_t Base;
-    /* Address space ID, if applicable - need to convert to root cap to r/w */
+    /* Address space ID, if applicable - need to convert to root cap to r/w. This
+     * is only operated on by kernel function extensions, and is otherwise unused
+     * when the corresponding kernel function is not implemented. */
     rme_ptr_t ASID;
 };
 #endif
@@ -730,8 +750,8 @@ struct RME_Cap_Kom
 /* List head structure */
 struct RME_List
 {
-    struct RME_List* Prev;
     struct RME_List* Next;
+    struct RME_List* Prev;
 };
 
 /* Per-CPU run queue structure */
@@ -749,7 +769,7 @@ struct RME_Cap_Prc
     struct RME_Cap_Head Head;
     /* The capability table struct - need to convert to root cap to r/w */
     struct RME_Cap_Cpt* Cpt;
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     /* The page table struct - need to convert to root cap to r/w */
     struct RME_Cap_Pgt* Pgt;
 #else
@@ -918,7 +938,10 @@ struct RME_Cap_Kfn
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC__
 /*****************************************************************************/
-
+#ifdef RME_COV_LINE_NUM
+/* For kernel coverage use only */
+static volatile rme_ptr_t RME_Cov[RME_COV_WORD_NUM];
+#endif
 /*****************************************************************************/
 /* End Private Variable ******************************************************/
 
@@ -953,7 +976,7 @@ static rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
 
 /* Page Table ****************************************************************/
 /* Page table system calls */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Kom,
@@ -988,15 +1011,15 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
 #endif
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
-static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
-static rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
+static void _RME_Run_Ins(struct RME_Thd_Struct* Thd);
+static void _RME_Run_Del(struct RME_Thd_Struct* Thd);
 static struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* Local);
-static rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
+static void _RME_Run_Notif(struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                               struct RME_Thd_Struct* Thd_Cur, 
                               struct RME_Thd_Struct* Thd_New);
 /* Process system calls */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt_Crt,
                               rme_cid_t Cap_Prc,
@@ -1015,7 +1038,7 @@ static rme_ret_t _RME_Prc_Del(struct RME_Cap_Cpt* Cpt,
 static rme_ret_t _RME_Prc_Cpt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Prc,
                               rme_cid_t Cap_Cpt);
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 static rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Prc,
                               rme_cid_t Cap_Pgt);
@@ -1037,11 +1060,6 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
 static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Cpt,
                               rme_cid_t Cap_Thd);
-static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
-                                   rme_cid_t Cap_Thd,
-                                   rme_ptr_t Entry,
-                                   rme_ptr_t Stack,
-                                   rme_ptr_t Param);
 static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                                      rme_cid_t Cap_Thd,
                                      rme_cid_t Cap_Thd_Sched,
@@ -1049,6 +1067,15 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                                      rme_tid_t TID,
                                      rme_ptr_t Prio,
                                      rme_ptr_t Haddr);
+static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
+                                     struct RME_Reg_Struct* Reg,
+                                     rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
+                                   struct RME_Reg_Struct* Reg,
+                                   rme_cid_t Cap_Thd,
+                                   rme_ptr_t Entry,
+                                   rme_ptr_t Stack,
+                                   rme_ptr_t Param);
 static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      struct RME_Reg_Struct* Reg,
                                      rme_ptr_t Number,
@@ -1058,9 +1085,6 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      rme_ptr_t Prio1,
                                      rme_cid_t Cap_Thd2,
                                      rme_ptr_t Prio2);
-static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt, 
-                                     struct RME_Reg_Struct* Reg,
-                                     rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
                                     rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
@@ -1121,13 +1145,13 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
                               rme_ptr_t Param2);
 
 /*****************************************************************************/
-#define __EXTERN__
+#define __RME_EXTERN__
 /* End Private Function ******************************************************/
 
 /* Public Variable ***********************************************************/
 /* __HDR_PUBLIC__ */
 #else
-#define __EXTERN__ EXTERN 
+#define __RME_EXTERN__ RME_EXTERN 
 /* __HDR_PUBLIC__ */
 #endif
 
@@ -1139,147 +1163,169 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
 
 /* Public Function ***********************************************************/
 /* Generic *******************************************************************/
-/* Bit manipulations */
-__EXTERN__ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value);
-__EXTERN__ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value);
-__EXTERN__ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value);
-/* Single-core atomics */
-__EXTERN__ rme_ptr_t _RME_Comp_Swap_Single(volatile rme_ptr_t* Ptr,
-                                           rme_ptr_t Old,
-                                           rme_ptr_t New);
-__EXTERN__ rme_ptr_t _RME_Fetch_Add_Single(volatile rme_ptr_t* Ptr,
-                                           rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t _RME_Fetch_And_Single(volatile rme_ptr_t* Ptr,
-                                           rme_ptr_t Operand);
-/* Linked list operations */
-__EXTERN__ void _RME_List_Crt(struct RME_List* Head);
-__EXTERN__ void _RME_List_Del(struct RME_List* Prev,
-                              struct RME_List* Next);
-__EXTERN__ void _RME_List_Ins(struct RME_List* New,
-                              struct RME_List* Prev,
-                              struct RME_List* Next);
-/* Memory helpers */
-__EXTERN__ void _RME_Clear(void* Addr, rme_ptr_t Size);
-__EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
-                                 const void* Ptr2,
-                                 rme_ptr_t Num);
-__EXTERN__ void _RME_Memcpy(void* Dst, void* Src, rme_ptr_t Num);
-__EXTERN__ rme_ptr_t _RME_Distance(rme_ptr_t Num1, rme_ptr_t Num2);
-#if(RME_DEBUG_PRINT==1U)
-/* Debugging helpers */
-__EXTERN__ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint);
-__EXTERN__ rme_cnt_t RME_Int_Print(rme_cnt_t Int);
-__EXTERN__ rme_cnt_t RME_Str_Print(rme_s8_t* String);
+/* Debugging printing */
+#if(RME_DBGLOG_ENABLE!=0U)
+__RME_EXTERN__ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint);
+__RME_EXTERN__ rme_cnt_t RME_Int_Print(rme_cnt_t Int);
+__RME_EXTERN__ rme_cnt_t RME_Str_Print(const rme_s8_t* String);
 #endif
-                                 
+
+/* Default logging */
+#ifndef RME_LOG
+__RME_EXTERN__ void RME_Log(const char* File,
+                            long Line,
+                            const char* Date,
+                            const char* Time);                        
+#endif
+                            
+/* Coverage test - internal use */
+#ifdef RME_COV_LINE_NUM
+__RME_EXTERN__ void RME_Cov_Print(void);
+#endif
+
+/* Misc helper */
+__RME_EXTERN__ void _RME_Clear(void* Addr,
+                               rme_ptr_t Size);
+__RME_EXTERN__ rme_ret_t _RME_Memcmp(const void* Ptr1,
+                                     const void* Ptr2,
+                                     rme_ptr_t Num);
+__RME_EXTERN__ void _RME_Memcpy(void* Dst,
+                                void* Src,
+                                rme_ptr_t Num);
+__RME_EXTERN__ rme_ptr_t _RME_Diff(rme_ptr_t Num1,
+                                   rme_ptr_t Num2);
+
+/* Bit manipulation */
+__RME_EXTERN__ rme_ptr_t _RME_MSB_Generic(rme_ptr_t Value);
+__RME_EXTERN__ rme_ptr_t _RME_LSB_Generic(rme_ptr_t Value);
+__RME_EXTERN__ rme_ptr_t _RME_RBT_Generic(rme_ptr_t Value);
+
+/* Single-core atomic */
+__RME_EXTERN__ rme_ptr_t _RME_Comp_Swap_Single(volatile rme_ptr_t* Ptr,
+                                               rme_ptr_t Old,
+                                               rme_ptr_t New);
+__RME_EXTERN__ rme_ptr_t _RME_Fetch_Add_Single(volatile rme_ptr_t* Ptr,
+                                               rme_cnt_t Addend);
+__RME_EXTERN__ rme_ptr_t _RME_Fetch_And_Single(volatile rme_ptr_t* Ptr,
+                                               rme_ptr_t Operand);
+
+/* Linked list operation */
+__RME_EXTERN__ void _RME_List_Crt(struct RME_List* Head);
+__RME_EXTERN__ void _RME_List_Del(struct RME_List* Prev,
+                                  struct RME_List* Next);
+__RME_EXTERN__ void _RME_List_Ins(struct RME_List* New,
+                                  struct RME_List* Prev,
+                                  struct RME_List* Next);
+                                  
 /* Kernel entry */
-__EXTERN__ rme_ret_t RME_Kmain(void);
+__RME_EXTERN__ rme_ret_t RME_Kmain(void);
 /* System call handler */
-__EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg);
 /* Timer interrupt handler */
-__EXTERN__ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
-__EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
-__EXTERN__ rme_ptr_t _RME_Tim_Future(void);
+__RME_EXTERN__ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Slice);
+__RME_EXTERN__ void _RME_Tim_Elapse(rme_ptr_t Slice);
+__RME_EXTERN__ rme_ptr_t _RME_Tim_Future(void);
 
 /* Capability Table **********************************************************/
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
-                                        rme_ptr_t Vaddr,
-                                        rme_ptr_t Entry_Num);
-__EXTERN__ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt_Crt,
-                                       rme_cid_t Cap_Crt,
-                                       rme_ptr_t Vaddr,
-                                       rme_ptr_t Entry_Num);
+__RME_EXTERN__ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
+                                            rme_ptr_t Vaddr,
+                                            rme_ptr_t Entry_Num);
+__RME_EXTERN__ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt_Crt,
+                                           rme_cid_t Cap_Crt,
+                                           rme_ptr_t Vaddr,
+                                           rme_ptr_t Entry_Num);
 
 /* Page Table ****************************************************************/
 /* Boot-time calls */
-#if(RME_PGT_RAW_USER==0U)
-__EXTERN__ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Pgt,
-                                       rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
-                                       rme_ptr_t Is_Top,
-                                       rme_ptr_t Size_Order,
-                                       rme_ptr_t Num_Order);
-__EXTERN__ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Pgt_Parent,
-                                       rme_ptr_t Pos,
-                                       rme_cid_t Cap_Pgt_Child,
-                                       rme_ptr_t Flag_Child);
-__EXTERN__ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Pgt, 
-                                       rme_ptr_t Paddr,
-                                       rme_ptr_t Pos,
-                                       rme_ptr_t Flag);
+#if(RME_PGT_RAW_ENABLE==0U)
+__RME_EXTERN__ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Pgt,
+                                           rme_ptr_t Vaddr,
+                                           rme_ptr_t Base_Addr,
+                                           rme_ptr_t Is_Top,
+                                           rme_ptr_t Size_Order,
+                                           rme_ptr_t Num_Order);
+__RME_EXTERN__ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Pgt_Parent,
+                                           rme_ptr_t Pos,
+                                           rme_cid_t Cap_Pgt_Child,
+                                           rme_ptr_t Flag_Child);
+__RME_EXTERN__ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Pgt, 
+                                           rme_ptr_t Paddr,
+                                           rme_ptr_t Pos,
+                                           rme_ptr_t Flag);
 #endif
 /* Kernel Memory *************************************************************/
-__EXTERN__ rme_ret_t _RME_Kot_Init(rme_ptr_t Word);
+__RME_EXTERN__ rme_ret_t _RME_Kot_Init(rme_ptr_t Word);
 /* Kernel memory operations (in case HAL needs to allocate kernel memory) */
-__EXTERN__ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
-                                   rme_ptr_t Size);
-__EXTERN__ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
-                                    rme_ptr_t Size);
+__RME_EXTERN__ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
+                                       rme_ptr_t Size);
+__RME_EXTERN__ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
+                                        rme_ptr_t Size);
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Kom,
-                                       rme_ptr_t Begin,
-                                       rme_ptr_t End,
-                                       rme_ptr_t Flag);
+__RME_EXTERN__ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Kom,
+                                           rme_ptr_t Begin,
+                                           rme_ptr_t End,
+                                           rme_ptr_t Flag);
 
 /* Process and Thread ********************************************************/
 /* Initialize per-CPU data structures */
-__EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
-                                    rme_ptr_t CPUID);
+__RME_EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* Local,
+                                        rme_ptr_t CPUID);
 /* Thread page table consult */
-#if(RME_PGT_RAW_USER==0U)
-__EXTERN__ struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
+#if(RME_PGT_RAW_ENABLE==0U)
+__RME_EXTERN__ struct RME_Cap_Pgt* _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
 #else
-__EXTERN__ rme_ptr_t _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
+__RME_EXTERN__ rme_ptr_t _RME_Thd_Pgt(struct RME_Thd_Struct* Thd);
 #endif
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t _RME_Thd_Fatal(struct RME_Reg_Struct* Reg);                              
+__RME_EXTERN__ void _RME_Thd_Fatal(struct RME_Reg_Struct* Reg);                              
 /* Boot-time calls */
-#if(RME_PGT_RAW_USER==0U)
-__EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt_Crt,
-                                       rme_cid_t Cap_Prc,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Pgt);
+#if(RME_PGT_RAW_ENABLE==0U)
+__RME_EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt_Crt,
+                                           rme_cid_t Cap_Prc,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Pgt);
 #else
-__EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt_Crt,
-                                       rme_cid_t Cap_Prc,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_ptr_t Raw_Pgt);
+__RME_EXTERN__ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt_Crt,
+                                           rme_cid_t Cap_Prc,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_ptr_t Raw_Pgt);
 #endif
-__EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Thd,
-                                       rme_cid_t Cap_Prc,
-                                       rme_ptr_t Vaddr,
-                                       rme_ptr_t Prio,
-                                       struct RME_CPU_Local* Local);
+__RME_EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Thd,
+                                           rme_cid_t Cap_Prc,
+                                           rme_ptr_t Vaddr,
+                                           rme_ptr_t Prio,
+                                           struct RME_CPU_Local* Local);
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
-__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig);
-__EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
-                               struct RME_CPU_Local* Local);
+__RME_EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig);
+__RME_EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
+                                   struct RME_CPU_Local* Local);
 /* Boot-time calls */
-__EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Sig);
+__RME_EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Sig);
 
 /* Kernel Function ***********************************************************/
-__EXTERN__ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
-                                       rme_cid_t Cap_Cpt,
-                                       rme_cid_t Cap_Kern);
+__RME_EXTERN__ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
+                                           rme_cid_t Cap_Cpt,
+                                           rme_cid_t Cap_Kern);
 
 /*****************************************************************************/
-/* Undefine "__EXTERN__" to avoid redefinition */
-#undef __EXTERN__
+/* Undefine "__RME_EXTERN__" to avoid redefinition */
+#undef __RME_EXTERN__
 /* __RME_KERNEL_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
