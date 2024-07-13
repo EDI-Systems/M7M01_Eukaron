@@ -7062,7 +7062,9 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
 
             /* Put the waiting one into the runqueue */
+            Thd_Rcv->Sched.State=RME_THD_READY;
             _RME_Run_Ins(Thd_Rcv);
+            
             /* See if it will preempt us */
             if(Thd_Rcv->Sched.Prio>Thd_Cur->Sched.Prio)
             {
@@ -7070,15 +7072,13 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
 
                 /* Yes. Do a context switch */
                 RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
-                RME_ASSERT(Thd_Rcv->Sched.State==RME_THD_READY);
                 _RME_Run_Swt(Reg,Thd_Cur,Thd_Rcv);
                 Local->Thd_Cur=Thd_Rcv;
             }
             else
             {
                 RME_COV_MARKER();
-
-                Thd_Rcv->Sched.State=RME_THD_READY;
+                /* No action required */
             }
         }
         else

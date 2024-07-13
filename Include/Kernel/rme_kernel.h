@@ -162,7 +162,7 @@ while(0)
 /* This is the special one used for page table top-level flags */
 #define RME_PARAM_PT(X)                             ((X)&0x01U)
 /* The page table creation extra parameter packed in the svc number */
-#define RME_PARAM_PC(SVC)                           ((SVC)>>RME_WORD_BIT_D1)
+#define RME_PARAM_PC(SVC)                           ((SVC)>>RME_WORD_BIT_Q1)
 
 /* The return procedure of a possible context switch - If successful, the function itself
  * is responsible for setting the parameters; If failed, we set the parameters for it.
@@ -568,7 +568,7 @@ while(0)
 /* Size order and number order */
 #define RME_PGT_SZORD(X)                            ((X)>>RME_WORD_BIT_D1)
 #define RME_PGT_NMORD(X)                            ((X)&RME_MASK_WORD_D)
-#define RME_PGT_ORDER(SIZE,NUM)                     (RME_FIELD(SIZE,RME_WORD_BYTE*4U)|(NUM))
+#define RME_PGT_ORDER(SIZE,NUM)                     (RME_FIELD(SIZE,RME_WORD_BIT_D1)|(NUM))
     
 /* Kernel Memory *************************************************************/
 /* Kernel memory function capability flag arrangement - extended flags used, 
