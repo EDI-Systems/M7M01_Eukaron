@@ -73,9 +73,9 @@ typedef rme_s32_t rme_cnt_t;
 /* Return value */
 typedef rme_s32_t rme_ret_t;
 #endif
-/* End Extended Type ********************************************************/
+/* End Extended Type *********************************************************/
 
-/* System Macro *************************************************************/
+/* System Macro **************************************************************/
 /* Compiler "extern" keyword setting */
 #define RME_EXTERN                              extern
 /* Compiler likely & unlikely setting */
@@ -135,11 +135,22 @@ typedef rme_s32_t rme_ret_t;
 #define RME_RVM_FLAG_SET(B,S,N)                 ((volatile struct __RME_RVM_Flag*)((B)+((S)>>1)*(N)))
 /* End System Macro **********************************************************/
 
-/* ARMv6-M Specific Macro ****************************************************/
-/* Register ******************************************************************/
+/* ARMv6-M Macro *************************************************************/
+/* Generic *******************************************************************/
+/* Register access */
 #define RME_A6M_REG(X)                          (*((volatile rme_ptr_t*)(X)))
 #define RME_A6M_REGB(X)                         (*((volatile rme_u8_t*)(X)))
 
+/* ARMv6-M EXC_RETURN bits */
+#define RME_A6M_EXC_RET_INIT                    (0xFFFFFFFDU)
+#define RME_A6M_EXC_RET_FIX(X)                  ((X)->LR=RME_A6M_EXC_RET_INIT)
+/* Are we returning to user mode? 1 means yes, 0 means no */
+#define RME_A6M_EXC_RET_RET_USER                RME_POW2(3U)
+
+/* Thread context attribute definitions */
+#define RME_A6M_ATTR_NONE                       (0U)
+
+/* Register ******************************************************************/
 #define RME_A6M_ITM_TER                         RME_A6M_REG(0xE0000E00U)
 #define RME_A6M_ITM_PORT(X)                     RME_A6M_REG(0xE0000000+((X)<<2))
 
@@ -231,16 +242,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_SCNSCB_CID2                     RME_A6M_REG(0xE000EFF8U)
 #define RME_A6M_SCNSCB_CID3                     RME_A6M_REG(0xE000EFFCU)
 
-/* Generic *******************************************************************/
-/* ARMv6-M EXC_RETURN bits */
-#define RME_A6M_EXC_RET_INIT                    (0xFFFFFFFDU)
-#define RME_A6M_EXC_RET_FIX(X)                  ((X)->LR=RME_A6M_EXC_RET_INIT)
-/* Are we returning to user mode? 1 means yes, 0 means no */
-#define RME_A6M_EXC_RET_RET_USER                RME_POW2(3U)
-/* Coprocessor type definitions */
-#define RME_A6M_ATTR_NONE                       (0U)
 /* Handler *******************************************************************/
-/* Fault definitions */
 /* The NMI is active */
 #define RME_A6M_ICSR_NMIPENDSET                 RME_POW2(31U)
 
@@ -311,7 +313,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_MPU_REGIONSIZE(X)               RME_FIELD(X-1U,1U)
 #define RME_A6M_MPU_SZENABLE                    (1U)
 
-/* Platform-specific kernel function macros **********************************/
+/* Kernel Function ***********************************************************/
 /* Page table entry mode which property to get */
 #define RME_A6M_KFN_PGT_ENTRY_MOD_FLAG_GET      (0U)
 #define RME_A6M_KFN_PGT_ENTRY_MOD_SZORD_GET     (1U)
@@ -372,7 +374,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A6M_KFN_DEBUG_INV_MOD_SP_SET        (1U)
 /* Exception register read */
 #define RME_A6M_KFN_DEBUG_EXC_CAUSE_GET         (0U)
-/* End ARMv6-M Specific Macro ************************************************/
+/* End ARMv6-M Macro *********************************************************/
 /*****************************************************************************/
 /* __RME_PLATFORM_A6M_DEF__ */
 #endif
