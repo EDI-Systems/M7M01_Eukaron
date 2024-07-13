@@ -133,11 +133,34 @@ typedef rme_s32_t rme_ret_t;
 #define RME_RVM_FLAG_SET(B,S,N)                 ((volatile struct __RME_RVM_Flag*)((B)+((S)>>1)*(N)))
 /* End System Macro **********************************************************/
 
-/* ARMv7-M Specific Macro ****************************************************/
-/* Register ******************************************************************/
+/* ARMv7-M Macro *************************************************************/
+/* Generic *******************************************************************/
+/* Register access */
 #define RME_A7M_REG(X)                          (*((volatile rme_ptr_t*)(X)))
 #define RME_A7M_REGB(X)                         (*((volatile rme_u8_t*)(X)))
 
+/* ARMv7-M EXC_RETURN bits */
+#define RME_A7M_EXC_RET_INIT                    (0xFFFFFFFDU)
+#define RME_A7M_EXC_RET_MASK                    (0x00000010U)
+#define RME_A7M_EXC_RET_KEEP                    (0xFFFFFFEDU)
+#define RME_A7M_EXC_RET_FIX(X)                  (((X)->LR)=((X)->LR)&RME_A7M_EXC_RET_MASK|RME_A7M_EXC_RET_KEEP)
+/* Whether the stack frame is standard(contains no FPU data). 1 means yes, 0 means no */
+#define RME_A7M_EXC_RET_STD_FRAME               RME_POW2(4U)
+/* Are we returning to user mode? 1 means yes, 0 means no */
+#define RME_A7M_EXC_RET_RET_USER                RME_POW2(3U)
+
+/* FPU control settings */
+#define RME_A7M_CONTROL_FPCA                    RME_POW2(2U)
+/* FPU CPACR settings */
+#define RME_A7M_SCB_CPACR_FPU_MASK              (RME_FIELD(3U,10U*2U)|RME_FIELD(3U,11U*2U))
+
+/* Thread context attribute definitions */
+#define RME_A7M_ATTR_NONE                       (0U)
+#define RME_A7M_ATTR_FPV4_SP                    RME_POW2(0U)
+#define RME_A7M_ATTR_FPV5_SP                    RME_POW2(1U)
+#define RME_A7M_ATTR_FPV5_DP                    RME_POW2(2U)
+
+/* Register ******************************************************************/
 #define RME_A7M_ITM_TER                         RME_A7M_REG(0xE0000E00U)
 #define RME_A7M_ITM_PORT(X)                     RME_A7M_REG(0xE0000000+((X)<<2))
 
@@ -270,28 +293,6 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_SCNSCB_CID2                     RME_A7M_REG(0xE000EFF8U)
 #define RME_A7M_SCNSCB_CID3                     RME_A7M_REG(0xE000EFFCU)
 
-/* Generic *******************************************************************/
-/* ARMv7-M EXC_RETURN bits */
-#define RME_A7M_EXC_RET_INIT                    (0xFFFFFFFDU)
-#define RME_A7M_EXC_RET_MASK                    (0x00000010U)
-#define RME_A7M_EXC_RET_KEEP                    (0xFFFFFFEDU)
-#define RME_A7M_EXC_RET_FIX(X)                  (((X)->LR)=((X)->LR)&RME_A7M_EXC_RET_MASK|RME_A7M_EXC_RET_KEEP)
-/* Whether the stack frame is standard(contains no FPU data). 1 means yes, 0 means no */
-#define RME_A7M_EXC_RET_STD_FRAME               RME_POW2(4U)
-/* Are we returning to user mode? 1 means yes, 0 means no */
-#define RME_A7M_EXC_RET_RET_USER                RME_POW2(3U)
-
-/* FPU control settings */
-#define RME_A7M_CONTROL_FPCA                    RME_POW2(2U)
-
-/* FPU CPACR settings */
-#define RME_A7M_SCB_CPACR_FPU_MASK              (RME_FIELD(3U,10U*2U)|RME_FIELD(3U,11U*2U))
-/* Coprocessor type definitions */
-#define RME_A7M_ATTR_NONE                       (0U)
-#define RME_A7M_ATTR_FPV4_SP                    RME_POW2(0U)
-#define RME_A7M_ATTR_FPV5_SP                    RME_POW2(1U)
-#define RME_A7M_ATTR_FPV5_DP                    RME_POW2(2U)
-
 /* Handler *******************************************************************/
 /* Fault definitions */
 /* The NMI is active */
@@ -344,6 +345,7 @@ typedef rme_s32_t rme_ret_t;
  * instruction fetch has occurred. The fault is signalled only if the
  * instruction is issued */
 #define RME_A7M_MFSR_IACCVIOL                   RME_POW2(0U)
+
 /* Initialization ************************************************************/
 /* The capability table of the init process */
 #define RME_BOOT_INIT_CPT                       (0U)
@@ -363,7 +365,7 @@ typedef rme_s32_t rme_ret_t;
 /* Booting capability layout */
 #define RME_A7M_CPT                             ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 
-/* Page table ****************************************************************/
+/* Page Table ****************************************************************/
 /* For ARMv7-M:
  * The layout of the page entry is:
  * [31:5] Paddr - The physical address to map this page to, or the physical
@@ -411,7 +413,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MPU_SIZE(X)                     RME_FIELD((X)-1U,1U)
 #define RME_A7M_MPU_ENABLE                      (1U)
 
-/* Platform-specific kernel function macros **********************************/
+/* Kernel Function ***********************************************************/
 /* Page table entry mode which property to get */
 #define RME_A7M_KFN_PGT_ENTRY_MOD_FLAG_GET      (0U)
 #define RME_A7M_KFN_PGT_ENTRY_MOD_SZORD_GET     (1U)
@@ -539,7 +541,7 @@ typedef rme_s32_t rme_ret_t;
 /* Exception register read */
 #define RME_A7M_KFN_DEBUG_EXC_CAUSE_GET         (0U)
 #define RME_A7M_KFN_DEBUG_EXC_ADDR_GET          (1U)
-/* End ARMv7-M Specific Macro ************************************************/
+/* End ARMv7-M Macro *********************************************************/
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_DEF__ */
 #endif
