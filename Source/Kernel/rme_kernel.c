@@ -4369,8 +4369,10 @@ void _RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
             /* No action required */
         }
         
-        /* Set the fault flag and reason of the fault */
+        /* We must be running at this point to trigger a synchronous exception */
         RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
+        
+        /* Delete the thread from runqueue */
         Thd_Cur->Sched.State=RME_THD_EXCPEND;
         _RME_Run_Del(Thd_Cur);
         
@@ -6126,7 +6128,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     /* We need to do this because we are using this to detect whether the notification is sent */
     _RME_List_Crt(&(Thread->Sched.Notif));
     
-    /* See if the child has an exception. If yes, we return an exception flag with its TID */
+    /* If the child has an exception, we return its TID with exception flag set */
     if(Thread->Sched.State==RME_THD_EXCPEND)
     {
         RME_COV_MARKER();
@@ -6873,8 +6875,8 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
         /* No action required */
     }
 
-    /* We will have a solid context switch on this point */
-    RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
+    /* We will have a solid context switch on this point. The current 
+     * thread is not necessarily READY, it could be EXCPEND as well. */
     RME_ASSERT(Thd_New->Sched.State==RME_THD_READY);
     _RME_Run_Swt(Reg,Thd_Cur,Thd_New);
     Local->Thd_Cur=Thd_New;
@@ -6897,8 +6899,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
     
     Thd_Sig=Cap_Sig->Thd;
     
-    /* If and only if we are calling from the same core as the blocked thread do
-     * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
+    /* If and only if we are calling from the same core do we unblock */
     if(Thd_Sig!=RME_NULL)
     {
         RME_COV_MARKER();
@@ -6930,7 +6931,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
-         * to zero while we are doing this */
+         * to zero while we are doing this. */
         __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),1);
         /* See if the thread still have time left */
         if(Thd_Sig->Sched.Slice!=0U)
@@ -6941,7 +6942,8 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
              * switch to it immediately; this is because we may send to a myriad
              * of endpoints in one interrupt, and we hope to perform the context
              * switch only once when exiting that handler. We can save many 
-             * register push/pops! */
+             * register push/pops! Also note that the current thread could be 
+             * EXCPEND as well; this is different from the normal _RME_Sig_Snd. */
             _RME_Run_Ins(Thd_Sig);
             Thd_Sig->Sched.State=RME_THD_READY;
         }
@@ -7054,7 +7056,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
-         * to zero while we are doing this */
+         * to zero while we are doing this. */
         __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),1);
         /* See if the thread still have time left */
         if(Thd_Rcv->Sched.Slice!=0U)
@@ -7070,7 +7072,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
             {
                 RME_COV_MARKER();
 
-                /* Yes. Do a context switch */
+                /* The current thread must be ready because we're sending from it! */
                 RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
                 _RME_Run_Swt(Reg,Thd_Cur,Thd_Rcv);
                 Local->Thd_Cur=Thd_Rcv;

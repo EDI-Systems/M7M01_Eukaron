@@ -788,7 +788,7 @@ struct RME_Thd_Sched
     /* The list head for notifications - This will be inserted into scheduler
      * threads' event list */
     struct RME_List Notif; 
-    /* What's the TID of the thread? */
+    /* TID of the thread - internally unsigned */
     rme_ptr_t TID;
     /* What is the CPU-local data structure that this thread is on? If this is
      * 0xFF....FF, then this is not bound to any core. "struct RME_CPU_Local" is
