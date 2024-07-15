@@ -2744,7 +2744,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
     
-        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),0U);
         return RME_ERR_CPT_KOT;
     }
     else
@@ -2774,7 +2774,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
         RME_ASSERT(_RME_Kot_Erase(Vaddr, Table_Size)==0);
 
         /* Unsuccessful. Revert operations */
-        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat), 0U);
+        RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),0U);
         return RME_ERR_PGT_HW;
     }
     else
@@ -6970,6 +6970,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this. */
         __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),1);
+        
         /* See if the thread still have time left */
         if(Thd_Sig->Sched.Slice!=0U)
         {
@@ -6994,7 +6995,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
          * handler. Also note that the current thread could be EXCPEND as well;
          * this is different from the normal signal sending system call. */
         
-        /* Clear endpoint blocking status */
+        /* Clear endpoint blocking status - no write release required */
         Cap_Sig->Thd=RME_NULL;
     }
     else
@@ -7083,11 +7084,13 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
 
         /* Now save the system call return value to the caller stack */
         __RME_Svc_Retval_Set(Reg,0);
+        
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
          * to zero while we are doing this. */
         __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),1);
+        
         /* See if the thread still have time left */
         if(Thd_Rcv->Sched.Slice!=0U)
         {
@@ -7109,7 +7112,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         /* Pick the highest priority thread to run */
         _RME_Kern_High(Reg,Local);
         
-        /* Clear endpoint blocking status */
+        /* Clear endpoint blocking status - no write release required */
         Sig_Root->Thd=RME_NULL;
     }
     else

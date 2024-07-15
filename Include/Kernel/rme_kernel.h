@@ -302,7 +302,7 @@ while(0)
  * DST - The pointer to the destination slot.
  * SRC - The pointer to the source slot.
  * FLAGS - The new operation flags of this capability. */
-#define RME_CAP_COPY(DST, SRC, FLAG) \
+#define RME_CAP_COPY(DST,SRC,FLAG) \
 do \
 { \
     /* The suboperation capability flags */ \
@@ -318,7 +318,7 @@ while(0)
 /* Check if the capability is ready for some operations.
  * CAP - The pointer to the capability slot to check.
  * FLAG - The operation flags to check against the slot. */
-#define RME_CAP_CHECK(CAP, FLAG) \
+#define RME_CAP_CHECK(CAP,FLAG) \
 do \
 { \
     /* See if this capability allows such operations */ \
@@ -333,8 +333,7 @@ while(0)
  * RADDR - The relative begin address of the kernel object in kernel memory.
  * VADDR - The true begin address of the kernel object in kernel memory, output.
  * SIZE - The size of the kernel memory trunk. */
-/* This have wraparounds now */
-#define RME_KOM_CHECK(CAP, FLAG, RADDR, VADDR, SIZE) \
+#define RME_KOM_CHECK(CAP,FLAG,RADDR,VADDR,SIZE) \
 do \
 { \
     /* See if the creation of such capability is allowed */ \
@@ -362,11 +361,11 @@ while(0)
  * other resources that may depend on it.
  * CAP - The pointer to the capability slot to defreeze.
  * TEMP - A temporary variable, for compare-and-swap. */
-#define RME_CAP_DEFROST(CAP, TEMP) \
+#define RME_CAP_DEFROST(CAP,TEMP) \
 do \
 { \
-    RME_COMP_SWAP(&((CAP)->Head.Type_Stat), (TEMP), \
-                  RME_CAP_TYPE_STAT(RME_CAP_TYPE(TEMP), RME_CAP_STAT_VALID, RME_CAP_ATTR(TEMP))); \
+    RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP), \
+                  RME_CAP_TYPE_STAT(RME_CAP_TYPE(TEMP),RME_CAP_STAT_VALID,RME_CAP_ATTR(TEMP))); \
 } \
 while(0)
 
@@ -376,7 +375,7 @@ while(0)
  * CAP - The pointer to the capability slot to check for deletion.
  * TEMP - A temporary variable, for compare-and-swap. 
  * TYPE - What type should we anticipate when we check against the slot? */
-#define RME_CAP_DEL_CHECK(CAP, TEMP, TYPE) \
+#define RME_CAP_DEL_CHECK(CAP,TEMP,TYPE) \
 do \
 { \
     /* Atomic read - Need a read acquire barrier here to avoid stale reads below */ \
@@ -395,7 +394,7 @@ do \
     { \
         /* Defrost the cap if it is a root (likely), and return */ \
         if(RME_LIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
-            RME_CAP_DEFROST(CAP, TEMP); \
+            RME_CAP_DEFROST(CAP,TEMP); \
         return RME_ERR_CPT_REFCNT; \
     } \
     /* The only case where the Root_Ref is 0 is that this is a unreferenced root cap */ \
@@ -428,11 +427,11 @@ while(0)
 /* Actually delete the cap.
  * CAP - The pointer to the capability slot to delete or remove.
  * TEMP - A temporary variable, for compare-and-swap's old value. */
-#define RME_CAP_DELETE(CAP, TEMP) \
+#define RME_CAP_DELETE(CAP,TEMP) \
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
-    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), (TEMP), 0U)==RME_CASFAIL)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP),0U)==RME_CASFAIL)) \
         return RME_ERR_CPT_NULL; \
 } \
 while(0)
@@ -447,8 +446,8 @@ while(0)
 do \
 { \
     /* Check if anything is there. If there is nothing there, the Type_Ref must be 0 */ \
-    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat), 0U, \
-                                  RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP, RME_CAP_STAT_CREATING, RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat),0U, \
+                                  RME_CAP_TYPE_STAT(RME_CAP_TYPE_NOP,RME_CAP_STAT_CREATING,RME_CAP_ATTR_ROOT))==RME_CASFAIL)) \
         return RME_ERR_CPT_EXIST; \
     /* We have taken the slot. Now log the quiescence counter in. No barrier needed as our atomics are serializing */ \
     (CAP)->Head.Timestamp=RME_TIMESTAMP; \
@@ -462,7 +461,7 @@ while(0)
  * CAP_NUM - The capability number. Only allows 1-level encoding.
  * TYPE -  When assigning the pointer to the PARAM, what struct pointer type should I cast it into?
  * PARAM - The parameter to receive the pointer to the found capability slot. */
-#define RME_CPT_GETSLOT(CPT, CAP_NUM, TYPE, PARAM) \
+#define RME_CPT_GETSLOT(CPT,CAP_NUM,TYPE,PARAM) \
 do \
 { \
     /* Check if the captbl is over range */ \
@@ -485,9 +484,8 @@ while(0)
  * CAP_TYPE - The type of the capability, i.e. CAP_CPT or CAP_PGT or CAP_THD, etc?
  * TYPE - When assigning the pointer to the PARAM, what struct pointer type should I cast it into?
  * PARAM - The parameter to receive the pointer to the found capability slot.
- * TEMP - A temporary variable, used to atomically keep a snapshot of Type_Ref when checking.
- */
-#define RME_CPT_GETCAP(CPT, CAP_NUM, CAP_TYPE, TYPE, PARAM, TEMP) \
+ * TEMP - A temporary variable, used to atomically keep a snapshot of Type_Ref when checking. */
+#define RME_CPT_GETCAP(CPT,CAP_NUM,CAP_TYPE,TYPE,PARAM,TEMP) \
 do \
 { \
     /* See if this is a 2-level cap */ \
