@@ -3,40 +3,82 @@ Filename   : rme_platform_wchd8c_gcc.s
 Author     : pry
 Date       : 24/06/2017
 Licence    : The Unlicense; see LICENSE for details.
-Description: The boot stub source file for all WCH D8C cores. These cores are
-             great in terms of performance but not security:
-             1. It has non-standard CSRs called GINTENR and INTSYSCR, and these
-                are URW. They give user-level code perfect denial-of-service
-                attack surface. For serious applications, the binaries must be
-                scanned to confirm that they do not contain any CSR writes.
-             2. The WCH manual also says that its PMP access permission faults
-                are "asychronous imprecise", against the RISC-V standard
-                requirement that the PMP violations are always trapped precisely 
-                at the processor. This is a serious deviation from the RISC-V
-                standard, potentially jeoparding the whole dynamic loading
-                scheme. Extensive testing show that albeit the processor always
-                stopped precisely at the offending instruction and will try to
-                execute the offending instruction again (which is what we want
-                to have), the instruction following that offending instruction
-                is already commited, causing it to be executed again on exception
-                return. The Nuclei N300 series just seem to have the same issue.
-                A general workaround for these processors are:
-                (1) In any init boot code, insert enough number of NOPs after any
-                    potentially dynamic accesses.
-                (2) When accessing any data structure, make sure the operations
-                    that follow the access are idempotent.
-                (3) If (2) is hard to guarantee, just read through the whole
-                    memory range and make sure all pages are loaded into the
-                    PMP cache, and the PMP cache must be large enough to hold
-                    all these pages.
-                (4) If (3) is unrealistic, enable RME_PGT_RAW_USER altogether.
-             3. The WCH PMP has a hidden "background range" that allow all
-                U-mode accesses by default. That said, when all PMP regions are
-                "OFF", the processor does not block any U-mode accesses. This
-                is a clear deviation from the RISC-V standard, which require
-                all such accesses to fail. The workaround is that we will have
-                to declare the chip as having 3 MPU regions, and the last region
-                will always be programmed to block all accesses.
+Description: The boot stub source file for all WCH QingKe cores. It claims to
+             be RISC-V, yet it has multiple pecularities that must be carefully
+             considered when the port is used:
+              -----------------------------------------------------------------
+              1. Esoteric memory configuration
+              This chip is esoteric in the sense that it integrates an SPI
+              flash chiplet with the main chip that only have 320k SRAM, which
+              is different from most such chips where manufacturers allow using
+              an arbitrary size external SPI flash. To imitate a product with
+              real embedded flash, WCH choose not to add ICache or prefetcher
+              (which is the common case for these chips) but to copy a portion
+              of the flash onto the 320k SRAM and use it as code memory. Hence
+              the SRAM must be split into "FLASH" and user-usable "SRAM", and
+              the possible configurations include:
+              192k Flash + 128k RAM
+              224k Flash + 96k RAM
+              256k Flash + 64k RAM
+              288k Flash + 32k RAM
+              Care must be taken to select the correct configuration.
+              -----------------------------------------------------------------
+              2. Nonstandard CSRs that outsmart themselves
+              It has non-standard CSRs called GINTENR and INTSYSCR, and these
+              are URW. They give user-level code perfect denial-of-service
+              attack surface. For serious applications, the binaries must be
+              scanned to confirm that they do not contain any CSR writes.
+              -----------------------------------------------------------------
+              3. Nonstandard interrupt entry behavior
+              This chip is also nonstandard in terms of interrupt entry 
+              behavior. Upon interrupt entry, it will NOT disable interrupts,
+              and leave the MIE bit set. According to WCH, this facilitates the
+              so-called "M-mode interrupt preemption". However, such preemption
+              will NOT work at all unless the processor guarantees to execute at
+              least one instruction between interrupts. To see why, consider a
+              situation where a low-priority interrupt is immediately followed
+              by a high-priority one. The low-priority interrupt will never get
+              a chance to save its mepc even if its first instructions are to do
+              so or disable interrupts, because the high-priority interrupt WILL
+              preempt it before it can even execute one instruction.
+              The remedy here is to (1) disable interrupt preemption altogether,
+              or (2) believe that somehow WCH allows low-level interrupt to at
+              least execute one instruction before it gets preempted, so we can
+              disable interrupts when we enter interrupts, save mepc, and reenable
+              interrupts. The (2) will require some modifications to the standard
+              context switch code, and we refrain from doing so.
+              -----------------------------------------------------------------
+              4. Nonstandard PMP exception behavior
+              The WCH manual also says that its PMP access permission faults
+              are "asychronous imprecise", against the RISC-V standard
+              requirement that the PMP violations are always trapped precisely 
+              at the processor. This is a serious deviation from the RISC-V
+              standard, potentially jeoparding the whole dynamic loading
+              scheme. Extensive testing show that albeit the processor always
+              stopped precisely at the offending instruction and will try to
+              execute the offending instruction again (which is what we want
+              to have), the instruction following that offending instruction
+              is already commited, causing it to be executed again on exception
+              return. The Nuclei N300 series just seem to have the same issue.
+              A general workaround for these processors are:
+              (1) In any init boot code, insert enough number of NOPs after any
+                  potentially dynamic accesses.
+              (2) When accessing any data structure, make sure the operations
+                  that follow the access are idempotent.
+              (3) If (2) is hard to guarantee, just read through the whole
+                  memory range and make sure all pages are loaded into the
+                  PMP cache, and the PMP cache must be large enough to hold
+                  all these pages.
+              (4) If (3) is unrealistic, enable RME_PGT_RAW_USER altogether.
+              -----------------------------------------------------------------
+              5. Nonstandard PMP access control behavior
+              The WCH PMP has a hidden "background range" that allow all U-mode
+              accesses by default. That said, when all PMP regions are "OFF", 
+              the processor does not block any U-mode accesses. This is a clear
+              deviation from the RISC-V standard, which require all such accesses
+              to fail. The workaround is that we will have to declare the chip as
+              having 3 MPU regions, and the last region will always be programmed
+              to block all accesses.
 ******************************************************************************/
 
 /* Import ********************************************************************/

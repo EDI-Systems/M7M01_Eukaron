@@ -3,20 +3,13 @@ Filename    : rme_platform_ch32v307vc.h
 Author      : pry
 Date        : 24/06/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The configuration file for CH32V307VC.
-              This chip is esoteric in the sense that it integrates an SPI
-              flash with the main core that only have 320k SRAM. To imitate a
-              product with real embedded flash, the part copies a portion of
-              the flash onto the 320k SRAM and use it as code memory. Possible
-              configurations include:
-              192k Flash + 128k RAM
-              224k Flash + 96k RAM
-              256k Flash + 64k RAM
-              288k Flash + 32k RAM
-              It's ovbious that 32k RAM is deemed too little for RME. Thus, we
-              assume 256+64 in all RME projects, which is the factory default.
-              when 192+128 is desired, modify the .rvc files to indicate this
-              change, and program the chip's fuse bits accordingly.
+Description : The configuration file for CH32V307VC. This chip carries multiple
+              esoteric features; see the rme_platform_wchd8c_gcc.s for details.
+              This file assumes 128k RAM/192k Flash to leave RME with sufficient
+              RAM space to operate (which is NOT the factory default 64k+256k,
+              which is simply too crammed for RME). When other configurations
+              are desired, modify the .rvc files to indicate this change, and
+              program the fuse bits accordingly.
 ******************************************************************************/
 
 /* Define ********************************************************************/
