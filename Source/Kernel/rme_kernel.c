@@ -1643,12 +1643,12 @@ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg,
         {
             RME_COV_MARKER();
 
-            /* Running out of time. Kick this guy out and pick someone else */
+            /* Deprive all timeslices and remove from runqueue */
             Thd_Cur->Sched.Slice=0U;
-            Thd_Cur->Sched.State=RME_THD_TIMEOUT;
-            /* Delete it from runqueue */
             _RME_Run_Del(Thd_Cur);
-            /* Send a scheduler notification to its parent */
+            
+            /* Timeout and notify parent */
+            Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             _RME_Run_Notif(Thd_Cur);
         }
     }
@@ -4326,9 +4326,8 @@ Description : The fatal fault handler of RME. This handler will be called by
               synchronous invocation. If yes, we stop the invocation, and
               possibly return a fault value to the old register set. If not, we
               just kill the thread. If the thread is killed, a notification
-              will be sent to its scheduler, and if we try to delegate time to
-              it, the time delegation will just fail. A thread execution set is
-              required to clear the exception pending status of the thread.
+              will be sent to its scheduler. An Exec_Set is required to clear
+              the exception pending status of the thread.
               Some processors may raise some exceptions that are difficult to
               attribute to a particular thread, either due to the fact that
               they are asynchronous, or they are derived from exception entry.
@@ -4372,11 +4371,11 @@ void _RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
         /* We must be running at this point to trigger a synchronous exception */
         RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
         
-        /* Delete the thread from runqueue */
-        Thd_Cur->Sched.State=RME_THD_EXCPEND;
+        /* Remove from runqueue */
         _RME_Run_Del(Thd_Cur);
         
-        /* Send a scheduler notification to its parent */
+        /* Exception pending and notify parent */
+        Thd_Cur->Sched.State=RME_THD_EXCPEND;
         _RME_Run_Notif(Thd_Cur);
         
         /* All kernel send complete, now pick the highest priority thread to run */
@@ -4437,7 +4436,7 @@ static void _RME_Run_Del(struct RME_Thd_Struct* Thd)
     RME_ASSERT(Local!=RME_THD_FREE);
     
     /* Delete this thread from the runqueue */
-    _RME_List_Del(Thd->Sched.Run.Prev, Thd->Sched.Run.Next);
+    _RME_List_Del(Thd->Sched.Run.Prev,Thd->Sched.Run.Next);
     
     /* See if there are any thread on this priority level */
     if(Local->Run.List[Prio].Next==&(Local->Run.List[Prio]))
@@ -5645,11 +5644,13 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* Increase the reference count of the scheduler thread struct - same core */
     Scheduler->Sched.Sched_Ref++;
     
-    /* Bind successful. Do operations to finish this. No need to worry about other cores'
-     * operations on this thread because this thread is already bound to this core. */
+    /* Bind successful and finish the work off. No need to worry about other cores'
+     * operations on this thread because this thread is already bound to this core.
+     * TID is half-word parameter-wise, but is stored and returned as a full word. */
     Thread->Sched.Sched_Thd=Scheduler;
     Thread->Sched.Prio=Prio;
     Thread->Sched.TID=(rme_ptr_t)TID;
+    
     /* The state must be TIMEOUT or EXCPEND at this point */
     RME_ASSERT((Thread->Sched.State==RME_THD_TIMEOUT)||
                (Thread->Sched.State==RME_THD_EXCPEND));
@@ -5755,7 +5756,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
 
-        _RME_List_Del(Thread->Sched.Notif.Prev, Thread->Sched.Notif.Next);
+        _RME_List_Del(Thread->Sched.Notif.Prev,Thread->Sched.Notif.Next);
         _RME_List_Crt(&(Thread->Sched.Notif));
     }
     else
@@ -5789,9 +5790,11 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
 
+        /* Remove from runqueue and timeout but don't notify parent */
         _RME_Run_Del(Thread);
         Thread->Sched.State=RME_THD_TIMEOUT;
     }
+    /* BLOCKED */
     else if(Thread->Sched.State==RME_THD_BLOCKED)
     {
         RME_COV_MARKER();
@@ -5799,8 +5802,10 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
         /* If it got here, the thread that is operated on cannot be the current 
          * thread, so we are not overwriting the return value of the caller. */
         __RME_Svc_Retval_Set(&(Thread->Ctx.Reg->Reg),RME_ERR_SIV_FREE);
+        /* Release signal and thread from each other */
         Thread->Sched.Signal->Thd=RME_NULL;
         Thread->Sched.Signal=RME_NULL;
+        /* Timeout but don't notify parent */
         Thread->Sched.State=RME_THD_TIMEOUT;
     }
     /* TIMEOUT or EXCPEND */
@@ -5809,8 +5814,8 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         /* No action required */
     }
-   
-    /* Deprive all slices on it */
+
+    /* Cleanup all remaining timeslices on it */
     Thread->Sched.Slice=0U;
     
     /* Check if this thread is the current one and we may need to switch away */
@@ -5821,7 +5826,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
         Local->Thd_Cur=_RME_Run_High(Local);
         _RME_Run_Ins(Local->Thd_Cur);
         RME_ASSERT(Local->Thd_Cur->Sched.State==RME_THD_READY);
-        _RME_Run_Swt(Reg, Thread, Local->Thd_Cur);
+        _RME_Run_Swt(Reg,Thread,Local->Thd_Cur);
     }
     else
     {
@@ -5916,6 +5921,7 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
+            /* Ready and add to runqueue */
             Thread->Sched.State=RME_THD_READY;
             _RME_Run_Ins(Thread);
         }
@@ -5923,6 +5929,7 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
+            /* Timeout and notify parent */
             Thread->Sched.State=RME_THD_TIMEOUT;
             _RME_Run_Notif(Thread);
         }
@@ -6041,18 +6048,17 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
      * thread after all these changes. This can help remove the excessive overhead. */
     for(Count=0U;Count<Number;Count++)
     {
-        /* See if this thread is currently ready. If yes, it must be in the run queue.
-         * Remove it from there and change priority, after changing priority, put it 
-         * back, and see if we need a reschedule. */
+        /* See if this thread is currently in the runqueue */
         if(Thread[Count]->Sched.State==RME_THD_READY)
         {
             RME_COV_MARKER();
 
+            /* Remove from runqueue, change priority, and add it back */
             _RME_Run_Del(Thread[Count]);
             Thread[Count]->Sched.Prio=Prio[Count];
             _RME_Run_Ins(Thread[Count]);
         }
-        /* If it is BLOCKED, TIMEOUT or EXCPEND, just changing the number will suffice */
+        /* If it is BLOCKED, TIMEOUT or EXCPEND, changing the number will suffice */
         else
         {
             RME_COV_MARKER();
@@ -6088,6 +6094,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     struct RME_Thd_Struct* Scheduler;
     struct RME_Thd_Struct* Thread;
     rme_ptr_t Type_Stat;
+    rme_ptr_t Flag;
     
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
@@ -6095,7 +6102,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_RCV);
     
-    /* Check if the CPUID is correct. Only if yes can we proceed */
+    /* Check if we are on the same core with the target thread */
     Scheduler=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Scheduler->Sched.Local!=RME_CPU_LOCAL())
     {
@@ -6109,7 +6116,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
     
-    /* Are there any notifications? */
+    /* Check if there are any notifications */
     if(Scheduler->Sched.Event.Next==&(Scheduler->Sched.Event))
     {
         RME_COV_MARKER();
@@ -6128,21 +6135,43 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     /* We need to do this because we are using this to detect whether the notification is sent */
     _RME_List_Crt(&(Thread->Sched.Notif));
     
-    /* If the child has an exception, we return its TID with exception flag set */
+    /* Exception pending */
     if(Thread->Sched.State==RME_THD_EXCPEND)
     {
         RME_COV_MARKER();
         
-        return (rme_ret_t)(Thread->Sched.TID|RME_THD_EXC_FLAG);
+        Flag=RME_THD_EXCPEND_FLAG;
+        
+        /* Is it also out of timeslice? */
+        if(Thread->Sched.Slice==0U)
+        {
+            RME_COV_MARKER();
+            
+            Flag|=RME_THD_TIMEOUT_FLAG;
+        }
+        else
+        {
+            RME_COV_MARKER();
+            /* No action required */
+        }
     }
+    /* Timeout */
+    else if(Thread->Sched.State==RME_THD_TIMEOUT)
+    {
+        RME_COV_MARKER();
+        
+        Flag=RME_THD_TIMEOUT_FLAG;
+    }
+    /* Spurious notification, cause eliminated before this sched rcv */
     else
     {
         RME_COV_MARKER();
-        /* No action required */
+        
+        Flag=0U;
     }
-
-    /* Return the notification TID, which means that it is just a timeout */
-    return (rme_ret_t)(Thread->Sched.TID);
+    
+    /* Return the notification TID with the flags */
+    return (rme_ret_t)(Thread->Sched.TID|Flag);
 }
 /* End Function:_RME_Thd_Sched_Rcv *******************************************/
 
@@ -6439,10 +6468,11 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
-            /* Delete it from runqueue */
+            /* Remove from runqueue */
             _RME_Run_Del(Thd_Src);
+            
+            /* Timeout and notify parent */
             Thd_Src->Sched.State=RME_THD_TIMEOUT;
-            /* Notify its parent about this */
             _RME_Run_Notif(Thd_Src);
         }
         else
@@ -6462,12 +6492,13 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     __RME_Svc_Retval_Set(Reg,(rme_ret_t)(Thd_Dst->Sched.Slice));
 
     /* See what was the state of the destination thread. If it is timeout, then activate
-     * it. If it is BLOCKED or EXCPEND, then leave it alone, and it will be activated when
-     * it unblocks or when the exception is handled. */
+     * it. If it is BLOCKED or EXCPEND, then leave it alone, and it will be activated
+     * when it unblocks or when the exception is handled. */
     if(Thd_Dst->Sched.State==RME_THD_TIMEOUT)
     {
         RME_COV_MARKER();
-        
+
+        /* Ready and add to runqueue */
         Thd_Dst->Sched.State=RME_THD_READY;
         _RME_Run_Ins(Thd_Dst);
     }
@@ -6579,10 +6610,14 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
-            _RME_Run_Del(Thd_Cur);
+            /* Deprive all timeslices and remove from runqueue */
             Thd_Cur->Sched.Slice=0U;
+            _RME_Run_Del(Thd_Cur);
+            
+            /* Timeout and notify parent */
             Thd_Cur->Sched.State=RME_THD_TIMEOUT;
             _RME_Run_Notif(Thd_Cur);
+            
             /* Because we have sent a notification, we could have unblocked a
              * thread at higher priority. Additionally, if the new thread is
              * the current thread, we are forced to switch to someone else,
@@ -6616,10 +6651,12 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
-            _RME_Run_Del(Thd_Cur);
+            /* Deprive all timeslices and remove from runqueue */
             Thd_Cur->Sched.Slice=0U;
+            _RME_Run_Del(Thd_Cur);
+            
+            /* Timeout and notify parent */
             Thd_Cur->Sched.State=RME_THD_TIMEOUT;
-            /* Notify the parent about this */
             _RME_Run_Notif(Thd_Cur);
         }
         else
@@ -6654,7 +6691,7 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
             
-    /* We have a solid context switch */
+    /* We have a solid context switch at this point */
     _RME_Run_Swt(Reg,Thd_Cur,Thd_New);
     Local->Thd_Cur=Thd_New;
 
@@ -6938,30 +6975,26 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
         {
             RME_COV_MARKER();
 
-            /* Put this into the runqueue and just set it to ready. We will not
-             * switch to it immediately; this is because we may send to a myriad
-             * of endpoints in one interrupt, and we hope to perform the context
-             * switch only once when exiting that handler. We can save many 
-             * register push/pops! Also note that the current thread could be 
-             * EXCPEND as well; this is different from the normal _RME_Sig_Snd. */
-            _RME_Run_Ins(Thd_Sig);
+            /* Ready and add to runqueue */
             Thd_Sig->Sched.State=RME_THD_READY;
+            _RME_Run_Ins(Thd_Sig);
         }
         else
         {
             RME_COV_MARKER();
 
-            /* No slices left. The only possible reason is because we delegated
-             * all of its time to someone else. We will not notify its parent again
-             * here because we will have notified it when we transferred all the
-             * timeslices away. We just silently change the state of this thread
-             * to TIMEOUT. Same for the next function. */
+            /* Timeout and notify parent */
             Thd_Sig->Sched.State=RME_THD_TIMEOUT;
+            _RME_Run_Notif(Thd_Sig);
         }
         
-        /* Clear the blocking status of the endpoint up - we don't need a write
-         * release barrier here because even if this is reordered to happen
-         * earlier it is still fine. */
+        /* We will not pick the highest priority thread here immediately, 
+         * because we may send to a myriad of endpoints in one interrupt, and
+         * we hope to perform the context switch only once when exiting that
+         * handler. Also note that the current thread could be EXCPEND as well;
+         * this is different from the normal signal sending system call. */
+        
+        /* Clear endpoint blocking status */
         Cap_Sig->Thd=RME_NULL;
     }
     else
@@ -7006,7 +7039,6 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Sig* Sig_Root;
     struct RME_Thd_Struct* Thd_Rcv;
     struct RME_CPU_Local* Local;
-    struct RME_Thd_Struct* Thd_Cur;
     rme_ptr_t Unblock;
     rme_ptr_t Type_Stat;
     
@@ -7017,12 +7049,10 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_SND);
     
     Local=RME_CPU_LOCAL();
-    Thd_Cur=Local->Thd_Cur;
     Sig_Root=RME_CAP_CONV_ROOT(Sig_Op,struct RME_Cap_Sig*);
     Thd_Rcv=Sig_Root->Thd;
 
-    /* If and only if we are calling from the same core as the blocked thread do
-     * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
+    /* If and only if we are calling from the same core do we unblock */
     if(Thd_Rcv!=RME_NULL)
     {
         RME_COV_MARKER();
@@ -7063,36 +7093,23 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
 
-            /* Put the waiting one into the runqueue */
+            /* Ready and add to runqueue */
             Thd_Rcv->Sched.State=RME_THD_READY;
             _RME_Run_Ins(Thd_Rcv);
-            
-            /* See if it will preempt us */
-            if(Thd_Rcv->Sched.Prio>Thd_Cur->Sched.Prio)
-            {
-                RME_COV_MARKER();
-
-                /* The current thread must be ready because we're sending from it! */
-                RME_ASSERT(Thd_Cur->Sched.State==RME_THD_READY);
-                _RME_Run_Swt(Reg,Thd_Cur,Thd_Rcv);
-                Local->Thd_Cur=Thd_Rcv;
-            }
-            else
-            {
-                RME_COV_MARKER();
-                /* No action required */
-            }
         }
         else
         {
             RME_COV_MARKER();
 
-            /* Silently change state to timeout */
+            /* Timeout and notify parent */
             Thd_Rcv->Sched.State=RME_THD_TIMEOUT;
+            _RME_Run_Notif(Thd_Rcv);
         }
         
-        /* Clear the blocking status of the endpoint up - we don't need a write release barrier
-         * here because even if this is reordered to happen earlier it is still fine. */
+        /* Pick the highest priority thread to run */
+        _RME_Kern_High(Reg,Local);
+        
+        /* Clear endpoint blocking status */
         Sig_Root->Thd=RME_NULL;
     }
     else
@@ -7149,7 +7166,6 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Sig* Sig_Root;
     struct RME_CPU_Local* Local;
     struct RME_Thd_Struct* Thd_Cur;
-    struct RME_Thd_Struct* Thd_New;
     rme_ptr_t Old_Value;
     rme_ptr_t Type_Stat;
     
@@ -7231,15 +7247,13 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
 
-    /* Are there any counts available? If yes, just take one and return. We cannot
-     * use faa here because we don't know if we will get it below zero */
+    /* Check if there are signals available */
     Old_Value=Sig_Root->Sig_Num;
     if(Old_Value>0U)
     {
         RME_COV_MARKER();
 
-        /* We can't use fetch-and-add because we don't know if other cores will
-         * reduce event count to zero in the meantime. */
+        /* Can't use faa, other cores may reduce count to zero in the meantime */
         if((Option==RME_RCV_BS)||(Option==RME_RCV_NS))
         {
             RME_COV_MARKER();
@@ -7315,13 +7329,12 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
              * signals will be there when the thread unblocks. The unblocking
              * does not need an option so we don't keep that; we always treat
              * it as single receive when we unblock anyway. */
-            Thd_Cur->Sched.State=RME_THD_BLOCKED;
             Thd_Cur->Sched.Signal=Sig_Root;
+            Thd_Cur->Sched.State=RME_THD_BLOCKED;
             _RME_Run_Del(Thd_Cur);
-            Thd_New=_RME_Run_High(Local);
-            RME_ASSERT(Thd_New->Sched.State==RME_THD_READY);
-            _RME_Run_Swt(Reg, Thd_Cur, Thd_New);
-            Local->Thd_Cur=Thd_New;
+            
+            /* Pick the highest priority thread to run */
+            _RME_Kern_High(Reg,Local);
         }
         else
         {

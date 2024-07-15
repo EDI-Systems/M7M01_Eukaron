@@ -604,8 +604,10 @@ while(0)
 
 /* Thread binding state */
 #define RME_THD_FREE                                ((struct RME_CPU_Local*)RME_MASK_FULL)
+/* Thread sched rcv timeout state */
+#define RME_THD_TIMEOUT_FLAG                        RME_POW2(RME_WORD_BIT-3U)
 /* Thread sched rcv faulty state */
-#define RME_THD_EXC_FLAG                            RME_POW2(RME_WORD_BIT-2U)
+#define RME_THD_EXCPEND_FLAG                        RME_POW2(RME_WORD_BIT-2U)
 /* Init thread infinite time marker */
 #define RME_THD_INIT_TIME                           (RME_MASK_FULL>>1)
 /* Other thread infinite time marker */
@@ -873,7 +875,7 @@ struct RME_Inv_Struct
     struct RME_List Head;
     /* The process pointer */
     struct RME_Cap_Prc* Prc;
-    /* Is the invocation currently active? If yes, we cannot delete */
+    /* Thread currently occupying the invocation port */
     struct RME_Thd_Struct* Thd_Act;
     /* The entry and stack of the invocation */
     rme_ptr_t Entry;
