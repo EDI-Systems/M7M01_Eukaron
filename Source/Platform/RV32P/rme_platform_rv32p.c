@@ -69,7 +69,7 @@ Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-#if(RME_DEBUG_PRINT!=0U)
+#if(RME_DBGLOG_ENABLE!=0U)
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_RV32P_PUTCHAR(Char);
@@ -115,7 +115,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
                              rme_ptr_t Mcause)
 {
     rme_ptr_t Mtval;
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     rme_ptr_t Paddr;
     rme_ptr_t Size_Order;
     rme_ptr_t Flag;
@@ -134,7 +134,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
     Exc=&Thd_Cur->Ctx.Reg->Exc;
     Mtval=___RME_RV32P_MTVAL_Get();
 
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     /* What fault is it? */
     switch(Mcause)
     {
@@ -326,7 +326,7 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - If successful, the flags; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_RV32P_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
                                     rme_cid_t Cap_Pgt,
                                     rme_ptr_t Vaddr,
@@ -760,12 +760,6 @@ Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
 Output      : None.
 Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-#if(RME_RVM_GEN_ENABLE!=0U)
-EXTERN rme_ret_t RME_Hook_Kfn_Handler(rme_ptr_t Func_ID,
-                                      rme_ptr_t Sub_ID,
-                                      rme_ptr_t Param1,
-                                      rme_ptr_t Param2);
-#endif
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
                             struct RME_Reg_Struct* Reg,
                             rme_ptr_t Func_ID,
@@ -783,7 +777,7 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_ASID_SET:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_TLB_LOCK:      {return RME_ERR_KFN_FAIL;}
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
         case RME_KFN_PGT_ENTRY_MOD:
         {
             Retval=__RME_RV32P_Pgt_Entry_Mod(Cpt,
@@ -1013,7 +1007,7 @@ void __RME_Boot(void)
 {
     /* volatile rme_ptr_t Size; */
     rme_ptr_t Cur_Addr;
-#if(RME_PGT_RAW_USER!=0U)
+#if(RME_PGT_RAW_ENABLE!=0U)
     /* Initial array for raw page table mode - generic for all RV32 */
 #if(RME_RV32_REGION_NUM<=4)
     static const rme_ptr_t RME_RV32P_Raw_Pgt_Def[5U]=
@@ -1057,7 +1051,7 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_RVM_INIT_CPT_SIZE));
 
     /* Create the page table for the init process, and map in the page alloted for it */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     /* The top-level page table - covers 4G address range */
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_RV32P_CPT,
                                  RME_BOOT_INIT_CPT,
@@ -1151,7 +1145,7 @@ void __RME_Boot(void)
 #endif
 
     /* Enable the PMP & interrupt */
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     RME_ASSERT(RME_CAP_IS_ROOT(RME_RV32P_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
 #endif
     __RME_Pgt_Set(RME_RV32P_Local.Thd_Cur->Sched.Prc->Pgt);
@@ -1590,7 +1584,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Op - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
     rme_ptr_t Count;
@@ -1643,7 +1637,7 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                           rme_ptr_t Is_Top,
                           rme_ptr_t Size_Order,
@@ -1671,7 +1665,7 @@ Input       : struct RME_Cap_Pgt Pgt_Op* - The page table to operate on.
 Output      : None.
 Return      : rme_ret_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
     /* No special property to check */
@@ -1687,7 +1681,7 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - The random number returned.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ptr_t __RME_RV32P_Rand(void)
 {   
     static rme_ptr_t LFSR=0xACE1ACE1U;
@@ -1711,7 +1705,7 @@ Input       : struct __RME_RV32P_PMP_Data* Top_Data - The PMP data.
 Output      : struct __RME_RV32P_PMP_Range* Range - The decoded ranges.
 Return      : rme_ptr_t - The number of regions that are present.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ptr_t ___RME_RV32P_PMP_Decode(struct __RME_RV32P_PMP_Data* Top_Data,
                                   struct __RME_RV32P_PMP_Range* Range)
 {
@@ -1768,7 +1762,7 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : None.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 void ___RME_RV32P_PMP_Range_Ins(struct __RME_RV32P_PMP_Range* Range,
                                 rme_ptr_t Number,
                                 rme_ptr_t Pos)
@@ -1791,7 +1785,7 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : None.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 void ___RME_RV32P_PMP_Range_Del(struct __RME_RV32P_PMP_Range* Range,
                                 rme_ptr_t Number,
                                 rme_ptr_t Pos)
@@ -1813,7 +1807,7 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : None.
 Return      : rme_ptr_t - The number of entries used.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ptr_t ___RME_RV32P_PMP_Range_Entry(struct __RME_RV32P_PMP_Range* Range,
                                        rme_ptr_t Number)
 {
@@ -1850,7 +1844,7 @@ Input       : struct __RME_RV32P_PMP_Range* Range - The memory ranges.
 Output      : None.
 Return      : rme_ptr_t - The position to kick out.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ptr_t ___RME_RV32P_PMP_Range_Kick(struct __RME_RV32P_PMP_Range* Range,
                                       rme_ptr_t Number,
                                       rme_ptr_t Add)
@@ -1895,7 +1889,7 @@ Output      : struct __RME_RV32P_PMP_Range* Range - The changed ranges.
 Return      : rme_ret_t - If successful, the current number of ranges; else
                           RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t ___RME_RV32P_PMP_Add(struct __RME_RV32P_PMP_Range* Range,
                                rme_ptr_t Number,
                                rme_ptr_t Paddr,
@@ -2041,7 +2035,7 @@ Input       : struct __RME_RV32P_PMP_Data* Top_Data - The top-level page data.
 Output      : struct __RME_RV32P_PMP_Data* Top_Data - The top-level page data.
 Return      : None.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 void ___RME_RV32P_PMP_Encode(struct __RME_RV32P_PMP_Data* Top_Data,
                              struct __RME_RV32P_PMP_Range* Range,
                              rme_ptr_t Number)
@@ -2105,7 +2099,7 @@ Input       : struct __RME_RV32P_Pgt_Meta* Top_Meta - The top-level page table.
 Output      : struct __RME_RV32P_Pgt_Meta* Top_Meta - The top-level page table.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t ___RME_RV32P_PMP_Update(struct __RME_RV32P_Pgt_Meta* Top_Meta,
                                   rme_ptr_t Paddr,
                                   rme_ptr_t Size_Order,
@@ -2140,7 +2134,7 @@ Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 #else
 void __RME_Pgt_Set(rme_ptr_t Pgt)
@@ -2148,7 +2142,7 @@ void __RME_Pgt_Set(rme_ptr_t Pgt)
 {
     struct __RME_RV32P_Raw_Pgt* Raw_Pgt;
 
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
     struct __RME_RV32P_PMP_Data* PMP_Data;
 
     PMP_Data=(struct __RME_RV32P_PMP_Data*)(RME_CAP_GETOBJ(Pgt, rme_ptr_t)+
@@ -2207,7 +2201,7 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                              rme_ptr_t Paddr,
                              rme_ptr_t Pos,
@@ -2252,7 +2246,7 @@ Input       : struct RME_Cap_Pgt* - The capability to the page table to operate 
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op,
                                rme_ptr_t Pos)
 {
@@ -2293,7 +2287,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent,
                               rme_ptr_t Pos,
                               struct RME_Cap_Pgt* Pgt_Child,
@@ -2340,7 +2334,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
                                 rme_ptr_t Pos,
                                 struct RME_Cap_Pgt* Pgt_Child)
@@ -2384,7 +2378,7 @@ Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flag - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t Pos,
                            rme_ptr_t* Paddr,
@@ -2435,7 +2429,7 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Flags - The RME standard flags of the page.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-#if(RME_PGT_RAW_USER==0U)
+#if(RME_PGT_RAW_ENABLE==0U)
 rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                          rme_ptr_t Vaddr,
                          rme_ptr_t* Pgt,

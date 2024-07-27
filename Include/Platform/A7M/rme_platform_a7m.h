@@ -78,7 +78,9 @@ typedef rme_s32_t rme_ret_t;
 /* System Macro **************************************************************/
 /* Compiler "extern" keyword setting */
 #define RME_EXTERN                              extern
-/* Compiler likely & unlikely setting */
+/* Compiler "inline" keyword setting */
+#define RME_INLINE                              inline
+/* Compiler "likely" & "unlikely" keyword setting */
 #ifdef likely
 #define RME_LIKELY(X)                           (likely(X))
 #else
@@ -102,9 +104,9 @@ typedef rme_s32_t rme_ret_t;
 /* Forcing VA=PA in user memory segments */
 #define RME_PGT_PHYS_ENABLE                     (1U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)             (sizeof(struct __RME_A7M_Pgt_Meta)+RME_POW2(NUM_ORDER)*RME_WORD_BYTE)
+#define RME_PGT_SIZE_NOM(NMORD)                 (sizeof(struct __RME_A7M_Pgt_Meta)+RME_POW2(NMORD)*RME_WORD_BYTE)
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)             (sizeof(struct __RME_A7M_MPU_Data)+RME_PGT_SIZE_NOM(NUM_ORDER))
+#define RME_PGT_SIZE_TOP(NMORD)                 (sizeof(struct __RME_A7M_MPU_Data)+RME_PGT_SIZE_NOM(NMORD))
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                         RME_A7M_Kot
 /* Compare-and-Swap(CAS) */
@@ -115,8 +117,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_FETCH_AND(PTR,OPERAND)              _RME_Fetch_And_Single(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                        __RME_A7M_MSB_Get(VAL)
-/* No read/write barriers needed on ARMv7-M, because they are currently all
- * single core. If this changes in the future, we may need DMB barriers. */
+/* Single-core processor */
 #define RME_READ_ACQUIRE(X)                     (*(X))
 #define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
 /* Reboot the processor if the assert fails in this port */

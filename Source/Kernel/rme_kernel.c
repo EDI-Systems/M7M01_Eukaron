@@ -127,13 +127,12 @@ Use            Use            It is fine.
 Different from most large-scale operating systems, RME requires the page tables
 to be constructed by the user-level rather than kernel logic. Yet, RME provided
 sufficient utilities for the user to conduct the necessary paging operations:
-
-1> Creating page directories;
-2> Deletiing page directories;
-3> Adding(mapping) pages into page directories;
-4> Deleting(unmapping) pages from page directories.
-5> Constructing hierachical page tables;
-6> Destructing hierachical page tables.
+1. Creating page directories;
+2. Deletiing page directories;
+3. Adding(mapping) pages into page directories;
+4. Deleting(unmapping) pages from page directories.
+5. Constructing hierachical page tables;
+6. Destructing hierachical page tables.
 
 * Kernel Memory ***************************************************************
 Different seL4 and Composite, RME applys a principle that resembles Fiasco.OC's
@@ -178,7 +177,7 @@ dedicated assembly atomics. If LTO has been enabled, there are three cases:
 (1) No "_": OS entry function RME_Kmain and C entry "main".
 (2) "_"   : Kernel functions that are be called by kernel.
 (3) "__"  : HAL functions that are called by kernel.
-(4) "___" : HAL functions that should be called by HAL.
+(4) "___" : HAL functions that should only be called by HAL.
 ******************************************************************************/
 
 /* Include *******************************************************************/
