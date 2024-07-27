@@ -304,9 +304,9 @@ while(0)
 
 /* Write info to PMP */
 #define RME_RV32P_PMP_PERM(X)                   ((X)&0x07U)
-#define RME_RV32P_PMP_READ                      RME_POW2(1U<<0)
-#define RME_RV32P_PMP_WRITE                     RME_POW2(1U<<1)
-#define RME_RV32P_PMP_EXECUTE                   RME_POW2(1U<<2)
+#define RME_RV32P_PMP_READ                      RME_POW2(0U)
+#define RME_RV32P_PMP_WRITE                     RME_POW2(1U)
+#define RME_RV32P_PMP_EXECUTE                   RME_POW2(2U)
 #define RME_RV32P_PMP_MODE(X)                   ((X)&RME_FIELD(3U,3U))
 #define RME_RV32P_PMP_OFF                       RME_FIELD(3U,3U)
 #define RME_RV32P_PMP_TOR                       RME_FIELD(1U,3U)
@@ -573,6 +573,13 @@ struct RME_Iret_Struct
 };
 
 /* Page Table ****************************************************************/
+/* Raw PMP cache - naked for user-level configurations only */
+struct __RME_RV32P_Raw_Pgt
+{
+    rme_ptr_t Cfg[RME_RV32P_PMPCFG_NUM];
+    rme_ptr_t Addr[RME_RV32P_REGION_NUM];
+};
+
 /* Page table metadata structure */
 #if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_RV32P_Pgt_Meta
@@ -582,16 +589,7 @@ struct __RME_RV32P_Pgt_Meta
     /* The size/num order of this level */
     rme_ptr_t Order;
 };
-#endif
 
-/* Raw PMP cache - naked for user-level configurations only */
-struct __RME_RV32P_Raw_Pgt
-{
-    rme_ptr_t Cfg[RME_RV32P_PMPCFG_NUM];
-    rme_ptr_t Addr[RME_RV32P_REGION_NUM];
-};
-
-#if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_RV32P_PMP_Data
 {
     /* Bitmap showing whether these are static or not */
@@ -599,10 +597,8 @@ struct __RME_RV32P_PMP_Data
     /* The MPU data itself */
     struct __RME_RV32P_Raw_Pgt Raw;
 };
-#endif
 
 /* Decode struct for ease of processing - all address divided by 4 */
-#if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_RV32P_PMP_Range
 {
     /* Mapping flags */
@@ -869,7 +865,13 @@ __RME_EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
 /* Page Table ****************************************************************/
 /* Initialization */
 __RME_EXTERN__ rme_ret_t __RME_Pgt_Kom_Init(void);
-#if(RME_PGT_RAW_ENABLE==0U)
+#if(RME_PGT_RAW_ENABLE!=0U)
+/* Setting the page table */
+__RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+#else
+/* Setting the page table */
+__RME_EXTERN__ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt);
+/* Initialization */
 __RME_EXTERN__ rme_ret_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 /* Checking */
 __RME_EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
@@ -878,8 +880,6 @@ __RME_EXTERN__ rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr,
                                          rme_ptr_t Num_Order,
                                          rme_ptr_t Vaddr);
 __RME_EXTERN__ rme_ret_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
-/* Setting the page table */
-__RME_EXTERN__ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt);
 /* Table operations */
 __RME_EXTERN__ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op,
                                             rme_ptr_t Paddr,
@@ -907,9 +907,6 @@ __RME_EXTERN__ rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                                         rme_ptr_t* Size_Order,
                                         rme_ptr_t* Num_Order,
                                         rme_ptr_t* Flag);
-#else
-/* Setting the page table */
-__RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
 #endif
 /*****************************************************************************/
 /* Undefine "__RME_EXTERN__" to avoid redefinition */

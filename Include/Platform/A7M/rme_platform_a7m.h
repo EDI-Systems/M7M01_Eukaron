@@ -630,6 +630,12 @@ struct __RME_A7M_MPU_Entry
     rme_ptr_t RASR;
 };
 
+/* Raw MPU cache - naked for user-level configurations only */
+struct __RME_A7M_Raw_Pgt
+{
+    struct __RME_A7M_MPU_Entry Data[RME_A7M_REGION_NUM];
+};
+
 /* Page table metadata structure */
 #if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_A7M_Pgt_Meta
@@ -644,16 +650,8 @@ struct __RME_A7M_Pgt_Meta
      * to the same attributes as the older pages */
     rme_ptr_t Page_Flag;
 };
-#endif
-
-/* Raw MPU cache - naked for user-level configurations only */
-struct __RME_A7M_Raw_Pgt
-{
-    struct __RME_A7M_MPU_Entry Data[RME_A7M_REGION_NUM];
-};
 
 /* MPU metadata structure */
-#if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_A7M_MPU_Data
 {
     /* Bitmap showing whether these are static or not */

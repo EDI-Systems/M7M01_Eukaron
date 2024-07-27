@@ -441,6 +441,13 @@ struct __RME_A6M_MPU_Entry
     rme_ptr_t RBAR;
     rme_ptr_t RASR;
 };
+
+/* Raw MPU cache - naked for user-level configurations only */
+struct __RME_A6M_Raw_Pgt
+{
+    struct __RME_A6M_MPU_Entry Data[RME_A6M_REGION_NUM];
+};
+
 /* Page table metadata structure */
 #if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_A6M_Pgt_Meta
@@ -455,16 +462,8 @@ struct __RME_A6M_Pgt_Meta
      * to the same attributes as the older pages */
     rme_ptr_t Page_Flag;
 };
-#endif
-
-/* Raw MPU cache - naked for user-level configurations only */
-struct __RME_A6M_Raw_Pgt
-{
-    struct __RME_A6M_MPU_Entry Data[RME_A6M_REGION_NUM];
-};
 
 /* MPU metadata structure */
-#if(RME_PGT_RAW_ENABLE==0U)
 struct __RME_A6M_MPU_Data
 {
     /* There are no static flags for ARMv6-M */
@@ -503,7 +502,7 @@ struct __RME_A6M_MPU_Data
 
 /* Private Function **********************************************************/
 /* Generator *****************************************************************/
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
 RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
 RME_EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
                                    rme_ptr_t Cap_Front,
