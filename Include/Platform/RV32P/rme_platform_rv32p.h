@@ -791,7 +791,7 @@ RME_EXTERN rme_ptr_t ___RME_RV32P_MCYCLE_Get(void);
 RME_EXTERN rme_ptr_t ___RME_RV32P_MISA_Get(void);
 RME_EXTERN rme_ptr_t ___RME_RV32P_MSTATUS_Get(void);
 RME_EXTERN void ___RME_RV32P_MSTATUS_Set(rme_ptr_t Value);
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
 /* Debugging */
 __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 #endif

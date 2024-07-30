@@ -9,41 +9,40 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
               RAM space to operate (which is NOT the factory default 64k+256k,
               which is simply too crammed for RME). When other configurations
               are desired, modify the .rvc files to indicate this change, and
-              program the fuse bits accordingly.
+              program the fuse bits with the WCH tool accordingly.
 ******************************************************************************/
 
 /* Define ********************************************************************/
 /* Debugging *****************************************************************/
-#define RME_ASSERT_CORRECT                              (0U)
-#define RME_DEBUG_PRINT                                 (1U)
+#define RME_ASSERT_ENABLE                               (1U)
+#define RME_DBGLOG_ENABLE                               (1U)
 /* Generator *****************************************************************/
 /* Are we using the generator? */
 #define RME_RVM_GEN_ENABLE                              (0U)
+/* Are we using raw memory mappings? */
+#define RME_PGT_RAW_ENABLE                              (0U)
 /* Modifiable ****************************************************************/
-/* Are we assuming user-managed raw memory access control? */
-#define RME_PGT_RAW_USER                                (1U)
-/* The virtual memory start address for the kernel objects */
+/* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x20003000)
-/* The size of the kernel object virtual memory */
+/* Kernel object virtual memory size */
 #define RME_KOM_VA_SIZE                                 (0xD000)
-/* The virtual memory start address for the virtual machines - If no VM is used, set to 0 */
+/* Hypervisor context virtual memory base - set to 0 if no VM */
 #define RME_HYP_VA_BASE                                 (0x0U)
-/* The size of the hypervisor reserved virtual memory */
+/* Hypervisor context virtual memory size - set to 0 if no VM */
 #define RME_HYP_VA_SIZE                                 (0xFFFFFFFFU)
-/* The granularity of kernel memory allocation, in bytes */
+/* Kernel memory allocation granularity order */
 #define RME_KOM_SLOT_ORDER                              (4U)
 /* Kernel stack size and address */
 #define RME_KSTK_VA_BASE                                (0x20000FF0U)
 #define RME_KSTK_VA_SIZE                                (0x800U)
-/* The maximum number of preemption priority levels in the system.
- * This parameter must be divisible by the word length - 32 is usually sufficient */
+/* The maximum number of preemption priorities */
 #define RME_PREEMPT_PRIO_NUM                            (32U)
 
-/* Physical vector number, flag area base and its size */
+/* Physical vector number, flag area base and size */
 #define RME_RVM_PHYS_VCT_NUM                            (104U)
 #define RME_RVM_PHYS_VCTF_BASE                          (0x20002FC0U)
 #define RME_RVM_PHYS_VCTF_SIZE                          (0x40U)
-/* Virtual event number, flag area base and its size */
+/* Virtual event number, flag area base and size */
 #define RME_RVM_VIRT_EVT_NUM                            (32U)
 #define RME_RVM_VIRT_EVTF_BASE                          (0x20002FA0U)
 #define RME_RVM_VIRT_EVTF_SIZE                          (0x20U)
@@ -69,9 +68,11 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_COP_RVF                               (1U)
 #define RME_RV32P_COP_RVD                               (0U)
 
+/* Fixed *********************************************************************/
 /* Timer interrupt MCAUSE value */
 #define RME_RV32P_MCAUSE_TIM                            (0x8000000CU)
 
+/* Initialization registers **************************************************/
 /* RCC CTLR */
 #define RME_RV32P_RCC_CTLR                              RME_RV32P_REG(0x40021000U)
 /* RCC control */
@@ -152,14 +153,20 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_RCC_APB2PCENR_USART1                  (0x00004000U)
 
 /* PFIC */
-#define RME_RV32P_PFIC_ISR(X)                           RME_RV32P_REG(0xE000E000U+(X))
+#define RME_RV32P_PFIC_ISR(X)                           RME_RV32P_REG(0xE000E000U+(((X)>>5)<<2))
 #define RME_RV32P_PFIC_CFGR                             RME_RV32P_REG(0xE000E048U)
-#define RME_RV32P_PFIC_IENR(X)                          RME_RV32P_REG(0xE000E100U+(X))
-#define RME_RV32P_PFIC_IRER(X)                          RME_RV32P_REG(0xE000E180U+(X))
-#define RME_RV32P_PFIC_IPSR(X)                          RME_RV32P_REG(0xE000E200U+(X))
+#define RME_RV32P_PFIC_IENR(X)                          RME_RV32P_REG(0xE000E100U+(((X)>>5)<<2))
+#define RME_RV32P_PFIC_IRER(X)                          RME_RV32P_REG(0xE000E180U+(((X)>>5)<<2))
+#define RME_RV32P_PFIC_IPSR(X)                          RME_RV32P_REG(0xE000E200U+(((X)>>5)<<2))
 #define RME_RV32P_PFIC_IPRIOR(X)                        RME_RV32P_REGB(0xE000E400U+(X))
 #define RME_RV32P_PFIC_SCTLR                            RME_RV32P_REG(0xE000ED10U)
 #define RME_RV32P_PFIC_SCTLR_SYSRST                     (0x80000000U)
+#define RME_RV32P_EXC_IRQN                              (3U)
+#define RME_RV32P_ECALL_M_MODE_IRQN                     (5U)
+#define RME_RV32P_ECALL_U_MODE_IRQN                     (8U)
+#define RME_RV32P_BREAK_POINT_IRQN                      (9U)
+#define RME_RV32P_SYSTICK_IRQN                          (12)
+#define RME_RV32P_SOFTWARE_IRQN                         (14)
 
 /* SysTick */
 #define RME_RV32P_SYSTICK_CTLR                          RME_RV32P_REG(0xE000F000U)
@@ -187,14 +194,14 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_WAIT_INT()
 
 /* Get interrupt state */
-#define RME_RV32P_INT_STATE_GET(INT_NUM)                ((RME_RV32P_PFIC_ISR((INT_NUM)>>5U)& \
+#define RME_RV32P_INT_STATE_GET(INT_NUM)                ((RME_RV32P_PFIC_ISR(INT_NUM)& \
                                                           RME_POW2((INT_NUM)&0x1FU))!=0U)
 
 /* Enable interrupt */
 #define RME_RV32P_INT_STATE_ENABLE(INT_NUM) \
 do \
 { \
-    RME_RV32P_PFIC_IENR((INT_NUM)>>5U)|=RME_POW2((INT_NUM)&0x1FU); \
+    RME_RV32P_PFIC_IENR(INT_NUM)=RME_POW2((INT_NUM)&0x1FU); \
 } \
 while(0)
 
@@ -202,7 +209,7 @@ while(0)
 #define RME_RV32P_INT_STATE_DISABLE(INT_NUM) \
 do \
 { \
-    RME_RV32P_PFIC_IRER((INT_NUM)>>5U)|=RME_POW2((INT_NUM)&0x1FU); \
+    RME_RV32P_PFIC_IRER(INT_NUM)=RME_POW2((INT_NUM)&0x1FU); \
 } \
 while(0)
 
@@ -226,21 +233,21 @@ while(0)
 #define RME_RV32P_INT_LOCAL_TRIG(INT_NUM) \
 do \
 { \
-    RME_RV32P_PFIC_IPSR(INT_NUM)|=RME_POW2((INT_NUM)&0x1FU); \
+    RME_RV32P_PFIC_IPSR(INT_NUM)=RME_POW2((INT_NUM)&0x1FU); \
 } \
 while(0)
 
 /* Cache mode configuration */
-#define RME_RV32P_CACHE_MOD(CACHE_ID, OPERATION, PARAM)
+#define RME_RV32P_CACHE_MOD(CACHE_ID,OPERATION,PARAM)
 /* Cache maintenance */
-#define RME_RV32P_CACHE_MAINT(CACHE_ID, OPERATION, PARAM)
+#define RME_RV32P_CACHE_MAINT(CACHE_ID,OPERATION,PARAM)
 /* Prefetcher mode ocnfiguration */
-#define RME_RV32P_PRFTH_MOD(PRFTH_ID, OPERATION, PARAM)
+#define RME_RV32P_PRFTH_MOD(PRFTH_ID,OPERATION,PARAM)
 
 /* Performance monitor configuration */
-#define RME_RV32P_PERF_MON_MOD(PERF_ID, OPERATION, PARAM)
+#define RME_RV32P_PERF_MON_MOD(PERF_ID,OPERATION,PARAM)
 /* Performance monitor cycle counter read or write */
-#define RME_RV32P_PERF_CYCLE_MOD(CYCLE_ID, OPERATION, VALUE)
+#define RME_RV32P_PERF_CYCLE_MOD(CYCLE_ID,OPERATION,VALUE)
 
 /* Reboot system */
 #define RME_RV32P_REBOOT() \
@@ -273,12 +280,12 @@ do \
     while((RME_RV32P_RCC_CTLR&RME_RV32P_RCC_CTLR_HSERDY)==0U); \
     /* HCLK = 2xPCLK1 = PCLK2 = SYSCLK */ \
     RME_RV32P_RCC_CFGR0|=RME_RV32P_RCC_CFGR0_HPRE_DIV1| \
-                          RME_RV32P_RCC_CFGR0_PPRE1_DIV2| \
-                          RME_RV32P_RCC_CFGR0_PPRE2_DIV1; \
+                         RME_RV32P_RCC_CFGR0_PPRE1_DIV2| \
+                         RME_RV32P_RCC_CFGR0_PPRE2_DIV1; \
     /* PLL clock source = external crystal, not divided */ \
     RME_RV32P_RCC_CFGR0|=RME_RV32P_RCC_CFGR0_PLLSRC_HSE| \
-                          RME_RV32P_RCC_CFGR0_PLLXTPRE_HSE| \
-                          RME_RV32P_RCC_CFGR0_PLLMULL18_EXTEN; \
+                         RME_RV32P_RCC_CFGR0_PLLXTPRE_HSE| \
+                         RME_RV32P_RCC_CFGR0_PLLMULL18_EXTEN; \
     /* Enable PLL and wait for it */ \
     RME_RV32P_RCC_CTLR|=RME_RV32P_RCC_CTLR_PLLON; \
     while((RME_RV32P_RCC_CTLR&RME_RV32P_RCC_CTLR_PLLRDY)==0U); \
@@ -292,10 +299,17 @@ do \
     RME_RV32P_SYSTICK_CMPHR=0U; \
     RME_RV32P_SYSTICK_CMPLR=RME_RV32P_OSTIM_VAL; \
     RME_RV32P_SYSTICK_CTLR=0x3FU; \
+    /* Set system interrupt priority to the lowest as always */ \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_EXC_IRQN,0xFFU); \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_ECALL_M_MODE_IRQN,0xFFU); \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_ECALL_U_MODE_IRQN,0xFFU); \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_BREAK_POINT_IRQN,0xFFU); \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_SYSTICK_IRQN,0xFFU); \
+    RME_RV32P_INT_PRIO_SET(RME_RV32P_SOFTWARE_IRQN,0xFFU); \
 } \
 while(0)
 
-#if(RME_DEBUG_PRINT==1U)
+#if(RME_DBGLOG_ENABLE!=0U)
 /* Other low-level initialization stuff - clock and serial */
 #define RME_RV32P_LOWLVL_INIT() \
 do \

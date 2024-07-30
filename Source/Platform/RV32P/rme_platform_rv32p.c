@@ -299,7 +299,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
     else if(Mcause==RME_RV32P_MCAUSE_U_ECALL)
     {
         /* Need to skip the ECALL */
-        Reg->PC+=sizeof(rme_ptr_t);
+        Reg->PC+=RME_WORD_BYTE;
         _RME_Svc_Handler(Reg);
     }
     /* Exception handler */
