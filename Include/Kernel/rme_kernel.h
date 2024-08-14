@@ -620,6 +620,7 @@ while(0)
  * [63/31 Is_Hyp] [62/30                       Attr                             ]
  */
 #define RME_THD_HYP_FLAG                            RME_POW2(RME_WORD_BIT-1U)
+#define RME_THD_IS_HYP(X)                           (((X)&RME_THD_HYP_FLAG)!=0U)
 #define RME_THD_ATTR(X)                             ((X)&(RME_MASK_FULL>>1))
 
 #define RME_HYP_SIZE                                sizeof(struct RME_Thd_Struct)

@@ -127,7 +127,7 @@ void __RME_RV32P_Exc_Handler(struct RME_Reg_Struct* Reg,
     struct RME_Exc_Struct* Exc;
 
     /* Is it a kernel-level fault? If yes, panic */
-    RME_ASSERT((Reg->MSTATUS&RME_RV32P_MSTATUS_RET_USER)==0U);
+    RME_ASSERT((Reg->MSTATUS&RME_RV32P_MSTATUS_RET_KERNEL)==0U);
 
     /* Get the address of this faulty address, and what caused this fault */
     Thd_Cur=RME_RV32P_Local.Thd_Cur;
@@ -986,13 +986,6 @@ void __RME_Lowlvl_Init(void)
 
     /* Initialize CPU-local data structures */
     _RME_CPU_Local_Init(&RME_RV32P_Local,__RME_CPUID_Get());
-
-    /* We do not need to turn off lazy stacking, because even if a fault occurs,
-     * it will get dropped by our handler deliberately and will not cause wrong
-     * attribution. They can be alternatively disabled as well if you wish */
-#if(RME_RV32P_FPU_TYPE!=RME_RV32P_FPU_NONE)
-    /* Need to turn on FPU here */
-#endif
 }
 /* End Function:__RME_Lowlvl_Init ********************************************/
 
@@ -1500,8 +1493,12 @@ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
 Description : Swap the cop register sets. This operation is flexible - If the
               program does not use the FPU, we do not save/restore its context.
 Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
+              rme_ptr_t Is_Hyp_New - Whether the context to switch to is a
+                                     hypervisor dedicated one.
               struct RME_Reg_Struct* Reg_New - The context to switch to.
               rme_ptr_t Attr_Cur - The attribute of the context to switch from.
+              rme_ptr_t Is_Hyp_Cur - Whether the context to switch from is a
+                                     hypervisor dedicated one.
               struct RME_Reg_Struct* Reg_Cur - The context to switch from.
 Output      : void* Cop_New - The coprocessor context to switch to.
               void* Cop_Cur - The coprocessor context to switch from.
@@ -1509,56 +1506,178 @@ Return      : None.
 ******************************************************************************/
 #if(RME_COP_NUM!=0U)
 void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                        rme_ptr_t Is_Hyp_New,
                         struct RME_Reg_Struct* Reg_New,
                         void* Cop_New,
                         rme_ptr_t Attr_Cur,
+                        rme_ptr_t Is_Hyp_Cur,
                         struct RME_Reg_Struct* Reg_Cur,
                         void* Cop_Cur)
 {
-    static rme_ptr_t Used=1U;
-    rme_ptr_t State;
+    rme_ptr_t State_Cur;
+    rme_ptr_t State_New;
 
-    /* The current thread does have FPU capability */
-    if(Attr_Cur!=RME_RV32P_ATTR_NONE)
+    State_Cur=Reg_Cur->MSTATUS&RME_RV32P_MSTATUS_FPU_MASK;
+    State_New=Reg_New->MSTATUS&RME_RV32P_MSTATUS_FPU_MASK;
+
+    /* Fix the coprocessor enabling status reported by the HYP threads */
+    if(Is_Hyp_Cur!=0U)
     {
-        /* We can trust this MSTATUS */
-        State=(Reg_Cur->MSTATUS)&RME_RV32P_MSTATUS_FPU_MASK;
-        if(State==RME_RV32P_MSTATUS_FPU_DIRTY)
+        if(Attr_Cur!=RME_RV32P_ATTR_NONE)
         {
-            /* In RISC-V, there is a "Clean" state which could be used to indicate that
-             * "the thread used FPU before but haven't touch the FPU from last save",
-             * and this state can aid us in skipping unnecessary FPU context saves. */
-            ___RME_RV32P_Thd_Cop_Save(Cop_Cur);
-            Reg_Cur->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
-            Used=1U;
+            /* If the current thread uses the coprocessor but reports not using
+             * it, treat the coprocessor as CLEAN, and enable the coprocessor */
+            if(State_Cur==RME_RV32P_MSTATUS_FPU_OFF)
+            {
+                State_Cur=RME_RV32P_MSTATUS_FPU_CLEAN;
+                ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN);
+                Reg_Cur->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
+            }
         }
-        else if(State==RME_RV32P_MSTATUS_FPU_CLEAN)
-            Used=1U;
-    }
-
-    /* The next thread does have FPU capability */
-    if(Attr_New!=RME_RV32P_ATTR_NONE)
-    {
-        /* Enable FPU to prepare for FPU context operations */
-        ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT);
-        /* The next thread made use of that capability (Dirty or Clean), need to load context */
-        if(((Reg_New->MSTATUS)&RME_RV32P_MSTATUS_FPU_CLEAN)!=0U)
-            ___RME_RV32P_Thd_Cop_Load(Cop_New);
-        /* The next thread did not make use of the capability (Init), clean-up its FPU context */
         else
         {
-            /* Clean up and restore to initial state, if used only, to save time */
-            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT;
-            if(Used!=0U)
+            /* If the current thread does not use the coprocessor but reports using
+             * it, treat the coprocessor as OFF, and disable the coprocessor; this in
+             * theory does not happen because the mstatus will be fixed on the handler
+             * return path, and we only have a single core thus it will not be modified
+             * by another core after we fix it; on multi-core processors (which is out
+             *  of the scope of this port), the fix must be on the assembly exit anyway */
+            if((Attr_Cur==RME_RV32P_ATTR_NONE)&&(State_Cur!=RME_RV32P_MSTATUS_FPU_OFF))
             {
-                ___RME_RV32P_Thd_Cop_Clear();
-                Used=0U;
+                State_Cur=RME_RV32P_MSTATUS_FPU_OFF;
+                ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
+                Reg_Cur->MSTATUS=RME_RV32P_MSTATUS_INIT;
             }
         }
     }
-    /* The next thread does not have such capability, disable FPU */
+
+    if(Is_Hyp_New!=0U)
+    {
+        if(Attr_New!=RME_RV32P_ATTR_NONE)
+        {
+            /* If the new thread uses the coprocessor but reports not using
+             * it, treat the coprocessor as CLEAN */
+            if(State_New==RME_RV32P_MSTATUS_FPU_OFF)
+            {
+                State_New=RME_RV32P_MSTATUS_FPU_CLEAN;
+                Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
+            }
+        }
+        else
+        {
+            /* If the current thread does not use the coprocessor but reports using
+             * it, treat the coprocessor as OFF */
+            if((Attr_New==RME_RV32P_ATTR_NONE)&&(State_New!=RME_RV32P_MSTATUS_FPU_OFF))
+            {
+                State_New=RME_RV32P_MSTATUS_FPU_OFF;
+                Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT;
+            }
+        }
+    }
+
+    /* The current thread does not use the coprocessor */
+    if(Attr_Cur==RME_RV32P_ATTR_NONE)
+    {
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_RV32P_ATTR_NONE)
+        {
+            /* No action required */
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New==RME_RV32P_MSTATUS_FPU_INIT)
+        {
+            /* Turn the coprocessor on */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT;
+            ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_INIT);
+        }
+        /* The new thread touched the coprocessor and its context was saved */
+        else
+        {
+            /* Turn the coprocessor on */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
+            ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN);
+            /* Load the new coprocessor context */
+            RME_RV32P_THD_COP_LOAD(Cop_New);
+        }
+    }
+    /* The current thread did not touch the coprocessor, and is not a HYP one */
+    else if((State_Cur==RME_RV32P_MSTATUS_FPU_INIT)&&(Is_Hyp_Cur==0U))
+    {
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_RV32P_ATTR_NONE)
+        {
+            /* Turn the coprocessor off */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT;
+            ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New==RME_RV32P_MSTATUS_FPU_INIT)
+        {
+            /* No action required */
+        }
+        /* The new thread touched the coprocessor, and was saved */
+        else
+        {
+            /* Load the new coprocessor context */
+            RME_RV32P_THD_COP_LOAD(Cop_New);
+        }
+    }
+    /* The current thread touched the coprocessor and its context was saved, or it is a HYP one;
+     * for HYP threads, the INIT status is not trustworthy and must always be treated as CLEAN */
+    else if((State_Cur==RME_RV32P_MSTATUS_FPU_INIT)||(State_Cur==RME_RV32P_MSTATUS_FPU_CLEAN))
+    {
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_RV32P_ATTR_NONE)
+        {
+            /* Reinitialize the coprocessor context */
+            RME_RV32P_THD_COP_CLEAR();
+            /* Turn the coprocessor off */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT;
+            ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New==RME_RV32P_MSTATUS_FPU_INIT)
+        {
+            /* Reinitialize the coprocessor context */
+            RME_RV32P_THD_COP_CLEAR();
+        }
+        /* The new thread touched the coprocessor, and was saved */
+        else
+        {
+            /* Load the new coprocessor context */
+            RME_RV32P_THD_COP_LOAD(Cop_New);
+        }
+    }
+    /* The current thread touched the coprocessor and its context was not saved */
     else
-        ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
+    {
+        /* Save the current coprocessor context */
+        RME_RV32P_THD_COP_SAVE(Cop_Cur);
+        /* Set the current thread to clean */
+        Reg_Cur->MSTATUS=RME_RV32P_MSTATUS_INIT|RME_RV32P_MSTATUS_FPU_CLEAN;
+
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_RV32P_ATTR_NONE)
+        {
+            /* Reinitialize the coprocessor context */
+            RME_RV32P_THD_COP_CLEAR();
+            /* Turn the coprocessor off */
+            Reg_New->MSTATUS=RME_RV32P_MSTATUS_INIT;
+            ___RME_RV32P_MSTATUS_Set(RME_RV32P_MSTATUS_INIT);
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New==RME_RV32P_MSTATUS_FPU_INIT)
+        {
+            /* Reinitialize the coprocessor context */
+            RME_RV32P_THD_COP_CLEAR();
+        }
+        /* The new thread touched the coprocessor, and was saved */
+        else
+        {
+            /* Load the new coprocessor context */
+            RME_RV32P_THD_COP_LOAD(Cop_New);
+        }
+    }
 }
 #endif
 /* End Function:__RME_Thd_Cop_Swap *******************************************/

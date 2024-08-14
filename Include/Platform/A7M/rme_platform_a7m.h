@@ -900,9 +900,11 @@ __RME_EXTERN__ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
                                        struct RME_Reg_Struct* Reg,
                                        void* Cop);
 __RME_EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                                       rme_ptr_t Is_Hyp_New,
                                        struct RME_Reg_Struct* Reg_New,
                                        void* Cop_New,
                                        rme_ptr_t Attr_Cur,
+                                       rme_ptr_t Is_Hyp_Cur,
                                        struct RME_Reg_Struct* Reg_Cur,
                                        void* Cop_Cur);
 

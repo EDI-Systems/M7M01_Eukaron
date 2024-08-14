@@ -1853,8 +1853,7 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                         rme_ptr_t Param, 
                         struct RME_Reg_Struct* Reg)
 {
-    /* We have not used FPU yet in this new context, but whatever FPU 
-     * that was enabled in this thread will be enabled regardless. */
+    /* We have not used FPU yet in this new context */
     Reg->LR=RME_A7M_EXC_RET_INIT;
     /* The entry point needs to have the last bit set to avoid ARM mode */
     Reg->R4=Entry|0x01U;
@@ -2029,8 +2028,12 @@ Description : Swap the cop register sets. This operation is flexible - If the
               by our handler deliberately and will not cause wrong attribution.
               They can be alternatively disabled as well if you wish.
 Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
+              rme_ptr_t Is_Hyp_New - Whether the context to switch to is a
+                                     hypervisor dedicated one.
               struct RME_Reg_Struct* Reg_New - The context to switch to.
               rme_ptr_t Attr_Cur - The attribute of the context to switch from.
+              rme_ptr_t Is_Hyp_Cur - Whether the context to switch from is a
+                                     hypervisor dedicated one.
               struct RME_Reg_Struct* Reg_Cur - The context to switch from.
 Output      : void* Cop_New - The coprocessor context to switch to.
               void* Cop_Cur - The coprocessor context to switch from.
@@ -2038,67 +2041,99 @@ Return      : None.
 ******************************************************************************/
 #if(RME_COP_NUM!=0U)
 void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                        rme_ptr_t Is_Hyp_New,
                         struct RME_Reg_Struct* Reg_New,
                         void* Cop_New,
                         rme_ptr_t Attr_Cur,
+                        rme_ptr_t Is_Hyp_Cur,
                         struct RME_Reg_Struct* Reg_Cur,
                         void* Cop_Cur)
 {
-    static rme_ptr_t Used=1U;
+    rme_ptr_t State_Cur;
+    rme_ptr_t State_New;
     
-    /* The current thread does have FPU capability */
-    if(Attr_Cur!=RME_A7M_ATTR_NONE)
-    {
-        /* The current thread made use of that capability, need to save context.
-         * this LR value can be trusted to indicate whether the thread have ever
-         * touched FPU because it is from the current thread, and must be virgin.
-         * A7M is single-core so no other CPUs could modify it on the fly. */
-        if(((Reg_Cur->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
-        {
-            /* FPU MUST be enabled at this point. No possibility that we've had
-             * such a stack containing FPU context and the FPU is disabled */
-            RME_ASSERT((RME_A7M_SCB_CPACR&RME_A7M_SCB_CPACR_FPU_MASK)!=0U);
-            /* In theory, when we switch from a FPU-enabled thread to a FPU-disabled
-             * thread and back, we don't ever need to save and restore FPU registers.
-             * However, RME supports HYP mapping, which may need to read/write the
-             * registers in a kernel agnostic fashion. In that case, if the FPU
-             * is ever put to use, its context must be saved and restored. */
-            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
-            Used=1U;
-        }
-    }
+    State_Cur=Reg_Cur->LR&RME_A7M_EXC_RET_STD_FRAME;
+    State_New=Reg_New->LR&RME_A7M_EXC_RET_STD_FRAME;
     
-    /* The next thread does have FPU capability, enable FPU */
-    if(Attr_New!=RME_A7M_ATTR_NONE)
+    /* Coprocessor enabling status not reported by the HYP thread context */
+    RME_USE(Is_Hyp_New);
+    
+    /* The current thread does not use the coprocessor */
+    if(Attr_Cur==RME_A7M_ATTR_NONE)
     {
-        RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
-        /* The next thread made use of that capability, need to load context */
-        if(((Reg_New->LR)&RME_A7M_EXC_RET_STD_FRAME)==0U)
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_A7M_ATTR_NONE)
         {
-            ___RME_A7M_Thd_Cop_Load(Cop_New);
-            /* No need to set Dirty here because it will be set on next entry */
+            /* No action required */
         }
-        /* The next thread did not make use of the capability, clean-up its
-         * FPU context. The processor automatically sets the FPCA to zero (on
-         * detection that LR[4]=1), so that the exception entry stacks later
-         * does not include FPU registers anymore. The FPU is therefore not
-         * really turned off when the thread says it doesn't want to use FPU,
-         * but put into hibernation that does not cause more ctxsw burden.
-         * We need to clean up any FPU mess, otherwise if the new thread might
-         * read FPU context from other threads which is insecure. */
+        /* The new thread did not touch the coprocessor */
+        else if(State_New!=0U)
+        {
+            /* Turn the coprocessor on */
+            RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
+        }
+        /* The new thread touched the coprocessor */
         else
         {
-            /* Clean up and restore to initial state, if used only, to save time */
-            if(Used!=0U)
-            {
-                ___RME_A7M_Thd_Cop_Clear();
-                Used=0U;
-            }
+            /* Turn the coprocessor on */
+            RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
+            /* Load the new coprocessor context */
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
         }
     }
-    /* The next thread does not have such capability, disable FPU */
+    /* The current thread did not touch the coprocessor, and it is not a HYP one */
+    else if((State_Cur!=0U)&&(Is_Hyp_Cur==0U))
+    {
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_A7M_ATTR_NONE)
+        {
+            /* Turn the coprocessor off */
+            RME_A7M_SCB_CPACR&=~RME_A7M_SCB_CPACR_FPU_MASK;
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New!=0U)
+        {
+            /* No action required */
+        }
+        /* The new thread touched the coprocessor */
+        else
+        {
+            /* Load the new coprocessor context */
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
+        }
+    }
+    /* The current thread touched the coprocessor, or it is a HYP one */
     else
-        RME_A7M_SCB_CPACR&=~RME_A7M_SCB_CPACR_FPU_MASK;
+    {
+        /* Do not save coprocessor if a HYP thread reports that it did not touch the
+         * coprocessor - cheating HYP threads will only hurt themselves when doing so */
+        if(State_Cur==0U)
+        {
+            /* Save the current coprocessor context */
+            ___RME_A7M_Thd_Cop_Save(Cop_Cur);
+        }
+        
+        /* The new thread does not use the coprocessor */
+        if(Attr_New==RME_A7M_ATTR_NONE)
+        {
+            /* Reinitialize the coprocessor context */
+            ___RME_A7M_Thd_Cop_Clear();
+            /* Turn the coprocessor off */
+            RME_A7M_SCB_CPACR&=~RME_A7M_SCB_CPACR_FPU_MASK;
+        }
+        /* The new thread did not touch the coprocessor */
+        else if(State_New!=0U)
+        {
+            /* Reinitialize the coprocessor context */
+            ___RME_A7M_Thd_Cop_Clear();
+        }
+        /* The new thread touched the coprocessor */
+        else
+        {
+            /* Load the new coprocessor context */
+            ___RME_A7M_Thd_Cop_Load(Cop_New);
+        }
+    }
 }
 #endif
 /* End Function:__RME_Thd_Cop_Swap *******************************************/

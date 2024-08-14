@@ -4592,17 +4592,21 @@ static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     Reg_Cur=&(Thd_Cur->Ctx.Reg->Reg);
     Reg_New=&(Thd_New->Ctx.Reg->Reg);
     
-    /* Swap normal context */
-    __RME_Thd_Reg_Copy(Reg_Cur, Reg);
-    __RME_Thd_Reg_Copy(Reg, Reg_New);
+    /* Save register context */
+    __RME_Thd_Reg_Copy(Reg_Cur,Reg);
     
     /* If coprocessor is enabled, handle coprocessor context as well */
 #if(RME_COP_NUM!=0U)
     __RME_Thd_Cop_Swap(RME_THD_ATTR(Thd_New->Ctx.Hyp_Attr),
+                       RME_THD_IS_HYP(Thd_New->Ctx.Hyp_Attr),
                        Reg_New,Thd_New->Ctx.Reg->Cop,
                        RME_THD_ATTR(Thd_Cur->Ctx.Hyp_Attr),
+                       RME_THD_IS_HYP(Thd_Cur->Ctx.Hyp_Attr),
                        Reg_Cur,Thd_Cur->Ctx.Reg->Cop);
 #endif
+
+    /* Load register context */
+    __RME_Thd_Reg_Copy(Reg,Reg_New);
 
     /* Are we going to switch page tables? If yes, we change it now */
     Pgt_Cur=_RME_Thd_Pgt(Thd_Cur);

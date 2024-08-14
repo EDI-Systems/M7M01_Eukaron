@@ -123,11 +123,11 @@ F31    $ft11      temporary (caller-save)
     .global             __RME_RV32P_Handler
     /* Coprocessor save/load */
     .global             ___RME_RV32P_Thd_Cop_Clear_RVF
-    .global             ___RME_RV32P_Thd_Cop_Clear_RVFD
+    .global             ___RME_RV32P_Thd_Cop_Clear_RVD
     .global             ___RME_RV32P_Thd_Cop_Save_RVF
-    .global             ___RME_RV32P_Thd_Cop_Save_RVFD
+    .global             ___RME_RV32P_Thd_Cop_Save_RVD
     .global             ___RME_RV32P_Thd_Cop_Load_RVF
-    .global             ___RME_RV32P_Thd_Cop_Load_RVFD
+    .global             ___RME_RV32P_Thd_Cop_Load_RVD
     /* The MPU setup routine */
     .global             ___RME_RV32P_PMP_Set1
     .global             ___RME_RV32P_PMP_Set2
@@ -409,6 +409,8 @@ __RME_RV32P_Handler:
     CSRW                mstatus,a0
     /* Load pc (into mepc) */
     LW                  a0,1*4(sp)
+1:
+    BEQZ                a0,1b
     CSRW                mepc,a0
     /* Load x1 */
     LW                  x1,2*4(sp)
@@ -920,7 +922,7 @@ ___RME_RV32P_Thd_Cop_Load_RVD:
     .hword              0x3F87              /* FLD     f31,31*8(a0) */
     .hword              0x0F85
     RET
-/* End Function:___RME_RV32P_Thd_Cop_Save ************************************/
+/* End Function:___RME_RV32P_Thd_Cop_Load ************************************/
 
 /* Function:___RME_RV32P_PMP_Set **********************************************
 Description : Program the entire PMP array.

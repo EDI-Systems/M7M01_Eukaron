@@ -143,9 +143,9 @@ typedef rme_s32_t rme_ret_t;
 #define RME_RV32P_REG(X)                        (*((volatile rme_ptr_t*)(X)))
 #define RME_RV32P_REGB(X)                       (*((volatile rme_u8_t*)(X)))
 
-/* MSTATUS default initialization */
-#define RME_RV32P_MSTATUS_INIT                  (0x00000080U)
-#define RME_RV32P_MSTATUS_RET_USER              (0x00001800U)
+/* MSTATUS default initialization (transparent interrupt possible) */
+#define RME_RV32P_MSTATUS_INIT                  (0x00000088U)
+#define RME_RV32P_MSTATUS_RET_KERNEL            (0x00001800U)
 #define RME_RV32P_MSTATUS_MASK                  (0x00006000U)
 #define RME_RV32P_MSTATUS_FIX(X) \
 do \
@@ -153,7 +153,7 @@ do \
     if(RME_THD_ATTR(RME_CPU_LOCAL()->Thd_Cur->Ctx.Hyp_Attr)==RME_RV32P_ATTR_NONE) \
         (X)->MSTATUS=RME_RV32P_MSTATUS_INIT; \
     else \
-        (X)->MSTATUS=(X)->MSTATUS&RME_RV32P_MSTATUS_MASK|RME_RV32P_MSTATUS_INIT; \
+        (X)->MSTATUS=((X)->MSTATUS&RME_RV32P_MSTATUS_MASK)|RME_RV32P_MSTATUS_INIT; \
 } \
 while(0)
 
@@ -167,13 +167,13 @@ while(0)
 /* FPU save/restore veneer choice */
 #if(RME_COP_NUM!=0U)
 #if(RME_RV32P_COP_RVD!=0U)
-#define ___RME_RV32P_Thd_Cop_Clear              ___RME_RV32P_Thd_Cop_Clear_RVD
-#define ___RME_RV32P_Thd_Cop_Save               ___RME_RV32P_Thd_Cop_Save_RVD
-#define ___RME_RV32P_Thd_Cop_Load               ___RME_RV32P_Thd_Cop_Load_RVD
+#define RME_RV32P_THD_COP_CLEAR()               ___RME_RV32P_Thd_Cop_Clear_RVD()
+#define RME_RV32P_THD_COP_SAVE(COP)             ___RME_RV32P_Thd_Cop_Save_RVD(COP)
+#define RME_RV32P_THD_COP_LOAD(COP)             ___RME_RV32P_Thd_Cop_Load_RVD(COP)
 #else
-#define ___RME_RV32P_Thd_Cop_Clear              ___RME_RV32P_Thd_Cop_Clear_RVF
-#define ___RME_RV32P_Thd_Cop_Save               ___RME_RV32P_Thd_Cop_Save_RVF
-#define ___RME_RV32P_Thd_Cop_Load               ___RME_RV32P_Thd_Cop_Load_RVF
+#define RME_RV32P_THD_COP_CLEAR()               ___RME_RV32P_Thd_Cop_Clear_RVF()
+#define RME_RV32P_THD_COP_SAVE(COP)             ___RME_RV32P_Thd_Cop_Save_RVF(COP)
+#define RME_RV32P_THD_COP_LOAD(COP)             ___RME_RV32P_Thd_Cop_Load_RVF(COP)
 #endif
 #endif
 
@@ -856,9 +856,11 @@ __RME_EXTERN__ void __RME_Thd_Cop_Init(rme_ptr_t Attr,
                                        struct RME_Reg_Struct* Reg,
                                        void* Cop);
 __RME_EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                                       rme_ptr_t Is_Hyp_New,
                                        struct RME_Reg_Struct* Reg_New,
                                        void* Cop_New,
                                        rme_ptr_t Attr_Cur,
+                                       rme_ptr_t Is_Hyp_Cur,
                                        struct RME_Reg_Struct* Reg_Cur,
                                        void* Cop_Cur);
 
