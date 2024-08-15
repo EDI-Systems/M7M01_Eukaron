@@ -821,12 +821,17 @@ RME_EXTERN void __RME_User_Enter(rme_ptr_t Entry,
 
 /* Register Manipulation *****************************************************/
 /* Coprocessor */
+#if(RME_COP_NUM!=0U)
+#if(RME_RV32P_COP_RVD==0U)
 RME_EXTERN void ___RME_RV32P_Thd_Cop_Clear_RVF(void);
-RME_EXTERN void ___RME_RV32P_Thd_Cop_Clear_RVD(void);
 RME_EXTERN void ___RME_RV32P_Thd_Cop_Save_RVF(struct RME_RV32P_Cop_Struct* Cop);
-RME_EXTERN void ___RME_RV32P_Thd_Cop_Save_RVD(struct RME_RV32P_Cop_Struct* Cop);
 RME_EXTERN void ___RME_RV32P_Thd_Cop_Load_RVF(struct RME_RV32P_Cop_Struct* Cop);
+#else
+RME_EXTERN void ___RME_RV32P_Thd_Cop_Clear_RVD(void);
+RME_EXTERN void ___RME_RV32P_Thd_Cop_Save_RVD(struct RME_RV32P_Cop_Struct* Cop);
 RME_EXTERN void ___RME_RV32P_Thd_Cop_Load_RVD(struct RME_RV32P_Cop_Struct* Cop);
+#endif
+#endif
 /* Syscall parameter */
 __RME_EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Svc,
