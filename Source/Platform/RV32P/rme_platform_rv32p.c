@@ -285,15 +285,18 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
 
 #if(RME_RVM_GEN_ENABLE!=0U)
         /* If the user wants to bypass, we skip the flag marshalling & sending process */
-        if(RME_Boot_Vct_Handler(Mcause)==0U)
-            return;
+        if(RME_Boot_Vct_Handler(Reg,Mcause)!=0U)
+        {
+            /* Set the vector flag */
+            __RME_RV32P_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Mcause);
 #endif
-
-        __RME_RV32P_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Mcause);
-
-        _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct);
-        /* Remember to pick the guy with the highest priority after we did all sends */
-        _RME_Kern_High(Reg,&RME_RV32P_Local);
+            /* Send to the kernel endpoint */
+            _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct);
+            /* Pick the highest priority thread after we did all sends */
+            _RME_Kern_High(Reg,&RME_RV32P_Local);
+#if(RME_RVM_GEN_ENABLE!=0U)
+        }
+#endif
     }
     /* System call handler */
     else if(Mcause==RME_RV32P_MCAUSE_U_ECALL)

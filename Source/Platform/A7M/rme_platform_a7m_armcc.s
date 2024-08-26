@@ -94,6 +94,28 @@ Reset_Handler
 ;/* End Entry ****************************************************************/
 
 ;/* Vector *******************************************************************/
+    ;Save registers
+    MACRO
+    RME_A7M_SAVE
+    PUSH                {R4-R11,LR}         ;Save registers
+    MRS                 R0,PSP
+    PUSH                {R0}
+    LDR                 R4,=0xE000ED94      ;Turn off MPU in case it sets wrong permission for kernel
+    LDR                 R5,=0x00000000
+    STR                 R5,[R4]
+    MEND
+
+    ;Restore registers
+    MACRO
+    RME_A7M_LOAD
+    LDR                 R4,=0xE000ED94      ;Turn on MPU
+    LDR                 R5,=0x00000005
+    STR                 R5,[R4]
+    POP                 {R0}
+    MSR                 PSP,R0
+    POP                 {R4-R11,PC}         ;Restore registers
+    MEND
+
     AREA                RME_VECTOR,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
@@ -909,19 +931,15 @@ IRQ236_Handler
 IRQ237_Handler
 IRQ238_Handler
 IRQ239_Handler
-    PUSH                {R4-R11,LR}         ;Save registers
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A7M_SAVE
     
     MOV                 R0,SP               ;Pass in the regs
     MRS                 R1,xPSR             ;Pass in the interrupt number
     UBFX                R1,R1,#0,#9
     SUB                 R1,#16              ;The IRQ0's number is 16; subtract
     BL                  __RME_A7M_Vct_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         ;Restore registers
+
+    RME_A7M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -1080,7 +1098,7 @@ __RME_User_Enter        PROC
     ISB
     MOV                 R1,R0               ;Save the entry to R1
     MOV                 R0,R2               ;Save CPUID(0) to R0
-    BLX                 R1                  ;Branch to our target
+    BLX                 R1                  ;Branch to target
     ENDP
     ALIGN
     LTORG
@@ -1100,16 +1118,12 @@ __RME_User_Enter        PROC
     PRESERVE8
 
 SysTick_Handler         PROC
-    PUSH                {R4-R11,LR}         ;Save registers
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A7M_SAVE
     
     MOV                 R0,SP               ;Pass in the regs
     BL                  __RME_A7M_Tim_Handler
     
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         ;Restore registers
+    RME_A7M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -1129,16 +1143,12 @@ SysTick_Handler         PROC
     PRESERVE8
 
 SVC_Handler             PROC
-    PUSH                {R4-R11,LR}         ;Save registers
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A7M_SAVE
     
     MOV                 R0, SP              ;Pass in the regs
     BL                  __RME_A7M_Svc_Handler
     
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         ;Restore registers
+    RME_A7M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -1170,16 +1180,12 @@ MemManage_Handler
 BusFault_Handler
     NOP
 UsageFault_Handler
-    PUSH                {R4-R11,LR}         ;Save registers
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A7M_SAVE
     
     MOV                 R0,SP               ;Pass in the regs
     BL                  __RME_A7M_Exc_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         ;Restore registers
+
+    RME_A7M_LOAD
     ENDP
     ALIGN
     LTORG

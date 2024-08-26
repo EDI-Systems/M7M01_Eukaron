@@ -84,6 +84,38 @@ Reset_Handler           PROC
 ;/* End Entry ****************************************************************/
 
 ;/* Vector *******************************************************************/
+    ;Save registers
+    MACRO
+    RME_A6M_SAVE
+    PUSH                {R4-R7,LR}          ;Save registers
+    MOV                 R4,R8
+    MOV                 R5,R9
+    MOV                 R6,R10
+    MOV                 R7,R11
+    PUSH                {R4-R7}
+    MRS                 R0,PSP
+    PUSH                {R0}
+    LDR                 R4,=0xE000ED94      ;Turn off MPU in case it sets wrong permission for kernel
+    LDR                 R5,=0x00000000
+    STR                 R5,[R4]
+    MEND
+
+    ;Restore registers
+    MACRO
+    RME_A6M_LOAD
+    LDR                 R4,=0xE000ED94      ;Turn on MPU
+    LDR                 R5,=0x00000005
+    STR                 R5,[R4]
+    POP                 {R0}
+    MSR                 PSP,R0
+    POP                 {R4-R7}             ;Restore registers
+    MOV                 R8,R4
+    MOV                 R9,R5
+    MOV                 R10,R6
+    MOV                 R11,R7
+    POP                 {R4-R7,PC}
+    MEND
+
     AREA                RME_VECTOR,CODE,READONLY,ALIGN=3
     THUMB
     REQUIRE8
@@ -215,15 +247,7 @@ IRQ29_Handler
 
 IRQ30_Handler
 IRQ31_Handler
-    PUSH                {R4-R7,LR}          ;Save registers
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MRS                 R1,xPSR             ;Interrupt number
     MOVS                R0,#0x3F
@@ -233,15 +257,7 @@ IRQ31_Handler
     MOV                 R0,SP               ;Pass in the regs parameter
     BL                  __RME_A6M_Vct_Handler
 
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             ;Restore registers
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    RME_A6M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -398,28 +414,12 @@ __RME_User_Enter        PROC
     PRESERVE8
 
 SysTick_Handler         PROC
-    PUSH                {R4-R7,LR}          ;Save registers
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-    
-    MRS                 R0,PSP
-    PUSH                {R0}
-    
+    RME_A6M_SAVE
+
     MOV                 R0,SP               ;Pass in the regs
     BL                  __RME_A6M_Tim_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    
-    POP                 {R4-R7}             ;Restore registers
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+
+    RME_A6M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -439,28 +439,12 @@ SysTick_Handler         PROC
     PRESERVE8
 
 SVC_Handler             PROC
-    PUSH                {R4-R7,LR}          ;Save registers
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MOV                 R0,SP               ;Pass in the regs
     BL                  __RME_A6M_Svc_Handler
 
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             ;Restore registers
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    RME_A6M_LOAD
     ENDP
     ALIGN
     LTORG
@@ -484,28 +468,12 @@ NMI_Handler             PROC
 PendSV_Handler
     NOP
 HardFault_Handler
-    PUSH                {R4-R7,LR}          ;Save registers
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MOV                 R0,SP               ;Pass in the regs
     BL                  __RME_A6M_Exc_Handler
 
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             ;Restore registers
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    RME_A6M_LOAD
     ENDP
     ALIGN
     LTORG

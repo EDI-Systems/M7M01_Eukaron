@@ -277,7 +277,7 @@ while(0)
 #define RME_A6M_PRFTH_STATE_SET(STATE) \
 do \
 { \
-    if((STATE)!=0) \
+    if((STATE)!=0U) \
         RME_A6M_FLASH_ACR|=RME_A6M_FLASH_ACR_PRFTEN; \
     else \
         RME_A6M_FLASH_ACR&=~RME_A6M_FLASH_ACR_PRFTEN; \

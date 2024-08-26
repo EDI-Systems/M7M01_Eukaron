@@ -641,7 +641,8 @@ struct __RME_RV32P_PMP_Range
 /* Private Function **********************************************************/
 /* Generator *****************************************************************/
 #if(RME_RVM_GEN_ENABLE!=0U)
-RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
+RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(struct RME_Reg_Struct* Reg,
+                                          rme_ptr_t Vct_Num);
 RME_EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Cap_Front,
                                        rme_ptr_t Kom_Front);

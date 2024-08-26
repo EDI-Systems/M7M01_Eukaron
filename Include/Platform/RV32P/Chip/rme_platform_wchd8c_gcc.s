@@ -157,7 +157,7 @@ __RME_Vector:
     .word           0
     .word           SYSTICK_Handler             /* SysTick */
     .word           0
-    .word           SWI_Handler                 /* SWI*/
+    .word           SWI_Handler                 /* SWI */
     .word           0
 
     /* External Interrupts - 240 */

@@ -2560,7 +2560,9 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     else
     {
         RME_COV_MARKER();
-        /* No action required */
+        
+        /* No root for KOM and KFN */
+        Capobj_Dst->Head.Root_Ref=0U;
     }
 
     /* Establish cap */

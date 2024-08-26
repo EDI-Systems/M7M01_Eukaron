@@ -503,10 +503,11 @@ struct __RME_A6M_MPU_Data
 /* Private Function **********************************************************/
 /* Generator *****************************************************************/
 #if(RME_RVM_GEN_ENABLE!=0U)
-RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
+RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(struct RME_Reg_Struct* Reg,
+                                          rme_ptr_t Vct_Num);
 RME_EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
-                                   rme_ptr_t Cap_Front,
-                                   rme_ptr_t Kom_Front);
+                                       rme_ptr_t Cap_Front,
+                                       rme_ptr_t Kom_Front);
 RME_EXTERN void RME_Boot_Pre_Init(void);
 RME_EXTERN void RME_Boot_Post_Init(void);
 RME_EXTERN void RME_Reboot_Failsafe(void);

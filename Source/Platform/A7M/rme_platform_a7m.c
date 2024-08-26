@@ -330,19 +330,23 @@ Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : volatile struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
-void __RME_A7M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
+void __RME_A7M_Vct_Handler(struct RME_Reg_Struct* Reg,
+                           rme_ptr_t Vct_Num)
 {
 #if(RME_RVM_GEN_ENABLE!=0U)
     /* If the user wants to bypass, we skip the flag marshalling & sending process */
-    if(RME_Boot_Vct_Handler(Vct_Num)==0U)
-        return;
+    if(RME_Boot_Vct_Handler(Reg,Vct_Num)!=0U)
+    {
+        /* Set the vector flag */
+        __RME_A7M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
 #endif
-    
-    __RME_A7M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
-    
-    _RME_Kern_Snd(RME_A7M_Local.Sig_Vct);
-    /* Remember to pick the guy with the highest priority after we did all sends */
-    _RME_Kern_High(Reg,&RME_A7M_Local);
+        /* Send to the kernel endpoint */
+        _RME_Kern_Snd(RME_A7M_Local.Sig_Vct);
+        /* Pick the highest priority thread after we did all sends */
+        _RME_Kern_High(Reg,&RME_A7M_Local);
+#if(RME_RVM_GEN_ENABLE!=0U)
+    }
+#endif
     
     /* Make sure the LR returns to the user level */
     RME_A7M_EXC_RET_FIX(Reg);
@@ -1537,7 +1541,10 @@ void __RME_A7M_Cache_Init(void)
     rme_ptr_t Ways;
     rme_ptr_t Set_Cnt;
     rme_ptr_t Way_Cnt;
-
+    
+    /* Cache policy set to default */
+    RME_A7M_SCNSCB_CACR=0U;
+    
     /* I-Cache */
     __RME_A7M_Barrier();
     RME_A7M_SCNSCB_ICALLU=0U;
@@ -1580,12 +1587,11 @@ void __RME_Lowlvl_Init(void)
     /* Check the number of interrupt lines */
     RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1U)<<5U)>=RME_RVM_PHYS_VCT_NUM);
     RME_ASSERT(RME_RVM_PHYS_VCT_NUM<=240U);
-
-    /* Enable the MPU */
+    
+    /* Disable the MPU while booting */
     RME_ASSERT(RME_A7M_REGION_NUM<=16U);
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
     RME_A7M_SCB_SHCSR&=~RME_A7M_SCB_SHCSR_MEMFAULTENA;
-    RME_A7M_MPU_CTRL=RME_A7M_MPU_CTRL_PRIVDEF|RME_A7M_MPU_CTRL_ENABLE;
     
     /* Enable all fault handlers */
     RME_A7M_SCB_SHCSR|=RME_A7M_SCB_SHCSR_USGFAULTENA|
@@ -1774,6 +1780,7 @@ void __RME_Boot(void)
     RME_ASSERT(RME_CAP_IS_ROOT(RME_A7M_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
 #endif
     __RME_Pgt_Set(RME_A7M_Local.Thd_Cur->Sched.Prc->Pgt);
+    RME_A7M_MPU_CTRL=RME_A7M_MPU_CTRL_PRIVDEF|RME_A7M_MPU_CTRL_ENABLE;
     __RME_Int_Enable();
     
     /* Boot into the init thread */
@@ -1900,7 +1907,7 @@ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
     /* LR is needed to remember the stackframe format - with or without FPU */
     Ret->LR=Reg->LR;
     Ret->SP=Reg->SP;
-    /* There are no FPU context on invocation stack, need to indicate this */
+    /* There is no FPU context on invocation stack, need to indicate this */
     Ret->LR=RME_A7M_EXC_RET_INIT;
 }
 /* End Function:__RME_Inv_Reg_Save *******************************************/

@@ -152,7 +152,10 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_RCC_APB2PCENR_GPIOA                   (0x00000004U)
 #define RME_RV32P_RCC_APB2PCENR_USART1                  (0x00004000U)
 
-/* PFIC */
+/* PFIC - This is different from ARMv7-M in the sense that the exceptions
+ * are also configured by these registers, thus all interrupt numbers are
+ * shifted by 16 when compared with ARMv7-M. WCH wrote the manual that
+ * way, and to avoid confusions, we'll align with what the manual says. */
 #define RME_RV32P_PFIC_ISR(X)                           RME_RV32P_REG(0xE000E000U+(((X)>>5)<<2))
 #define RME_RV32P_PFIC_CFGR                             RME_RV32P_REG(0xE000E048U)
 #define RME_RV32P_PFIC_IENR(X)                          RME_RV32P_REG(0xE000E100U+(((X)>>5)<<2))

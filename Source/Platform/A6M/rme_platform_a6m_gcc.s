@@ -112,6 +112,34 @@ __RME_Zero_Done:
 /* End Entry *****************************************************************/
 
 /* Vector ********************************************************************/
+    .macro              RME_A6M_SAVE
+    PUSH                {R4-R7,LR}          /* Save registers */
+    MOV                 R4,R8
+    MOV                 R5,R9
+    MOV                 R6,R10
+    MOV                 R7,R11
+    PUSH                {R4-R7}
+    MRS                 R0,PSP
+    PUSH                {R0}
+    LDR                 R4,=0xE000ED94      /* Turn off MPU in case it sets wrong permission for kernel */
+    LDR                 R5,=0x00000000
+    STR                 R5,[R4]
+    .endm
+
+    .macro              RME_A6M_LOAD
+    LDR                 R4,=0xE000ED94      /* Turn on MPU */
+    LDR                 R5,=0x00000005
+    STR                 R5,[R4]
+    POP                 {R0}
+    MSR                 PSP,R0
+    POP                 {R4-R7}             /* Restore registers */
+    MOV                 R8,R4
+    MOV                 R9,R5
+    MOV                 R10,R6
+    MOV                 R11,R7
+    POP                 {R4-R7,PC}
+    .endm
+
     .section            .text.rme_vector
     .align              3
 
@@ -274,15 +302,7 @@ IRQ29_Handler:
 IRQ30_Handler:
     .thumb_func
 IRQ31_Handler:
-    PUSH                {R4-R7,LR}          /* Save registers */
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MRS                 R1,xPSR             /* Interrupt number */
     MOVS                R0,#0x3F
@@ -291,16 +311,8 @@ IRQ31_Handler:
 
     MOV                 R0,SP               /* Pass in the regs parameter */
     BL                  __RME_A6M_Vct_Handler
-
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             /* Restore registers */
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    
+    RME_A6M_LOAD
 /* End Vector ****************************************************************/
 
 /* Function:__RME_Int_Disable *************************************************
@@ -422,28 +434,12 @@ Return      : None.
 
     .thumb_func
 SysTick_Handler:
-    PUSH                {R4-R7,LR}          /* Save registers */
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-    
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A6M_Tim_Handler
     
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             /* Restore registers */
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    RME_A6M_LOAD
 /* End Function:SysTick_Handler **********************************************/
 
 /* Function:SVC_Handler *******************************************************
@@ -458,28 +454,12 @@ Return      : None.
 
     .thumb_func
 SVC_Handler:
-    PUSH                {R4-R7,LR}          /* Save registers */
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A6M_Svc_Handler
-
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             /* Restore registers */
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    
+    RME_A6M_LOAD
 /* End Function:SVC_Handler **************************************************/
 
 /* Function:NMI/HardFault_Handler *********************************************
@@ -500,28 +480,12 @@ PendSV_Handler:
     NOP
     .thumb_func
 HardFault_Handler:
-    PUSH                {R4-R7,LR}          /* Save registers */
-    MOV                 R4,R8
-    MOV                 R5,R9
-    MOV                 R6,R10
-    MOV                 R7,R11
-    PUSH                {R4-R7}
-
-    MRS                 R0,PSP
-    PUSH                {R0}
+    RME_A6M_SAVE
 
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A6M_Exc_Handler
-
-    POP                 {R0}
-    MSR                 PSP,R0
-
-    POP                 {R4-R7}             /* Restore registers */
-    MOV                 R8,R4
-    MOV                 R9,R5
-    MOV                 R10,R6
-    MOV                 R11,R7
-    POP                 {R4-R7,PC}
+    
+    RME_A6M_LOAD
 /* End Function:NMI/HardFault_Handler ****************************************/
 
 /* Function:___RME_A6M_MPU_Set ************************************************

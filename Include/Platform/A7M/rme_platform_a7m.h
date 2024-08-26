@@ -278,6 +278,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_SCNSCB_DCCIMVAC                 RME_A7M_REG(0xE000EF70U)
 #define RME_A7M_SCNSCB_DCCISW                   RME_A7M_REG(0xE000EF74U)
 #define RME_A7M_SCNSCB_BPIALL                   RME_A7M_REG(0xE000EF78U)
+#define RME_A7M_SCNSCB_CACR                     RME_A7M_REG(0xE000EF9CU)
 
 #define RME_A7M_SCNSCB_DC(SET,WAY)              (RME_FIELD(WAY,30U)|RME_FIELD(SET,5U))
 
@@ -691,7 +692,8 @@ struct __RME_A7M_MPU_Data
 /* Private Function **********************************************************/
 /* Generator *****************************************************************/
 #if(RME_RVM_GEN_ENABLE!=0U)
-RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(rme_ptr_t Vct_Num);
+RME_EXTERN rme_ptr_t RME_Boot_Vct_Handler(struct RME_Reg_Struct* Reg,
+                                          rme_ptr_t Vct_Num);
 RME_EXTERN rme_ptr_t RME_Boot_Vct_Init(struct RME_Cap_Cpt* Cpt,
                                        rme_ptr_t Cap_Front,
                                        rme_ptr_t Kom_Front);

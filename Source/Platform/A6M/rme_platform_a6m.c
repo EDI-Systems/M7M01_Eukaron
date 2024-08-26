@@ -186,17 +186,20 @@ Return      : None.
 ******************************************************************************/
 void __RME_A6M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
 {
-#if(RME_RVM_GEN_ENABLE==1U)
+#if(RME_RVM_GEN_ENABLE!=0U)
     /* If the user wants to bypass, we skip the flag marshalling & sending process */
-    if(RME_Boot_Vct_Handler(Vct_Num)==0U)
-        return;
-    
-    __RME_A6M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
+    if(RME_Boot_Vct_Handler(Reg,Vct_Num)!=0U)
+    {
+        /* Set the vector flag */
+        __RME_A6M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
 #endif
-    
-    _RME_Kern_Snd(RME_A6M_Local.Sig_Vct);
-    /* Remember to pick the guy with the highest priority after we did all sends */
-    _RME_Kern_High(Reg,&RME_A6M_Local);
+        /* Send to the kernel endpoint */
+        _RME_Kern_Snd(RME_A6M_Local.Sig_Vct);
+        /* Pick the highest priority thread after we did all sends */
+        _RME_Kern_High(Reg,&RME_A6M_Local);
+#if(RME_RVM_GEN_ENABLE!=0U)
+    }
+#endif
     
     /* Make sure the LR returns to the user level */
     RME_A6M_EXC_RET_FIX(Reg);
@@ -934,10 +937,9 @@ void __RME_Lowlvl_Init(void)
     RME_ASSERT(((RME_A6M_SCNSCB_ICTR+1U)<<5U)>=RME_RVM_PHYS_VCT_NUM);
     RME_ASSERT(RME_RVM_PHYS_VCT_NUM<=32U);
 
-    /* Enable the MPU */
+    /* Disable the MPU while booting */
     RME_ASSERT(RME_A6M_REGION_NUM<=16U);
     RME_A6M_MPU_CTRL&=~RME_A6M_MPU_CTRL_ENABLE;
-    RME_A6M_MPU_CTRL=RME_A6M_MPU_CTRL_PRIVDEF|RME_A6M_MPU_CTRL_ENABLE;
     
     /* Set priority grouping - not supported on ARMV6-M */
     
@@ -1109,6 +1111,7 @@ void __RME_Boot(void)
     RME_ASSERT(RME_CAP_IS_ROOT(RME_A6M_Local.Thd_Cur->Sched.Prc->Pgt)!=0U);
 #endif
     __RME_Pgt_Set(RME_A6M_Local.Thd_Cur->Sched.Prc->Pgt);
+    RME_A6M_MPU_CTRL=RME_A6M_MPU_CTRL_PRIVDEF|RME_A6M_MPU_CTRL_ENABLE;
     __RME_Int_Enable();
     
     /* Boot into the init thread */

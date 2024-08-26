@@ -87,6 +87,24 @@ a double-precision FPU.
 /* End Export ****************************************************************/
 
 /* Entry *********************************************************************/
+    .macro              RME_A7M_SAVE
+    PUSH                {R4-R11,LR}         /* Save registers */
+    MRS                 R0,PSP
+    PUSH                {R0}
+    LDR                 R4,=0xE000ED94      /* Turn off MPU in case it sets wrong permission for kernel */
+    LDR                 R5,=0x00000000
+    STR                 R5,[R4]
+    .endm
+
+    .macro              RME_A7M_LOAD
+    LDR                 R4,=0xE000ED94      /* Turn MPU back on */
+    LDR                 R5,=0x00000005
+    STR                 R5,[R4]
+    POP                 {R0}
+    MSR                 PSP,R0
+    POP                 {R4-R11,PC}         /* Restore registers */
+    .endm
+
     .section            .text.rme_entry
     .align              3
 
@@ -1177,19 +1195,15 @@ IRQ237_Handler:
 IRQ238_Handler:
     .thumb_func
 IRQ239_Handler:
-    PUSH                {R4-R11,LR}         /* Save registers */
-    MRS                 R0,PSP
-    PUSH                {R0}
-    
+    RME_A7M_SAVE
+
     MOV                 R0,SP               /* Pass in the regs */
     MRS                 R1,xPSR             /* Pass in the interrupt number */
     UBFX                R1,R1,#0,#9
     SUB                 R1,#16              /* The IRQ0's starting number is 16; subtract */
     BL                  __RME_A7M_Vct_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         /* Restore registers */
+
+    RME_A7M_LOAD
 /* End Vector ****************************************************************/
 
 /* Function:__RME_Int_Disable *************************************************
@@ -1329,16 +1343,12 @@ Return      : None.
 
     .thumb_func
 SysTick_Handler:
-    PUSH                {R4-R11,LR}         /* Save registers */
-    MRS                 R0,PSP
-    PUSH                {R0}
-    
+    RME_A7M_SAVE
+
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A7M_Tim_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         /* Restore registers */
+
+    RME_A7M_LOAD
 /* End Function:SysTick_Handler **********************************************/
 
 /* Function:SVC_Handler *******************************************************
@@ -1353,16 +1363,12 @@ Return      : None.
 
     .thumb_func
 SVC_Handler:
-    PUSH                {R4-R11,LR}         /* Save registers */
-    MRS                 R0,PSP
-    PUSH                {R0}
-    
+    RME_A7M_SAVE
+
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A7M_Svc_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         /* Restore registers */
+
+    RME_A7M_LOAD
 /* End Function:SVC_Handler **************************************************/
 
 /* Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler ***************
@@ -1395,16 +1401,12 @@ BusFault_Handler:
     NOP
     .thumb_func
 UsageFault_Handler:
-    PUSH                {R4-R11,LR}         /* Save registers */
-    MRS                 R0,PSP
-    PUSH                {R0}
-    
+    RME_A7M_SAVE
+
     MOV                 R0,SP               /* Pass in the regs */
     BL                  __RME_A7M_Exc_Handler
-    
-    POP                 {R0}
-    MSR                 PSP,R0
-    POP                 {R4-R11,PC}         /* Restore registers */
+
+    RME_A7M_LOAD
 /* End Function:NMI/HardFault/MemManage/BusFault/UsageFault_Handler **********/
 
 /* Function:___RME_A7M_Thd_Cop_Clear ******************************************
@@ -1474,27 +1476,27 @@ Return      : None.
 ******************************************************************************/
     .macro              MPU_PRE
     PUSH                {R4-R9}             /* Save registers */
-    LDR                 R1, =0xE000ED9C     /* The base address of MPU RBAR and all 4 registers */
+    LDR                 R1,=0xE000ED9C      /* The base address of MPU RBAR and all 4 registers */
     .endm
     
     .macro              MPU_SET
-    LDMIA               R0!, {R2-R3}        /* Read settings */
-    STMIA               R1, {R2-R3}         /* Program */
+    LDMIA               R0!,{R2-R3}         /* Read settings */
+    STMIA               R1,{R2-R3}          /* Program */
     .endm
     
     .macro              MPU_SET2
-    LDMIA               R0!, {R2-R5}
-    STMIA               R1, {R2-R5} 
+    LDMIA               R0!,{R2-R5}
+    STMIA               R1,{R2-R5} 
     .endm
     
     .macro              MPU_SET3
-    LDMIA               R0!, {R2-R7}
-    STMIA               R1, {R2-R7}
+    LDMIA               R0!,{R2-R7}
+    STMIA               R1,{R2-R7}
     .endm
     
     .macro              MPU_SET4
-    LDMIA               R0!, {R2-R9}
-    STMIA               R1, {R2-R9}
+    LDMIA               R0!,{R2-R9}
+    STMIA               R1,{R2-R9}
     .endm
     
     .macro              MPU_POST
