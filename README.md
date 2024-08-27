@@ -2,25 +2,36 @@
 	<img width="300" src="https://raw.githubusercontent.com/EDI-Systems/M7M01_Eukaron/master/Document/Public/Demo/logo.png" alt="logo">
 </h1>
 
-# Unity OS (RME)
+# RME Multi-Purpose Microkernel
+<div align="center">
+
 [![Github release](https://img.shields.io/github/release/EDI-Systems/M7M01_Eukaron.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/releases/latest)
 [![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M01_Eukaron/master@{30day}.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/compare/master@{30day}...master)
+[![Discord](https://img.shields.io/badge/chat-Discord-purple)](https://discord.gg/VxCFSFC6bW)
+
+</div>
+<div align="center">
+
 ![language](https://img.shields.io/badge/language-C-orange.svg)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1836/badge)](https://bestpractices.coreinfrastructure.org/projects/1836) 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/81c7e91dfb0a478d985a82409538e3b9)](https://www.codacy.com/app/EDI-Systems/M7M01_Eukaron?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=EDI-Systems/M7M01_Eukaron&amp;utm_campaign=Badge_Grade) 
-[![Join the chat at https://gitter.im/M7M01_Eukaron/Lobby](https://badges.gitter.im/M7M01_Eukaron/Lobby.svg)](https://gitter.im/M7M01_Eukaron/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/1836/badge)](https://www.bestpractices.dev/projects/1836) 
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/fb3f40e96daa42169333ba698b4fd083)](https://app.codacy.com/gh/EDI-Systems/M7M01_Eukaron/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
+</div>
 
 点击 **[这里](README_CN.md)** 查看中文版。
 
-&ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system supports many advanced features not found in any other OSes, e.g. _FreeRTOS_, _RT-Thread_ ,_VxWorks_ or _Linux_. On multiple cores, it is as scalable as the Linux kernel. When using the system, the best way is to pull ready-made ports and even binaries from the repository rather than to port or configure by yourself. The advanced features that are intrinsic to this operating system includes:
+&ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features, including:
 - [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based configurable protection domains;
 - Massive [scalability](https://en.wikipedia.org/wiki/Scalability) and [parallelism](https://en.wikipedia.org/wiki/Parallel_computing);
 - [Fault-tolerance](https://en.wikipedia.org/wiki/Fault_tolerance) and [attack resilience](https://en.wikipedia.org/wiki/Resilience_(network));
 - User-level [hierachical scheduling](https://en.wikipedia.org/wiki/Hierarchical_control_system);
-- [Full virtualization](https://en.wikipedia.org/wiki/Full_virtualization) and [container](https://en.wikipedia.org/wiki/Operating-system-level_virtualization)-based [paravirtualization](https://en.wikipedia.org/wiki/Paravirtualization);
+- [Full virtualization](https://en.wikipedia.org/wiki/Full_virtualization), [paravirtualization](https://en.wikipedia.org/wiki/Paravirtualization) and [container](https://en.wikipedia.org/wiki/Operating-system-level_virtualization);
 - [Non-volatile memory (NVM)](https://en.wikipedia.org/wiki/Non-volatile_memory) based systems;
 - [Network function virtualization (NFV)](https://en.wikipedia.org/wiki/Network_function_virtualization) applications;
 - Real-time multi-core [mixed-criticality](https://en.wikipedia.org/wiki/Mixed_criticality) systems, and so on.
+
+&ensp;&ensp;&ensp;&ensp;Notably, this kernel encompasses both microcontrollers and microprocessors.
+- For microcontroller systems, it enables multiple partitions
 
 &ensp;&ensp;&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
 
@@ -64,6 +75,84 @@ This software is an official work of EDI, and thus belongs to the **public domai
     - UVM/Lib, the microprocessor-oriented user-level library for RME.
     - UVM/FV, the full virtualization platform constructed with UVM, which comes with similar functionalities as Virtual Box.
 
+
+### Typical performance figures for all supported architectures
+
+&ensp;&ensp;&ensp;&ensp;All compiler options are the highest optimization (usually -O3) and optimized for time. 
+- Yield/1 : The time to yield between different threads.  
+- Yield/2 : Intra-process asynchronous send.
+- Inv/2   : Inter-process asynchronous send. 
+- Sig/1   : Synchronous invocation entering time. 
+- Sig/2   : Synchronous invocation returning time. 
+- Sig/S   : Interrupt asynchronous send time.
+- Sig/I   : Interrupt asynchronous send time.
+
+**Microcontrollers**
+
+|Chipname     |Platform    |Build |Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/S|Sig/I|
+|:-----------:|:----------:|:----:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
+|STM32L071CB  |Cortex-M0+  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|STM32F405RG  |Cortex-M4F  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|STM32F767IG  |Cortex-M7F  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
+|CH32V307VC   |RV32IMAFC   |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
+
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
+
+&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
+
+**Microprocessors**
+
+|Chipname     |Platform    |Bits  |Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/P|Sig/I|
+|:-----------:|:----------:|:----:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
+|S3C2416      |ARM926EJ-S  |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|F1C200S      |...         |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|XC7Z010      |Cortex-A9   |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|XCZU2EG      |Cortex-A53  |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|AWT-D1S      |RV64IMAFCV  |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|LS1C300B     |GS232       |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|LS2K300      |LA264       |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|E5-2696 v2   |x86-64      |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+
+&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
+
+## Getting Started
+
+&ensp;&ensp;&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+
+### Prerequisites
+
+&ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
+
+&ensp;&ensp;&ensp;&ensp;If you do not have a standalone software platform, you can also use VMMs such as VMware and Virtual Box to try out the x86-64 ISO image.
+
+&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
+
+### Compilation
+**For MCUs**  
+&ensp;&ensp;&ensp;&ensp;The **Vendor Toolchain** or **GNU Makefile** projects for various microcontrollers are available in the **_Project_** folder. Refer to the readme files in each folder for specific instructions about how to run them. However, keep in mind that some examples may need vendor-specific libraries such as the STM HAL. Some additional drivers may be required too.
+
+**For application processors**  
+&ensp;&ensp;&ensp;&ensp;Only GNU makefile projects will be provided, and only GCC is supported at the moment. Other compilers may also be supported as long as it conforms to the GCC conventions.
+
+
+### Running the tests
+**For MCUs**  
+&ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
+
+**For application processors**  
+&ensp;&ensp;&ensp;&ensp;The boot sequence is different for different processors. For x86-64 architecture, GRUB is used as the bootloader, and you can boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). For other architectures, 
+
+### Deployment
+**For MCUs**  
+&ensp;&ensp;&ensp;&ensp;When deploying this into a production system, it is recommended that you read the manual in the **_Documents_** folder carefully to configure all options correctly. It is not recommended to configure the kernel yourself, anyway; it included too many details. Please use the default configuration file as much as possible. Also, read the user guide for the specific platform you are using.
+
+**For application processors**  
+&ensp;&ensp;&ensp;&ensp;Deploy it as if you are deploying any other operating system, or bare-metal hypervisor.
+
+
 ## List of system calls
 
 |System call            |Number|Description                                                       |
@@ -103,105 +192,6 @@ This software is an official work of EDI, and thus belongs to the **public domai
 |RME_SVC_INV_CRT        |32    |Create a synchronous invocation port                              |
 |RME_SVC_INV_DEL        |33    |Delete a synchronous invocation port                              |
 |RME_SVC_INV_SET        |34    |Set entry and stack of a synchronous invocation port              |
-
-### Typical performance figures for all supported architectures
-**Single-core microcontrollers**
-
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
-|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
-|Cortex-M4    |Keil uVision 5|     |    |     |     |     |    |    |    |
-|Cortex-M7    |Keil uVision 5|     |    |     |     |     |    |    |    |
-|Cortex-R4    |TI CCS7       |     |    |     |     |     |    |    |    |
-|Cortex-R5    |TI CCS7       |     |    |     |     |     |    |    |    |
-|MIPS M14k    |XC32-GCC      |     |    |     |     |     |    |    |    |
-  
-*Cortex-R4 and Cortex-R5 are listed here as single-core architectures because their main selling point is CPU redundancy, thus from the viewpoint of the programmer they behave as if they have only one core. Dual-core mode of these two processors are not supported.  
-
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
-
-<!-- |Cortex-M4    |GCC           |     |    |     |     |     |    |    |    | -->
-<!-- |Cortex-M7    |GCC           |     |    |     |     |     |    |    |    | -->
-<!-- |Cortex-R4    |GCC           |     |    |     |     |     |    |    |    | -->
-
-- Cortex-M4 is evaluated with STM32F405RGT6.
-- Cortex-M7 is evaluated with STM32F767IGT6.
-- Cortex-R4 is evaluated with TMS570LS0432.
-- Cortex-R5 is evaluated with TMS570LC4357.
-- MIPS M14k is evaluated with PIC32MZEFM100.
-
-**Multi-core microcontrollers**
-
-|Machine      |Toolchain     |Flash|SRAM|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
-|:-----------:|:------------:|:---:|:--:|:---:|:---:|:---:|:--:|:--:|:--:|
-|Cortex-R7    |TBD           |     |    |     |     |     |    |    |    |
-|Cortex-R8    |TBD           |     |    |     |     |     |    |    |    |
-|TMS320C66X   |TI CCS7       |     |    |     |     |     |    |    |    |
-
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
-
-- Cortex-R7 is evaluated with TBD.
-- Cortex-R8 is evaluated with TBD.
-- TMS320C66X is evaluated with TMS320C6678.
-
-**Multi-core application processors (aka. Desktop/server processors)**
-
-|Machine      |Toolchain     |.text|.data|Yield|Asnd1|Asnd2|Sinv|Sret|Isnd|
-|:-----------:|:------------:|:---:|:---:|:---:|:---:|:---:|:--:|:--:|:--:|
-|Cortex-A7  x4|GCC           |     |     |     |     |     |    |    |    |
-|Cortex-A53 x4|GCC           |     |     |     |     |     |    |    |    |
-|X86-64(I) x18|GCC           |     |     |441  |     |     |    |    |    |
-|X86-64(NI)x32|GCC           |     |     |     |     |     |    |    |    |
-|X86-64(A) x16|GCC           |     |     |     |     |     |    |    |    |
-
-&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
-
-- Cortex-A7 is evaluated with BCM2836, the exact chip used on Raspberry Pi 2.
-- Cortex-A53 is evaluated with BCM2837, the exact chip used on Raspberry Pi 3.
-- X86-64(I) is evaluated with a machine with 1x I9-7980XE processor and 128GB memory.
-- X86-64(NI) is evaluated with a machine with 4x Xeon X7560 processor and 4x8GB memory.
-- X86-64(A) is evaluated with a machine with Ryzen 1950X processor and 128GB memory. 
-
-&ensp;&ensp;&ensp;&ensp;In the 3 tables above, all compiler options are the highest optimization (usually -O3) and optimized for time. 
-- Yield : The time to yield between different threads.  
-- Asnd1 : Intra-process asynchronous send.
-- Asnd2 : Inter-process asynchronous send. 
-- Sinv  : Synchronous invocation entering time. 
-- Sret  : Synchronous invocation returning time. 
-- Isnd  : Interrupt asynchronous send time.
-
-## Getting Started
-
-&ensp;&ensp;&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
-### Prerequisites
-
-&ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
-
-&ensp;&ensp;&ensp;&ensp;If you do not have a standalone software platform, you can also use VMMs such as VMware and Virtual Box to try out the x86-64 ISO image.
-
-&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
-
-### Compilation
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;The **Vendor Toolchain** or **GNU Makefile** projects for various microcontrollers are available in the **_Project_** folder. Refer to the readme files in each folder for specific instructions about how to run them. However, keep in mind that some examples may need vendor-specific libraries such as the STM HAL. Some additional drivers may be required too.
-
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;Only GNU makefile projects will be provided, and only GCC is supported at the moment. Other compilers may also be supported as long as it conforms to the GCC conventions.
-
-
-### Running the tests
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
-
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;The boot sequence is different for different processors. For x86-64 architecture, GRUB is used as the bootloader, and you can boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). For other architectures, 
-
-### Deployment
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;When deploying this into a production system, it is recommended that you read the manual in the **_Documents_** folder carefully to configure all options correctly. It is not recommended to configure the kernel yourself, anyway; it included too many details. Please use the default configuration file as much as possible. Also, read the user guide for the specific platform you are using.
-
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;Deploy it as if you are deploying any other operating system, or bare-metal hypervisor.
 
 ## Built With
 
