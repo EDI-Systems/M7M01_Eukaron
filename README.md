@@ -78,45 +78,52 @@ This software is an official work of EDI, and thus belongs to the **public domai
 
 ### Typical performance figures for all supported architectures
 
-&ensp;&ensp;&ensp;&ensp;All compiler options are the highest optimization (usually -O3) and optimized for time. 
-- Yield/1 : The time to yield between different threads.  
-- Yield/2 : Intra-process asynchronous send.
-- Inv/2   : Inter-process asynchronous send. 
-- Sig/1   : Synchronous invocation entering time. 
-- Sig/2   : Synchronous invocation returning time. 
-- Sig/S   : Interrupt asynchronous send time.
-- Sig/I   : Interrupt asynchronous send time.
+&ensp;&ensp;The timing performance of the kernel in __real action__ is shown as follows. All compiler options are the highest optimization (usually -O3 with LTO when available) and optimized for time, and all values are __average case__ in CPU cycles.
+- Yield/S : Intra-process thread yield to itself.
+- Yield/2 : Intra-process thread yield, one-way.
+- Inv/2   : Inter-process invocation call/return pair. 
+- Sig/1   : Intra-process signal endpoint send/receive latency. 
+- Sig/2   : Inter-process signal endpoint send/receive latency. 
+- Sig/S   : Intra-process signal endpoint send/receive pair.
+- Sig/I   : Interrupt signal endpoint send/receive latency.
 
 **Microcontrollers**
 
-|Chipname     |Platform    |Build |Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/S|Sig/I|
-|:-----------:|:----------:|:----:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
-|STM32L071CB  |Cortex-M0+  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|STM32F405RG  |Cortex-M4F  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|STM32F767IG  |Cortex-M7F  |Keil  |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|...          |...         |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
-|CH32V307VC   |RV32IMAFC   |GCC   |4073   |5435   |5435 |2028 |7726 |10445|10445|
+&ensp;&ensp;The **absolute minimum** value for RME on microcontrollers is about **64k ROM and 20k RAM**, which is reached on the STM32L071CB (Cortex-M0+) port. This is the absolute minimum proof-of-concept that can finish the benchmark (alongside a virtualized RMP benchmark as well). RME also require that the microcontroller be equipped with a Memory Protection Unit (MPU), with which we can confine the processes to their own address spaces.
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. All values listed here are typical (useful system) values, not minimum values, because minimum values on system size seldom make any real sense. HAL library are also included in the size numbers. The absolute minimum value for microcontroller-profile RME is about 32k ROM/16k RAM.**
+&ensp;&ensp;The use of RVM as a user-level library is required on microcontrollers, which supports automatic generation of projects against multiple architectures, toolchains, and IDEs. It also enables virtualization on even microcontrollers, which allows seamless integration with existing bare-metal code or RTOSes. Only single-core microcontrollers are supported; multi-core support for microcontrollers is currently out of scope.
 
-&ensp;&ensp;&ensp;&ensp;**Flash and SRAM consumption is calculated in kB, while the other figures are calculated in CPU clock cycles. HAL library are also included in the size numbers. The absolute minimum value for MPU-based microprocessor-profile RME is about 64k ROM/32k RAM.**
+|Chipname     |Platform    |Clock |Build |Yield/S|Yield/2|Inv/2|Sig/1|Sig/2|Sig/S|Sig/I|
+|:-----------:|:----------:|:----:|:----:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
+|STM32L071CB  |Cortex-M0+  |36M   |Keil  |492    |763    |956  |718  |810  |749  |522  |
+|...          |...         |...   |GCC   |513    |799    |939  |736  |830  |776  |534  |
+|STM32F405RG  |Cortex-M4F  |168M  |Keil  |324    |524    |692  |576  |731  |568  |420  |
+|...          |...         |...   |GCC   |332    |520    |684  |608  |735  |540  |416  |
+|STM32F767IG  |Cortex-M7F  |216M  |Keil  |264    |400    |600  |438  |484  |477  |282  |
+|...          |...         |...   |GCC   |294    |456    |644  |406  |460  |429  |321  |
+|CH32V307VC   |RV32IMAFC   |168M  |GCC   |358    |669    |706  |703  |723  |624  |523  |
 
 **Microprocessors**
 
-|Chipname     |Platform    |Bits  |Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/P|Sig/I|
-|:-----------:|:----------:|:----:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
-|S3C2416      |ARM926EJ-S  |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|F1C200S      |...         |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|XC7Z010      |Cortex-A9   |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|XCZU2EG      |Cortex-A53  |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|AWT-D1S      |RV64IMAFCV  |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|LS1C300B     |GS232       |32    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|LS2K300      |LA264       |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|E5-2696 v2   |x86-64      |64    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+&ensp;&ensp;The **absolute minimum** value for RME on microprocessors is about **32MB ROM and 32MB RAM**, which is reached on the F1C100S (ARM926EJ-S) port. Although this is not the absolute minimum for the benchmark which requires far less memory, this is indeed required for a meaningful and useful system. The microprocessor must be equipped with a Memory Management Unit (MMU), with which we can confine the processes to their own address spaces.
 
-&ensp;&ensp;&ensp;&ensp;**RAM consumption is calculated in MB, while the other figures are calculated in CPU clock cycles. Necessary software packages and drivers are also included in the size numbers. The absolute minimum value for application processor-profile RME is about 4MB RAM.**
+&ensp;&ensp;The use of RMC (concept design in progress) is required on microprocessors, which allows integration of feather-weight unix-like containers, unikernels and RTOSes on to the same platform. This is achieved without specific extensions like the hardware virtualization extension; and when there is, we strive to provide full virtualization environments where you can boot Windows and Linux. We would not delve into the drivers though, and will assume a pass-through model for all peripherals in these cases. This provides less flexibility, but makes it possible to use existing software investments (desktop environments, industry applications, and even 3D games) with zero hassle.
+
+&ensp;&ensp;Unlike microcontrollers, we only accept GCC (and probably CLANG) as the compiler. Support for other toolchains are out of the scope.
+
+|Chipname     |Platform    |Bits|Cores|Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/P|Sig/I|
+|:-----------:|:----------:|:--:|:---:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
+|F1C100S      |...         |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|S3C2416      |ARM926EJ-S  |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|XC7Z010      |Cortex-A9   |32  |2    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|XCZU2EG      |Cortex-A53  |64  |4    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|AWT-D1S      |RV64IMAFCV  |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|LS1C300B     |GS232       |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|LS2K300      |LA264       |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|E5-2696 v2   |x86-64      |64  |12   |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|TMS320C6678  |C66x        |64  |8    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+
+&ensp;&ensp;FAQ: Why are XXX (some popular boards) not supported? Answer: Unlike microcontrollers, some microprocessor manufacturers put their datasheets behind a (very) high paywall. Nothing is open; and to support these boards, we would have to reverse engineer the details from their Linux drivers. A few manufacturers are notably notorious for this, and we'd rather leave them alone and focus on manufacturers that embrace the openness.
 
 ## Getting Started
 
@@ -128,7 +135,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 
 &ensp;&ensp;&ensp;&ensp;If you do not have a standalone software platform, you can also use VMMs such as VMware and Virtual Box to try out the x86-64 ISO image.
 
-&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [M5P1_MuProkaron](https://github.com/EDI-Systems/M5P1_MuProkaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
+&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [RMP](https://github.com/EDI-Systems/M5P01_Prokaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
 
 ### Compilation
 **For MCUs**  
