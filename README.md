@@ -48,11 +48,26 @@ This software is an official work of EDI, and thus belongs to the **public domai
 
 ### Kernel Design
 
-adaptability
-flexibility
-resource allocation efficiency
-capability-based design
-efficient paravirtualization
+**Guidelines**
+&ensp;&ensp;We believe that the following principles are self-evident without need of further explanation:
+- Ideals are cheaper than ideas, ideas are cheaper than real deployable code.
+- In theory, there is no difference between practice and theory; in practice there is.
+- All performance issues are caused by an obscure division of rights and duties.
+- Good overall system design are always preferred over peephole optimizations.
+- True useful adaptability is better than false demonstrational portability.
+- You have a wrong abstraction if you coerce some hardware model into it.
+
+**Permission**
+
+**Scheduler**
+
+**Memory**
+
+**Execution**
+
+**Communication**
+
+**Miscellaneous**
 
 Composite, seL4
 
@@ -60,7 +75,7 @@ Composite, seL4
 
 ### Microcontroller Components
 &ensp;&ensp;All planned components are listed below. If a github link is provided, the component is available for now.  
-- **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)**, a microcontroller hypervisor capable of running multiple bare-metal applications or RTOSes simutaneously. Scales up to a maximum of 32 virtual machines on 128k RAM.
+- **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)**, a hypervisor capable of running multiple bare-metal applications or RTOSes simutaneously. Scales up to a maximum of 32 virtual machines on 128k RAM.
 - **[RVM/RMP](https://github.com/EDI-Systems/M5P01_Prokaron)**, a port of the simplistic RMP RTOS to RVM.
 - **[RVM/FreeRTOS](https://github.com/EDI-Systems/M7M02_Ammonite/Guest/A7M/FRT)**, a port of the FreeRTOS to RVM.
 - **[RVM/RT-Thread](https://github.com/EDI-Systems/M7M02_Ammonite/Guest/A7M/RTT)**, a port of the RT-Thread to RVM.
@@ -72,7 +87,7 @@ Composite, seL4
 
 &ensp;&ensp;The timing performance of the kernel in **real action** is shown as follows. All compiler options are the highest optimization (usually -O3 with LTO when available) and optimized for time, and all values are **average case** in CPU cycles.
 - Yield/S : Intra-process thread yield to itself.
-- Yield/2 : Intra-process thread yield, one-way.
+- Yield/2 : Inter-process thread yield, one-way.
 - Inv/2   : Inter-process invocation call/return pair. 
 - Sig/1   : Intra-process signal endpoint send/receive latency. 
 - Sig/2   : Inter-process signal endpoint send/receive latency. 
@@ -81,7 +96,7 @@ Composite, seL4
 
 ### Microcontroller
 
-&ensp;&ensp;The **absolute minimum** value for RME on microcontrollers is about **64k ROM and 20k RAM**, which is reached on the STM32L071CB (Cortex-M0+) port. This is the absolute minimum proof-of-concept that can finish the benchmark (alongside a virtualized RMP benchmark as well). RME also require that the microcontroller be equipped with a Memory Protection Unit (MPU), with which we can confine the processes to their own address spaces.
+&ensp;&ensp;The **absolute minimum** value for RME on microcontrollers is about **64k ROM and 20k RAM**, which is reached on the STM32L071CB (Cortex-M0+) port. This is the absolute minimum proof-of-concept that can finish the benchmark (alongside a virtualized RMP benchmark as well). RME also requires that the microcontroller be equipped with a Memory Protection Unit (MPU), with which we can confine the processes to their own address spaces.
 
 &ensp;&ensp;The use of RVM as a user-level library is required on microcontrollers, which supports automatic generation of projects against multiple architectures, toolchains, and IDEs. It also enables virtualization on even microcontrollers, which allows seamless integration with existing bare-metal code or RTOSes. Only single-core microcontrollers are supported; multi-core support for microcontrollers is currently out of scope.
 
@@ -95,15 +110,19 @@ Composite, seL4
 |...          |...         |...   |GCC   |294    |456    |644  |406  |460  |429  |321  |
 |CH32V307VC   |RV32IMAFC   |168M  |GCC   |358    |669    |706  |703  |723  |624  |523  |
 
-&ensp;&ensp;**FAQ:** Can XXX (some microcontroller) be supported? **Answer**: If your microcontroller has **at least 64k ROM and 32k RAM**, and features a memory protection unit, just like the majority of Cortex-M microcontrollers, then yes! However, it's best to have *128k ROM and 128k RAM* to start with, as such systems will be useful in real life. Some sub-$1 chips such as STM32G0B1CBT6 are great starters.
+&ensp;&ensp;**FAQ:** Can XXX (some microcontroller) be supported? **Answer**: If your microcontroller has **at least 64k ROM and 20k RAM**, and features a memory protection unit, just like the majority of Cortex-M microcontrollers, then yes! However, it's best to have **128k ROM and 128k RAM** to start with, as such systems will be useful in real projects. Some **sub-$1 chips such as STM32G0B1CBT6** are more than sufficient.
 
 ### Microprocessor
 
-&ensp;&ensp;The **recommended** resource for RME on microprocessors is about **32M ROM and 32M RAM**, which is reached on the F1C100S (ARM926EJ-S) port. Although this is not the absolute minimum to run the benchmark which requires far less memory, this is indeed required for a meaningful and useful system. The microprocessor must be equipped with a Memory Management Unit (MMU), with which we can confine the processes to their own address spaces.
+&ensp;&ensp;The **recommended** resource for RME on microprocessors is about **32M ROM and 32M RAM**, which is reached on the F1C100S (ARM926EJ-S) port. Although this is not the absolute minimum to run the benchmark which requires far less memory, this is indeed required for a meaningful and useful system. The microprocessor must be equipped with a Memory Management Unit (MMU), with which we can confine the processes to their own address spaces. For microprocessors, we only accept the GCC (and probably CLANG as well later) toolchain. Support for other toolchains are out of the scope. 
 
-&ensp;&ensp;The use of RMC (concept design in progress) is required on microprocessors, which allows integration of feather-weight unix-like containers, unikernels and RTOSes on to the same platform. This is achieved without specific extensions like the hardware virtualization extension; and when there is, we strive to provide full virtualization environments where you can boot Windows and Linux. We would not delve into the drivers though, and will assume a pass-through model for all peripherals in these cases. This provides less flexibility, but makes it possible to use existing software investments (desktop environments, industry applications, and even 3D games) with zero hassle.
+&ensp;&ensp;The use of RMC (concept design in progress) is required on microprocessors, which allows integration of feather-weight unix-like containers, unikernels and RTOSes on to the same platform. This is achieved without specific extensions like the hardware virtualization extension; and when there is, we strive to provide full virtualization environments where you can boot Windows and Linux. We would not delve into the drivers though, and will assume a pass-through model for all peripherals in these cases. This provides less flexibility, but makes it possible to use existing software investments (desktop environments, industry applications, and even 3D games) with zero hassle. The following metrics only make sense for RMC's unix containers:
 
-&ensp;&ensp;For microprocessors, we only accept the GCC (and probably CLANG as well later) toolchain. Support for other toolchains are out of the scope.
+- Pipe   : Inter-process pipe send/receive latency.
+- Sem    : Inter-process semaphore send/receive latency.
+- Msgq   : Inter-process message queue send/receive latency. 
+- Signal : Inter-process unix signal trigger/activate latency. 
+- Socket : Inter-process localhost socket send/receive latency.
 
 |Chipname     |Platform    |Bits|Cores|Yield/S|Yield/2|Inv/2|Sig/1|Sig/2|Sig/S|Sig/I|Pipe |Sem  |Msgq |Signal|Socket|
 |:-----------:|:----------:|:--:|:---:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:----:|:----:|
@@ -117,7 +136,7 @@ Composite, seL4
 |E5-2696 v2   |x86-64      |64  |12   |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
 |TMS320C6678  |C66x        |64  |8    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
 
-&ensp;&ensp;**FAQ:** Why is XXX (some popular board) not supported? **Answer:** Unlike microcontrollers, some microprocessor manufacturers put their datasheets behind a (very) high paywall. Nothing is open; and to support these boards, we would have to reverse engineer the details from their Linux drivers. A few manufacturers are notably notorious for this, and we'd rather leave them alone and focus on manufacturers that embrace openness. We do make exceptions for chips that are already thoroughly reverse engineered though.
+&ensp;&ensp;**FAQ:** Why is XXX (some popular board) not supported? **Answer:** Unlike microcontrollers, some microprocessor manufacturers put their datasheets behind a (very) high paywall. Nothing is open; and to support these boards, we would have to **reverse engineer** the details from their Linux drivers. A few manufacturers are notably notorious for this, and we'd rather leave them alone and focus on manufacturers that embrace openness. We do make exceptions for chips that are already thoroughly reverse engineered though.
 
 ## Getting Started
 
