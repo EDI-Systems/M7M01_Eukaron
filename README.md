@@ -2,7 +2,7 @@
 	<img width="300" src="https://raw.githubusercontent.com/EDI-Systems/M7M01_Eukaron/master/Document/Public/Demo/logo.png" alt="logo">
 </h1>
 
-# RME Multi-Purpose Microkernel
+# RME Concord Microkernel
 <div align="center">
 
 [![Github release](https://img.shields.io/github/release/EDI-Systems/M7M01_Eukaron.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/releases/latest)
@@ -20,7 +20,7 @@
 
 点击 **[这里](README_CN.md)** 查看中文版。
 
-&ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features, including:
+&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features, including:
 - [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based configurable protection domains;
 - Massive [scalability](https://en.wikipedia.org/wiki/Scalability) and [parallelism](https://en.wikipedia.org/wiki/Parallel_computing);
 - [Fault-tolerance](https://en.wikipedia.org/wiki/Fault_tolerance) and [attack resilience](https://en.wikipedia.org/wiki/Resilience_(network));
@@ -30,55 +30,34 @@
 - [Network function virtualization (NFV)](https://en.wikipedia.org/wiki/Network_function_virtualization) applications;
 - Real-time multi-core [mixed-criticality](https://en.wikipedia.org/wiki/Mixed_criticality) systems, and so on.
 
-&ensp;&ensp;&ensp;&ensp;Notably, this kernel encompasses both microcontrollers and microprocessors.
+&ensp;&ensp;Notably, this kernel encompasses both microcontrollers and microprocessors.
 - For microcontroller systems, it enables multiple partitions
 
-&ensp;&ensp;&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
+&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
 
-&ensp;&ensp;&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
+&ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is an official work of EDI, and thus belongs to the **public domain**. All copyrights reserved by EDI are granted to all entities under all applicable laws to the maximum extent.
 
-&ensp;&ensp;&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
+&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
 
-## Introduction to capability-based multi-core systems
+## Why a New Microkernel?
+&ensp;&ensp;Microkernels have been invented for 40 years.
 
-### What are capabilities?
-&ensp;&ensp;&ensp;&ensp;Capabilities are a kind of certificate that is initially introduced into multi-user computer systems to control access permissions. They are unforgeable tokens that point to some resource and carry permissions to allow operations on the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be treated as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system with the three rules:
-- Capabilities cannot be modified at user-level;
-- Capabilities can only be transfered between different processes with well-defined interfaces;
-- Capabilities will only be given to processes that can operate on the corresponding resources.
+### System Design
 
-### Why do we need capability-based systems?
-&ensp;&ensp;&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable (or at least, very difficult to fake) alphabets or characters indicating what powers the general should have, and which army can they command, thus safely handing the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
+### Microcontroller Components
+&ensp;&ensp;All planned components are listed below. If a github link is provided, the component is available for now.  
+- **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)**, a microcontroller hypervisor capable of running multiple bare-metal applications or RTOSes simutaneously. Scales up to a maximum of 32 virtual machines on 128k RAM.
+- **[RVM/RMP](https://github.com/EDI-Systems/M5P01_Prokaron)**, a port of the simplistic RMP RTOS to RVM.
+- **[RVM/FreeRTOS](https://github.com/EDI-Systems/M7M02_Ammonite/Guest/A7M/FRT)**, a port of the FreeRTOS to RVM.
+- **[RVM/RT-Thread](https://github.com/EDI-Systems/M7M02_Ammonite/Guest/A7M/RTT)**, a port of the RT-Thread to RVM.
 
-### Wouldn't the microkernel design harm system execution efficiency?
-&ensp;&ensp;&ensp;&ensp;Short answer: **No**.  
-&ensp;&ensp;&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more aggressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
+### Microprocessor Components
+- Work-in-progress.
 
-### How is it possible that the system is lock-free?
-&ensp;&ensp;&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
+## Performance on all Supported Architectures
 
-## Available system components
-&ensp;&ensp;&ensp;&ensp;All available components are listed below. If a github link is provided, the component is available for now.  
-- **[RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)**, which is a microcontroller-oriented virtual machine monitor capable of running multiple MCU applications or operating systems simutaneously. Scales up to 64 virtual machines on 1MB On-Chip SRAM.
-    - **[RVM/Lib](https://github.com/EDI-Systems/M7M2_MuAmmonite)**, the microcontroller-oriented user-level library for RME.
-    - **[RVM/RMP](https://github.com/EDI-Systems/M5P1_MuProkaron)**, a port of the simplistic RMP on RVM, with all functionalities retained.
-    - **RVM/FreeRTOS**, a port of the widely-used [FreeRTOS](https://www.freertos.org/) to RVM.
-    - **[RVM/RT-Thread](https://github.com/EDI-Systems/rt-thread)**, a port of the promising [RT-Thread](https://www.rt-thread.org/) to RVM, with all frameworks retained.
-    - **RVM/uCOSIII**, a port of the famous [uC/OS III](https://www.micrium.com/) to RVM. You should have a commercial license to use this port.
-    - **[RVM/MicroPython](https://github.com/EDI-Systems/micropython)**, a port of the popular [MicroPython](https://micropython.org/) to RVM.
-    - **[RVM/Lua](https://github.com/EDI-Systems/lua)**, a port of the easy-to-use [Lua](https://www.lua.org/) language to RVM.
-    - **[RVM/Duktape](https://github.com/EDI-Systems/duktape)**, a port of the emerging [JavaScript](https://github.com/svaarala/duktape) language to RVM.
-    - **RVM/Essentials**, a port of [lwip](https://savannah.nongnu.org/projects/lwip/), [fatfs](http://elm-chan.org/fsw/ff/00index_e.html) and [emWin](https://www.segger.com/products/user-interface/emwin/) to RVM, all packed in one [RMP](https://github.com/EDI-Systems/M5P1_MuProkaron) virtual machine. Be sure to obtain license to use these softwares.
-
-- UVM, which is a multi-core processor oriented virtual machine monitor capable of supporting full-virtualization and container-based virtualization with unprecedented performance.
-    - UVM/Lib, the microprocessor-oriented user-level library for RME.
-    - UVM/FV, the full virtualization platform constructed with UVM, which comes with similar functionalities as Virtual Box.
-
-
-### Typical performance figures for all supported architectures
-
-&ensp;&ensp;The timing performance of the kernel in __real action__ is shown as follows. All compiler options are the highest optimization (usually -O3 with LTO when available) and optimized for time, and all values are __average case__ in CPU cycles.
+&ensp;&ensp;The timing performance of the kernel in **real action** is shown as follows. All compiler options are the highest optimization (usually -O3 with LTO when available) and optimized for time, and all values are **average case** in CPU cycles.
 - Yield/S : Intra-process thread yield to itself.
 - Yield/2 : Intra-process thread yield, one-way.
 - Inv/2   : Inter-process invocation call/return pair. 
@@ -87,7 +66,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 - Sig/S   : Intra-process signal endpoint send/receive pair.
 - Sig/I   : Interrupt signal endpoint send/receive latency.
 
-**Microcontrollers**
+### Microcontroller
 
 &ensp;&ensp;The **absolute minimum** value for RME on microcontrollers is about **64k ROM and 20k RAM**, which is reached on the STM32L071CB (Cortex-M0+) port. This is the absolute minimum proof-of-concept that can finish the benchmark (alongside a virtualized RMP benchmark as well). RME also require that the microcontroller be equipped with a Memory Protection Unit (MPU), with which we can confine the processes to their own address spaces.
 
@@ -103,116 +82,131 @@ This software is an official work of EDI, and thus belongs to the **public domai
 |...          |...         |...   |GCC   |294    |456    |644  |406  |460  |429  |321  |
 |CH32V307VC   |RV32IMAFC   |168M  |GCC   |358    |669    |706  |703  |723  |624  |523  |
 
-**Microprocessors**
+&ensp;&ensp;**FAQ:** Can XXX (some microcontroller) be supported? **Answer**: If your microcontroller has **at least 64k ROM and 32k RAM**, and features a memory protection unit, just like the majority of Cortex-M microcontrollers, then yes! However, it's best to have *128k ROM and 128k RAM* to start with, as such systems will be useful in real life. Some sub-$1 chips such as STM32G0B1CBT6 are great starters.
 
-&ensp;&ensp;The **absolute minimum** value for RME on microprocessors is about **32MB ROM and 32MB RAM**, which is reached on the F1C100S (ARM926EJ-S) port. Although this is not the absolute minimum for the benchmark which requires far less memory, this is indeed required for a meaningful and useful system. The microprocessor must be equipped with a Memory Management Unit (MMU), with which we can confine the processes to their own address spaces.
+### Microprocessor
+
+&ensp;&ensp;The **recommended** resource for RME on microprocessors is about **32M ROM and 32M RAM**, which is reached on the F1C100S (ARM926EJ-S) port. Although this is not the absolute minimum to run the benchmark which requires far less memory, this is indeed required for a meaningful and useful system. The microprocessor must be equipped with a Memory Management Unit (MMU), with which we can confine the processes to their own address spaces.
 
 &ensp;&ensp;The use of RMC (concept design in progress) is required on microprocessors, which allows integration of feather-weight unix-like containers, unikernels and RTOSes on to the same platform. This is achieved without specific extensions like the hardware virtualization extension; and when there is, we strive to provide full virtualization environments where you can boot Windows and Linux. We would not delve into the drivers though, and will assume a pass-through model for all peripherals in these cases. This provides less flexibility, but makes it possible to use existing software investments (desktop environments, industry applications, and even 3D games) with zero hassle.
 
-&ensp;&ensp;Unlike microcontrollers, we only accept GCC (and probably CLANG) as the compiler. Support for other toolchains are out of the scope.
+&ensp;&ensp;For microprocessors, we only accept the GCC (and probably CLANG as well later) toolchain. Support for other toolchains are out of the scope.
 
-|Chipname     |Platform    |Bits|Cores|Yield/1|Yield/2|Inv/2|Sig/1|Sig/2|Sig/P|Sig/I|
-|:-----------:|:----------:|:--:|:---:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|
-|F1C100S      |...         |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|S3C2416      |ARM926EJ-S  |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|XC7Z010      |Cortex-A9   |32  |2    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|XCZU2EG      |Cortex-A53  |64  |4    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|AWT-D1S      |RV64IMAFCV  |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|LS1C300B     |GS232       |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|LS2K300      |LA264       |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|E5-2696 v2   |x86-64      |64  |12   |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
-|TMS320C6678  |C66x        |64  |8    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |
+|Chipname     |Platform    |Bits|Cores|Yield/S|Yield/2|Inv/2|Sig/1|Sig/2|Sig/S|Sig/I|Pipe |Sem  |Msgq |Signal|Socket|
+|:-----------:|:----------:|:--:|:---:|:-----:|:-----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:----:|:----:|
+|F1C100S      |ARM926EJ-S  |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|S3C2416      |...         |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|XC7Z010      |Cortex-A9   |32  |2    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|XCZU2EG      |Cortex-A53  |64  |4    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|AWT-D1S      |RV64IMAFCV  |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|LS1C300B     |GS232       |32  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|LS2K300      |LA264       |64  |1    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|E5-2696 v2   |x86-64      |64  |12   |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
+|TMS320C6678  |C66x        |64  |8    |TBD    |TBD    |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD  |TBD   |TBD   |
 
-&ensp;&ensp;FAQ: Why are XXX (some popular boards) not supported? Answer: Unlike microcontrollers, some microprocessor manufacturers put their datasheets behind a (very) high paywall. Nothing is open; and to support these boards, we would have to reverse engineer the details from their Linux drivers. A few manufacturers are notably notorious for this, and we'd rather leave them alone and focus on manufacturers that embrace the openness.
+&ensp;&ensp;**FAQ:** Why is XXX (some popular board) not supported? **Answer:** Unlike microcontrollers, some microprocessor manufacturers put their datasheets behind a (very) high paywall. Nothing is open; and to support these boards, we would have to reverse engineer the details from their Linux drivers. A few manufacturers are notably notorious for this, and we'd rather leave them alone and focus on manufacturers that embrace openness. We do make exceptions for chips that are already thoroughly reverse engineered though.
 
 ## Getting Started
 
-&ensp;&ensp;&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
-&ensp;&ensp;&ensp;&ensp;You need to choose a hardware platform listed above to run the tests. This general-purpose OS focuses on high-performance MCU and CPUs and do not concentrate on lower-end MCUs or legacy MPUs. Do not use QEMU simulator to test the projects because they do not behave correctly in many scenarios.  
+&ensp;&ensp;You need to choose a hardware platform listed above to run the system. This project focuses on high-performance platforms that are at least 32-bit and does not support lower-end microcontrollers that are 8/16- bit or microcontrollers lacking memory protection unit, or legacy microprocessors prior to ARM9. For 8/16-bit microcontrollers, use [RMP](https://github.com/EDI-Systems/M5P01_Prokaron) _Real-Time Kernel_ instead; RMP supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
 
-&ensp;&ensp;&ensp;&ensp;If you do not have a standalone software platform, you can also use VMMs such as VMware and Virtual Box to try out the x86-64 ISO image.
-
-&ensp;&ensp;&ensp;&ensp;Other platform supports should be simple to implement, however they are not scheduled yet. For Cortex-M or 16-bit microcontrollers, go [RMP](https://github.com/EDI-Systems/M5P01_Prokaron) _Real-Time Kernel_ instead; M5P1 supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
+&ensp;&ensp;If you do not have a standalone hardware platform, you can also use VMMs such as KVM, VMware and Virtual Box to try out the x86-64 ISO image. Do not use QEMU to test the projects because they do not behave correctly in many scenarios. You can use a x86-64 QEMU though because it is wery well tested and uses KVM as its underlying virtualization engine.
 
 ### Compilation
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;The **Vendor Toolchain** or **GNU Makefile** projects for various microcontrollers are available in the **_Project_** folder. Refer to the readme files in each folder for specific instructions about how to run them. However, keep in mind that some examples may need vendor-specific libraries such as the STM HAL. Some additional drivers may be required too.
+**Microcontroller**  
+&ensp;&ensp;Please refer to the **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)** repo for details; RME includes neither projects nor compilation instructions for them.
 
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;Only GNU makefile projects will be provided, and only GCC is supported at the moment. Other compilers may also be supported as long as it conforms to the GCC conventions.
-
+**Microprocessor**  
+&ensp;&ensp;Work-in-progress.
 
 ### Running the tests
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
+**Mircocontoller**  
+&ensp;&ensp;To run the sample programs, simply download them into the development board and start step-by-step debugging. All hardware the example will use is the serial port, and it is configured for you in the example.
 
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;The boot sequence is different for different processors. For x86-64 architecture, GRUB is used as the bootloader, and you can boot the system with precompiled LiveCD.iso, just like how you would install any operating system (Ubuntu Linux or Windows). For other architectures, 
+**Microprocessor**  
+&ensp;&ensp;Work-in-progress.
 
 ### Deployment
-**For MCUs**  
-&ensp;&ensp;&ensp;&ensp;When deploying this into a production system, it is recommended that you read the manual in the **_Documents_** folder carefully to configure all options correctly. It is not recommended to configure the kernel yourself, anyway; it included too many details. Please use the default configuration file as much as possible. Also, read the user guide for the specific platform you are using.
+**Mircocontoller**  
+&ensp;&ensp;Please refer to the **[RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)** project for details, and refrain from manually modifying configuration files and creating projects. These daunting tasks are better performed by the RVM project generator.
 
-**For application processors**  
-&ensp;&ensp;&ensp;&ensp;Deploy it as if you are deploying any other operating system, or bare-metal hypervisor.
+**Microprocessor**  
+&ensp;&ensp;Deploy it as if you are deploying any other operating system (Linux, etc).
 
+### Supported Toolchains
 
-## List of system calls
+- GCC/Clang-LLVM
+- Keil uVision (ARMCC/ARMCLANG)
+
+&ensp;&ensp;Other toolchains are neither recommended nor supported at this point, though it might be possible to support them later on.
+
+## Contributing
+
+&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+
+&ensp;&ensp;We wish to thank the developers of [Composite](https://github.com/gwsystems/composite) system which is developed at George Washington University (and RME is heavily influenced by it), and we also wish to thank the developers of [Fiasco.OC](https://os.inf.tu-dresden.de/fiasco) system which is developed at TU Dresden. 
+
+### EDI Project Information
+- M7M01 R3T1
+
+## Introduction to Capability-based Multi-core Systems
+
+### What are Capabilities?
+&ensp;&ensp;Capabilities are a kind of certificate that is initially introduced into multi-user computer systems to control access permissions. They are unforgeable tokens that point to some resource and carry permissions to allow operations on the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be treated as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system with the three rules:
+- Capabilities cannot be modified at user-level;
+- Capabilities can only be transfered between different processes with well-defined interfaces;
+- Capabilities will only be given to processes that can operate on the corresponding resources.
+
+### Why Do We Need Capability-based Systems?
+&ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable (or at least, very difficult to fake) alphabets or characters indicating what powers the general should have, and which army can they command, thus safely handing the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
+
+### Wouldn't the Microkernel Design Harm System Execution Efficiency?
+&ensp;&ensp;Short answer: **No**.  
+&ensp;&ensp;Long answer: If **designed carefully and used correctly** (especially the communication mechanisms), it would instead **greatly boost performance** in multiple aspects, because the fast-paths are much more aggressively optimized now. For example, on some architectures, the context switch performance and interrupt response performance can be up to **40x** better than RT-Linux. When user-level library overheads are also included, the result is still **25x** better than RT-Linux.
+
+### How is It Possible that the System is Lock-free?
+&ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
+
+### List of System Calls
 
 |System call            |Number|Description                                                       |
 |:---------------------:|:----:|:----------------------------------------------------------------:|
 |RME_SVC_INV_RET        |0     |Return from an invocation                                         |
-|RME_SVC_INV_ACT        |1     |Activate the invocation                                           |
+|RME_SVC_INV_ACT        |1     |Activate an invocation                                           |
 |RME_SVC_SIG_SND        |2     |Send to a signal endpoint                                         |
 |RME_SVC_SIG_RCV        |3     |Receive from a signal endpoint                                    |
-|RME_SVC_KERN           |4     |Call a kernel function                                            |
-|RME_SVC_THD_SCHED_PRIO |5     |Changing thread priority                                          |
-|RME_SVC_THD_SCHED_FREE |6     |Free a thread from a CPU core                                     |
-|RME_SVC_THD_TIME_XFER  |7     |Transfer time to a thread                                         |
-|RME_SVC_THD_SWT        |8     |Switch to another thread                                          |
-|RME_SVC_CPT_CRT     |9     |Create a capability table                                         |
-|RME_SVC_CPT_DEL     |10    |Delete a capability table                                         |
-|RME_SVC_CPT_FRZ     |11    |Freeze a capability                                               |
-|RME_SVC_CPT_ADD     |12    |Delegate a capability                                             |
-|RME_SVC_CPT_REM     |13    |Remove a capability                                               |
-|RME_SVC_PGT_CRT      |14    |Create a page table                                               |
-|RME_SVC_PGT_DEL      |15    |Delete a page table                                               |
-|RME_SVC_PGT_ADD      |16    |Add a page to a page table                                        |
-|RME_SVC_PGT_REM      |17    |Remove a page from a page table                                   |
-|RME_SVC_PGT_CON      |18    |Construct a page table into another                               |
-|RME_SVC_PGT_DES      |19    |Destruct a page table from another                                |
-|RME_SVC_PRC_CRT       |20    |Create a process                                                  |
-|RME_SVC_PRC_DEL       |21    |Delete a process                                                  |
-|RME_SVC_PRC_CPT       |22    |Change a process's capability table                               |
-|RME_SVC_PRC_PGT       |23    |Change a process's page table                                     |
-|RME_SVC_THD_CRT        |24    |Create a thread                                                   |
-|RME_SVC_THD_DEL        |25    |Delete a thread                                                   |
-|RME_SVC_THD_EXEC_SET   |26    |Set entry and stack of a thread                                   |
-|RME_SVC_THD_HYP_SET    |27    |Set hypervisor attributes of a thread                             |
-|RME_SVC_THD_SCHED_BIND |28    |Bind a thread to the current processor                            |
-|RME_SVC_THD_SCHED_RCV  |29    |Try to receive scheduling notifications                           |
-|RME_SVC_SIG_CRT        |30    |Create a signal endpoint                                          |
-|RME_SVC_SIG_DEL        |31    |Delete a signal endpoint                                          |
-|RME_SVC_INV_CRT        |32    |Create a synchronous invocation port                              |
-|RME_SVC_INV_DEL        |33    |Delete a synchronous invocation port                              |
-|RME_SVC_INV_SET        |34    |Set entry and stack of a synchronous invocation port              |
-
-## Built With
-
-- Keil uVision 5 (armcc)
-- Code composer studio
-- GCC/Clang-LLVM
-
-&ensp;&ensp;&ensp;&ensp;Other toolchains are neither recommended nor supported at this point, though it might be possible to support them later on.
-
-## Contributing
-
-&ensp;&ensp;&ensp;&ensp;Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
-
-&ensp;&ensp;&ensp;&ensp;We wish to thank the developers of [Composite](https://github.com/gwsystems/composite) system which is developed at George Washington University (and RME is heavily influenced by it), and we also wish to thank the developers of [Fiasco.OC](https://os.inf.tu-dresden.de/fiasco) system which is developed at TU Dresden. 
-
-## EDI Project Information
-&ensp;&ensp;&ensp;&ensp;Mutate - Mesazoa - Eukaron (M7M1 R3T1)
+|RME_SVC_KFN            |4     |Call a kernel function                                            |
+|RME_SVC_THD_SCHED_FREE |5     |Free a thread from its current processor                          |
+|RME_SVC_THD_EXEC_SET   |6     |Set entry and stack of a thread                                   |
+|RME_SVC_THD_SCHED_PRIO |7     |Changing thread priority                                          |
+|RME_SVC_THD_TIME_XFER  |8     |Transfer time to a thread                                         |
+|RME_SVC_THD_SWT        |9     |Switch to another thread                                          |
+|RME_SVC_CPT_CRT        |10    |Create a capability table                                         |
+|RME_SVC_CPT_DEL        |11    |Delete a capability table                                         |
+|RME_SVC_CPT_FRZ        |12    |Freeze a capability                                               |
+|RME_SVC_CPT_ADD        |13    |Delegate a capability                                             |
+|RME_SVC_CPT_REM        |14    |Remove a capability                                               |
+|RME_SVC_PGT_CRT        |15    |Create a page table                                               |
+|RME_SVC_PGT_DEL        |16    |Delete a page table                                               |
+|RME_SVC_PGT_ADD        |17    |Add a page to a page table                                        |
+|RME_SVC_PGT_REM        |18    |Remove a page from a page table                                   |
+|RME_SVC_PGT_CON        |19    |Construct a page table into another                               |
+|RME_SVC_PGT_DES        |20    |Destruct a page table from another                                |
+|RME_SVC_PRC_CRT        |21    |Create a process                                                  |
+|RME_SVC_PRC_DEL        |22    |Delete a process                                                  |
+|RME_SVC_PRC_CPT        |23    |Change a process's capability table                               |
+|RME_SVC_PRC_PGT        |24    |Change a process's page table                                     |
+|RME_SVC_THD_CRT        |25    |Create a thread                                                   |
+|RME_SVC_THD_DEL        |26    |Delete a thread                                                   |
+|RME_SVC_THD_SCHED_BIND |27    |Bind a thread to the current processor                            |
+|RME_SVC_THD_SCHED_RCV  |28    |Try to receive scheduling notifications                           |
+|RME_SVC_SIG_CRT        |29    |Create a signal endpoint                                          |
+|RME_SVC_SIG_DEL        |30    |Delete a signal endpoint                                          |
+|RME_SVC_INV_CRT        |31    |Create a synchronous invocation port                              |
+|RME_SVC_INV_DEL        |32    |Delete a synchronous invocation port                              |
+|RME_SVC_INV_SET        |33    |Set entry and stack of a synchronous invocation port              |
+|...                    |34-63 |Reserved                                                          |
