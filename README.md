@@ -6,7 +6,7 @@
 <div align="center">
 
 [![Github release](https://img.shields.io/github/release/EDI-Systems/M7M01_Eukaron.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/releases/latest)
-[![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M01_Eukaron/master@{30day}.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/compare/master@{30day}...master)
+[![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M01_Eukaron/main@{30day}.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/compare/main@{30day}...main)
 [![Discord](https://img.shields.io/badge/chat-Discord-purple)](https://discord.gg/VxCFSFC6bW)
 
 </div>
@@ -30,20 +30,33 @@
 - [Network function virtualization (NFV)](https://en.wikipedia.org/wiki/Network_function_virtualization) applications;
 - Real-time multi-core [mixed-criticality](https://en.wikipedia.org/wiki/Mixed_criticality) systems, and so on.
 
-&ensp;&ensp;Notably, this kernel encompasses both microcontrollers and microprocessors.
-- For microcontroller systems, it enables multiple partitions
-
-&ensp;&ensp;The manual of the operating system can be found **[here](https://github.com/EDI-Systems/M5P1_MuProkaron/blob/master/Documents/M7M1_Microkernel-RTOS-User-Manual.pdf)**.
+&ensp;&ensp;The manual of the operating system can be found **[here](/Document/Public)**.
 
 &ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is an official work of EDI, and thus belongs to the **public domain**. All copyrights reserved by EDI are granted to all entities under all applicable laws to the maximum extent.
 
-&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P0_Library](https://github.com/EDI-Systems/M0P0_Library)** repo to download and use them properly.
+&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P00_Library](https://github.com/EDI-Systems/M0P00_Library)** repo to download and use them properly.
 
 ## Why a New Microkernel?
-&ensp;&ensp;Microkernels have been invented for 40 years.
+&ensp;&ensp;Microkernels have been invented for at least 30 years, and numerous great designs that emphasis performance, parallelism, fault-tolerance, security and even formal correctness have appeared. However, **none of them were able to chart a concord abstraction over all computing devices**, which harms software portability and ecosystem coherence. More precisely, (1) few of them support cloud native environments with a high level of parallelism, (2) even fewer of them support microcontrollers with scarce resources, and (3) none of them support the two extremes and the continuum between them with a single kernel design. Moreover, the configurablity of existing systems were also restricted, as **very few of them allow you to pick the exact very lines of code that you need**. If the system was not designed with configurablity and reusability in mind, adding them as an afterthought probably won't end very well.
 
-### System Design
+&ensp;&ensp;The first goal of RME is to enable **hyperadaptability**. It conjures an overarching abstraction over all types of hardwares, regardless of whether they are cloud servers, edge routers, terminal nodes, or even battery-powered devices. When creating such an abstraction, we aim to **discover and express true common ground between different hardware models rather than coercing one into another**. To put differently, the same abstraction and the resulting implementation should be practically usable on both microprocessors and microcontollers: when deployed on the former, it can keep up with the state-of-the-art cloud-native operating systems while providing more parallelism; when deployed on the latter, it can keep up with the state-of-the-art RTOSes while providing more security. This unravels previously unaware difficulties and research opportunities, as concerns from different application fields are intertwined with each other: (1) high parallelism, (2) hard real-time responsiveness, (3) extreme resource scalability, (4) capability-based security and (5) user-level resource management policy must be **simultaneously** taken care of.
+
+&ensp;&ensp;The second goal of RME is to enable **hyperreusability**. All system components including drivers and middlewares are fully decoupled, and written in a way that could be configured and deployed as a standalone software package. This allows them **to be used with other operating systems, or even in cases where no operating system is present**. The components are coded in a special fashion so that **function pointers can be totally eliminated when only one instance of the library is present**, minimizing redundancy and maximizing resource efficiency. Ideally, if the components were configured correctly, the resulting image will not contain a single line of garbage code. Stripping away unused code also helps with system security, as the vulnerabilities from ununsed garbage code would not be carried into the resulting image.
+
+&ensp;&ensp;The last goal of RME is to enable **hyperdeployability**. Many microkernels exist for a sole purpose - education or research, and their lack of software engineering concerns makes them impossible to use in commercial or even hobbyist projects. RME is different in that it **deliberately embraces the engineering difficulties**, and is willing to expend resources to **support as many production environments as possible**. This **particularly applies to the microcontrollers**, where the compilation toolchain is esoteric and the debugging facilities are restricted in nature. To this end, the **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)** microcontroller hypervisor takes care of every dirty work, and ready-to-use **Keil** or **Makefile** projects are just one click away. More toolchains such as **IAR** are planned as well. 
+
+### Kernel Design
+
+adaptability
+flexibility
+resource allocation efficiency
+capability-based design
+efficient paravirtualization
+
+Composite, seL4
+
+### User-level Library Design
 
 ### Microcontroller Components
 &ensp;&ensp;All planned components are listed below. If a github link is provided, the component is available for now.  
@@ -53,7 +66,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 - **[RVM/RT-Thread](https://github.com/EDI-Systems/M7M02_Ammonite/Guest/A7M/RTT)**, a port of the RT-Thread to RVM.
 
 ### Microprocessor Components
-- Work-in-progress.
+- Work-in-progress. We use to have a bootable x64 port, but currently it is not working.
 
 ## Performance on all Supported Architectures
 
@@ -108,11 +121,11 @@ This software is an official work of EDI, and thus belongs to the **public domai
 
 ## Getting Started
 
-&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+&ensp;&ensp;These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
 ### Prerequisites
 
-&ensp;&ensp;You need to choose a hardware platform listed above to run the system. This project focuses on high-performance platforms that are at least 32-bit and does not support lower-end microcontrollers that are 8/16- bit or microcontrollers lacking memory protection unit, or legacy microprocessors prior to ARM9. For 8/16-bit microcontrollers, use [RMP](https://github.com/EDI-Systems/M5P01_Prokaron) _Real-Time Kernel_ instead; RMP supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
+&ensp;&ensp;You need to choose a hardware platform listed above to run the system. This project focuses on high-performance platforms that are at least 32-bit and does not support lower-end microcontrollers that are 8/16- bit or microcontrollers lacking memory protection unit, or legacy microprocessors prior to ARM9. For 8/16-bit microcontrollers, use [RMP](https://github.com/EDI-Systems/M5P01_Prokaron) Real-Time Kernel instead; RMP supports all Cortex-Ms and some Cortex-Rs, though without memory protection support.
 
 &ensp;&ensp;If you do not have a standalone hardware platform, you can also use VMMs such as KVM, VMware and Virtual Box to try out the x86-64 ISO image. Do not use QEMU to test the projects because they do not behave correctly in many scenarios. You can use a x86-64 QEMU though because it is wery well tested and uses KVM as its underlying virtualization engine.
 
@@ -132,7 +145,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 
 ### Deployment
 **Mircocontoller**  
-&ensp;&ensp;Please refer to the **[RVM](https://github.com/EDI-Systems/M7M2_MuAmmonite)** project for details, and refrain from manually modifying configuration files and creating projects. These daunting tasks are better performed by the RVM project generator.
+&ensp;&ensp;Please refer to the **[RVM](https://github.com/EDI-Systems/M7M02_Ammonite)** project for details, and refrain from manually modifying configuration files and creating projects. These daunting tasks are better performed by the RVM project generator.
 
 **Microprocessor**  
 &ensp;&ensp;Deploy it as if you are deploying any other operating system (Linux, etc).
@@ -153,7 +166,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 ### EDI Project Information
 - M7M01 R3T1
 
-## Introduction to Capability-based Multi-core Systems
+## Frequently Asked Questions
 
 ### What are Capabilities?
 &ensp;&ensp;Capabilities are a kind of certificate that is initially introduced into multi-user computer systems to control access permissions. They are unforgeable tokens that point to some resource and carry permissions to allow operations on the object. In some sense, the Unix file descriptor can be treated as a type of capability; the Windows access permissions can also be treated as a type of capability. Generally speaking, capabilities are fat pointers that points to some resources.  We guarantee the safety of the system with the three rules:
@@ -161,7 +174,7 @@ This software is an official work of EDI, and thus belongs to the **public domai
 - Capabilities can only be transfered between different processes with well-defined interfaces;
 - Capabilities will only be given to processes that can operate on the corresponding resources.
 
-### Why Do We Need Capability-based Systems?
+### Why do We Need Capability-based Systems?
 &ensp;&ensp;The idea of capability is nothing new. Thousands of years ago, kings and emperors have made dedicated tokens for their generals to command a specific branch or group of their army. Usually, these tokens will contain unforgeable (or at least, very difficult to fake) alphabets or characters indicating what powers the general should have, and which army can they command, thus safely handing the army commanding duty off to the generals. In the same sense, capability-based systems can provide a very fine grain of resource management in a very elegant way. By exporting policy through combinations of different capabilities to the user-level, capability-based systems reach a much greater level of flexibity when compared to traditional Unix systems. Additional benefits include increased isolation, fault confinement and ease of formal analysis.
 
 ### Wouldn't the Microkernel Design Harm System Execution Efficiency?
@@ -171,12 +184,16 @@ This software is an official work of EDI, and thus belongs to the **public domai
 ### How is It Possible that the System is Lock-free?
 &ensp;&ensp;This is made possible by extensively applying lock-free data structures and atomic operations. For more information, please refer to [this article](https://www.cs.tau.ac.il/~shanir/concurrent-data-structures.pdf).
 
+### Why don't this Kernel Aim at Full POSIX/Linux Compilance?
+
+### What are Microcontrollers and Why are They Important?
+
 ### List of System Calls
 
 |System call            |Number|Description                                                       |
 |:---------------------:|:----:|:----------------------------------------------------------------:|
 |RME_SVC_INV_RET        |0     |Return from an invocation                                         |
-|RME_SVC_INV_ACT        |1     |Activate an invocation                                           |
+|RME_SVC_INV_ACT        |1     |Activate an invocation                                            |
 |RME_SVC_SIG_SND        |2     |Send to a signal endpoint                                         |
 |RME_SVC_SIG_RCV        |3     |Receive from a signal endpoint                                    |
 |RME_SVC_KFN            |4     |Call a kernel function                                            |
