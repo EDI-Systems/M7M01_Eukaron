@@ -109,6 +109,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_PGT_SIZE_TOP(NMORD)                 (sizeof(struct __RME_A6M_MPU_Data)+RME_PGT_SIZE_NOM(NMORD))
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                         RME_A6M_Kot
+/* Invocation stack maximum depth - not restricted */
+#define RME_INV_DEPTH_MAX                       (0U)
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */

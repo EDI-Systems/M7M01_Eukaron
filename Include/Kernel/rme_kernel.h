@@ -820,23 +820,25 @@ struct RME_Thd_Sched
 /* Thread register set structure - not instantiated at all */
 struct RME_Thd_Reg
 {
-    /* The register set - architecture specific */
+    /* Register set - architecture specific */
     struct RME_Reg_Struct Reg;
-    /* The error information - architecture specific */
+    /* Error information - architecture specific */
     struct RME_Exc_Struct Exc;
-    /* The co-processor/peripheral (FPU) context - architecture specific */
+    /* Coprocessor/FPU context - architecture specific */
     rme_ptr_t Cop[1];
 };
 
 /* Thread context structure */
 struct RME_Thd_Ctx
 {
-    /* The hypervisor flag and context attribute */
+    /* Hypervisor flag and context attribute */
     rme_ptr_t Hyp_Attr;
-    /* The pointer to current register set */
+    /* Pointer to current register set */
     struct RME_Thd_Reg* Reg;
-    /* The thread synchronous invocation stack */
+    /* Synchronous invocation stack */
     struct RME_List Invstk;
+    /* Synchronous invocation stack depth */
+    rme_ptr_t Invstk_Depth;
 };
 
 /* Thread object structure */

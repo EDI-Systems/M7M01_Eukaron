@@ -5141,6 +5141,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Thread->Ctx.Reg=(struct RME_Thd_Reg*)(Vaddr+RME_HYP_SIZE);
     /* Initialize the invocation stack */
     _RME_List_Crt(&(Thread->Ctx.Invstk));
+    Thread->Ctx.Invstk_Depth=0U;
     
     /* Info init */
     Thd_Crt->Head.Root_Ref=1U;
@@ -5309,6 +5310,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     }
     /* Initialize the invocation stack */
     _RME_List_Crt(&(Thread->Ctx.Invstk));
+    Thread->Ctx.Invstk_Depth=0U;
 
     /* Header init */
     Thd_Crt->Head.Root_Ref=0U;
@@ -5389,7 +5391,9 @@ static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
         Invocation=(struct RME_Inv_Struct*)(Thread->Ctx.Invstk.Next);
         _RME_List_Del(Invocation->Head.Prev,Invocation->Head.Next);
         Invocation->Thd_Act=0U;
+        Thread->Ctx.Invstk_Depth--;
     }
+    RME_ASSERT(Thread->Ctx.Invstk_Depth==0U);
     
     /* Dereference the process */
     RME_FETCH_ADD(&(Thread->Sched.Prc->Head.Root_Ref), -1);
@@ -7571,6 +7575,22 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     struct RME_Thd_Struct* Thd_Cur;
     struct RME_Thd_Struct* Thd_Act;
     rme_ptr_t Type_Stat;
+    
+#if(RME_CPT_ENTRY_MAX!=0U)
+    /* Check if the current invocation stack has reached its limit */
+    Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
+    if(Thd_Cur->Ctx.Invstk_Depth>=RME_INV_DEPTH_MAX)
+    {
+        RME_COV_MARKER();
+
+        return RME_ERR_SIV_ACT;
+    }
+    else
+    {
+        RME_COV_MARKER();
+        /* No action required */
+    }
+#endif
 
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Inv,RME_CAP_TYPE_INV,
@@ -7594,7 +7614,10 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
 
+#if(RME_CPT_ENTRY_MAX==0U)
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
+#endif
+    
     /* Try to do CAS and activate this port */
     if(RME_UNLIKELY(RME_COMP_SWAP((volatile rme_ptr_t*)&(Invocation->Thd_Act),
                                   (rme_ptr_t)Thd_Act,
@@ -7619,11 +7642,14 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     _RME_List_Ins(&(Invocation->Head),
                   &(Thd_Cur->Ctx.Invstk),
                   Thd_Cur->Ctx.Invstk.Next);
+    /* Increase invocation depth - no atomic operation needed */
+    Thd_Cur->Ctx.Invstk_Depth++;
     /* Setup the register contents, and do the invocation */
     __RME_Thd_Reg_Init(RME_THD_ATTR(Thd_Cur->Ctx.Hyp_Attr),
                        Invocation->Entry,
                        Invocation->Stack,
                        Param,Reg);
+    
     
     /* We are assuming that we are always invoking into a new process (why use synchronous
      * invocation if you don't do so?). So we always switch page tables regardless. */
@@ -7683,6 +7709,8 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 
     /* Pop it from the stack */
     _RME_List_Del(Invocation->Head.Prev,Invocation->Head.Next);
+    /* Decrease invocation depth - no atomic operation needed */
+    Thread->Ctx.Invstk_Depth--;
 
     /* Restore the register contents, and set return value. We need to set
      * the return value of the invocation system call itself as well. */
