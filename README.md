@@ -35,7 +35,7 @@
 &ensp;&ensp;Read **[Contributing](CONTRIBUTING.md)** and **[Code of Conduct](CODE_OF_CONDUCT.md)** if you want to contribute, and **[Pull Request Template](PULL_REQUEST_TEMPLATE.md)** when you make pull requests.
 This software is an official work of EDI, and thus belongs to the **public domain**. All copyrights reserved by EDI are granted to all entities under all applicable laws to the maximum extent.
 
-&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0P00_Library](https://github.com/EDI-Systems/M0P00_Library)** repo to download and use them properly.
+&ensp;&ensp;For vendor-supplied packages and hardware abstraction libraries, please refer to the **[M0A00_Library](https://github.com/EDI-Systems/M0A00_Library)** repo to download and use them properly.
 
 ## Why a New Microkernel?
 &ensp;&ensp;Microkernels have been invented for at least 30 years, and numerous great designs that emphasis performance, parallelism, fault-tolerance, security and even formal correctness have appeared. However, **none of them were able to chart a concord abstraction over all computing devices**, which harms software portability and ecosystem coherence. More precisely, (1) few of them support cloud native environments with a high level of parallelism, (2) even fewer of them support microcontrollers with scarce resources, and (3) none of them support the two extremes and the continuum between them with **a single kernel design**. Moreover, the configurablity of existing systems were also restricted, as **very few of them allow you to pick the exact very lines of code that you need**. If the system was not designed with configurablity and reusability in mind, adding them as an afterthought probably won't end very well.
