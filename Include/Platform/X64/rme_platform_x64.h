@@ -298,8 +298,6 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 #define RME_X64_CR3_PCD                      (1<<4)
 #define RME_X64_CR3_PWT                      (1<<3)
 
-#define RME_X64_PGREG_POS(TABLE)             (((struct __RME_X64_Pgreg*)RME_X64_Layout.Pgreg_Start)[RME_X64_VA2PA(TABLE)>>RME_PGT_SIZE_4K])
-
 /* Aggregate the X64 flags and prepare for translation - NX, PCD, PWT, RW */
 #define RME_X64_PGFLG_RME2NAT(FLAGS)         (RME_X64_Pgflg_RME2NAT[(FLAGS)&(~RME_PGT_STATIC)])
 #define RME_X64_PGFLG_NAT2RME(FLAGS)         (RME_X64_Pgflg_NAT2RME[(((FLAGS)>>63)<<3)|(((FLAGS)&0x18)>>2)|(((FLAGS)&0x02)>>1)])
@@ -834,14 +832,13 @@ struct RME_Iret_Struct
 };
 
 /* Memory information - the layout is (offset from VA base):
- * |0--640k|----------16MB|-----|-----|------|------|-----|3.25G-4G|-----|-----|
- * |Vectors|Kernel&Globals|Kot|Pgreg|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
+ * |0--640k|----------16MB|-----|------|------|-----|3.25G-4G|-----|-----|
+ * |Vectors|Kernel&Globals|Kotbl|PerCPU|Kpgtbl|Kom1|  Hole  |Kom2|Stack|
  *  Vectors        : Interrupt vectors.
  *  Kernel&Globals : Initial kernel text segment and all static variables.
- *  Kot          : Kernel object registration table.
+ *  Kotbl          : Kernel object registration table.
  *  PerCPU         : Per-CPU data structures.
  *  Kpgtbl         : Kernel page tables.
- *  Pgreg          : Page table registration table.
  *  Kom1          : Kernel memory 1, linear mapping, allow creation of page tables.
  *  Hole           : Memory hole present at 3.25G-4G. For PCI devices.
  *  Kom2          : Kernel memory 2, nonlinear mapping, no page table creation allowed.
@@ -852,9 +849,6 @@ struct RME_X64_Layout
 {
 	rme_ptr_t Kot_Start;
 	rme_ptr_t Kot_Size;
-
-	rme_ptr_t Pgreg_Start;
-	rme_ptr_t Pgreg_Size;
 
 	rme_ptr_t PerCPU_Start;
 	rme_ptr_t PerCPU_Size;
@@ -884,17 +878,6 @@ struct RME_X64_Features
 	rme_ptr_t Max_Ext;
 	rme_ptr_t Func[16][4];
 	rme_ptr_t Ext[16][4];
-};
-
-/* Page table registration table */
-struct __RME_X64_Pgreg
-{
-    /* What is the PCID of this page table? - This can be set through kernel function caps */
-    rme_u32_t PCID;
-    /* How many child page tables does this page table have? - this can never overflow */
-    rme_u32_t Child_Cnt;
-    /* How many parent page tables does this page table have? */
-    rme_ptr_t Parent_Cnt;
 };
 
 /* The first two levels of the kernel page table. The third level will be constructed on the fly */

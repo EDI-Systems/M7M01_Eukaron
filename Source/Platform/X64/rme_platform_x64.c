@@ -435,8 +435,7 @@ void __RME_X64_Feature_Get(void)
 
 /* Function:__RME_X64_Mem_Init ************************************************
 Description : Initialize the memory map, and get the size of kernel object
-              allocation registration table(Kot) and page table reference
-              count registration table(Pgreg).
+              allocation registration table(Kot).
 Input       : rme_ptr_t MMap_Addr - The GRUB multiboot memory map data address.
               rme_ptr_t MMap_Length - The GRUB multiboot memory map data length.
 Output      : None.
@@ -537,13 +536,8 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
     Info_Cnt=(MMap_Cnt>3*RME_POW2(RME_PGT_SIZE_1G))?(MMap_Cnt+RME_POW2(RME_PGT_SIZE_1G)):MMap_Cnt;
     RME_X64_Layout.Kot_Size=((Info_Cnt>>RME_KOM_SLOT_ORDER)>>RME_WORD_ORDER)+1;
 
-    /* Calculate the size of page table registration table size - we always assume 4GB range */
-    Info_Cnt=(MMap_Cnt>RME_POW2(RME_PGT_SIZE_4G))?RME_POW2(RME_PGT_SIZE_4G):MMap_Cnt;
-    RME_X64_Layout.Pgreg_Start=RME_X64_Layout.Kot_Start+RME_X64_Layout.Kot_Size;
-    RME_X64_Layout.Pgreg_Size=((Info_Cnt>>RME_PGT_SIZE_4K)+1)*sizeof(struct __RME_X64_Pgreg);
-
     /* Calculate the per-CPU data structure size - each CPU have two 4k pages */
-    RME_X64_Layout.PerCPU_Start=RME_ROUND_UP(RME_X64_Layout.Pgreg_Start+RME_X64_Layout.Pgreg_Size,RME_PGT_SIZE_4K);
+    RME_X64_Layout.PerCPU_Start=RME_ROUND_UP(RME_X64_Layout.Kot_Start+RME_X64_Layout.Kot_Size,RME_PGT_SIZE_4K);
     RME_X64_Layout.PerCPU_Size=2*RME_POW2(RME_PGT_SIZE_4K)*RME_X64_Num_CPU;
 
     /* Now decide the size of the stack */
@@ -1110,21 +1104,12 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     rme_cnt_t PDP_Cnt;
     rme_cnt_t PDE_Cnt;
     rme_cnt_t Addr_Cnt;
-    struct __RME_X64_Pgreg* Pgreg;
     struct __RME_X64_Mem* Mem;
 
     /* Now initialize the kernel object allocation table */
     _RME_Kot_Init(RME_X64_Layout.Kot_Size/sizeof(rme_ptr_t));
     /* Reset PCID counter */
     RME_X64_PCID_Inc=0;
-
-    /* And the page table registration table as well */
-    Pgreg=(struct __RME_X64_Pgreg*)RME_X64_Layout.Pgreg_Start;
-    for(PML4_Cnt=0;PML4_Cnt<RME_X64_Layout.Pgreg_Size/sizeof(struct __RME_X64_Pgreg);PML4_Cnt++)
-    {
-        Pgreg[PML4_Cnt].Child_Cnt=0;
-        Pgreg[PML4_Cnt].Parent_Cnt=0;
-    }
 
     /* Create the frame for kernel page tables */
     for(PML4_Cnt=0;PML4_Cnt<256;PML4_Cnt++)
@@ -1303,10 +1288,6 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     RME_DBG_U(RME_X64_Layout.Kot_Start);
     RME_DBG_S("\n\rKot_Size:      0x");
     RME_DBG_U(RME_X64_Layout.Kot_Size);
-    RME_DBG_S("\n\rPgreg_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Pgreg_Start);
-    RME_DBG_S("\n\rPgreg_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Pgreg_Size);
     RME_DBG_S("\n\rPerCPU_Start:    0x");
     RME_DBG_U(RME_X64_Layout.PerCPU_Start);
     RME_DBG_S("\n\rPerCPU_Size:     0x");
@@ -1928,7 +1909,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_Pgt_Set(rme_ptr_t Pgt)
 {
-    __RME_X64_Pgt_Set(RME_X64_VA2PA(Pgt)|RME_X64_PGREG_POS(Pgt).PCID);
+    __RME_X64_Pgt_Set(RME_X64_VA2PA(Pgt));
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
@@ -1990,18 +1971,12 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     {
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
-
-        RME_X64_PGREG_POS(Ptr).PCID=RME_FETCH_ADD((rme_ptr_t*)&RME_X64_PCID_Inc,1)&0xFFF;
     }
     else
     {
         for(;Count<512;Count++)
             Ptr[Count]=0;
     }
-
-    /* Initialize its pgreg table to all zeros */
-    RME_X64_PGREG_POS(Ptr).Parent_Cnt=0;
-    RME_X64_PGREG_POS(Ptr).Child_Cnt=0;
 
     return 0;
 }
@@ -2015,16 +1990,8 @@ Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
-    rme_ptr_t* Table;
 
-    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
-
-    /* Check if it is mapped into other page tables. If yes, then it cannot be deleted.
-     * also, it must not contain mappings of lower levels, or it is not deletable. */
-    if((RME_X64_PGREG_POS(Table).Parent_Cnt==0)&&(RME_X64_PGREG_POS(Table).Child_Cnt==0))
-        return 0;
-
-    return RME_ERR_PGT_OPFAIL;
+    return 0;
 }
 /* End Function:__RME_Pgt_Del_Check ****************************************/
 
@@ -2140,10 +2107,6 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,X64_Flags)==0)
         return RME_ERR_PGT_OPFAIL;
 
-    /* Map complete, increase reference count for both page tables */
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),1);
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),1);
-
     return 0;
 }
 /* End Function:__RME_Pgt_Pgdir_Map ****************************************/
@@ -2185,10 +2148,6 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     /* Try to unmap it. Use CAS just in case */
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),Temp,0)==0)
         return RME_ERR_PGT_OPFAIL;
-
-    /* Decrease reference count */
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Child_Table).Parent_Cnt),-1);
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_X64_PGREG_POS(Parent_Table).Child_Cnt),-1);
 
     return 0;
 }

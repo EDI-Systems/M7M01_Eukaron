@@ -730,7 +730,8 @@ struct RME_Cap_Pgt
     rme_ptr_t Base;
     /* Address space ID, if applicable - need to convert to root cap to r/w. This
      * is only operated on by kernel function extensions, and is otherwise unused
-     * when the corresponding kernel function is not implemented. */
+     * when the corresponding kernel function is not implemented. Of course, this
+     * could also act as a pointer to other structures that extends address space. */
     rme_ptr_t ASID;
 };
 #endif
