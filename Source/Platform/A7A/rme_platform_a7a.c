@@ -10,6 +10,7 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 ******************************************************************************/
 
 /* Include *******************************************************************/
+//test
 #define __HDR_DEF__
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_kotbl.h"
