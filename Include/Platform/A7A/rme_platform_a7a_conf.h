@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename    : rme_platform_cav7_conf.h
+Filename    : rme_platform_a7a_conf.h
 Author      : pry
 Date        : 24/06/2017
 Licence     : LGPL v3+; see COPYING for details.

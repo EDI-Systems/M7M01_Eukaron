@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename    : platform_cav7.c
+Filename    : platform_a7a.c
 Author      : pry
 Date        : 01/04/2017
 Licence     : LGPL v3+; see COPYING for details.
@@ -10,7 +10,6 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 ******************************************************************************/
 
 /* Include *******************************************************************/
-//test
 #define __HDR_DEF__
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_kotbl.h"
@@ -18,11 +17,11 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 #include "Kernel/rme_pgtbl.h"
 #include "Kernel/rme_prcthd.h"
 #include "Kernel/rme_siginv.h"
-#include "Platform/CortexAv7/rme_platform_cav7.h"
+#include "Platform/CortexAv7/rme_platform_a7a.h"
 #undef __HDR_DEF__
 
 #define __HDR_STRUCT__
-#include "Platform/CortexAv7/rme_platform_cav7.h"
+#include "Platform/CortexAv7/rme_platform_a7a.h"
 #include "Kernel/rme_captbl.h"
 #include "Kernel/rme_kernel.h"
 #include "Kernel/rme_prcthd.h"
@@ -31,7 +30,7 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 #undef __HDR_STRUCT__
 
 /* Private include */
-#include "Platform/CortexAv7/rme_platform_cav7.h"
+#include "Platform/CortexAv7/rme_platform_a7a.h"
 
 #define __HDR_PUBLIC__
 #include "Kernel/rme_kernel.h"
@@ -67,25 +66,25 @@ Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t __RME_Putchar(char Char)
 {
-    RME_CAV7_PUTCHAR(Char);
+    RME_A7A_PUTCHAR(Char);
     return 0;
 }
 /* End Function:__RME_Putchar ************************************************/
 
-/* Function:__RME_CAV7_CPU_Local_Get ******************************************
+/* Function:__RME_A7A_CPU_Local_Get ******************************************
 Description : Get the CPU-local data structures. This is to identify where we are
               executing.
 Input       : None.
 Output      : None.
 Return      : struct RME_CPU_Local* - The CPU-local data structures.
 ******************************************************************************/
-struct RME_CPU_Local* __RME_CAV7_CPU_Local_Get(void)
+struct RME_CPU_Local* __RME_A7A_CPU_Local_Get(void)
 {
-	return &RME_CAV7_Local[__RME_CAV7_MPIDR_Get()&0x03];
+	return &RME_A7A_Local[__RME_A7A_MPIDR_Get()&0x03];
 }
-/* End Function:__RME_CAV7_CPU_Local_Get *************************************/
+/* End Function:__RME_A7A_CPU_Local_Get *************************************/
 
-/* Function:__RME_CAV7_Int_Init ***********************************************
+/* Function:__RME_A7A_Int_Init ***********************************************
 Description : Initialize the interrupt controller of the Cortex-A ARMv7 platform.
               This will only initialize the distributor and will only be run by
               the first CPU. This will initialize the timer as well.
@@ -93,115 +92,115 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Int_Init(void)
+void __RME_A7A_Int_Init(void)
 {
     rme_ptr_t Temp;
     rme_ptr_t Lines;
 
     /* Who implemented the GIC, what variant, how many interrupts? */
-    Temp=RME_CAV7_GICD_IIDR;
-    RME_DBG_S("\r\nCAV7-GIC: ProductID: ");
+    Temp=RME_A7A_GICD_IIDR;
+    RME_DBG_S("\r\nA7A-GIC: ProductID: ");
     RME_DBG_I(Temp>>24);
-    RME_DBG_S("\r\nCAV7-GIC: Variant: ");
+    RME_DBG_S("\r\nA7A-GIC: Variant: ");
     RME_DBG_I((Temp>>20)&0xF);
-    RME_DBG_S("\r\nCAV7-GIC: Revision: ");
+    RME_DBG_S("\r\nA7A-GIC: Revision: ");
     RME_DBG_I((Temp>>12)&0xF);
-    RME_DBG_S("\r\nCAV7-GIC: Implementer: 0x");
+    RME_DBG_S("\r\nA7A-GIC: Implementer: 0x");
     RME_DBG_U(Temp&0xFFF);
 
     /* How many locked SPIs, security extension enabled or not, number of
      * actual CPUs and interrupt lines */
-    Temp=RME_CAV7_GICD_TYPER;
-    RME_DBG_S("\r\nCAV7-GIC: SPI number: ");
+    Temp=RME_A7A_GICD_TYPER;
+    RME_DBG_S("\r\nA7A-GIC: SPI number: ");
     RME_DBG_I(Temp>>16);
-    RME_DBG_S("\r\nCAV7-GIC: Security extension: ");
+    RME_DBG_S("\r\nA7A-GIC: Security extension: ");
     RME_DBG_I((Temp>>10)&0x1);
-    RME_DBG_S("\r\nCAV7-GIC: CPU number: ");
+    RME_DBG_S("\r\nA7A-GIC: CPU number: ");
     RME_DBG_I(((Temp>>5)&0x7)+1);
-    RME_DBG_S("\r\nCAV7-GIC: Interrupt line number: ");
+    RME_DBG_S("\r\nA7A-GIC: Interrupt line number: ");
     Lines=((Temp&0x1F)+1)*32;
     RME_DBG_I(Lines);
 
-#if(RME_CAV7_GIC_TYPE==RME_CAV7_GIC_V1)
+#if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
     /* Initialize all vectors to group 0, and disable all */
 	for(Temp=0;Temp<Lines/32;Temp++)
 	{
-		RME_CAV7_GICD_ICPENDR(Temp)=0xFFFFFFFFU;
-		RME_CAV7_GICD_IGROUPR(Temp)=0x00000000U;
-		RME_CAV7_GICD_ICENABLER(Temp)=0xFFFFFFFFU;
+		RME_A7A_GICD_ICPENDR(Temp)=0xFFFFFFFFU;
+		RME_A7A_GICD_IGROUPR(Temp)=0x00000000U;
+		RME_A7A_GICD_ICENABLER(Temp)=0xFFFFFFFFU;
 	}
 
 	/* Set the priority of all such interrupts to the lowest level */
 	for(Temp=0;Temp<Lines/4;Temp++)
-		RME_CAV7_GICD_IPRIORITYR(Temp)=0xA0A0A0A0U;
+		RME_A7A_GICD_IPRIORITYR(Temp)=0xA0A0A0A0U;
 
 	/* All interrupts target CPU0 */
 	for(Temp=8;Temp<Lines/4;Temp++)
-		RME_CAV7_GICD_ITARGETSR(Temp)=0x01010101U;
+		RME_A7A_GICD_ITARGETSR(Temp)=0x01010101U;
 
 	/* All interrupts are edge triggered, and use 1-N model */
 	for(Temp=0;Temp<Lines/16;Temp++)
-		RME_CAV7_GICD_ICFGR(Temp)=0x55555555U;
+		RME_A7A_GICD_ICFGR(Temp)=0x55555555U;
 
 	/* Enable the interrupt controller */
-	RME_CAV7_GICD_CTLR=RME_CAV7_GICD_CTLR_GRP1EN|RME_CAV7_GICD_CTLR_GRP0EN;
+	RME_A7A_GICD_CTLR=RME_A7A_GICD_CTLR_GRP1EN|RME_A7A_GICD_CTLR_GRP0EN;
 #else
     /* Initialize all vectors to group 1, unless otherwise noted, and disable all */
     for(Temp=0;Temp<Lines/32;Temp++)
     {
-    	RME_CAV7_GICD_ICPENDR(Temp)=0xFFFFFFFFU;
-    	RME_CAV7_GICD_IGROUPR(Temp)=0xFFFFFFFFU;
-    	RME_CAV7_GICD_ICENABLER(Temp)=0xFFFFFFFFU;
+    	RME_A7A_GICD_ICPENDR(Temp)=0xFFFFFFFFU;
+    	RME_A7A_GICD_IGROUPR(Temp)=0xFFFFFFFFU;
+    	RME_A7A_GICD_ICENABLER(Temp)=0xFFFFFFFFU;
     }
 
     /* Set the priority of all such interrupts to the lowest level*/
     for(Temp=0;Temp<Lines/4;Temp++)
-		RME_CAV7_GICD_IPRIORITYR(Temp)=0xE0E0E0E0U;
+		RME_A7A_GICD_IPRIORITYR(Temp)=0xE0E0E0E0U;
 
     /* All interrupts target CPU0 */
     for(Temp=8;Temp<Lines/4;Temp++)
-    	RME_CAV7_GICD_ITARGETSR(Temp)=0x01010101U;
+    	RME_A7A_GICD_ITARGETSR(Temp)=0x01010101U;
 
     /* All interrupts are edge triggered, and use 1-N model */
     for(Temp=0;Temp<Lines/16;Temp++)
-    	RME_CAV7_GICD_ICFGR(Temp)=0xFFFFFFFFU;
+    	RME_A7A_GICD_ICFGR(Temp)=0xFFFFFFFFU;
 
     /* Enable the interrupt controller */
-    RME_CAV7_GICD_CTLR=RME_CAV7_GICD_CTLR_GRP1EN|RME_CAV7_GICD_CTLR_GRP0EN;
+    RME_A7A_GICD_CTLR=RME_A7A_GICD_CTLR_GRP1EN|RME_A7A_GICD_CTLR_GRP0EN;
 #endif
 }
-/* End Function:__RME_CAV7_Int_Init ******************************************/
+/* End Function:__RME_A7A_Int_Init ******************************************/
 
-/* Function:__RME_CAV7_Int_Local_Init *****************************************
+/* Function:__RME_A7A_Int_Local_Init *****************************************
 Description : Initialize the local CPU interface of the processor.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Int_Local_Init(void)
+void __RME_A7A_Int_Local_Init(void)
 {
 	/* Priority grouping */
-	RME_CAV7_GICC_BPR=RME_CAV7_GIC_GROUPING;
+	RME_A7A_GICC_BPR=RME_A7A_GIC_GROUPING;
 
-#if(RME_CAV7_GIC_TYPE==RME_CAV7_GIC_V1)
+#if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Enable all interrupts to this interface - FIQ is bypassed, and all
 	 * interrupts go through the IRQ. The FIQ feature is only available on
 	 * the stabdalone FIQ interrupt line */
-	RME_CAV7_GICC_CTLR=RME_CAV7_GICC_ENABLEGRP0;
+	RME_A7A_GICC_CTLR=RME_A7A_GICC_ENABLEGRP0;
 #else
-	RME_CAV7_GICC_CTLR=RME_CAV7_GICC_CBPR|RME_CAV7_GICC_FIQEN|
-			           RME_CAV7_GICC_ENABLEGRP1|RME_CAV7_GICC_ENABLEGRP0;
+	RME_A7A_GICC_CTLR=RME_A7A_GICC_CBPR|RME_A7A_GICC_FIQEN|
+			           RME_A7A_GICC_ENABLEGRP1|RME_A7A_GICC_ENABLEGRP0;
 #endif
 
 	/* No interrupts are masked - This must be set at last because enabling
 	 * will trash the contents of this register if previously set. To maintain
 	 * compatibility across all possible implementations, no priority level
 	 * lower than 0xF0 will be considered valid */
-	RME_CAV7_GICC_PMR=0xF0U;
+	RME_A7A_GICC_PMR=0xF0U;
 }
-/* End Function:__RME_CAV7_Int_Local_Init ************************************/
+/* End Function:__RME_A7A_Int_Local_Init ************************************/
 
-/* Function:__RME_CAV7_Timer_Init *********************************************
+/* Function:__RME_A7A_Timer_Init *********************************************
 Description : Initialize the interrupt controller of the Cortex-A ARMv7 platform.
               This will only initialize the distributor and will only be run by
               the first CPU. This will initialize the timer as well.
@@ -209,31 +208,31 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Timer_Init(void)
+void __RME_A7A_Timer_Init(void)
 {
-#if((RME_CAV7_CPU_TYPE==RME_CAV7_CPU_CORTEX_A5)|| \
-	(RME_CAV7_CPU_TYPE==RME_CAV7_CPU_CORTEX_A9))
+#if((RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A5)|| \
+	(RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A9))
     /* Writing this will also write the counter register as well */
-    RME_CAV7_PTWD_PTLR=RME_CAV7_SYSTICK_VAL;
+    RME_A7A_PTWD_PTLR=RME_A7A_SYSTICK_VAL;
     /* Clear the interrupt flag */
-    RME_CAV7_PTWD_PTISR=0;
+    RME_A7A_PTWD_PTISR=0;
     /* Start the timer */
-    RME_CAV7_PTWD_PTCTLR=RME_CAV7_PTWD_PTCTLR_PRESC(0)|
-                         RME_CAV7_PTWD_PTCTLR_IRQEN|
-						 RME_CAV7_PTWD_PTCTLR_AUTOREL|
-						 RME_CAV7_PTWD_PTCTLR_TIMEN;
+    RME_A7A_PTWD_PTCTLR=RME_A7A_PTWD_PTCTLR_PRESC(0)|
+                         RME_A7A_PTWD_PTCTLR_IRQEN|
+						 RME_A7A_PTWD_PTCTLR_AUTOREL|
+						 RME_A7A_PTWD_PTCTLR_TIMEN;
 
     /* Enable the timer interrupt in the GIC */
-    RME_CAV7_GICD_ISENABLER(0)|=1<<29;
+    RME_A7A_GICD_ISENABLER(0)|=1<<29;
 #else
 	#error Cortex-A7/8/15/17 is not supported at the moment.
     Cortex-A7/15/17 use the new generic timer, and Cortex-A8 does not
 	have a processor timer due to very early release dates.
 #endif
 }
-/* End Function:__RME_CAV7_Timer_Init ****************************************/
+/* End Function:__RME_A7A_Timer_Init ****************************************/
 
-/* Function:__RME_CAV7_Feature_Get ********************************************
+/* Function:__RME_A7A_Feature_Get ********************************************
 Description : Use the CPUID instruction extensively to get all the processor
               information. We assume that all processors installed have the same
               features.
@@ -241,14 +240,14 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Feature_Get(void)
+void __RME_A7A_Feature_Get(void)
 {
 
     /* TODO: Check these flags. If not satisfied, we hang immediately. */
 }
-/* End Function:__RME_CAV7_Feature_Get ***************************************/
+/* End Function:__RME_A7A_Feature_Get ***************************************/
 
-/* Function:__RME_CAV7_Mem_Init ***********************************************
+/* Function:__RME_A7A_Mem_Init ***********************************************
 Description : Initialize the memory map, and get the size of kernel object
               allocation registration table(Kot) and page table reference
               count registration table(Pgreg).
@@ -257,36 +256,36 @@ Input       : rme_ptr_t MMap_Addr - The GRUB multiboot memory map data address.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-const rme_ptr_t RME_CAV7_Mem_Info[RME_CAV7_MEM_ENTRIES]={RME_CAV7_MEM_CONTENTS};
-void __RME_CAV7_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
+const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES]={RME_A7A_MEM_CONTENTS};
+void __RME_A7A_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
 {
 
 }
-/* End Function:__RME_CAV7_Mem_Init ******************************************/
+/* End Function:__RME_A7A_Mem_Init ******************************************/
 
-/* Function:__RME_CAV7_SMP_Init ***********************************************
+/* Function:__RME_A7A_SMP_Init ***********************************************
 Description : Start all other processors, one by one.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_SMP_Init(void)
+void __RME_A7A_SMP_Init(void)
 {
 
 }
-/* End Function:__RME_CAV7_SMP_Init ******************************************/
+/* End Function:__RME_A7A_SMP_Init ******************************************/
 
-/* Function:__RME_CAV7_SMP_Tick ***********************************************
+/* Function:__RME_A7A_SMP_Tick ***********************************************
 Description : Send IPI to all other cores,to run their handler on the time.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_SMP_Tick(void)
+void __RME_A7A_SMP_Tick(void)
 {
 
 }
-/* End Function:__RME_CAV7_SMP_Tick *******************************************/
+/* End Function:__RME_A7A_SMP_Tick *******************************************/
 
 /* Function:__RME_Low_Level_Init **********************************************
 Description : Initialize the low-level hardware. This assumes that we are already
@@ -298,24 +297,24 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Low_Level_Init(void)
 {
     /* Initialize hardware */
-    RME_CAV7_LOW_LEVEL_INIT();
+    RME_A7A_LOW_LEVEL_INIT();
 
     /* Initialize our own CPU-local data structure */
-    _RME_CPU_Local_Init(&RME_CAV7_Local[0],0);
+    _RME_CPU_Local_Init(&RME_A7A_Local[0],0);
 
     /* Initialize the interrupt controller */
-    __RME_CAV7_Int_Init();
+    __RME_A7A_Int_Init();
 
     /* Initialize CPU-local interrupt resources */
-	__RME_CAV7_Int_Local_Init();
+	__RME_A7A_Int_Local_Init();
 
     /* Initialize the vector table */
-    RME_DBG_S("\r\nCAV7-Vector: 0x");
-    RME_DBG_U((rme_ptr_t)&__RME_CAV7_Vector_Table);
-    __RME_CAV7_VBAR_Set((rme_ptr_t)&__RME_CAV7_Vector_Table);
+    RME_DBG_S("\r\nA7A-Vector: 0x");
+    RME_DBG_U((rme_ptr_t)&__RME_A7A_Vector_Table);
+    __RME_A7A_VBAR_Set((rme_ptr_t)&__RME_A7A_Vector_Table);
 
-    RME_DBG_S("\r\nCAV7-Non-Secure: ");
-    RME_DBG_U(__RME_CAV7_SCR_Get());
+    RME_DBG_S("\r\nA7A-Non-Secure: ");
+    RME_DBG_U(__RME_A7A_SCR_Get());
 
     return 0;
 }
@@ -345,9 +344,9 @@ Return      : None.
 rme_ptr_t __RME_SMP_Low_Level_Init(void)
 {
     /* Initialize hardware */
-    RME_CAV7_SMP_LOW_LEVEL_INIT();
+    RME_A7A_SMP_LOW_LEVEL_INIT();
     /* Initialize our own CPU-local variables */
-    _RME_CPU_Local_Init(&RME_CAV7_Local[RME_CAV7_CPU_Cnt],RME_CAV7_CPU_Cnt);
+    _RME_CPU_Local_Init(&RME_A7A_Local[RME_A7A_CPU_Cnt],RME_A7A_CPU_Cnt);
     return 0;
 }
 /* End Function:__RME_SMP_Low_Level_Init *************************************/
@@ -361,7 +360,7 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Boot(void)
 {
     /* Initialize timer */
-	__RME_CAV7_Timer_Init();
+	__RME_A7A_Timer_Init();
     __RME_Enable_Int();
 	while(1);
     return 0;
@@ -567,78 +566,78 @@ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
 
-/* Function:__RME_CAV7_Undefined_Handler **************************************
+/* Function:__RME_A7A_Undefined_Handler **************************************
 Description : The undefined instruction vector handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Undefined_Handler(struct RME_Reg_Struct* Reg)
+void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle undefined instructions now */
 	while(1);
 }
-/* End Function:__RME_CAV7_Undefined_Handler *********************************/
+/* End Function:__RME_A7A_Undefined_Handler *********************************/
 
-/* Function:__RME_CAV7_Prefetch_Abort_Handler *********************************
+/* Function:__RME_A7A_Prefetch_Abort_Handler *********************************
 Description : The prefetch abort vector handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg)
+void __RME_A7A_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle prefetch aborts now */
 	while(1);
 }
-/* End Function:__RME_CAV7_Prefetch_Abort_Handler ****************************/
+/* End Function:__RME_A7A_Prefetch_Abort_Handler ****************************/
 
-/* Function:__RME_CAV7_Data_Abort_Handler *************************************
+/* Function:__RME_A7A_Data_Abort_Handler *************************************
 Description : The data abort vector handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Data_Abort_Handler(struct RME_Reg_Struct* Reg)
+void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle data aborts now */
 	while(1);
 }
-/* End Function:__RME_CAV7_Data_Abort_Handler ********************************/
+/* End Function:__RME_A7A_Data_Abort_Handler ********************************/
 
-/* Function:__RME_CAV7_IRQ_Handler ********************************************
+/* Function:__RME_A7A_IRQ_Handler ********************************************
 Description : The regular interrupt vector handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_IRQ_Handler(struct RME_Reg_Struct* Reg)
+void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 {
 	rme_ptr_t Int_ID;
 	rme_ptr_t CPUID;
 
 	/* What interrupt is this? */
-	Int_ID=RME_CAV7_GICC_IAR;
+	Int_ID=RME_A7A_GICC_IAR;
 	CPUID=Int_ID>>10;
 	Int_ID&=0x3FFU;
 
-#if(RME_CAV7_GIC_TYPE==RME_CAV7_GIC_V1)
+#if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Is this a spurious interrupt? (Can't be 1022 because GICv1 don't have group1) */
 	RME_ASSERT(Int_ID!=1022);
 	if(Int_ID==1023)
 		return;
 	/* Only the booting processor will receive timer interrupts */
-#if((RME_CAV7_CPU_TYPE==RME_CAV7_CPU_CORTEX_A5)|| \
-	(RME_CAV7_CPU_TYPE==RME_CAV7_CPU_CORTEX_A9))
+#if((RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A5)|| \
+	(RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A9))
 	/* Is is an timer interrupt? (we know that it is at 29) */
 	if(Int_ID==29)
 	{
 		/* Clear the interrupt flag */
-	    RME_CAV7_PTWD_PTISR=0;
+	    RME_A7A_PTWD_PTISR=0;
 		_RME_Tick_Handler(Reg);
 		/* Send interrupt to all other processors to notify them about this */
 		/* EOI the interrupt */
-		RME_CAV7_GICC_EOIR=Int_ID;
+		RME_A7A_GICC_EOIR=Int_ID;
 		return;
 	}
 #else
@@ -655,16 +654,16 @@ void __RME_CAV7_IRQ_Handler(struct RME_Reg_Struct* Reg)
 		RME_ASSERT(CPUID==0);
 		_RME_Tick_SMP_Handler(Reg);
 		/* EOI the interrupt */
-		RME_CAV7_GICC_EOIR=Int_ID;
+		RME_A7A_GICC_EOIR=Int_ID;
 		return;
 	}
 
 	/* Is this an other IPI? (All the rest of the SGIs are these) */
 	if(Int_ID<16)
 	{
-		_RME_CAV7_SGI_Handler(Reg,CPUID,Int_ID);
+		_RME_A7A_SGI_Handler(Reg,CPUID,Int_ID);
 		/* EOI the interrupt */
-		RME_CAV7_GICC_EOIR=(CPUID<<10U)|Int_ID;
+		RME_A7A_GICC_EOIR=(CPUID<<10U)|Int_ID;
 		return;
 	}
 
@@ -672,9 +671,9 @@ void __RME_CAV7_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	RME_ASSERT(CPUID==0);
 
 }
-/* End Function:__RME_CAV7_IRQ_Handler ***************************************/
+/* End Function:__RME_A7A_IRQ_Handler ***************************************/
 
-/* Function:_RME_CAV7_SGI_Handler *********************************************
+/* Function:_RME_A7A_SGI_Handler *********************************************
 Description : The generic interrupt handler of RME for x64.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
               rme_ptr_t CPUID - The ID of the sender CPU.
@@ -682,21 +681,21 @@ Input       : struct RME_Reg_Struct* Reg - The register set when entering the ha
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void _RME_CAV7_SGI_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Int_ID)
+void _RME_A7A_SGI_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Int_ID)
 {
 	/* Not handling SGIs */
 	return;
 }
-/* End Function:_RME_CAV7_SGI_Handler ****************************************/
+/* End Function:_RME_A7A_SGI_Handler ****************************************/
 
-/* Function:__RME_CAV7_Generic_Handler ****************************************
+/* Function:__RME_A7A_Generic_Handler ****************************************
 Description : The generic interrupt handler of RME for Cortex-A (ARMv7).
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
               rme_ptr_t Int_Num - The interrupt number.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : None.
 ******************************************************************************/
-void __RME_CAV7_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
+void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
 {
     /* Not handling interrupts */
     RME_DBG_S("\r\nGeneral int:");
@@ -709,7 +708,7 @@ void __RME_CAV7_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num)
     }
     /* Remember to perform context switch after any kernel sends */
 }
-/* End Function:__RME_CAV7_Generic_Handler ***********************************/
+/* End Function:__RME_A7A_Generic_Handler ***********************************/
 
 /* Function:__RME_Pgt_Set ***************************************************
 Description : Set the processor's page table.
@@ -800,7 +799,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 			Ptr[Count]=0;
 
 		for(;Count<4096;Count++)
-			Ptr[Count]=(&__RME_CAV7_Kern_Pgt)[Count];
+			Ptr[Count]=(&__RME_A7A_Kern_Pgt)[Count];
     }
     else
     {
@@ -809,8 +808,8 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 			Ptr[Count]=0;
     }
 
-    RME_CAV7_PGREG_POS(Ptr).Parent_Cnt=0;
-    RME_CAV7_PGREG_POS(Ptr).ASID_Child_Cnt=0;
+    RME_A7A_PGREG_POS(Ptr).Parent_Cnt=0;
+    RME_A7A_PGREG_POS(Ptr).ASID_Child_Cnt=0;
     return 0;
 }
 /* End Function:__RME_Pgt_Init *********************************************/
@@ -830,13 +829,13 @@ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
     /* See if this is a top-level. If yes, we only check child count */
     if((Pgt_Op->Start_Addr&RME_PGT_TOP)!=0)
     {
-    	if(((RME_CAV7_PGREG_POS(Table).ASID_Child_Cnt)&0xFFFF)==0)
+    	if(((RME_A7A_PGREG_POS(Table).ASID_Child_Cnt)&0xFFFF)==0)
     		return 0;
     }
     else
     {
     	/* Must be the second-level. We only check parent count because it can't have child anymore */
-    	if(RME_CAV7_PGREG_POS(Table).Parent_Cnt==0)
+    	if(RME_A7A_PGREG_POS(Table).Parent_Cnt==0)
     	        return 0;
     }
 
@@ -862,7 +861,7 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
     rme_ptr_t* Table;
-    rme_ptr_t CAV7_Flags;
+    rme_ptr_t A7A_Flags;
 
     /* It should at least be readable */
     if((Flags&RME_PGT_READ)==0)
@@ -877,12 +876,12 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
 
     /* Generate flags */
     if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
-        CAV7_Flags=RME_CAV7_MMU_1M_PAGE_ADDR(Paddr)|RME_CAV7_PGFLG_1M_RME2NAT(Flags);
+        A7A_Flags=RME_A7A_MMU_1M_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_1M_RME2NAT(Flags);
     else
-        CAV7_Flags=RME_CAV7_MMU_4K_PAGE_ADDR(Paddr)|RME_CAV7_PGFLG_4K_RME2NAT(Flags);
+        A7A_Flags=RME_A7A_MMU_4K_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_4K_RME2NAT(Flags);
 
     /* Try to map it in */
-    if(RME_COMP_SWAP(&(Table[Pos]),0,CAV7_Flags)==0)
+    if(RME_COMP_SWAP(&(Table[Pos]),0,A7A_Flags)==0)
         return RME_ERR_PGT_OPFAIL;
 
     return 0;
@@ -914,7 +913,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this a page directory? We cannot unmap page directories like this */
-    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_CAV7_MMU_1M_PGDIR_PRESENT)!=0))
+    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_A7A_MMU_1M_PGDIR_PRESENT)!=0))
         return RME_ERR_PGT_OPFAIL;
 
     /* Try to unmap it. Use CAS just in case */
@@ -940,7 +939,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
-    rme_ptr_t CAV7_Flags;
+    rme_ptr_t A7A_Flags;
 
     /* It should at least be readable */
     if((Flags&RME_PGT_READ)==0)
@@ -955,15 +954,15 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     Child_Table=RME_CAP_GETOBJ(Pgt_Child,rme_ptr_t*);
 
     /* Generate the content */
-    CAV7_Flags=RME_CAV7_MMU_1M_PGT_ADDR(RME_CAV7_VA2PA(Child_Table))|RME_CAV7_MMU_1M_PGDIR_PRESENT;
+    A7A_Flags=RME_A7A_MMU_1M_PGT_ADDR(RME_A7A_VA2PA(Child_Table))|RME_A7A_MMU_1M_PGDIR_PRESENT;
 
     /* Try to map it in - may need to increase some count */
-    if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,CAV7_Flags)==0)
+    if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,A7A_Flags)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Map complete, increase reference count for both page tables */
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_CAV7_PGREG_POS(Child_Table).Parent_Cnt),1);
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_CAV7_PGREG_POS(Parent_Table).ASID_Child_Cnt),1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Child_Table).Parent_Cnt),1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Parent_Table).ASID_Child_Cnt),1);
 
     return 0;
 }
@@ -995,7 +994,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this a page? We cannot unmap pages like this */
-    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)||((Temp&RME_CAV7_MMU_1M_PAGE_PRESENT)!=0))
+    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)||((Temp&RME_A7A_MMU_1M_PAGE_PRESENT)!=0))
         return RME_ERR_PGT_OPFAIL;
 
     Child_Table=(rme_ptr_t*)Temp;
@@ -1004,8 +1003,8 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
         return RME_ERR_PGT_OPFAIL;
 
     /* Decrease reference count */
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_CAV7_PGREG_POS(Child_Table).Parent_Cnt),-1);
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_CAV7_PGREG_POS(Parent_Table).ASID_Child_Cnt),-1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Child_Table).Parent_Cnt),-1);
+    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Parent_Table).ASID_Child_Cnt),-1);
 
     return 0;
 }
@@ -1038,25 +1037,25 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
     /* Start lookup - is this a terminal page, or? */
     if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
     {
-        if((Temp&RME_CAV7_MMU_4K_PAGE_PRESENT)==0)
+        if((Temp&RME_A7A_MMU_4K_PAGE_PRESENT)==0)
             return RME_ERR_PGT_OPFAIL;
 
         /* This is a small page. Return the physical address and flags */
         if(Paddr!=0)
-        	*Paddr=RME_CAV7_MMU_4K_PAGE_ADDR(Temp);
+        	*Paddr=RME_A7A_MMU_4K_PAGE_ADDR(Temp);
         if(Flags!=0)
-            *Flags=RME_CAV7_PGFLG_4K_NAT2RME(Temp);
+            *Flags=RME_A7A_PGFLG_4K_NAT2RME(Temp);
     }
     else
     {
-        if((Temp&RME_CAV7_MMU_1M_PAGE_PRESENT)==0)
+        if((Temp&RME_A7A_MMU_1M_PAGE_PRESENT)==0)
             return RME_ERR_PGT_OPFAIL;
 
         /* This is a section. Return the physical address and flags */
         if(Paddr!=0)
-        	*Paddr=RME_CAV7_MMU_1M_PAGE_ADDR(Temp);
+        	*Paddr=RME_A7A_MMU_1M_PAGE_ADDR(Temp);
         if(Flags!=0)
-            *Flags=RME_CAV7_PGFLG_1M_NAT2RME(Temp);
+            *Flags=RME_A7A_PGFLG_1M_NAT2RME(Temp);
     }
 
     return 0;
@@ -1104,7 +1103,7 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
 	Temp=Table[Pos];
 
 	/* Find the position of the entry - Is there a page, a directory, or nothing? */
-	if((Temp&RME_CAV7_MMU_1M_PAGE_PRESENT)!=0)
+	if((Temp&RME_A7A_MMU_1M_PAGE_PRESENT)!=0)
 	{
 		/* There is a 1M page */
 		if(Pgt!=0)
@@ -1112,24 +1111,24 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
 		if(Map_Vaddr!=0)
 			*Map_Vaddr=RME_ROUND_DOWN(Vaddr,RME_PGT_SIZE_1M);
 		if(Paddr!=0)
-			*Paddr=RME_CAV7_MMU_1M_PAGE_ADDR(Temp);
+			*Paddr=RME_A7A_MMU_1M_PAGE_ADDR(Temp);
 		if(Size_Order!=0)
 			*Size_Order=RME_PGT_SIZE_1M;
 		if(Num_Order!=0)
 			*Num_Order=RME_PGT_NUM_4K;
 		if(Flags!=0)
-			*Flags=RME_CAV7_PGFLG_1M_NAT2RME(Temp);
+			*Flags=RME_A7A_PGFLG_1M_NAT2RME(Temp);
 
 	}
-	else if((Temp&RME_CAV7_MMU_1M_PGDIR_PRESENT)!=0)
+	else if((Temp&RME_A7A_MMU_1M_PGDIR_PRESENT)!=0)
 	{
-		Table=(rme_ptr_t*)RME_CAV7_PA2VA(RME_CAV7_MMU_1M_PGT_ADDR(Temp));
+		Table=(rme_ptr_t*)RME_A7A_PA2VA(RME_A7A_MMU_1M_PGT_ADDR(Temp));
 		/* Calculate where is the entry - always 0 to 256 */
 		Pos=(Vaddr>>RME_PGT_SIZE_4K)&0xFFU;
 		/* Atomic read */
 		Temp=Table[Pos];
 
-		if((Temp&RME_CAV7_MMU_4K_PAGE_PRESENT)!=0)
+		if((Temp&RME_A7A_MMU_4K_PAGE_PRESENT)!=0)
 		{
 			/* There is a 4k page */
 			if(Pgt!=0)
@@ -1137,13 +1136,13 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
 			if(Map_Vaddr!=0)
 				*Map_Vaddr=RME_ROUND_DOWN(Vaddr,RME_PGT_SIZE_4K);
 			if(Paddr!=0)
-				*Paddr=RME_CAV7_MMU_4K_PAGE_ADDR(Temp);
+				*Paddr=RME_A7A_MMU_4K_PAGE_ADDR(Temp);
 			if(Size_Order!=0)
 				*Size_Order=RME_PGT_SIZE_4K;
 			if(Num_Order!=0)
 				*Num_Order=RME_PGT_NUM_256;
 			if(Flags!=0)
-				*Flags=RME_CAV7_PGFLG_4K_NAT2RME(Temp);
+				*Flags=RME_A7A_PGFLG_4K_NAT2RME(Temp);
 		}
 		else
 			return RME_ERR_PGT_OPFAIL;
