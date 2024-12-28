@@ -25,42 +25,42 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KOM_SLOT_ORDER          4U
 /* Kernel stack size and address */
-#define RME_KOM_STACK_ADDR          (((rme_ptr_t)&__RME_CAV7_Stack_Start)+0x10000U)
+#define RME_KOM_STACK_ADDR          (((rme_ptr_t)&__RME_A7A_Stack_Start)+0x10000U)
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32U
 
 /* Memory mapping PA-VA relationships for the page tables. Tailor this to your own
  * memory mappings if your chip have idiosyncrasies. */
-#define RME_CAV7_VA2PA(X)            (((rme_ptr_t)(X))-RME_CAV7_VA_BASE)
-#define RME_CAV7_PA2VA(X)            (((rme_ptr_t)(X))+RME_CAV7_VA_BASE)
+#define RME_A7A_VA2PA(X)            (((rme_ptr_t)(X))-RME_A7A_VA_BASE)
+#define RME_A7A_PA2VA(X)            (((rme_ptr_t)(X))+RME_A7A_VA_BASE)
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_CAV7_INT_FLAG_ADDR       0x10008000U
+#define RME_A7A_INT_FLAG_ADDR       0x10008000U
 /* Initial kenel object frontier limit */
-#define RME_CAV7_KOM_BOOT_FRONTIER  0x10003000U
+#define RME_A7A_KOM_BOOT_FRONTIER  0x10003000U
 /* Init process's first thread's entry point address */
-#define RME_CAV7_INIT_ENTRY          0x08004001U
+#define RME_A7A_INIT_ENTRY          0x08004001U
 /* Init process's first thread's stack address */
-#define RME_CAV7_INIT_STACK          0x1000FFF0U
+#define RME_A7A_INIT_STACK          0x1000FFF0U
 /* What is the Systick value? in ticks. For XC7Z020, always clocked at 1/2 Fcpu */
-#define RME_CAV7_SYSTICK_VAL         (7670000U/2U)
+#define RME_A7A_SYSTICK_VAL         (7670000U/2U)
 
 /* Processor type - This can make a huge difference when it comes
  * to timer configurations, as Cortex-A5/9 use private timer and
  * Cortex-A7/15/17 use generic timer. Cortex-A8 doesn't have a timer */
-#define RME_CAV7_CPU_TYPE			 RME_CAV7_CPU_CORTEX_A9
+#define RME_A7A_CPU_TYPE			 RME_A7A_CPU_CORTEX_A9
 /* What is the FPU type? */
-#define RME_CAV7_FPU_TYPE            RME_CAV7_FPU_VFPV3U
+#define RME_A7A_FPU_TYPE            RME_A7A_FPU_VFPV3U
 /* What is the GIC type? */
-#define RME_CAV7_GIC_TYPE            RME_CAV7_GIC_V1
+#define RME_A7A_GIC_TYPE            RME_A7A_GIC_V1
 /* What is the interrupt priority grouping? */
-#define RME_CAV7_GIC_GROUPING        RME_CAV7_GIC_GROUPING_P7S1
+#define RME_A7A_GIC_GROUPING        RME_A7A_GIC_GROUPING_P7S1
 /* GIC distributor base address */
-#define RME_CAV7_GICD_BASE           0xF8F01000
+#define RME_A7A_GICD_BASE           0xF8F01000
 /* GIC CPU interface base address */
-#define RME_CAV7_GICC_BASE           0xF8F00100
+#define RME_A7A_GICC_BASE           0xF8F00100
 /* Private timer and watchdog block base */
-#define RME_CAV7_PTWD_BASE           0xF8F00600
+#define RME_A7A_PTWD_BASE           0xF8F00600
 
 /* Because the system memory map of Cortex-A based systems are not decided by
  * a particular standard (unlike x86-64), and they cannot be probed as well
@@ -70,14 +70,14 @@ Description : The configuration file for XC7Z020, with 1MB memory.
  * mappings that we wish to make. This also needs to be in accordance with
  * the linker script. */
 /* Page table registration table */
-#define RME_CAV7_PGREG_START         0x80F00000U
-#define REM_CAV7_PGREG_SIZE          0x100000U
+#define RME_A7A_PGREG_START         0x80F00000U
+#define REM_A7A_PGREG_SIZE          0x100000U
 /* Kernel memory 1 - creating page tables on these memories is allowed */
-#define RME_CAV7_KOM1_START         0x81000000U
-#define RME_CAV7_KOM1_SIZE          0x40000000U
+#define RME_A7A_KOM1_START         0x81000000U
+#define RME_A7A_KOM1_SIZE          0x40000000U
 /* Kernel memory 2 - creating page tables on these memories are not allowed */
-#define RME_CAV7_KOM2_START         0x0U
-#define RME_CAV7_KOM2_SIZE          0x0U
+#define RME_A7A_KOM2_START         0x0U
+#define RME_A7A_KOM2_SIZE          0x0U
 
 /* Initial page table contents - They must contain only sections and supersections.
  * The initial page table will be generated according to this. Also, the kernel will
@@ -86,39 +86,39 @@ Description : The configuration file for XC7Z020, with 1MB memory.
  * The user memory mapped in here will become the user portion of the initial process,
  * and the kernel memory mapped in here will become the shared portion of processes.
  * We will map in the kernel entries as supersections whenever we can */
-#define RME_CAV7_MEM_ENTRIES        8*4U+1U
-#define RME_CAV7_MEM_CONTENTS \
+#define RME_A7A_MEM_ENTRIES        8*4U+1U
+#define RME_A7A_MEM_CONTENTS \
 /* Number of entries */ \
-  RME_CAV7_MEM_ENTRIES, \
+  RME_A7A_MEM_ENTRIES, \
 /* Start_PA    Start_VA    Num             Attributes         */ \
-  0x01000000, 0x01000000, 0x3F0, RME_CAV7_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */, \
-  0xFFF00000, 0x00000000, 0x1,   RME_CAV7_MMU_1M_PAGE_USER_DEF /* User memory - 64kB User-OCSRAM */, \
-  0x40000000, 0x40000000, 0x200, RME_CAV7_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
-  0xE0000000, 0x60000000, 0x200, RME_CAV7_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
-  0x00000000, 0x80000000, 0x400, RME_CAV7_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 1023MB DDR2 SDRAM */, \
-  0x00000000, 0xC0000000, 0x1,   RME_CAV7_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 192kB OCSRAM */, \
-  0x40100000, 0xC0100000, 0x1FF, RME_CAV7_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB device space */, \
-  0xE0000000, 0xE0000000, 0x200, RME_CAV7_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB Cortex device space */
+  0x01000000, 0x01000000, 0x3F0, RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */, \
+  0xFFF00000, 0x00000000, 0x1,   RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 64kB User-OCSRAM */, \
+  0x40000000, 0x40000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+  0xE0000000, 0x60000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+  0x00000000, 0x80000000, 0x400, RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 1023MB DDR2 SDRAM */, \
+  0x00000000, 0xC0000000, 0x1,   RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 192kB OCSRAM */, \
+  0x40100000, 0xC0100000, 0x1FF, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB device space */, \
+  0xE0000000, 0xE0000000, 0x200, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB Cortex device space */
 
 /* Kernel functions standard to Cortex-A, interrupt management and power */
-#define RME_CAV7_KERN_INT(X)          (X)
-#define RME_CAV7_INT_OP               0U
-#define RME_CAV7_INT_ENABLE           1U
-#define RME_CAV7_INT_DISABLE          0U
-#define RME_CAV7_INT_PRIO             1U
-#define RME_CAV7_KERN_PWR             240U
+#define RME_A7A_KERN_INT(X)          (X)
+#define RME_A7A_INT_OP               0U
+#define RME_A7A_INT_ENABLE           1U
+#define RME_A7A_INT_DISABLE          0U
+#define RME_A7A_INT_PRIO             1U
+#define RME_A7A_KERN_PWR             240U
 
 /* UART peripheral address */
-#define RME_CAV7_UART_CONTROL      (*((volatile rme_ptr_t*)(0xE0001000)))
-#define RME_CAV7_UART_MODE         (*((volatile rme_ptr_t*)(0xE0001004)))
-#define RME_CAV7_UART_BRGEN        (*((volatile rme_ptr_t*)(0xE0001018)))
-#define RME_CAV7_UART_STATUS       (*((volatile rme_ptr_t*)(0xE000102C)))
-#define RME_CAV7_UART_FIFO         (*((volatile rme_ptr_t*)(0xE0001030)))
-#define RME_CAV7_UART_BRDIV        (*((volatile rme_ptr_t*)(0xE0001034)))
-#define RME_CAV7_UART_STATUS_TXE   (1U<<3)
+#define RME_A7A_UART_CONTROL      (*((volatile rme_ptr_t*)(0xE0001000)))
+#define RME_A7A_UART_MODE         (*((volatile rme_ptr_t*)(0xE0001004)))
+#define RME_A7A_UART_BRGEN        (*((volatile rme_ptr_t*)(0xE0001018)))
+#define RME_A7A_UART_STATUS       (*((volatile rme_ptr_t*)(0xE000102C)))
+#define RME_A7A_UART_FIFO         (*((volatile rme_ptr_t*)(0xE0001030)))
+#define RME_A7A_UART_BRDIV        (*((volatile rme_ptr_t*)(0xE0001034)))
+#define RME_A7A_UART_STATUS_TXE   (1U<<3)
 
 /* Other low-level initialization stuff - The serial port */
-#define RME_CAV7_LOW_LEVEL_INIT() \
+#define RME_A7A_LOW_LEVEL_INIT() \
 do \
 { \
 	/* Somebody have initialized UART for us so we don't need to do it now */ \
@@ -127,7 +127,7 @@ do \
 } \
 while(0)
 
-#define RME_CAV7_SMP_LOW_LEVEL_INIT() \
+#define RME_A7A_SMP_LOW_LEVEL_INIT() \
 do \
 { \
 	\
@@ -135,11 +135,11 @@ do \
 while(0)
 
 /* This is for debugging output */
-#define RME_CAV7_PUTCHAR(CHAR) \
+#define RME_A7A_PUTCHAR(CHAR) \
 do \
 { \
-    while((RME_CAV7_UART_STATUS&RME_CAV7_UART_STATUS_TXE)==0); \
-	RME_CAV7_UART_FIFO=(CHAR); \
+    while((RME_A7A_UART_STATUS&RME_A7A_UART_STATUS_TXE)==0); \
+	RME_A7A_UART_FIFO=(CHAR); \
 } \
 while(0)
 /* End Define ****************************************************************/
