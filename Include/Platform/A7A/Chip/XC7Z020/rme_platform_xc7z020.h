@@ -13,19 +13,30 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 
 /* Define ********************************************************************/
 /* The HAL library */
+/* Are we using raw memory mappings? */
+#define RME_PGT_RAW_ENABLE                              (0U)
+/*The size of the processor's non-top-level page directory.*/
+#define RME_PGT_SIZE_NOM(X)          ((1<< X) + ?)
+/*The size of the processor's top-level page directory.*/
+#define RME_PGT_SIZE_TOP(X)          (RME_PGT_SIZE_NOM(X)+X)
 /* The virtual memory start address for the kernel objects */
-#define RME_KOM_VA_START            0x81000000U
+#define RME_KOM_VA_BASE              0x81000000U
 /* The size of the kernel object virtual memory - the excess 16MB is for mapping
  * in extra memory, like on-chip SRAM, if they are to be used */
-#define RME_KOM_SIZE                0x40000000U
-/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_START             0x0U
-/* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_SIZE                 0x0U
+#define RME_KOM_VA_SIZE              0x40000000U
 /* The granularity of kernel memory allocation, in bytes */
-#define RME_KOM_SLOT_ORDER          4U
+#define RME_KOM_SLOT_ORDER           4U
 /* Kernel stack size and address */
 #define RME_KOM_STACK_ADDR          (((rme_ptr_t)&__RME_A7A_Stack_Start)+0x10000U)
+/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
+#define RME_HYP_VA_BASE              0x0U
+/* The size of the hypervisor reserved virtual memory */
+#define RME_HYP_VA_SIZE              0x0U
+/* Kernel stack base and size */
+#define RME_KSTK_VA_BASE             (0x10000FF0U)
+#define RME_KSTK_VA_SIZE             (0x400U)
+/* Reboot the processor if the assert fails in this port */
+#define RME_ASSERT_FAILED(F,L,D,T)              __RME_Reboot()
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32U

@@ -12,33 +12,18 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 /* Include *******************************************************************/
 #define __HDR_DEF__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_kotbl.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
-#include "Platform/CortexAv7/rme_platform_a7a.h"
+#include "Platform/A7A/rme_platform_a7a.h"
 #undef __HDR_DEF__
 
 #define __HDR_STRUCT__
-#include "Platform/CortexAv7/rme_platform_a7a.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_kernel.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_siginv.h"
+#include "Platform/A7A/rme_platform_a7a.h"
 #undef __HDR_STRUCT__
 
 /* Private include */
-#include "Platform/CortexAv7/rme_platform_a7a.h"
+#include "Platform/A7A/rme_platform_a7a.h"
 
 #define __HDR_PUBLIC__
 #include "Kernel/rme_kernel.h"
-#include "Kernel/rme_captbl.h"
-#include "Kernel/rme_pgtbl.h"
-#include "Kernel/rme_kotbl.h"
-#include "Kernel/rme_prcthd.h"
-#include "Kernel/rme_siginv.h"
 #undef __HDR_PUBLIC__
 /* End Include ***************************************************************/
 

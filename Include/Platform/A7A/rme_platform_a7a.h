@@ -77,9 +77,9 @@ typedef rme_s32_t rme_ret_t;
 
 /* System macros *************************************************************/
 /* Compiler "extern" keyword setting */
-#define EXTERN                          extern
+#define RME_EXTERN                          extern
 /* Compiler "inline" keyword setting */
-#define INLINE                          inline
+#define RME_INLINE                          inline
 /* Compiler likely & unlikely setting */
 #ifdef likely
 #define RME_LIKELY(X)                   (likely(X))
@@ -94,19 +94,25 @@ typedef rme_s32_t rme_ret_t;
 /* CPU-local data structure location macro */
 #define RME_CPU_LOCAL()                 (__RME_A7A_CPU_Local_Get())
 /* The order of bits in one CPU machine word */
-#define RME_WORD_ORDER                  5
+#define RME_WORD_ORDER                  (5U)
 /* Forcing VA=PA in user memory segments */
 #define RME_VA_EQU_PA                   (RME_FALSE)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
 /* Cpt size limit - not restricted */
-#define RME_CPT_LIMIT                0
+#define RME_CPT_LIMIT                   0
+/* Cpt size limit - not restricted */
+#define RME_CPT_ENTRY_MAX                       (0U)
+/* Read timestamp counter */
+#define RME_TIMESTAMP                           (RME_A7A_Timestamp)
+/* Invocation stack maximum depth - not restricted */
+#define RME_INV_DEPTH_MAX                       (0U)
 /* Normal page directory size calculation macro */
 #define RME_PGT_SIZE_NOM(NUM_ORDER)   (1<<(NUM_ORDER))
 /* Top-level page directory size calculation macro */
 #define RME_PGT_SIZE_TOP(NUM_ORDER)   RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
-#define RME_KOT_VA_BASE                       RME_Kot
+#define RME_KOT_VA_BASE                       RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
@@ -721,339 +727,343 @@ static const rme_ptr_t RME_A7A_Pgflg_4K_NAT2RME[16]=
 static void __RME_A7A_Int_Init(void);
 static void __RME_A7A_Timer_Init(void);
 /*****************************************************************************/
-#define __EXTERN__
+#define __RME_EXTERN__
 /* End Private Function ******************************************************/
 
 /* Public Variable ***********************************************************/
 /* __HDR_PUBLIC__ */
 #else
-#define __EXTERN__ EXTERN 
+#define __RME_EXTERN__ RME_EXTERN 
 /* __HDR_PUBLIC__ */
 #endif
 
 /*****************************************************************************/
+/* Timestamp counter */
+__RME_EXTERN__ rme_ptr_t RME_A7A_Timestamp;
 /* Cortex-A9 can have up to 4 cores. We hard-code it here */
-__EXTERN__ struct RME_CPU_Local RME_A7A_Local[4];
+__RME_EXTERN__ struct RME_CPU_Local RME_A7A_Local[4];
+/* ARMv6-M use simple kernel object table */
+__RME_EXTERN__ rme_ptr_t RME_A7A_Kot[RME_KOT_WORD_NUM];
 /* The memory layout of this chip */
-__EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES];
+__RME_EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES];
 /* The start of the contiguous stack area for all processors */
-EXTERN rme_ptr_t __RME_A7A_Stack_Start;
+RME_EXTERN rme_ptr_t __RME_A7A_Stack_Start;
 /* The CPU initialization counter */
-__EXTERN__ rme_ptr_t RME_A7A_CPU_Cnt;
+__RME_EXTERN__ rme_ptr_t RME_A7A_CPU_Cnt;
 /* The initial page table */
-EXTERN rme_ptr_t __RME_A7A_Kern_Pgt;
+RME_EXTERN rme_ptr_t __RME_A7A_Kern_Pgt;
 /* The interrupt vector */
-EXTERN rme_ptr_t __RME_A7A_Vector_Table;
+RME_EXTERN rme_ptr_t __RME_A7A_Vector_Table;
 /* The memory layout struct - currently not used */
-/* __EXTERN__ struct RME_A7A_Mem_Layout RME_A7A_Layout; */
+/* __RME_EXTERN__ struct RME_A7A_Mem_Layout RME_A7A_Layout; */
 /*****************************************************************************/
 
 /* End Public Variable *******************************************************/
 
 /* Public Function ***********************************************************/
 /*****************************************************************************/
-__EXTERN__ void Test(void);
+__RME_EXTERN__ void Test(void);
 /* Cortex-A (ARMv7) register reads */
-EXTERN rme_ptr_t __RME_A7A_CPSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_SPSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CPSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_SPSR_Get(void);
 /* C0 */
-EXTERN rme_ptr_t __RME_A7A_MIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CTR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TCMTR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TLBTR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_MPIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_REVIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_PFR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_PFR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_DFR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_AFR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_MMFR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_MMFR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_MMFR2_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_MMFR3_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR2_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR3_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR4_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_ISAR5_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_CCSIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_CLIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_AIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_CSSELR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_VPIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ID_VMPIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_MIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CTR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TCMTR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TLBTR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_MPIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_REVIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_PFR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_PFR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_DFR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_AFR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_MMFR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_MMFR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_MMFR2_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_MMFR3_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR2_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR3_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR4_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_ISAR5_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_CCSIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_CLIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_AIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_CSSELR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_VPIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ID_VMPIDR_Get(void);
 /* C1 */
-EXTERN rme_ptr_t __RME_A7A_SCTLR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ACTLR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CPACR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_SCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_SDER_Get(void);
-EXTERN rme_ptr_t __RME_A7A_NSACR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HSCTLR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HACTLR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HDCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HCPTR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HSTR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HACR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_SCTLR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ACTLR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CPACR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_SCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_SDER_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_NSACR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HSCTLR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HACTLR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HDCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HCPTR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HSTR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HACR_Get(void);
 /* C2 */
-EXTERN rme_ptr_t __RME_A7A_TTBR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TTBR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TTBCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HTCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_VTCR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_DACR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TTBR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TTBR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TTBCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HTCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_VTCR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_DACR_Get(void);
 /* C5 */
-EXTERN rme_ptr_t __RME_A7A_DFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_IFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ADFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_AIFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HADFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HAIFSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HSR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_DFAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_IFAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HDFAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HIFAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HPFAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_PAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_DFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_IFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ADFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_AIFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HADFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HAIFSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HSR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_DFAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_IFAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HDFAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HIFAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HPFAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_PAR_Get(void);
 /* C10 */
-EXTERN rme_ptr_t __RME_A7A_TLBLR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_PRRR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_NMRR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_AMAIR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_AMAIR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HMAIR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HMAIR1_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HAMAIR0_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HAMAIR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TLBLR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_PRRR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_NMRR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_AMAIR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_AMAIR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HMAIR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HMAIR1_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HAMAIR0_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HAMAIR1_Get(void);
 /* C12 */
-EXTERN rme_ptr_t __RME_A7A_VBAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_MVBAR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_ISR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HVBAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_VBAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_MVBAR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_ISR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HVBAR_Get(void);
 /* C13 */
-EXTERN rme_ptr_t __RME_A7A_FCSEIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CONTEXTIDR_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TPIDRURW_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TPIDRURO_Get(void);
-EXTERN rme_ptr_t __RME_A7A_TPIDRPRW_Get(void);
-EXTERN rme_ptr_t __RME_A7A_HTPIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_FCSEIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CONTEXTIDR_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TPIDRURW_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TPIDRURO_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_TPIDRPRW_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_HTPIDR_Get(void);
 /* C14 */
-EXTERN rme_ptr_t __RME_A7A_CNTFRQ_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTKCTL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTP_TVAL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTP_CTL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTV_TVAL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTV_CTL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTHCTL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTHP_TVAL_Get(void);
-EXTERN rme_ptr_t __RME_A7A_CNTHP_CTL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTFRQ_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTKCTL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTP_TVAL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTP_CTL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTV_TVAL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTV_CTL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTHCTL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTHP_TVAL_Get(void);
+RME_EXTERN rme_ptr_t __RME_A7A_CNTHP_CTL_Get(void);
 /* Double words */
-EXTERN void __RME_A7A_CNTPCT_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
-EXTERN void __RME_A7A_CNTVCT_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
-EXTERN void __RME_A7A_CNTP_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
-EXTERN void __RME_A7A_CNTV_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
-EXTERN void __RME_A7A_CNTVOFF_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
-EXTERN void __RME_A7A_CNTHP_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTPCT_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTVCT_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTP_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTV_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTVOFF_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
+RME_EXTERN void __RME_A7A_CNTHP_CVAL_DW_Get(rme_ptr_t* Low, rme_ptr_t* High);
 
 /* Cortex-A (ARMv7) register writes */
-EXTERN void __RME_A7A_CPSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_SPSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CPSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_SPSR_Set(rme_ptr_t Val);
 /* C0 */
-EXTERN void __RME_A7A_ID_CSSELR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ID_VPIDR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ID_VMPIDR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ID_CSSELR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ID_VPIDR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ID_VMPIDR_Set(rme_ptr_t Val);
 /* C1 */
-EXTERN void __RME_A7A_SCTLR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ACTLR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CPACR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_SCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_SDER_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_NSACR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HSCTLR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HACTLR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HDCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HCPTR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HSTR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HACR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_SCTLR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ACTLR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CPACR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_SCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_SDER_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_NSACR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HSCTLR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HACTLR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HDCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HCPTR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HSTR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HACR_Set(rme_ptr_t Val);
 /* C2,C3 */
-EXTERN void __RME_A7A_TTBR0_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TTBR1_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TTBCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HTCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_VTCR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DACR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TTBR0_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TTBR1_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TTBCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HTCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_VTCR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DACR_Set(rme_ptr_t Val);
 /* C5 */
-EXTERN void __RME_A7A_DFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_IFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ADFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_AIFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HADFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HAIFSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HSR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DFAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_IFAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HDFAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HIFAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HPFAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_IFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ADFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_AIFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HADFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HAIFSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HSR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DFAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_IFAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HDFAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HIFAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HPFAR_Set(rme_ptr_t Val);
 /* C7 */
-EXTERN void __RME_A7A_ICIALLUIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_BPIALLIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_PAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ICIALLU_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ICIMVAU_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CP15ISB_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_BPIALL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_BPIMVA_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCIMVAC_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCISW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1CPR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1CPW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1CUR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1CUW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS12NSOPR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS12NSOPW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS12NSOUR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS12NSOUW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCCMVAC_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCCSW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CP15DSB_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CP15DMB_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCCMVAU_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCCIMVAC_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DCCISW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1HR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ATS1HW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ICIALLUIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_BPIALLIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_PAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ICIALLU_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ICIMVAU_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CP15ISB_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_BPIALL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_BPIMVA_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCIMVAC_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCISW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1CPR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1CPW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1CUR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1CUW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS12NSOPR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS12NSOPW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS12NSOUR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS12NSOUW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCCMVAC_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCCSW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CP15DSB_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CP15DMB_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCCMVAU_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCCIMVAC_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DCCISW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1HR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ATS1HW_Set(rme_ptr_t Val);
 /* C8 */
-EXTERN void __RME_A7A_TLBIALLIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVAIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIASIDIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVAAIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ITLBIALL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ITLBIMVA_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_ITLBIASID_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DTLBIALL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DTLBIMVA_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_DTLBIASID_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIALL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVA_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIASID_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVAA_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIALLHIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVAHIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIALLNSNHIS_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIALLH_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIMVAH_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TLBIALLNSNH_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALLIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVAIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIASIDIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVAAIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ITLBIALL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ITLBIMVA_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_ITLBIASID_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DTLBIALL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DTLBIMVA_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_DTLBIASID_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVA_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIASID_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVAA_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALLHIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVAHIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALLNSNHIS_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALLH_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIMVAH_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBIALLNSNH_Set(rme_ptr_t Val);
 /* C10 */
-EXTERN void __RME_A7A_TLBLR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_PRRR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_NMRR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_AMAIR0_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_AMAIR1_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HMAIR0_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HMAIR1_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HAMAIR0_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HAMAIR1_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TLBLR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_PRRR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_NMRR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_AMAIR0_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_AMAIR1_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HMAIR0_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HMAIR1_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HAMAIR0_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HAMAIR1_Set(rme_ptr_t Val);
 /* C12 */
-EXTERN void __RME_A7A_VBAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_MVBAR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HVBAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_VBAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_MVBAR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HVBAR_Set(rme_ptr_t Val);
 /* C13 */
-EXTERN void __RME_A7A_CONTEXTIDR_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TPIDRURW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TPIDRURO_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_TPIDRPRW_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_HTPIDR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CONTEXTIDR_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TPIDRURW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TPIDRURO_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_TPIDRPRW_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_HTPIDR_Set(rme_ptr_t Val);
 /* C14 */
-EXTERN void __RME_A7A_CNTFRQ_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTKCTL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTP_TVAL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTP_CTL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTV_TVAL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTV_CTL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTHCTL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTHP_TVAL_Set(rme_ptr_t Val);
-EXTERN void __RME_A7A_CNTHP_CTL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTFRQ_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTKCTL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTP_TVAL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTP_CTL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTV_TVAL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTV_CTL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTHCTL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTHP_TVAL_Set(rme_ptr_t Val);
+RME_EXTERN void __RME_A7A_CNTHP_CTL_Set(rme_ptr_t Val);
 /* Double words */
-EXTERN void __RME_A7A_CNTP_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
-EXTERN void __RME_A7A_CNTV_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
-EXTERN void __RME_A7A_CNTVOFF_DW_Set(rme_ptr_t Low, rme_ptr_t High);
-EXTERN void __RME_A7A_CNTHP_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
+RME_EXTERN void __RME_A7A_CNTP_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
+RME_EXTERN void __RME_A7A_CNTV_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
+RME_EXTERN void __RME_A7A_CNTVOFF_DW_Set(rme_ptr_t Low, rme_ptr_t High);
+RME_EXTERN void __RME_A7A_CNTHP_CVAL_DW_Set(rme_ptr_t Low, rme_ptr_t High);
 
 /* Handlers */
-__EXTERN__ void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_A7A_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg);
-__EXTERN__ void _RME_A7A_SGI_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Int_ID);
+__RME_EXTERN__ void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_A7A_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void _RME_A7A_SGI_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Int_ID);
 /* Interrupts */
-EXTERN void __RME_Disable_Int(void);
-EXTERN void __RME_Enable_Int(void);
-EXTERN void __RME_A7A_Wait_Int(void);
+RME_EXTERN void __RME_Disable_Int(void);
+RME_EXTERN void __RME_Enable_Int(void);
+RME_EXTERN void __RME_A7A_Wait_Int(void);
 /* Atomics */
-__EXTERN__ rme_ptr_t __RME_A7A_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
-__EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
-__EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+__RME_EXTERN__ rme_ptr_t __RME_A7A_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
+__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* Memory barriers */
-EXTERN rme_ptr_t __RME_A7A_Read_Acquire(rme_ptr_t* Ptr);
-EXTERN void __RME_A7A_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Val);
+RME_EXTERN rme_ptr_t __RME_A7A_Read_Acquire(rme_ptr_t* Ptr);
+RME_EXTERN void __RME_A7A_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Val);
 /* MSB counting */
-EXTERN rme_ptr_t __RME_A7A_MSB_Get(rme_ptr_t Val);
+RME_EXTERN rme_ptr_t __RME_A7A_MSB_Get(rme_ptr_t Val);
 /* Debugging */
-__EXTERN__ rme_ptr_t __RME_Putchar(char Char);
+__RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Coprocessor */
-EXTERN void ___RME_A7A_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
-EXTERN void ___RME_A7A_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
+RME_EXTERN void ___RME_A7A_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
+RME_EXTERN void ___RME_A7A_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
-EXTERN void _RME_Kmain(rme_ptr_t Stack);
-EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
-__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
-__EXTERN__ rme_ptr_t __RME_Boot(void);
-__EXTERN__ void __RME_Reboot(void);
-__EXTERN__ void __RME_Shutdown(void);
+RME_EXTERN void _RME_Kmain(rme_ptr_t Stack);
+RME_EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
+__RME_EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__RME_EXTERN__ rme_ptr_t __RME_Boot(void);
+__RME_EXTERN__ void __RME_Reboot(void);
+__RME_EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
-__EXTERN__ struct RME_CPU_Local* __RME_A7A_CPU_Local_Get(void);
-__EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
+__RME_EXTERN__ struct RME_CPU_Local* __RME_A7A_CPU_Local_Get(void);
+__RME_EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
                                          rme_ptr_t* Capid, rme_ptr_t* Param);
-__EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
+__RME_EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
-__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
-__EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
-__EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
+__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
+__RME_EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
+__RME_EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
+__RME_EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 /* Invocation register sets */
-__EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
-__EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
-__EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
+__RME_EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
+__RME_EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Kernel function handler */
-__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
+__RME_EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
                                              rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
-__EXTERN__ void __RME_A7A_Fault_Handler(struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_A7A_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
-__EXTERN__ void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
+__RME_EXTERN__ void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
-__EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-__EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
-__EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
-__EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, 
+__RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, 
                                            struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
-__EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
-__EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
+__RME_EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);
 /*****************************************************************************/
-/* Undefine "__EXTERN__" to avoid redefinition */
-#undef __EXTERN__
+/* Undefine "__RME_EXTERN__" to avoid redefinition */
+#undef __RME_EXTERN__
 /* __RME_PLATFORM_A7A_MEMBER__ */
 #endif
 /* !(defined __HDR_DEF__||defined __HDR_STRUCT__) */
