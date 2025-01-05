@@ -79,267 +79,267 @@ The ARM Cortex-A also include various FPU implementations.
 
 /* Export ********************************************************************/
     /* Disable all interrupts */
-    .global             __RME_Disable_Int
+    .global             __RME_Int_Disable
     /* Enable all interrupts */
-    .global             __RME_Enable_Int
+    .global             __RME_Int_Enable
     /* Atomic compare and exchange */
-    .global             __RME_CAV7_Comp_Swap
+    .global             __RME_A7A_Comp_Swap
     /* Atomic add */
-    .global             __RME_CAV7_Fetch_Add
+    .global             __RME_A7A_Fetch_Add
     /* Atomic and */
-    .global             __RME_CAV7_Fetch_And
+    .global             __RME_A7A_Fetch_And
     /* Read acquire/Write release for Cortex-A (ARMv7) */
-    .global             __RME_CAV7_Read_Acquire
-    .global             __RME_CAV7_Write_Release
+    .global             __RME_A7A_Read_Acquire
+    .global             __RME_A7A_Write_Release
     /* Get the MSB in a word */
-    .global             __RME_CAV7_MSB_Get
+    .global             __RME_A7A_MSB_Get
     /* Kernel main function wrapper */
     .global             _RME_Kmain
     /* Entering of the user mode */
-    .global             __RME_Enter_User_Mode
+    .global             __RME_User_Enter
 
-    /* CAV7 specific stuff */
+    /* A7A specific stuff */
     /* HALT processor to wait for interrupt */
-    .global             __RME_CAV7_Halt
+    .global             __RME_A7A_Halt
     /* Load page table */
-    .global             __RME_CAV7_Pgt_Set
+    .global             __RME_A7A_Pgt_Set
     /* Get register values */
-    .global             __RME_CAV7_CPSR_Get
-    .global             __RME_CAV7_SPSR_Get
+    .global             __RME_A7A_CPSR_Get
+    .global             __RME_A7A_SPSR_Get
     /* C0 */
-    .global             __RME_CAV7_MIDR_Get
-    .global             __RME_CAV7_CTR_Get
-    .global             __RME_CAV7_TCMTR_Get
-    .global             __RME_CAV7_TLBTR_Get
-    .global             __RME_CAV7_MPIDR_Get
-    .global             __RME_CAV7_REVIDR_Get
-    .global             __RME_CAV7_ID_PFR0_Get
-    .global             __RME_CAV7_ID_PFR1_Get
-    .global             __RME_CAV7_ID_DFR0_Get
-    .global             __RME_CAV7_ID_AFR0_Get
-    .global             __RME_CAV7_ID_MMFR0_Get
-    .global             __RME_CAV7_ID_MMFR1_Get
-    .global             __RME_CAV7_ID_MMFR2_Get
-    .global             __RME_CAV7_ID_MMFR3_Get
-    .global             __RME_CAV7_ID_ISAR0_Get
-    .global             __RME_CAV7_ID_ISAR1_Get
-    .global             __RME_CAV7_ID_ISAR2_Get
-    .global             __RME_CAV7_ID_ISAR3_Get
-    .global             __RME_CAV7_ID_ISAR4_Get
-    .global             __RME_CAV7_ID_ISAR5_Get
-    .global             __RME_CAV7_ID_CCSIDR_Get
-    .global             __RME_CAV7_ID_CLIDR_Get
-    .global             __RME_CAV7_ID_AIDR_Get
-    .global             __RME_CAV7_ID_CSSELR_Get
-    .global             __RME_CAV7_ID_VPIDR_Get
-    .global             __RME_CAV7_ID_VMPIDR_Get
+    .global             __RME_A7A_MIDR_Get
+    .global             __RME_A7A_CTR_Get
+    .global             __RME_A7A_TCMTR_Get
+    .global             __RME_A7A_TLBTR_Get
+    .global             __RME_A7A_MPIDR_Get
+    .global             __RME_A7A_REVIDR_Get
+    .global             __RME_A7A_ID_PFR0_Get
+    .global             __RME_A7A_ID_PFR1_Get
+    .global             __RME_A7A_ID_DFR0_Get
+    .global             __RME_A7A_ID_AFR0_Get
+    .global             __RME_A7A_ID_MMFR0_Get
+    .global             __RME_A7A_ID_MMFR1_Get
+    .global             __RME_A7A_ID_MMFR2_Get
+    .global             __RME_A7A_ID_MMFR3_Get
+    .global             __RME_A7A_ID_ISAR0_Get
+    .global             __RME_A7A_ID_ISAR1_Get
+    .global             __RME_A7A_ID_ISAR2_Get
+    .global             __RME_A7A_ID_ISAR3_Get
+    .global             __RME_A7A_ID_ISAR4_Get
+    .global             __RME_A7A_ID_ISAR5_Get
+    .global             __RME_A7A_ID_CCSIDR_Get
+    .global             __RME_A7A_ID_CLIDR_Get
+    .global             __RME_A7A_ID_AIDR_Get
+    .global             __RME_A7A_ID_CSSELR_Get
+    .global             __RME_A7A_ID_VPIDR_Get
+    .global             __RME_A7A_ID_VMPIDR_Get
     /* C1 */
-    .global             __RME_CAV7_SCTLR_Get
-    .global             __RME_CAV7_ACTLR_Get
-    .global             __RME_CAV7_CPACR_Get
-    .global             __RME_CAV7_SCR_Get
-    .global             __RME_CAV7_SDER_Get
-    .global             __RME_CAV7_NSACR_Get
-    .global             __RME_CAV7_HSCTLR_Get
-    .global             __RME_CAV7_HACTLR_Get
-    .global             __RME_CAV7_HCR_Get
-    .global             __RME_CAV7_HDCR_Get
-    .global             __RME_CAV7_HCPTR_Get
-    .global             __RME_CAV7_HSTR_Get
-    .global             __RME_CAV7_HACR_Get
+    .global             __RME_A7A_SCTLR_Get
+    .global             __RME_A7A_ACTLR_Get
+    .global             __RME_A7A_CPACR_Get
+    .global             __RME_A7A_SCR_Get
+    .global             __RME_A7A_SDER_Get
+    .global             __RME_A7A_NSACR_Get
+    .global             __RME_A7A_HSCTLR_Get
+    .global             __RME_A7A_HACTLR_Get
+    .global             __RME_A7A_HCR_Get
+    .global             __RME_A7A_HDCR_Get
+    .global             __RME_A7A_HCPTR_Get
+    .global             __RME_A7A_HSTR_Get
+    .global             __RME_A7A_HACR_Get
     /* C2 */
-    .global             __RME_CAV7_TTBR0_Get
-    .global             __RME_CAV7_TTBR1_Get
-    .global             __RME_CAV7_TTBCR_Get
-    .global             __RME_CAV7_HTCR_Get
-    .global             __RME_CAV7_VTCR_Get
-    .global             __RME_CAV7_DACR_Get
+    .global             __RME_A7A_TTBR0_Get
+    .global             __RME_A7A_TTBR1_Get
+    .global             __RME_A7A_TTBCR_Get
+    .global             __RME_A7A_HTCR_Get
+    .global             __RME_A7A_VTCR_Get
+    .global             __RME_A7A_DACR_Get
     /* C5 */
-    .global             __RME_CAV7_DFSR_Get
-    .global             __RME_CAV7_IFSR_Get
-    .global             __RME_CAV7_ADFSR_Get
-    .global             __RME_CAV7_AIFSR_Get
-    .global             __RME_CAV7_HADFSR_Get
-    .global             __RME_CAV7_HAIFSR_Get
-    .global             __RME_CAV7_HSR_Get
-    .global             __RME_CAV7_DFAR_Get
-    .global             __RME_CAV7_IFAR_Get
-    .global             __RME_CAV7_HDFAR_Get
-    .global             __RME_CAV7_HIFAR_Get
-    .global             __RME_CAV7_HPFAR_Get
-    .global             __RME_CAV7_PAR_Get
+    .global             __RME_A7A_DFSR_Get
+    .global             __RME_A7A_IFSR_Get
+    .global             __RME_A7A_ADFSR_Get
+    .global             __RME_A7A_AIFSR_Get
+    .global             __RME_A7A_HADFSR_Get
+    .global             __RME_A7A_HAIFSR_Get
+    .global             __RME_A7A_HSR_Get
+    .global             __RME_A7A_DFAR_Get
+    .global             __RME_A7A_IFAR_Get
+    .global             __RME_A7A_HDFAR_Get
+    .global             __RME_A7A_HIFAR_Get
+    .global             __RME_A7A_HPFAR_Get
+    .global             __RME_A7A_PAR_Get
     /* C10 */
-    .global             __RME_CAV7_TLBLR_Get
-    .global             __RME_CAV7_PRRR_Get
-    .global             __RME_CAV7_NMRR_Get
-    .global             __RME_CAV7_AMAIR0_Get
-    .global             __RME_CAV7_AMAIR1_Get
-    .global             __RME_CAV7_HMAIR0_Get
-    .global             __RME_CAV7_HMAIR1_Get
-    .global             __RME_CAV7_HAMAIR0_Get
-    .global             __RME_CAV7_HAMAIR1_Get
+    .global             __RME_A7A_TLBLR_Get
+    .global             __RME_A7A_PRRR_Get
+    .global             __RME_A7A_NMRR_Get
+    .global             __RME_A7A_AMAIR0_Get
+    .global             __RME_A7A_AMAIR1_Get
+    .global             __RME_A7A_HMAIR0_Get
+    .global             __RME_A7A_HMAIR1_Get
+    .global             __RME_A7A_HAMAIR0_Get
+    .global             __RME_A7A_HAMAIR1_Get
     /* C12 */
-    .global             __RME_CAV7_VBAR_Get
-    .global             __RME_CAV7_MVBAR_Get
-    .global             __RME_CAV7_ISR_Get
-    .global             __RME_CAV7_HVBAR_Get
+    .global             __RME_A7A_VBAR_Get
+    .global             __RME_A7A_MVBAR_Get
+    .global             __RME_A7A_ISR_Get
+    .global             __RME_A7A_HVBAR_Get
     /* C13 */
-    .global             __RME_CAV7_FCSEIDR_Get
-    .global             __RME_CAV7_CONTEXTIDR_Get
-    .global             __RME_CAV7_TPIDRURW_Get
-    .global             __RME_CAV7_TPIDRURO_Get
-    .global             __RME_CAV7_TPIDRPRW_Get
-    .global             __RME_CAV7_HTPIDR_Get
+    .global             __RME_A7A_FCSEIDR_Get
+    .global             __RME_A7A_CONTEXTIDR_Get
+    .global             __RME_A7A_TPIDRURW_Get
+    .global             __RME_A7A_TPIDRURO_Get
+    .global             __RME_A7A_TPIDRPRW_Get
+    .global             __RME_A7A_HTPIDR_Get
     /* C14 */
-    .global             __RME_CAV7_CNTFRQ_Get
-    .global             __RME_CAV7_CNTKCTL_Get
-    .global             __RME_CAV7_CNTP_TVAL_Get
-    .global             __RME_CAV7_CNTP_CTL_Get
-    .global             __RME_CAV7_CNTV_TVAL_Get
-    .global             __RME_CAV7_CNTV_CTL_Get
-    .global             __RME_CAV7_CNTHCTL_Get
-    .global             __RME_CAV7_CNTHP_TVAL_Get
-    .global             __RME_CAV7_CNTHP_CTL_Get
+    .global             __RME_A7A_CNTFRQ_Get
+    .global             __RME_A7A_CNTKCTL_Get
+    .global             __RME_A7A_CNTP_TVAL_Get
+    .global             __RME_A7A_CNTP_CTL_Get
+    .global             __RME_A7A_CNTV_TVAL_Get
+    .global             __RME_A7A_CNTV_CTL_Get
+    .global             __RME_A7A_CNTHCTL_Get
+    .global             __RME_A7A_CNTHP_TVAL_Get
+    .global             __RME_A7A_CNTHP_CTL_Get
     /* Double words */
-    .global             __RME_CAV7_CNTPCT_DW_Get
-    .global             __RME_CAV7_CNTVCT_DW_Get
-    .global             __RME_CAV7_CNTP_CVAL_DW_Get
-    .global             __RME_CAV7_CNTV_CVAL_DW_Get
-    .global             __RME_CAV7_CNTVOFF_DW_Get
-    .global             __RME_CAV7_CNTHP_CVAL_DW_Get
+    .global             __RME_A7A_CNTPCT_DW_Get
+    .global             __RME_A7A_CNTVCT_DW_Get
+    .global             __RME_A7A_CNTP_CVAL_DW_Get
+    .global             __RME_A7A_CNTV_CVAL_DW_Get
+    .global             __RME_A7A_CNTVOFF_DW_Get
+    .global             __RME_A7A_CNTHP_CVAL_DW_Get
 
     /* Set register values */
-    .global             __RME_CAV7_CPSR_Set
-    .global             __RME_CAV7_SPSR_Set
+    .global             __RME_A7A_CPSR_Set
+    .global             __RME_A7A_SPSR_Set
     /* C0 */
-    .global             __RME_CAV7_ID_CSSELR_Set
-    .global             __RME_CAV7_ID_VPIDR_Set
-    .global             __RME_CAV7_ID_VMPIDR_Set
+    .global             __RME_A7A_ID_CSSELR_Set
+    .global             __RME_A7A_ID_VPIDR_Set
+    .global             __RME_A7A_ID_VMPIDR_Set
     /* C1 */
-    .global             __RME_CAV7_SCTLR_Set
-    .global             __RME_CAV7_ACTLR_Set
-    .global             __RME_CAV7_CPACR_Set
-    .global             __RME_CAV7_SCR_Set
-    .global             __RME_CAV7_SDER_Set
-    .global             __RME_CAV7_NSACR_Set
-    .global             __RME_CAV7_HSCTLR_Set
-    .global             __RME_CAV7_HACTLR_Set
-    .global             __RME_CAV7_HCR_Set
-    .global             __RME_CAV7_HDCR_Set
-    .global             __RME_CAV7_HCPTR_Set
-    .global             __RME_CAV7_HSTR_Set
-    .global             __RME_CAV7_HACR_Set
+    .global             __RME_A7A_SCTLR_Set
+    .global             __RME_A7A_ACTLR_Set
+    .global             __RME_A7A_CPACR_Set
+    .global             __RME_A7A_SCR_Set
+    .global             __RME_A7A_SDER_Set
+    .global             __RME_A7A_NSACR_Set
+    .global             __RME_A7A_HSCTLR_Set
+    .global             __RME_A7A_HACTLR_Set
+    .global             __RME_A7A_HCR_Set
+    .global             __RME_A7A_HDCR_Set
+    .global             __RME_A7A_HCPTR_Set
+    .global             __RME_A7A_HSTR_Set
+    .global             __RME_A7A_HACR_Set
     /* C2,C3 */
-    .global             __RME_CAV7_TTBR0_Set
-    .global             __RME_CAV7_TTBR1_Set
-    .global             __RME_CAV7_TTBCR_Set
-    .global             __RME_CAV7_HTCR_Set
-    .global             __RME_CAV7_VTCR_Set
-    .global             __RME_CAV7_DACR_Set
+    .global             __RME_A7A_TTBR0_Set
+    .global             __RME_A7A_TTBR1_Set
+    .global             __RME_A7A_TTBCR_Set
+    .global             __RME_A7A_HTCR_Set
+    .global             __RME_A7A_VTCR_Set
+    .global             __RME_A7A_DACR_Set
     /* C5 */
-    .global             __RME_CAV7_DFSR_Set
-    .global             __RME_CAV7_IFSR_Set
-    .global             __RME_CAV7_ADFSR_Set
-    .global             __RME_CAV7_AIFSR_Set
-    .global             __RME_CAV7_HADFSR_Set
-    .global             __RME_CAV7_HAIFSR_Set
-    .global             __RME_CAV7_HSR_Set
-    .global             __RME_CAV7_DFAR_Set
-    .global             __RME_CAV7_IFAR_Set
-    .global             __RME_CAV7_HDFAR_Set
-    .global             __RME_CAV7_HIFAR_Set
-    .global             __RME_CAV7_HPFAR_Set
+    .global             __RME_A7A_DFSR_Set
+    .global             __RME_A7A_IFSR_Set
+    .global             __RME_A7A_ADFSR_Set
+    .global             __RME_A7A_AIFSR_Set
+    .global             __RME_A7A_HADFSR_Set
+    .global             __RME_A7A_HAIFSR_Set
+    .global             __RME_A7A_HSR_Set
+    .global             __RME_A7A_DFAR_Set
+    .global             __RME_A7A_IFAR_Set
+    .global             __RME_A7A_HDFAR_Set
+    .global             __RME_A7A_HIFAR_Set
+    .global             __RME_A7A_HPFAR_Set
     /* C7 */
-    .global             __RME_CAV7_ICIALLUIS_Set
-    .global             __RME_CAV7_BPIALLIS_Set
-    .global             __RME_CAV7_PAR_Set
-    .global             __RME_CAV7_ICIALLU_Set
-    .global             __RME_CAV7_ICIMVAU_Set
-    .global             __RME_CAV7_CP15ISB_Set
-    .global             __RME_CAV7_BPIALL_Set
-    .global             __RME_CAV7_BPIMVA_Set
-    .global             __RME_CAV7_DCIMVAC_Set
-    .global             __RME_CAV7_DCISW_Set
-    .global             __RME_CAV7_ATS1CPR_Set
-    .global             __RME_CAV7_ATS1CPW_Set
-    .global             __RME_CAV7_ATS1CUR_Set
-    .global             __RME_CAV7_ATS1CUW_Set
-    .global             __RME_CAV7_ATS12NSOPR_Set
-    .global             __RME_CAV7_ATS12NSOPW_Set
-    .global             __RME_CAV7_ATS12NSOUR_Set
-    .global             __RME_CAV7_ATS12NSOUW_Set
-    .global             __RME_CAV7_DCCMVAC_Set
-    .global             __RME_CAV7_DCCSW_Set
-    .global             __RME_CAV7_CP15DSB_Set
-    .global             __RME_CAV7_CP15DMB_Set
-    .global             __RME_CAV7_DCCMVAU_Set
-    .global             __RME_CAV7_DCCIMVAC_Set
-    .global             __RME_CAV7_DCCISW_Set
-    .global             __RME_CAV7_ATS1HR_Set
-    .global             __RME_CAV7_ATS1HW_Set
+    .global             __RME_A7A_ICIALLUIS_Set
+    .global             __RME_A7A_BPIALLIS_Set
+    .global             __RME_A7A_PAR_Set
+    .global             __RME_A7A_ICIALLU_Set
+    .global             __RME_A7A_ICIMVAU_Set
+    .global             __RME_A7A_CP15ISB_Set
+    .global             __RME_A7A_BPIALL_Set
+    .global             __RME_A7A_BPIMVA_Set
+    .global             __RME_A7A_DCIMVAC_Set
+    .global             __RME_A7A_DCISW_Set
+    .global             __RME_A7A_ATS1CPR_Set
+    .global             __RME_A7A_ATS1CPW_Set
+    .global             __RME_A7A_ATS1CUR_Set
+    .global             __RME_A7A_ATS1CUW_Set
+    .global             __RME_A7A_ATS12NSOPR_Set
+    .global             __RME_A7A_ATS12NSOPW_Set
+    .global             __RME_A7A_ATS12NSOUR_Set
+    .global             __RME_A7A_ATS12NSOUW_Set
+    .global             __RME_A7A_DCCMVAC_Set
+    .global             __RME_A7A_DCCSW_Set
+    .global             __RME_A7A_CP15DSB_Set
+    .global             __RME_A7A_CP15DMB_Set
+    .global             __RME_A7A_DCCMVAU_Set
+    .global             __RME_A7A_DCCIMVAC_Set
+    .global             __RME_A7A_DCCISW_Set
+    .global             __RME_A7A_ATS1HR_Set
+    .global             __RME_A7A_ATS1HW_Set
     /* C8 */
-    .global             __RME_CAV7_TLBIALLIS_Set
-    .global             __RME_CAV7_TLBIMVAIS_Set
-    .global             __RME_CAV7_TLBIASIDIS_Set
-    .global             __RME_CAV7_TLBIMVAAIS_Set
-    .global             __RME_CAV7_ITLBIALL_Set
-    .global             __RME_CAV7_ITLBIMVA_Set
-    .global             __RME_CAV7_ITLBIASID_Set
-    .global             __RME_CAV7_DTLBIALL_Set
-    .global             __RME_CAV7_DTLBIMVA_Set
-    .global             __RME_CAV7_DTLBIASID_Set
-    .global             __RME_CAV7_TLBIALL_Set
-    .global             __RME_CAV7_TLBIMVA_Set
-    .global             __RME_CAV7_TLBIASID_Set
-    .global             __RME_CAV7_TLBIMVAA_Set
-    .global             __RME_CAV7_TLBIALLHIS_Set
-    .global             __RME_CAV7_TLBIMVAHIS_Set
-    .global             __RME_CAV7_TLBIALLNSNHIS_Set
-    .global             __RME_CAV7_TLBIALLH_Set
-    .global             __RME_CAV7_TLBIMVAH_Set
-    .global             __RME_CAV7_TLBIALLNSNH_Set
+    .global             __RME_A7A_TLBIALLIS_Set
+    .global             __RME_A7A_TLBIMVAIS_Set
+    .global             __RME_A7A_TLBIASIDIS_Set
+    .global             __RME_A7A_TLBIMVAAIS_Set
+    .global             __RME_A7A_ITLBIALL_Set
+    .global             __RME_A7A_ITLBIMVA_Set
+    .global             __RME_A7A_ITLBIASID_Set
+    .global             __RME_A7A_DTLBIALL_Set
+    .global             __RME_A7A_DTLBIMVA_Set
+    .global             __RME_A7A_DTLBIASID_Set
+    .global             __RME_A7A_TLBIALL_Set
+    .global             __RME_A7A_TLBIMVA_Set
+    .global             __RME_A7A_TLBIASID_Set
+    .global             __RME_A7A_TLBIMVAA_Set
+    .global             __RME_A7A_TLBIALLHIS_Set
+    .global             __RME_A7A_TLBIMVAHIS_Set
+    .global             __RME_A7A_TLBIALLNSNHIS_Set
+    .global             __RME_A7A_TLBIALLH_Set
+    .global             __RME_A7A_TLBIMVAH_Set
+    .global             __RME_A7A_TLBIALLNSNH_Set
     /* C10 */
-    .global             __RME_CAV7_TLBLR_Set
-    .global             __RME_CAV7_PRRR_Set
-    .global             __RME_CAV7_NMRR_Set
-    .global             __RME_CAV7_AMAIR0_Set
-    .global             __RME_CAV7_AMAIR1_Set
-    .global             __RME_CAV7_HMAIR0_Set
-    .global             __RME_CAV7_HMAIR1_Set
-    .global             __RME_CAV7_HAMAIR0_Set
-    .global             __RME_CAV7_HAMAIR1_Set
+    .global             __RME_A7A_TLBLR_Set
+    .global             __RME_A7A_PRRR_Set
+    .global             __RME_A7A_NMRR_Set
+    .global             __RME_A7A_AMAIR0_Set
+    .global             __RME_A7A_AMAIR1_Set
+    .global             __RME_A7A_HMAIR0_Set
+    .global             __RME_A7A_HMAIR1_Set
+    .global             __RME_A7A_HAMAIR0_Set
+    .global             __RME_A7A_HAMAIR1_Set
     /* C12 */
-    .global             __RME_CAV7_VBAR_Set
-    .global             __RME_CAV7_MVBAR_Set
-    .global             __RME_CAV7_HVBAR_Set
+    .global             __RME_A7A_VBAR_Set
+    .global             __RME_A7A_MVBAR_Set
+    .global             __RME_A7A_HVBAR_Set
     /* C13 */
-    .global             __RME_CAV7_CONTEXTIDR_Set
-    .global             __RME_CAV7_TPIDRURW_Set
-    .global             __RME_CAV7_TPIDRURO_Set
-    .global             __RME_CAV7_TPIDRPRW_Set
-    .global             __RME_CAV7_HTPIDR_Set
+    .global             __RME_A7A_CONTEXTIDR_Set
+    .global             __RME_A7A_TPIDRURW_Set
+    .global             __RME_A7A_TPIDRURO_Set
+    .global             __RME_A7A_TPIDRPRW_Set
+    .global             __RME_A7A_HTPIDR_Set
     /* C14 */
-    .global             __RME_CAV7_CNTFRQ_Set
-    .global             __RME_CAV7_CNTKCTL_Set
-    .global             __RME_CAV7_CNTP_TVAL_Set
-    .global             __RME_CAV7_CNTP_CTL_Set
-    .global             __RME_CAV7_CNTV_TVAL_Set
-    .global             __RME_CAV7_CNTV_CTL_Set
-    .global             __RME_CAV7_CNTHCTL_Set
-    .global             __RME_CAV7_CNTHP_TVAL_Set
-    .global             __RME_CAV7_CNTHP_CTL_Set
+    .global             __RME_A7A_CNTFRQ_Set
+    .global             __RME_A7A_CNTKCTL_Set
+    .global             __RME_A7A_CNTP_TVAL_Set
+    .global             __RME_A7A_CNTP_CTL_Set
+    .global             __RME_A7A_CNTV_TVAL_Set
+    .global             __RME_A7A_CNTV_CTL_Set
+    .global             __RME_A7A_CNTHCTL_Set
+    .global             __RME_A7A_CNTHP_TVAL_Set
+    .global             __RME_A7A_CNTHP_CTL_Set
     /* Double words */
-    .global             __RME_CAV7_CNTP_CVAL_DW_Set
-    .global             __RME_CAV7_CNTV_CVAL_DW_Set
-    .global             __RME_CAV7_CNTVOFF_DW_Set
-    .global             __RME_CAV7_CNTHP_CVAL_DW_Set
+    .global             __RME_A7A_CNTP_CVAL_DW_Set
+    .global             __RME_A7A_CNTV_CVAL_DW_Set
+    .global             __RME_A7A_CNTVOFF_DW_Set
+    .global             __RME_A7A_CNTHP_CVAL_DW_Set
 
     /* Booting specific stuff */
-    .global             __RME_CAV7_Stack_Start
+    .global             __RME_A7A_Stack_Start
     /* Initial page table */
-    .global             __RME_CAV7_Kern_Pgt
+    .global             __RME_A7A_Kern_Pgt
     /* Vector table */
-    .global             __RME_CAV7_Vector_Table
+    .global             __RME_A7A_Vector_Table
     /* Fault handlers and user handlers are exported on their spot */
 /* End Export ****************************************************************/
 
@@ -347,13 +347,13 @@ The ARM Cortex-A also include various FPU implementations.
     /* The kernel entry of RME. This will be defined in C language. */
     .global             RME_Kmain
     /* The fault handlerd of RME. These will be defined in C language. */
-    .global             __RME_CAV7_Undefined_Handler
-    .global             __RME_CAV7_Prefetch_Abort_Handler
-    .global             __RME_CAV7_Data_Abort_Handler
-    .global             __RME_CAV7_IRQ_Handler
-    .global             __RME_CAV7_FIQ_Handler
+    .global             __RME_A7A_Undefined_Handler
+    .global             __RME_A7A_Prefetch_Abort_Handler
+    .global             __RME_A7A_Data_Abort_Handler
+    .global             __RME_A7A_IRQ_Handler
+    .global             __RME_A7A_FIQ_Handler
     /* The generic interrupt handler of RME. This will be defined in C language. */
-    .global             __RME_CAV7_Generic_Handler
+    .global             __RME_A7A_Generic_Handler
     /* The system call handler of RME. This will be defined in C language. */
     .global             _RME_Svc_Handler
     /* The system tick handler of RME. This will be defined in C language. */
@@ -361,9 +361,9 @@ The ARM Cortex-A also include various FPU implementations.
     /* The entry of SMP after they have finished their initialization */
     .global             __RME_SMP_Low_Level_Init
     /* All other processor's timer interrupt handler */
-    .global             __RME_CAV7_SMP_Tick
+    .global             __RME_A7A_SMP_Tick
     /* Memory layout information - This is the actual page table mapping */
-    .global             RME_CAV7_Mem_Info
+    .global             RME_A7A_Mem_Info
 /* End Import ****************************************************************/
 
 /* Memory Init ***************************************************************/
@@ -400,7 +400,7 @@ clear_bss:
     B                   clear_bss
 clear_done:
     /* Set stacks for all modes */
-    LDR                 R4,=__RME_CAV7_Stack_Start
+    LDR                 R4,=__RME_A7A_Stack_Start
     ADD                 R4,#0x10000
     /* IRQ mode */
     LDR                 R0,=0x600F00D2
@@ -451,8 +451,8 @@ clear_done:
      * R7: Page counter
      * R8: Write index register
      * R9: Write content register */
-    LDR                 R0,=RME_CAV7_Mem_Info
-    LDR                 R1,=__RME_CAV7_Kern_Pgt
+    LDR                 R0,=RME_A7A_Mem_Info
+    LDR                 R1,=__RME_A7A_Kern_Pgt
     LDR                 R2,=__va_offset__
     /* Calculate the actual address */
     SUB                 R0,R0,R2
@@ -491,7 +491,7 @@ fill_pgtbl:
     LDR                 R0,=0x006C006C
     CP15_SET_INIT       CRN=C10 OP1=0 CRM=C2 OP2=1 /* NMRR */
     /* Set base address */
-    LDR                 R0,=__RME_CAV7_Kern_Pgt
+    LDR                 R0,=__RME_A7A_Kern_Pgt
     LDR                 R1,=__va_offset__
     SUB                 R0,R0,R1
     CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=0 /* TTBR0 */
@@ -515,19 +515,19 @@ fill_pgtbl:
  * chip, we can statically allocate them here. Each core is associated with 64kB
  * stack, which should be more than sufficient. */
     .align              8
-__RME_CAV7_Stack_Start:
+__RME_A7A_Stack_Start:
     .space              4*65536
-__RME_CAV7_Stack_End:
+__RME_A7A_Stack_End:
     .space              4096
 /* The kernel page table - the initialization sequence is totally controlled
  * by the configuration file, because there's no generic way to detect memory on
  * these devices. */
     .align              14
-__RME_CAV7_Kern_Pgt:
+__RME_A7A_Kern_Pgt:
     .space              16384
 /* Vectors *******************************************************************/
     .align              8
-__RME_CAV7_Vector_Table:
+__RME_A7A_Vector_Table:
     B                   Reset_Handler
     B                   Undefined_Handler
     B                   SVC_Handler
@@ -538,7 +538,7 @@ __RME_CAV7_Vector_Table:
     B                   FIQ_Handler
 /* End Memory Init ***********************************************************/
 
-/* Function:__RME_CAV7_XXXX_Get ***********************************************
+/* Function:__RME_A7A_XXXX_Get ***********************************************
 Description : Get the XXXX register of the CPU. These registers must be read with
               MRS/MRC instruction.
 Input       : None
@@ -546,284 +546,284 @@ Output      : None.
 Return      : R0 - The XXXX register contents.
 ******************************************************************************/
 /* CPSR & SPSR */
-__RME_CAV7_CPSR_Get:
+__RME_A7A_CPSR_Get:
     MRS                 R0,CPSR
     BX                  LR
-__RME_CAV7_SPSR_Get:
+__RME_A7A_SPSR_Get:
     MRS                 R0,SPSR
     BX                  LR
 
 /* Main ID register */
-__RME_CAV7_MIDR_Get:
+__RME_A7A_MIDR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=0
 /* Cache type register */
-__RME_CAV7_CTR_Get:
+__RME_A7A_CTR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=1
 /* TCM type register */
-__RME_CAV7_TCMTR_Get:
+__RME_A7A_TCMTR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=2
 /* TLB type register */
-__RME_CAV7_TLBTR_Get:
+__RME_A7A_TLBTR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=3
 /* Multiprocessor affinity register */
-__RME_CAV7_MPIDR_Get:
+__RME_A7A_MPIDR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=5
 /* Revision ID register */
-__RME_CAV7_REVIDR_Get:
+__RME_A7A_REVIDR_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C0 OP2=6
 /* Processor feature register 0 */
-__RME_CAV7_ID_PFR0_Get:
+__RME_A7A_ID_PFR0_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=0
 /* Processor feature register 1 */
-__RME_CAV7_ID_PFR1_Get:
+__RME_A7A_ID_PFR1_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=1
 /* Debug feature register 0 */
-__RME_CAV7_ID_DFR0_Get:
+__RME_A7A_ID_DFR0_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=2
 /* Auxiliary feature register 0 */
-__RME_CAV7_ID_AFR0_Get:
+__RME_A7A_ID_AFR0_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=3
 /* Memory model feature register 0 */
-__RME_CAV7_ID_MMFR0_Get:
+__RME_A7A_ID_MMFR0_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=4
 /* Memory model feature register 1 */
-__RME_CAV7_ID_MMFR1_Get:
+__RME_A7A_ID_MMFR1_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=5
 /* Memory model feature register 2 */
-__RME_CAV7_ID_MMFR2_Get:
+__RME_A7A_ID_MMFR2_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=6
 /* Memory model feature register 3 */
-__RME_CAV7_ID_MMFR3_Get:
+__RME_A7A_ID_MMFR3_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C1 OP2=7
 /* ISA feature register 0 */
-__RME_CAV7_ID_ISAR0_Get:
+__RME_A7A_ID_ISAR0_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=0
 /* ISA feature register 1 */
-__RME_CAV7_ID_ISAR1_Get:
+__RME_A7A_ID_ISAR1_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=1
 /* ISA feature register 2 */
-__RME_CAV7_ID_ISAR2_Get:
+__RME_A7A_ID_ISAR2_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=2
 /* ISA feature register 3 */
-__RME_CAV7_ID_ISAR3_Get:
+__RME_A7A_ID_ISAR3_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=3
 /* ISA feature register 4 */
-__RME_CAV7_ID_ISAR4_Get:
+__RME_A7A_ID_ISAR4_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=4
 /* ISA feature register 5 */
-__RME_CAV7_ID_ISAR5_Get:
+__RME_A7A_ID_ISAR5_Get:
     CP15_GET            CRN=C0 OP1=0 CRM=C2 OP2=5
 /* Cache size ID registers */
-__RME_CAV7_ID_CCSIDR_Get:
+__RME_A7A_ID_CCSIDR_Get:
     CP15_GET            CRN=C0 OP1=1 CRM=C0 OP2=0
 /* Cache level ID register */
-__RME_CAV7_ID_CLIDR_Get:
+__RME_A7A_ID_CLIDR_Get:
     CP15_GET            CRN=C0 OP1=1 CRM=C0 OP2=1
 /* Auxiliary ID register */
-__RME_CAV7_ID_AIDR_Get:
+__RME_A7A_ID_AIDR_Get:
     CP15_GET            CRN=C0 OP1=1 CRM=C0 OP2=7
 /* Cache size selection register */
-__RME_CAV7_ID_CSSELR_Get:
+__RME_A7A_ID_CSSELR_Get:
     CP15_GET            CRN=C0 OP1=2 CRM=C0 OP2=0
 /* Virtualization processor ID register  */
-__RME_CAV7_ID_VPIDR_Get:
+__RME_A7A_ID_VPIDR_Get:
     CP15_GET            CRN=C0 OP1=4 CRM=C0 OP2=0
 /* Virtualization multiprocessor ID register */
-__RME_CAV7_ID_VMPIDR_Get:
+__RME_A7A_ID_VMPIDR_Get:
     CP15_GET            CRN=C0 OP1=4 CRM=C0 OP2=5
 
 /* System control register */
-__RME_CAV7_SCTLR_Get:
+__RME_A7A_SCTLR_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C0 OP2=0
 /* Auxiliary control register */
-__RME_CAV7_ACTLR_Get:
+__RME_A7A_ACTLR_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C0 OP2=1
 /* Coprocessor auxiliary control register */
-__RME_CAV7_CPACR_Get:
+__RME_A7A_CPACR_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C0 OP2=2
 /* Secure configuration register */
-__RME_CAV7_SCR_Get:
+__RME_A7A_SCR_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C1 OP2=0
 /* Secure debug enable register */
-__RME_CAV7_SDER_Get:
+__RME_A7A_SDER_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C1 OP2=1
 /* Non-secure access control register */
-__RME_CAV7_NSACR_Get:
+__RME_A7A_NSACR_Get:
     CP15_GET            CRN=C1 OP1=0 CRM=C1 OP2=2
 /* Hyp system control register */
-__RME_CAV7_HSCTLR_Get:
+__RME_A7A_HSCTLR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C0 OP2=0
 /* Hyp auxiliary control register */
-__RME_CAV7_HACTLR_Get:
+__RME_A7A_HACTLR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C0 OP2=1
 /* Hyp configuration register */
-__RME_CAV7_HCR_Get:
+__RME_A7A_HCR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C1 OP2=0
 /* Hyp debug configuration register */
-__RME_CAV7_HDCR_Get:
+__RME_A7A_HDCR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C1 OP2=1
 /* Hyp coprocessor trap register */
-__RME_CAV7_HCPTR_Get:
+__RME_A7A_HCPTR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C1 OP2=2
 /* Hyp system trap register */
-__RME_CAV7_HSTR_Get:
+__RME_A7A_HSTR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C1 OP2=3
 /* Hyp auxiliary configuration register */
-__RME_CAV7_HACR_Get:
+__RME_A7A_HACR_Get:
     CP15_GET            CRN=C1 OP1=4 CRM=C1 OP2=7
 
 /* Translation table base register 0 - 32bit. We do not support PAE of any kind */
-__RME_CAV7_TTBR0_Get:
+__RME_A7A_TTBR0_Get:
     CP15_GET            CRN=C2 OP1=0 CRM=C0 OP2=0
 /* Translation table base register 1 - 32bit. We do not support PAE of any kind */
-__RME_CAV7_TTBR1_Get:
+__RME_A7A_TTBR1_Get:
     CP15_GET            CRN=C2 OP1=0 CRM=C0 OP2=1
 /* Translation table base controle register */
-__RME_CAV7_TTBCR_Get:
+__RME_A7A_TTBCR_Get:
     CP15_GET            CRN=C2 OP1=0 CRM=C0 OP2=2
 /* Hyp translation control register */
-__RME_CAV7_HTCR_Get:
+__RME_A7A_HTCR_Get:
     CP15_GET            CRN=C2 OP1=4 CRM=C0 OP2=2
 /* Virtualization translation control register */
-__RME_CAV7_VTCR_Get:
+__RME_A7A_VTCR_Get:
     CP15_GET            CRN=C2 OP1=4 CRM=C1 OP2=2
 /* Domain access control register */
-__RME_CAV7_DACR_Get:
+__RME_A7A_DACR_Get:
     CP15_GET            CRN=C3 OP1=0 CRM=C0 OP2=0
 
 /* Data fault status register */
-__RME_CAV7_DFSR_Get:
+__RME_A7A_DFSR_Get:
     CP15_GET            CRN=C5 OP1=0 CRM=C0 OP2=0
 /* Instruction fault status register */
-__RME_CAV7_IFSR_Get:
+__RME_A7A_IFSR_Get:
     CP15_GET            CRN=C5 OP1=0 CRM=C0 OP2=1
 /* Auxiliary data fault status register */
-__RME_CAV7_ADFSR_Get:
+__RME_A7A_ADFSR_Get:
     CP15_GET            CRN=C5 OP1=0 CRM=C1 OP2=0
 /* Auxiliary instruction fault status register */
-__RME_CAV7_AIFSR_Get:
+__RME_A7A_AIFSR_Get:
     CP15_GET            CRN=C5 OP1=0 CRM=C1 OP2=1
 /* Hyp auxiliary data fault status register */
-__RME_CAV7_HADFSR_Get:
+__RME_A7A_HADFSR_Get:
     CP15_GET            CRN=C5 OP1=4 CRM=C1 OP2=0
 /* Hyp auxiliary instruction fault status register */
-__RME_CAV7_HAIFSR_Get:
+__RME_A7A_HAIFSR_Get:
     CP15_GET            CRN=C5 OP1=4 CRM=C1 OP2=1
 /* Hyp syndrome register */
-__RME_CAV7_HSR_Get:
+__RME_A7A_HSR_Get:
     CP15_GET            CRN=C5 OP1=4 CRM=C2 OP2=0
 /* Data fault address register */
-__RME_CAV7_DFAR_Get:
+__RME_A7A_DFAR_Get:
     CP15_GET            CRN=C6 OP1=0 CRM=C0 OP2=0
 /* Instruction fault address register */
-__RME_CAV7_IFAR_Get:
+__RME_A7A_IFAR_Get:
     CP15_GET            CRN=C6 OP1=0 CRM=C0 OP2=2
 /* Hyp data fault address register */
-__RME_CAV7_HDFAR_Get:
+__RME_A7A_HDFAR_Get:
     CP15_GET            CRN=C6 OP1=4 CRM=C0 OP2=0
 /* Hyp instruction fault address register */
-__RME_CAV7_HIFAR_Get:
+__RME_A7A_HIFAR_Get:
     CP15_GET            CRN=C6 OP1=4 CRM=C0 OP2=2
 /* Hyp IPA fault address register */
-__RME_CAV7_HPFAR_Get:
+__RME_A7A_HPFAR_Get:
     CP15_GET            CRN=C6 OP1=4 CRM=C0 OP2=4
 
 /* Physical address register */
-__RME_CAV7_PAR_Get:
+__RME_A7A_PAR_Get:
     CP15_GET            CRN=C7 OP1=0 CRM=C4 OP2=0
 
 /* C9 registers currently unsupported */
 
 /* TLB lockdown register - Cortex-A9 */
-__RME_CAV7_TLBLR_Get:
+__RME_A7A_TLBLR_Get:
     CP15_GET            CRN=C10 OP1=0 CRM=C0 OP2=0
 /* Primary region remap register */
-__RME_CAV7_PRRR_Get:
+__RME_A7A_PRRR_Get:
     CP15_GET            CRN=C10 OP1=0 CRM=C2 OP2=0
 /* Normal memory remap register */
-__RME_CAV7_NMRR_Get:
+__RME_A7A_NMRR_Get:
     CP15_GET            CRN=C10 OP1=0 CRM=C2 OP2=1
 /* Auxiliary memory attribute indirection register 0 */
-__RME_CAV7_AMAIR0_Get:
+__RME_A7A_AMAIR0_Get:
     CP15_GET            CRN=C10 OP1=0 CRM=C3 OP2=0
 /* Auxiliary memory attribute indirection register 1 */
-__RME_CAV7_AMAIR1_Get:
+__RME_A7A_AMAIR1_Get:
     CP15_GET            CRN=C10 OP1=0 CRM=C3 OP2=1
 /* Hyp memory attribute indirection register 0 */
-__RME_CAV7_HMAIR0_Get:
+__RME_A7A_HMAIR0_Get:
     CP15_GET            CRN=C10 OP1=4 CRM=C2 OP2=0
 /* Hyp memory attribute indirection register 1 */
-__RME_CAV7_HMAIR1_Get:
+__RME_A7A_HMAIR1_Get:
     CP15_GET            CRN=C10 OP1=4 CRM=C2 OP2=1
 /* Hyp auxiliary memory attribute indirection register 0 */
-__RME_CAV7_HAMAIR0_Get:
+__RME_A7A_HAMAIR0_Get:
     CP15_GET            CRN=C10 OP1=4 CRM=C3 OP2=0
 /* Hyp auxiliary memory attribute indirection register 1 */
-__RME_CAV7_HAMAIR1_Get:
+__RME_A7A_HAMAIR1_Get:
     CP15_GET            CRN=C10 OP1=4 CRM=C3 OP2=1
 
 /* Vector base address register */
-__RME_CAV7_VBAR_Get:
+__RME_A7A_VBAR_Get:
     CP15_GET            CRN=C12 OP1=0 CRM=C0 OP2=0
 /* Vector base address register */
-__RME_CAV7_MVBAR_Get:
+__RME_A7A_MVBAR_Get:
     CP15_GET            CRN=C12 OP1=0 CRM=C0 OP2=1
 /* Interrupt status register */
-__RME_CAV7_ISR_Get:
+__RME_A7A_ISR_Get:
     CP15_GET            CRN=C12 OP1=0 CRM=C1 OP2=0
 /* Hyp vector base address register */
-__RME_CAV7_HVBAR_Get:
+__RME_A7A_HVBAR_Get:
     CP15_GET            CRN=C12 OP1=4 CRM=C0 OP2=0
 
 /* FCSE PID register */
-__RME_CAV7_FCSEIDR_Get:
+__RME_A7A_FCSEIDR_Get:
     CP15_GET            CRN=C13 OP1=0 CRM=C0 OP2=0
 /* Context ID register */
-__RME_CAV7_CONTEXTIDR_Get:
+__RME_A7A_CONTEXTIDR_Get:
     CP15_GET            CRN=C13 OP1=0 CRM=C0 OP2=1
 /* User read/write software thread register */
-__RME_CAV7_TPIDRURW_Get:
+__RME_A7A_TPIDRURW_Get:
     CP15_GET            CRN=C13 OP1=0 CRM=C0 OP2=2
 /* User read-only software thread register */
-__RME_CAV7_TPIDRURO_Get:
+__RME_A7A_TPIDRURO_Get:
     CP15_GET            CRN=C13 OP1=0 CRM=C0 OP2=3
 /* PL1-only software thread register */
-__RME_CAV7_TPIDRPRW_Get:
+__RME_A7A_TPIDRPRW_Get:
     CP15_GET            CRN=C13 OP1=0 CRM=C0 OP2=4
 /* Hyp read/write software thread register */
-__RME_CAV7_HTPIDR_Get:
+__RME_A7A_HTPIDR_Get:
     CP15_GET            CRN=C13 OP1=4 CRM=C0 OP2=2
 
 /* Counter frequency register */
-__RME_CAV7_CNTFRQ_Get:
+__RME_A7A_CNTFRQ_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C0 OP2=0
 /* Timer PL1 control register */
-__RME_CAV7_CNTKCTL_Get:
+__RME_A7A_CNTKCTL_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C1 OP2=0
 /* PL1 physical timer value register */
-__RME_CAV7_CNTP_TVAL_Get:
+__RME_A7A_CNTP_TVAL_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C2 OP2=0
 /* PL1 physical timer control register */
-__RME_CAV7_CNTP_CTL_Get:
+__RME_A7A_CNTP_CTL_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C2 OP2=1
 /* Virtual timer value register */
-__RME_CAV7_CNTV_TVAL_Get:
+__RME_A7A_CNTV_TVAL_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C3 OP2=0
 /* Virtual timer control register */
-__RME_CAV7_CNTV_CTL_Get:
+__RME_A7A_CNTV_CTL_Get:
     CP15_GET            CRN=C14 OP1=0 CRM=C3 OP2=1
 /* Timer PL2 control register */
-__RME_CAV7_CNTHCTL_Get:
+__RME_A7A_CNTHCTL_Get:
     CP15_GET            CRN=C14 OP1=4 CRM=C1 OP2=0
 /* PL2 physical timer value register */
-__RME_CAV7_CNTHP_TVAL_Get:
+__RME_A7A_CNTHP_TVAL_Get:
     CP15_GET            CRN=C14 OP1=4 CRM=C2 OP2=0
 /* PL2 physical timer control register */
-__RME_CAV7_CNTHP_CTL_Get:
+__RME_A7A_CNTHP_CTL_Get:
     CP15_GET            CRN=C14 OP1=4 CRM=C2 OP2=1
-/* End Function:__RME_CAV7_XXXX_Get ******************************************/
+/* End Function:__RME_A7A_XXXX_Get ******************************************/
 
-/* Function:__RME_CAV7_XXXX_DW_Get ********************************************
+/* Function:__RME_A7A_XXXX_DW_Get ********************************************
 Description : Get the XXXX register of the CPU. These registers must be read with
               MRRC instruction, and are all 64-bit double words.
 Input       : None.
@@ -832,376 +832,376 @@ Output      : rme_ptr_t* R0 - The pointer to the lower bits.
 Return      : None.
 ******************************************************************************/
 /* Physical count register */
-__RME_CAV7_CNTPCT_DW_Get:
+__RME_A7A_CNTPCT_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=0
 /* Virtual count register */
-__RME_CAV7_CNTVCT_DW_Get:
+__RME_A7A_CNTVCT_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=1
 /* PL1 physical timer compare value register */
-__RME_CAV7_CNTP_CVAL_DW_Get:
+__RME_A7A_CNTP_CVAL_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=2
 /* Virtual timer compare value register */
-__RME_CAV7_CNTV_CVAL_DW_Get:
+__RME_A7A_CNTV_CVAL_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=3
 /* Virtual offset register */
-__RME_CAV7_CNTVOFF_DW_Get:
+__RME_A7A_CNTVOFF_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=4
 /* L2 physical timer compare value register */
-__RME_CAV7_CNTHP_CVAL_DW_Get:
+__RME_A7A_CNTHP_CVAL_DW_Get:
     CP15_GET_DOUBLE     CRM=C14 OP=6
-/* End Function:__RME_CAV7_XXXX_DW_Get ***************************************/
+/* End Function:__RME_A7A_XXXX_DW_Get ***************************************/
 
-/* Function:__RME_CAV7_XXXX_Set ***********************************************
+/* Function:__RME_A7A_XXXX_Set ***********************************************
 Description : Set the XXXX register of the CPU.
 Input       : rme_ptr_t R0 - The XXXX value to set.
 Output      : None.
 Return      : None.
 ******************************************************************************/
 /* CPSR & SPSR */
-__RME_CAV7_CPSR_Set:
+__RME_A7A_CPSR_Set:
     MSR                 CPSR,R0
     BX                  LR
-__RME_CAV7_SPSR_Set:
+__RME_A7A_SPSR_Set:
     MSR                 SPSR,R0
     BX                  LR
 
 /* Cache size selection register */
-__RME_CAV7_ID_CSSELR_Set:
+__RME_A7A_ID_CSSELR_Set:
     CP15_SET            CRN=C0 OP1=2 CRM=C0 OP2=0
 /* Virtualization processor ID register  */
-__RME_CAV7_ID_VPIDR_Set:
+__RME_A7A_ID_VPIDR_Set:
     CP15_SET            CRN=C0 OP1=4 CRM=C0 OP2=0
 /* Virtualization multiprocessor ID register */
-__RME_CAV7_ID_VMPIDR_Set:
+__RME_A7A_ID_VMPIDR_Set:
     CP15_SET            CRN=C0 OP1=4 CRM=C0 OP2=5
 
 /* System control register */
-__RME_CAV7_SCTLR_Set:
+__RME_A7A_SCTLR_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C0 OP2=0
 /* Auxiliary control register */
-__RME_CAV7_ACTLR_Set:
+__RME_A7A_ACTLR_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C0 OP2=1
 /* Coprocessor auxiliary control register */
-__RME_CAV7_CPACR_Set:
+__RME_A7A_CPACR_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C0 OP2=2
 /* Secure configuration register */
-__RME_CAV7_SCR_Set:
+__RME_A7A_SCR_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C1 OP2=0
 /* Secure debug enable register */
-__RME_CAV7_SDER_Set:
+__RME_A7A_SDER_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C1 OP2=1
 /* Non-secure access control register */
-__RME_CAV7_NSACR_Set:
+__RME_A7A_NSACR_Set:
     CP15_SET            CRN=C1 OP1=0 CRM=C1 OP2=2
 /* Hyp system control register */
-__RME_CAV7_HSCTLR_Set:
+__RME_A7A_HSCTLR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C0 OP2=0
 /* Hyp auxiliary control register */
-__RME_CAV7_HACTLR_Set:
+__RME_A7A_HACTLR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C0 OP2=1
 /* Hyp configuration register */
-__RME_CAV7_HCR_Set:
+__RME_A7A_HCR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C1 OP2=0
 /* Hyp debug configuration register */
-__RME_CAV7_HDCR_Set:
+__RME_A7A_HDCR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C1 OP2=1
 /* Hyp coprocessor trap register */
-__RME_CAV7_HCPTR_Set:
+__RME_A7A_HCPTR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C1 OP2=2
 /* Hyp system trap register */
-__RME_CAV7_HSTR_Set:
+__RME_A7A_HSTR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C1 OP2=3
 /* Hyp auxiliary configuration register */
-__RME_CAV7_HACR_Set:
+__RME_A7A_HACR_Set:
     CP15_SET            CRN=C1 OP1=4 CRM=C1 OP2=7
 
 /* Translation table base register 0 - 32bit. We do not support PAE of any kind.
  * This operation also sets the page table of this architecture */
-__RME_CAV7_TTBR0_Set:
-__RME_CAV7_Pgt_Set:
+__RME_A7A_TTBR0_Set:
+__RME_A7A_Pgt_Set:
     CP15_SET            CRN=C2 OP1=0 CRM=C0 OP2=0
 /* Translation table base register 1 - 32bit. We do not support PAE of any kind */
-__RME_CAV7_TTBR1_Set:
+__RME_A7A_TTBR1_Set:
     CP15_SET            CRN=C2 OP1=0 CRM=C0 OP2=1
 /* Translation table base controle register */
-__RME_CAV7_TTBCR_Set:
+__RME_A7A_TTBCR_Set:
     CP15_SET            CRN=C2 OP1=0 CRM=C0 OP2=2
 /* Hyp translation control register */
-__RME_CAV7_HTCR_Set:
+__RME_A7A_HTCR_Set:
     CP15_SET            CRN=C2 OP1=4 CRM=C0 OP2=2
 /* Virtualization translation control register */
-__RME_CAV7_VTCR_Set:
+__RME_A7A_VTCR_Set:
     CP15_SET            CRN=C2 OP1=4 CRM=C1 OP2=2
 /* Domain access control register */
-__RME_CAV7_DACR_Set:
+__RME_A7A_DACR_Set:
     CP15_SET            CRN=C3 OP1=0 CRM=C0 OP2=0
 
 /* Data fault status register */
-__RME_CAV7_DFSR_Set:
+__RME_A7A_DFSR_Set:
     CP15_SET            CRN=C5 OP1=0 CRM=C0 OP2=0
 /* Instruction fault status register */
-__RME_CAV7_IFSR_Set:
+__RME_A7A_IFSR_Set:
     CP15_SET            CRN=C5 OP1=0 CRM=C0 OP2=1
 /* Auxiliary data fault status register */
-__RME_CAV7_ADFSR_Set:
+__RME_A7A_ADFSR_Set:
     CP15_SET            CRN=C5 OP1=0 CRM=C1 OP2=0
 /* Auxiliary instruction fault status register */
-__RME_CAV7_AIFSR_Set:
+__RME_A7A_AIFSR_Set:
     CP15_SET            CRN=C5 OP1=0 CRM=C1 OP2=1
 /* Hyp auxiliary data fault status register */
-__RME_CAV7_HADFSR_Set:
+__RME_A7A_HADFSR_Set:
     CP15_SET            CRN=C5 OP1=4 CRM=C1 OP2=0
 /* Hyp auxiliary instruction fault status register */
-__RME_CAV7_HAIFSR_Set:
+__RME_A7A_HAIFSR_Set:
     CP15_SET            CRN=C5 OP1=4 CRM=C1 OP2=1
 /* Hyp syndrome register */
-__RME_CAV7_HSR_Set:
+__RME_A7A_HSR_Set:
     CP15_SET            CRN=C5 OP1=4 CRM=C2 OP2=0
 /* Data fault address register */
-__RME_CAV7_DFAR_Set:
+__RME_A7A_DFAR_Set:
     CP15_SET            CRN=C6 OP1=0 CRM=C0 OP2=0
 /* Instruction fault address register */
-__RME_CAV7_IFAR_Set:
+__RME_A7A_IFAR_Set:
     CP15_SET            CRN=C6 OP1=0 CRM=C0 OP2=2
 /* Hyp data fault address register */
-__RME_CAV7_HDFAR_Set:
+__RME_A7A_HDFAR_Set:
     CP15_SET            CRN=C6 OP1=4 CRM=C0 OP2=0
 /* Hyp instruction fault address register */
-__RME_CAV7_HIFAR_Set:
+__RME_A7A_HIFAR_Set:
     CP15_SET            CRN=C6 OP1=4 CRM=C0 OP2=2
 /* Hyp IPA fault address register */
-__RME_CAV7_HPFAR_Set:
+__RME_A7A_HPFAR_Set:
     CP15_SET            CRN=C6 OP1=4 CRM=C0 OP2=4
 
 /* Instruction cache invalidate all to PoU inner shareable */
-__RME_CAV7_ICIALLUIS_Set:
+__RME_A7A_ICIALLUIS_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C1 OP2=0
 /* Branch predictor invalidate all inner shareable */
-__RME_CAV7_BPIALLIS_Set:
+__RME_A7A_BPIALLIS_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C1 OP2=6
 /* Physical address register */
-__RME_CAV7_PAR_Set:
+__RME_A7A_PAR_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C4 OP2=6
 /* Instruction cache invalidate all to PoU */
-__RME_CAV7_ICIALLU_Set:
+__RME_A7A_ICIALLU_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C5 OP2=0
 /* Invalidate instruction cache by MVA to PoU */
-__RME_CAV7_ICIMVAU_Set:
+__RME_A7A_ICIMVAU_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C5 OP2=1
 /* ISB register - deprecated */
-__RME_CAV7_CP15ISB_Set:
+__RME_A7A_CP15ISB_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C5 OP2=4
 /* Invalidate entire branch predictor array */
-__RME_CAV7_BPIALL_Set:
+__RME_A7A_BPIALL_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C5 OP2=6
 /* Invalidate MVA from branch predictors */
-__RME_CAV7_BPIMVA_Set:
+__RME_A7A_BPIMVA_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C5 OP2=7
 /* Invalidate data cache by MVA to PoC */
-__RME_CAV7_DCIMVAC_Set:
+__RME_A7A_DCIMVAC_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C6 OP2=1
 /* Invalidate data cache line by set/way */
-__RME_CAV7_DCISW_Set:
+__RME_A7A_DCISW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C6 OP2=2
 /* Priviledged read VA to PA translation */
-__RME_CAV7_ATS1CPR_Set:
+__RME_A7A_ATS1CPR_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=0
 /* Priviledged write VA to PA translation */
-__RME_CAV7_ATS1CPW_Set:
+__RME_A7A_ATS1CPW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=1
 /* User read VA to PA translation */
-__RME_CAV7_ATS1CUR_Set:
+__RME_A7A_ATS1CUR_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=2
 /* User write VA to PA translation */
-__RME_CAV7_ATS1CUW_Set:
+__RME_A7A_ATS1CUW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=3
 /* Priviledged read VA to PA translation, other security state */
-__RME_CAV7_ATS12NSOPR_Set:
+__RME_A7A_ATS12NSOPR_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=4
 /* Priviledged write VA to PA translation, other security state */
-__RME_CAV7_ATS12NSOPW_Set:
+__RME_A7A_ATS12NSOPW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=5
 /* User read VA to PA translation, other security state */
-__RME_CAV7_ATS12NSOUR_Set:
+__RME_A7A_ATS12NSOUR_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=6
 /* User write VA to PA translation, other security state */
-__RME_CAV7_ATS12NSOUW_Set:
+__RME_A7A_ATS12NSOUW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C8 OP2=7
 /* Clean data cache line by MVA to PoC */
-__RME_CAV7_DCCMVAC_Set:
+__RME_A7A_DCCMVAC_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C10 OP2=1
 /* Clean data cache line by set/way */
-__RME_CAV7_DCCSW_Set:
+__RME_A7A_DCCSW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C10 OP2=2
 /* DSB register - deprecated */
-__RME_CAV7_CP15DSB_Set:
+__RME_A7A_CP15DSB_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C10 OP2=4
 /* DMB register - deprecated */
-__RME_CAV7_CP15DMB_Set:
+__RME_A7A_CP15DMB_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C10 OP2=5
 /* Clean data cache line by MVA to PoU */
-__RME_CAV7_DCCMVAU_Set:
+__RME_A7A_DCCMVAU_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C11 OP2=1
 /* Clean and invalidate data cache line by MVA to PoC */
-__RME_CAV7_DCCIMVAC_Set:
+__RME_A7A_DCCIMVAC_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C14 OP2=1
 /* Clean and invalidate data cache line by set/way */
-__RME_CAV7_DCCISW_Set:
+__RME_A7A_DCCISW_Set:
     CP15_SET            CRN=C7 OP1=0 CRM=C14 OP2=2
 /* Hyp mode read translation */
-__RME_CAV7_ATS1HR_Set:
+__RME_A7A_ATS1HR_Set:
     CP15_SET            CRN=C7 OP1=4 CRM=C8 OP2=0
 /* Hyp mode write translation */
-__RME_CAV7_ATS1HW_Set:
+__RME_A7A_ATS1HW_Set:
     CP15_SET            CRN=C7 OP1=4 CRM=C8 OP2=1
 
 /* Invalidate entire TLB IS */
-__RME_CAV7_TLBIALLIS_Set:
+__RME_A7A_TLBIALLIS_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C3 OP2=0
 /* Invalidate unified TLB entry by MVA and ASID IS */
-__RME_CAV7_TLBIMVAIS_Set:
+__RME_A7A_TLBIMVAIS_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C3 OP2=1
 /* Invalidate unified TLB by ASID match IS */
-__RME_CAV7_TLBIASIDIS_Set:
+__RME_A7A_TLBIASIDIS_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C3 OP2=2
 /* Invalidate unified TLB entry by MVA all ASID IS */
-__RME_CAV7_TLBIMVAAIS_Set:
+__RME_A7A_TLBIMVAAIS_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C3 OP2=3
 /* Invalidate instruction TLB */
-__RME_CAV7_ITLBIALL_Set:
+__RME_A7A_ITLBIALL_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C5 OP2=0
 /* Invalidate instruction TLB entry by MVA and ASID */
-__RME_CAV7_ITLBIMVA_Set:
+__RME_A7A_ITLBIMVA_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C5 OP2=1
 /* Invalidate instruction TLB by ASID match */
-__RME_CAV7_ITLBIASID_Set:
+__RME_A7A_ITLBIASID_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C5 OP2=2
 /* Invalidate data TLB */
-__RME_CAV7_DTLBIALL_Set:
+__RME_A7A_DTLBIALL_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C6 OP2=0
 /* Invalidate data TLB entry by MVA and ASID */
-__RME_CAV7_DTLBIMVA_Set:
+__RME_A7A_DTLBIMVA_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C6 OP2=1
 /* Invalidate data TLB by ASID match */
-__RME_CAV7_DTLBIASID_Set:
+__RME_A7A_DTLBIASID_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C6 OP2=2
 /* Invalidate unified TLB */
-__RME_CAV7_TLBIALL_Set:
+__RME_A7A_TLBIALL_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C7 OP2=0
 /* Invalidate unified TLB entry by MVA and ASID */
-__RME_CAV7_TLBIMVA_Set:
+__RME_A7A_TLBIMVA_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C7 OP2=1
 /* Invalidate unified TLB by ASID match */
-__RME_CAV7_TLBIASID_Set:
+__RME_A7A_TLBIASID_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C7 OP2=2
 /* Invalidate unified TLB entries by MVA all ASID */
-__RME_CAV7_TLBIMVAA_Set:
+__RME_A7A_TLBIMVAA_Set:
     CP15_SET            CRN=C8 OP1=0 CRM=C7 OP2=3
 /* Invalidate entire Hyp unified TLB IS */
-__RME_CAV7_TLBIALLHIS_Set:
+__RME_A7A_TLBIALLHIS_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C3 OP2=0
 /* Invalidate Hyp unified TLB entry by MVA IS */
-__RME_CAV7_TLBIMVAHIS_Set:
+__RME_A7A_TLBIMVAHIS_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C3 OP2=1
 /* Invalidate entire Non-secure non-Hyp unified TLB IS */
-__RME_CAV7_TLBIALLNSNHIS_Set:
+__RME_A7A_TLBIALLNSNHIS_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C3 OP2=4
 /* Invalidate entire Hyp unified TLB */
-__RME_CAV7_TLBIALLH_Set:
+__RME_A7A_TLBIALLH_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C7 OP2=0
 /* Invalidate Hyp unified TLB entry by MVA */
-__RME_CAV7_TLBIMVAH_Set:
+__RME_A7A_TLBIMVAH_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C7 OP2=1
 /* Invalidate entire Non-secure non-Hyp unified TLB */
-__RME_CAV7_TLBIALLNSNH_Set:
+__RME_A7A_TLBIALLNSNH_Set:
     CP15_SET            CRN=C8 OP1=4 CRM=C7 OP2=4
 
 /* C9 registers currently unsupported */
 
 /* TLB lockdown register - Cortex-A9 */
-__RME_CAV7_TLBLR_Set:
+__RME_A7A_TLBLR_Set:
     CP15_SET            CRN=C10 OP1=0 CRM=C0 OP2=0
 /* Primary region remap register */
-__RME_CAV7_PRRR_Set:
+__RME_A7A_PRRR_Set:
     CP15_SET            CRN=C10 OP1=0 CRM=C2 OP2=0
 /* Normal memory remap register */
-__RME_CAV7_NMRR_Set:
+__RME_A7A_NMRR_Set:
     CP15_SET            CRN=C10 OP1=0 CRM=C2 OP2=1
 /* Auxiliary memory attribute indirection register 0 */
-__RME_CAV7_AMAIR0_Set:
+__RME_A7A_AMAIR0_Set:
     CP15_SET            CRN=C10 OP1=0 CRM=C3 OP2=0
 /* Auxiliary memory attribute indirection register 1 */
-__RME_CAV7_AMAIR1_Set:
+__RME_A7A_AMAIR1_Set:
     CP15_SET            CRN=C10 OP1=0 CRM=C3 OP2=1
 /* Hyp memory attribute indirection register 0 */
-__RME_CAV7_HMAIR0_Set:
+__RME_A7A_HMAIR0_Set:
     CP15_SET            CRN=C10 OP1=4 CRM=C2 OP2=0
 /* Hyp memory attribute indirection register 1 */
-__RME_CAV7_HMAIR1_Set:
+__RME_A7A_HMAIR1_Set:
     CP15_SET            CRN=C10 OP1=4 CRM=C2 OP2=1
 /* Hyp auxiliary memory attribute indirection register 0 */
-__RME_CAV7_HAMAIR0_Set:
+__RME_A7A_HAMAIR0_Set:
     CP15_SET            CRN=C10 OP1=4 CRM=C3 OP2=0
 /* Hyp auxiliary memory attribute indirection register 1 */
-__RME_CAV7_HAMAIR1_Set:
+__RME_A7A_HAMAIR1_Set:
     CP15_SET            CRN=C10 OP1=4 CRM=C3 OP2=1
 
 /* Vector base address register */
-__RME_CAV7_VBAR_Set:
+__RME_A7A_VBAR_Set:
     CP15_SET            CRN=C12 OP1=0 CRM=C0 OP2=0
 /* Vector base address register */
-__RME_CAV7_MVBAR_Set:
+__RME_A7A_MVBAR_Set:
     CP15_SET            CRN=C12 OP1=0 CRM=C0 OP2=1
 /* Hyp vector base address register */
-__RME_CAV7_HVBAR_Set:
+__RME_A7A_HVBAR_Set:
     CP15_SET            CRN=C12 OP1=4 CRM=C0 OP2=0
 
 /* Context ID register */
-__RME_CAV7_CONTEXTIDR_Set:
+__RME_A7A_CONTEXTIDR_Set:
     CP15_SET            CRN=C13 OP1=0 CRM=C0 OP2=1
 /* User read/write software thread register */
-__RME_CAV7_TPIDRURW_Set:
+__RME_A7A_TPIDRURW_Set:
     CP15_SET            CRN=C13 OP1=0 CRM=C0 OP2=2
 /* User read-only software thread register */
-__RME_CAV7_TPIDRURO_Set:
+__RME_A7A_TPIDRURO_Set:
     CP15_SET            CRN=C13 OP1=0 CRM=C0 OP2=3
 /* PL1-only software thread register */
-__RME_CAV7_TPIDRPRW_Set:
+__RME_A7A_TPIDRPRW_Set:
     CP15_SET            CRN=C13 OP1=0 CRM=C0 OP2=4
 /* Hyp read/write software thread register */
-__RME_CAV7_HTPIDR_Set:
+__RME_A7A_HTPIDR_Set:
     CP15_SET            CRN=C13 OP1=4 CRM=C0 OP2=2
 
 /* Counter frequency register */
-__RME_CAV7_CNTFRQ_Set:
+__RME_A7A_CNTFRQ_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C0 OP2=0
 /* Timer PL1 control register */
-__RME_CAV7_CNTKCTL_Set:
+__RME_A7A_CNTKCTL_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C1 OP2=0
 /* PL1 physical timer value register */
-__RME_CAV7_CNTP_TVAL_Set:
+__RME_A7A_CNTP_TVAL_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C2 OP2=0
 /* PL1 physical timer control register */
-__RME_CAV7_CNTP_CTL_Set:
+__RME_A7A_CNTP_CTL_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C2 OP2=1
 /* Virtual timer value register */
-__RME_CAV7_CNTV_TVAL_Set:
+__RME_A7A_CNTV_TVAL_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C3 OP2=0
 /* Virtual timer control register */
-__RME_CAV7_CNTV_CTL_Set:
+__RME_A7A_CNTV_CTL_Set:
     CP15_SET            CRN=C14 OP1=0 CRM=C3 OP2=1
 /* Timer PL2 control register */
-__RME_CAV7_CNTHCTL_Set:
+__RME_A7A_CNTHCTL_Set:
     CP15_SET            CRN=C14 OP1=4 CRM=C1 OP2=0
 /* PL2 physical timer value register */
-__RME_CAV7_CNTHP_TVAL_Set:
+__RME_A7A_CNTHP_TVAL_Set:
     CP15_SET            CRN=C14 OP1=4 CRM=C2 OP2=0
 /* PL2 physical timer control register */
-__RME_CAV7_CNTHP_CTL_Set:
+__RME_A7A_CNTHP_CTL_Set:
     CP15_SET            CRN=C14 OP1=4 CRM=C2 OP2=1
-/* End Function:__RME_CAV7_XXXX_Set ******************************************/
+/* End Function:__RME_A7A_XXXX_Set ******************************************/
 
-/* Function:__RME_CAV7_XXXX_DW_Set ********************************************
+/* Function:__RME_A7A_XXXX_DW_Set ********************************************
 Description : Set the XXXX register of the CPU. These registers must be written
               with MCRR instruction, and are all 64-bit double words.
 Input       : rme_ptr_t R0 - The lower bits.
@@ -1210,20 +1210,20 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 /* PL1 physical timer compare value register */
-__RME_CAV7_CNTP_CVAL_DW_Set:
+__RME_A7A_CNTP_CVAL_DW_Set:
     CP15_SET_DOUBLE     CRM=C14 OP=2
 /* Virtual timer compare value register */
-__RME_CAV7_CNTV_CVAL_DW_Set:
+__RME_A7A_CNTV_CVAL_DW_Set:
     CP15_SET_DOUBLE     CRM=C14 OP=3
 /* Virtual offset register */
-__RME_CAV7_CNTVOFF_DW_Set:
+__RME_A7A_CNTVOFF_DW_Set:
     CP15_SET_DOUBLE     CRM=C14 OP=4
 /* L2 physical timer compare value register */
-__RME_CAV7_CNTHP_CVAL_DW_Set:
+__RME_A7A_CNTHP_CVAL_DW_Set:
     CP15_SET_DOUBLE     CRM=C14 OP=6
-/* End Function:__RME_CAV7_XXXX_DW_Set ***************************************/
+/* End Function:__RME_A7A_XXXX_DW_Set ***************************************/
 
-/* Function:__RME_CAV7_Comp_Swap **********************************************
+/* Function:__RME_A7A_Comp_Swap **********************************************
 Description : The compare-and-swap atomic instruction. If the Old value is equal to
               *Ptr, then set the *Ptr as New and return 1; else return 0.
               This implementation is optimal on Cortex-A. Many compilers will generate
@@ -1235,24 +1235,24 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-__RME_CAV7_Comp_Swap:
+__RME_A7A_Comp_Swap:
     DMB                 SY
     LDREX               R3,[R0]
     CMP                 R3,R1
-    BNE                 __RME_CAV7_Comp_Swap_Fail
+    BNE                 __RME_A7A_Comp_Swap_Fail
     STREX               R3,R2,[R0]
     CMP                 R3,#0x00
-    BNE                 __RME_CAV7_Comp_Swap
+    BNE                 __RME_A7A_Comp_Swap
     MOV                 R0,#0x01
     DMB                 SY
     BX                  LR
-__RME_CAV7_Comp_Swap_Fail:
+__RME_A7A_Comp_Swap_Fail:
     CLREX
     MOV                 R0,#0x00
     BX                  LR
-/* End Function:__RME_CAV7_Comp_Swap *****************************************/
+/* End Function:__RME_A7A_Comp_Swap *****************************************/
 
-/* Function:__RME_CAV7_Fetch_Add **********************************************
+/* Function:__RME_A7A_Fetch_Add **********************************************
 Description : The fetch-and-add atomic instruction. Increase the value that is
               pointed to by the pointer, and return the value before addition.
               On ARM, the R12 is also a scratch register that we can use.
@@ -1261,17 +1261,17 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the addition.
 ******************************************************************************/
-__RME_CAV7_Fetch_Add:
+__RME_A7A_Fetch_Add:
     LDREX               R2,[R0]
     ADD                 R3,R2,R1
     STREX               R12,R3,[R0]
     CMP                 R12,#0x00
-    BNE                 __RME_CAV7_Fetch_Add
+    BNE                 __RME_A7A_Fetch_Add
     MOV                 R0,R2
     BX                  LR
-/* End Function:__RME_CAV7_Fetch_Add *****************************************/
+/* End Function:__RME_A7A_Fetch_Add *****************************************/
 
-/* Function:__RME_CAV7_Fetch_And **********************************************
+/* Function:__RME_A7A_Fetch_And **********************************************
 Description : The fetch-and-logic-and atomic instruction. Logic AND the pointer
               value with the operand, and return the value before logic AND.
 Input       : ptr_t* Ptr - The pointer to the data.
@@ -1279,74 +1279,74 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - The value before the AND operation.
 ******************************************************************************/
-__RME_CAV7_Fetch_And:
+__RME_A7A_Fetch_And:
     LDREX               R2,[R0]
     AND                 R3,R2,R1
     STREX               R12,R3,[R0]
     CMP                 R12,#0x00
-    BNE                 __RME_CAV7_Fetch_Add
+    BNE                 __RME_A7A_Fetch_Add
     MOV                 R0,R2
     BX                  LR
-/* End Function:__RME_CAV7_Fetch_And *****************************************/
+/* End Function:__RME_A7A_Fetch_And *****************************************/
 
-/* Function:__RME_CAV7_Read_Acquire *******************************************
+/* Function:__RME_A7A_Read_Acquire *******************************************
 Description : The read-acquire memory fence, to avoid read/write reorderings.
 Input       : rme_ptr_t* R0 - Address to read from.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_CAV7_Read_Acquire:
+__RME_A7A_Read_Acquire:
     LDR                 R0,[R0]
     DMB
     BX                  LR
-/* End Function:__RME_CAV7_Read_Acquire **************************************/
+/* End Function:__RME_A7A_Read_Acquire **************************************/
 
-/* Function:__RME_CAV7_Write_Release ******************************************
+/* Function:__RME_A7A_Write_Release ******************************************
 Description : The write-release memory fence, to avoid read/write reorderings.
 Input       : rme_ptr_t* R0 - Address to write to.
               rme_ptr_t R1 - Content to write to the address.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_CAV7_Write_Release:
+__RME_A7A_Write_Release:
     DMB
     STR                 R1,[R0]
     BX                  LR
-/* End Function:__RME_CAV7_Write_Release *************************************/
+/* End Function:__RME_A7A_Write_Release *************************************/
 
-/* Function:__RME_Disable_Int *************************************************
+/* Function:__RME_Int_Disable *************************************************
 Description : The function for disabling all interrupts.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_Disable_Int:
+__RME_Int_Disable:
     CPSID               I
     BX                  LR
-/* End Function:__RME_Disable_Int ********************************************/
+/* End Function:__RME_Int_Disable ********************************************/
 
-/* Function:__RME_Enable_Int **************************************************
+/* Function:__RME_Int_Enable **************************************************
 Description : The function for enabling all interrupts.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_Enable_Int:
+__RME_Int_Enable:
     CPSIE               I
     BX                  LR
-/* End Function:__RME_Enable_Int *********************************************/
+/* End Function:__RME_Int_Enable *********************************************/
 
-/* Function:__RME_CAV7_Halt ***************************************************
+/* Function:__RME_A7A_Halt ***************************************************
 Description : Wait until a new interrupt comes, to save power.
 Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_CAV7_Halt:
+__RME_A7A_Halt:
     /* Wait for interrupt */
     WFI
     BX                  LR
-/* End Function:__RME_CAV7_Halt **********************************************/
+/* End Function:__RME_A7A_Halt **********************************************/
 
 /* Function:_RME_Kmain ********************************************************
 Description : The entry address of the kernel. Never returns.
@@ -1359,7 +1359,7 @@ _RME_Kmain:
     BL                  RME_Kmain
 /* End Function:_RME_Kmain ***************************************************/
 
-/* Function:__RME_CAV7_MSB_Get ************************************************
+/* Function:__RME_A7A_MSB_Get ************************************************
 Description : Get the MSB of the word. The kernel is guaranteed not to call this
               function with a zero word, so we don't need to handle this edge case
               actually.
@@ -1367,14 +1367,14 @@ Input       : ptr_t Val - The value.
 Output      : None.
 Return      : ptr_t - The MSB position.
 ******************************************************************************/
-__RME_CAV7_MSB_Get:
+__RME_A7A_MSB_Get:
     CLZ                 R1,R0
     MOV                 R0,#31
     SUB                 R0,R1
     BX                  LR
-/* End Function:__RME_CAV7_MSB_Get *******************************************/
+/* End Function:__RME_A7A_MSB_Get *******************************************/
 
-/* Function:__RME_Enter_User_Mode *********************************************
+/* Function:__RME_User_Enter *********************************************
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
@@ -1384,7 +1384,7 @@ Input       : ptr_t Entry - The user execution startpoint.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-__RME_Enter_User_Mode:
+__RME_User_Enter:
     PUSH                {R0}
     MOV                 R0,R2
     /* Prepare the SPSR for user-level */
@@ -1392,7 +1392,7 @@ __RME_Enter_User_Mode:
     MSR                 SPSR,R2
     MSR                 SP_usr,R1
     LDMIA               SP!,{PC}^
-/* End Function:__RME_Enter_User_Mode ****************************************/
+/* End Function:__RME_User_Enter ****************************************/
 
 /* Function:Reset_Handler *****************************************************
 Description : The reset handler routine. This is not used in ARM, and is thus
@@ -1443,7 +1443,7 @@ Return      : None.
 
 Undefined_Handler:
     SAVE_GP_REGS
-    BL                  __RME_CAV7_Undefined_Handler
+    BL                  __RME_A7A_Undefined_Handler
     RESTORE_GP_REGS
 /* End Function:Undefined_Handler ********************************************/
 
@@ -1455,7 +1455,7 @@ Return      : None.
 ******************************************************************************/
 Prefetch_Abort_Handler:
     SAVE_GP_REGS
-    BL                  __RME_CAV7_Prefetch_Abort_Handler
+    BL                  __RME_A7A_Prefetch_Abort_Handler
     RESTORE_GP_REGS
 /* End Function:Prefetch_Abort_Handler ***************************************/
 
@@ -1467,7 +1467,7 @@ Return      : None.
 ******************************************************************************/
 Data_Abort_Handler:
     SAVE_GP_REGS
-    BL                  __RME_CAV7_Data_Abort_Handler
+    BL                  __RME_A7A_Data_Abort_Handler
     RESTORE_GP_REGS
 /* End Function:Data_Abort_Handler *******************************************/
 
@@ -1495,7 +1495,7 @@ IRQ_Handler:
     STR                 R1,[R0]
     B .
     SAVE_GP_REGS
-    BL                  __RME_CAV7_IRQ_Handler
+    BL                  __RME_A7A_IRQ_Handler
     RESTORE_GP_REGS
 /* End Function:IRQ_Handler **************************************************/
 

@@ -12,6 +12,9 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 ******************************************************************************/
 
 /* Define ********************************************************************/
+/* Debugging *****************************************************************/
+#define RME_ASSERT_ENABLE                               (1U)
+#define RME_DBGLOG_ENABLE                               (1U)
 /* The HAL library */
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
@@ -28,10 +31,6 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_KOM_SLOT_ORDER           4U
 /* Kernel stack size and address */
 #define RME_KOM_STACK_ADDR          (((rme_ptr_t)&__RME_A7A_Stack_Start)+0x10000U)
-/* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_BASE              0x0U
-/* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_VA_SIZE              0x0U
 /* Kernel stack base and size */
 #define RME_KSTK_VA_BASE             (0x10000FF0U)
 #define RME_KSTK_VA_SIZE             (0x400U)

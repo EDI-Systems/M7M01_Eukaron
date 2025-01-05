@@ -436,6 +436,11 @@ struct RME_Iret_Struct
     rme_ptr_t PC;
     rme_ptr_t SP;
 };
+/* Exception register structure - always indicate hardfault */
+struct RME_Exc_Struct
+{
+    rme_ptr_t Cause;
+};
 
 /* Memory information - the layout is (offset from VA base):
  * |----------16MB|-----|-----|-----|-----|
