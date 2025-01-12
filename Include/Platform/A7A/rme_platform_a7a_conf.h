@@ -7,7 +7,7 @@ Description : The configuration file for Cortex-Av7 profile settings.
 ******************************************************************************/
 
 /* Config Includes ***********************************************************/
-#include "Platform/A7A/Chips/XC7Z020/rme_platform_XC7Z020.h"
+#include "Platform/A7A/Chip/XC7Z020/rme_platform_xc7z020.h"
 /* End Config Includes *******************************************************/
 
 /* End Of File ***************************************************************/

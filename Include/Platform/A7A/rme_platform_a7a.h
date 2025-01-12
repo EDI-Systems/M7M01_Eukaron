@@ -114,7 +114,8 @@ typedef rme_s32_t rme_ret_t;
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                       RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
+//#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
 #define RME_FETCH_ADD(PTR,ADDEND)       __RME_A7A_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
@@ -1036,7 +1037,15 @@ __RME_EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_
                                          rme_ptr_t* Capid, rme_ptr_t* Param);
 __RME_EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
-__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
+//__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
+                                       rme_ptr_t Entry,
+                                       rme_ptr_t Stack,
+                                       rme_ptr_t Param,
+                                       struct RME_Reg_Struct* Reg);
+__RME_EXTERN__ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
+                                               rme_ptr_t Pos,
+                                               struct RME_Cap_Pgt* Pgt_Child);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
 __RME_EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __RME_EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
@@ -1062,7 +1071,7 @@ __RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, 
                                            struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
-__RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+//__RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);

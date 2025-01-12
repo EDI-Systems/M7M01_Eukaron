@@ -5,7 +5,6 @@ Date        : 24/06/2017
 Licence     : LGPL v3+; see COPYING for details.
 Description : The configuration file for XC7Z020, with 1MB memory.
               Kernel : 0x80100000 - 0x80EFFFFF.
-              Pgreg  : 0x80F00000 - 0x80FFFFFF.
               Kom1  : 0x81000000 - 0xC0FFFFFF.
               Kom2  : None.
               Periph : 0xC1000000 - 0xFFFFFFFF.
@@ -19,7 +18,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
 /*The size of the processor's non-top-level page directory.*/
-#define RME_PGT_SIZE_NOM(X)          ((1<< X) + ?)
+//#define RME_PGT_SIZE_NOM(X)          ((1<< X) + ?)
 /*The size of the processor's top-level page directory.*/
 #define RME_PGT_SIZE_TOP(X)          (RME_PGT_SIZE_NOM(X)+X)
 /* The virtual memory start address for the kernel objects */
@@ -39,7 +38,11 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* The maximum number of preemption priority levels in the system.
  * This parameter must be divisible by the word length - 32 is usually sufficient */
 #define RME_MAX_PREEMPT_PRIO         32U
-
+#define RME_PREEMPT_PRIO_NUM (32U)
+/* Hypervisor context virtual memory base - set to 0 if no VM */
+#define RME_HYP_VA_BASE                                 (0x20000000U)
+/* Hypervisor context virtual memory size - set to 0 if no VM */
+#define RME_HYP_VA_SIZE                                 (0x20000U)
 /* Memory mapping PA-VA relationships for the page tables. Tailor this to your own
  * memory mappings if your chip have idiosyncrasies. */
 #define RME_A7A_VA2PA(X)            (((rme_ptr_t)(X))-RME_A7A_VA_BASE)
