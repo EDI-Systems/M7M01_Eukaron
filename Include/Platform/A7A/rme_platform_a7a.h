@@ -92,7 +92,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_UNLIKELY(X)                 (X)
 #endif
 /* CPU-local data structure location macro */
-#define RME_CPU_LOCAL()                 (__RME_A7A_CPU_Local_Get())
+//#define RME_CPU_LOCAL()                 (__RME_A7A_CPU_Local_Get())
+#define RME_CPU_LOCAL()                 (&RME_A7A_Local)
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                  (5U)
 /* Forcing VA=PA in user memory segments */
@@ -114,8 +115,7 @@ typedef rme_s32_t rme_ret_t;
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                       RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
-//#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
-#define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_Comp_Swap_Single(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
 #define RME_FETCH_ADD(PTR,ADDEND)       __RME_A7A_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
@@ -747,7 +747,7 @@ static void __RME_A7A_Timer_Init(void);
 /* Timestamp counter */
 __RME_EXTERN__ rme_ptr_t RME_A7A_Timestamp;
 /* Cortex-A9 can have up to 4 cores. We hard-code it here */
-__RME_EXTERN__ struct RME_CPU_Local RME_A7A_Local[4];
+__RME_EXTERN__ struct RME_CPU_Local RME_A7A_Local;
 /* ARMv6-M use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_A7A_Kot[RME_KOT_WORD_NUM];
 /* The memory layout of this chip */
@@ -1038,14 +1038,8 @@ __RME_EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_
 __RME_EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
 //__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
-__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
-                                       rme_ptr_t Entry,
-                                       rme_ptr_t Stack,
-                                       rme_ptr_t Param,
+__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t Param,
                                        struct RME_Reg_Struct* Reg);
-__RME_EXTERN__ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,
-                                               rme_ptr_t Pos,
-                                               struct RME_Cap_Pgt* Pgt_Child);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
 __RME_EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __RME_EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
@@ -1065,13 +1059,18 @@ __RME_EXTERN__ void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_pt
 __RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+
+
+typedef struct RME_Cap_Pgt RME_Cap_Pgt;  // 不透明类型
+
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos, 
                                            struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags);
-//__RME_EXTERN__ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos);
+__RME_EXTERN__ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,rme_ptr_t Pos,
+                                               struct RME_Cap_Pgt* Pgt_Child);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                                       rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags);

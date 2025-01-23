@@ -19,8 +19,6 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_PGT_RAW_ENABLE                              (0U)
 /*The size of the processor's non-top-level page directory.*/
 //#define RME_PGT_SIZE_NOM(X)          ((1<< X) + ?)
-/*The size of the processor's top-level page directory.*/
-#define RME_PGT_SIZE_TOP(X)          (RME_PGT_SIZE_NOM(X)+X)
 /* The virtual memory start address for the kernel objects */
 #define RME_KOM_VA_BASE              0x81000000U
 /* The size of the kernel object virtual memory - the excess 16MB is for mapping
