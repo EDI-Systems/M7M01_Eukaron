@@ -11,12 +11,13 @@ Description : The hardware abstraction layer for ARMv7-A machines.
 
 /* Include *******************************************************************/
 #define __HDR_DEF__
-#include "Kernel/rme_kernel.h"
 #include "Platform/A7A/rme_platform_a7a.h"
+#include "Kernel/rme_kernel.h"
 #undef __HDR_DEF__
 
 #define __HDR_STRUCT__
 #include "Platform/A7A/rme_platform_a7a.h"
+#include "Kernel/rme_kernel.h"
 #undef __HDR_STRUCT__
 
 /* Private include */
@@ -41,18 +42,6 @@ int main(void)
     return 0;
 }
 /* End Function:main *********************************************************/
-
-/* Function:__RME_A7A_Comp_Swap **********************************************
-Description : 
-Input       : 
-                     
-Output      : 
-Return      : ****************************************************************/
-rme_ptr_t __RME_A7A_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
-{
-    
-}
-/* End Function:__RME_A7A_Comp_Swap *****************************************/
 
 /* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
@@ -533,6 +522,19 @@ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* R
     Reg->SP=Ret->SP;
 }
 /* End Function:__RME_Inv_Reg_Restore ****************************************/
+
+/* Function:__RME_Inv_Retval_Set **********************************************
+Description : Set the invocation return value to the stack frame.
+Input       : rme_ret_t Retval - The return value.
+Output      : struct RME_Reg_Struct* Reg - The register set.
+Return      : None.
+******************************************************************************/
+void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
+                          rme_ret_t Retval)
+{
+    //Reg->R5=(rme_ptr_t)Retval;
+}
+/* End Function:__RME_Inv_Retval_Set *****************************************/
 
 /* Function:__RME_Set_Inv_Retval **********************************************
 Description : Set the invocation return value to the stack frame.

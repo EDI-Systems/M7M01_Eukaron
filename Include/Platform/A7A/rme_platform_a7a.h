@@ -115,7 +115,7 @@ typedef rme_s32_t rme_ret_t;
 /* The kernel object allocation table address - original */
 #define RME_KOT_VA_BASE                       RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      __RME_A7A_Comp_Swap(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)      _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
 #define RME_FETCH_ADD(PTR,ADDEND)       __RME_A7A_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
@@ -1011,7 +1011,6 @@ RME_EXTERN void __RME_Disable_Int(void);
 RME_EXTERN void __RME_Enable_Int(void);
 RME_EXTERN void __RME_A7A_Wait_Int(void);
 /* Atomics */
-__RME_EXTERN__ rme_ptr_t __RME_A7A_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
 __RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* Memory barriers */
@@ -1048,6 +1047,8 @@ __RME_EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME
 __RME_EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 __RME_EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
+__RME_EXTERN__ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
+                                         rme_ret_t Retval);
 /* Kernel function handler */
 __RME_EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
                                              rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);

@@ -1,5 +1,5 @@
 /******************************************************************************
-Filename    : platform_cav7_asm.s
+Filename    : platform_A7A_asm.s
 Author      : pry
 Date        : 19/01/2017
 Description : The Cortex-A (ARMv7) assembly support of the RME RTOS.
@@ -1235,7 +1235,7 @@ Input       : ptr_t* Ptr - The pointer to the data.
 Output      : ptr_t* Ptr - The pointer to the data.
 Return      : ptr_t - If successful, 1; else 0.
 ******************************************************************************/
-__RME_A7A_Comp_Swap:
+/*__RME_A7A_Comp_Swap:
     DMB                 SY
     LDREX               R3,[R0]
     CMP                 R3,R1
@@ -1245,11 +1245,11 @@ __RME_A7A_Comp_Swap:
     BNE                 __RME_A7A_Comp_Swap
     MOV                 R0,#0x01
     DMB                 SY
-    BX                  LR
-__RME_A7A_Comp_Swap_Fail:
+    BX                  LR*/
+/*__RME_A7A_Comp_Swap_Fail:
     CLREX
     MOV                 R0,#0x00
-    BX                  LR
+    BX                  LR*/
 /* End Function:__RME_A7A_Comp_Swap *****************************************/
 
 /* Function:__RME_A7A_Fetch_Add **********************************************

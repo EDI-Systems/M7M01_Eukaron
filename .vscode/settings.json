@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "rme_kernel.h": "c",
+        "rme_platform.h": "c",
+        "rme_platform_a7a.h": "c"
+    }
+}
