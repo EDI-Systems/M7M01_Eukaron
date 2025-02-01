@@ -117,9 +117,9 @@ typedef rme_s32_t rme_ret_t;
 /* Compare-and-Swap(CAS) */
 #define RME_COMP_SWAP(PTR,OLD,NEW)      _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)       __RME_A7A_Fetch_Add(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)       _RME_Fetch_Add_Single(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
-#define RME_FETCH_AND(PTR,OPERAND)      __RME_A7A_Fetch_And(PTR,OPERAND)
+#define RME_FETCH_AND(PTR,OPERAND)      _RME_Fetch_And_Single(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                __RME_A7A_MSB_Get(VAL)
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
@@ -1007,12 +1007,12 @@ __RME_EXTERN__ void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void _RME_A7A_SGI_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Int_ID);
 /* Interrupts */
-RME_EXTERN void __RME_Disable_Int(void);
-RME_EXTERN void __RME_Enable_Int(void);
+RME_EXTERN void __RME_Int_Disable(void);
+RME_EXTERN void __RME_Int_Enable(void);
 RME_EXTERN void __RME_A7A_Wait_Int(void);
 /* Atomics */
-__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
-__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
+//__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
+//__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* Memory barriers */
 RME_EXTERN rme_ptr_t __RME_A7A_Read_Acquire(rme_ptr_t* Ptr);
 RME_EXTERN void __RME_A7A_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Val);
@@ -1025,18 +1025,20 @@ RME_EXTERN void ___RME_A7A_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 RME_EXTERN void ___RME_A7A_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 RME_EXTERN void _RME_Kmain(rme_ptr_t Stack);
-RME_EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
-__RME_EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
-__RME_EXTERN__ rme_ptr_t __RME_Boot(void);
+RME_EXTERN void __RME_User_Enter(rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t CPUID);
+__RME_EXTERN__ void __RME_Lowlvl_Init(void);
+__RME_EXTERN__ void __RME_Boot(void);
 __RME_EXTERN__ void __RME_Reboot(void);
 __RME_EXTERN__ void __RME_Shutdown(void);
 /* Syscall & invocation */
 __RME_EXTERN__ struct RME_CPU_Local* __RME_A7A_CPU_Local_Get(void);
-__RME_EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc,
-                                         rme_ptr_t* Capid, rme_ptr_t* Param);
-__RME_EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
+__RME_EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
+                                        rme_ptr_t* Svc,
+                                        rme_ptr_t* Capid,
+                                        rme_ptr_t* Param);
+__RME_EXTERN__ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
+                                         rme_ret_t Retval);
 /* Thread register sets */
-//__RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t Param,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
@@ -1049,9 +1051,21 @@ __RME_EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME
 __RME_EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 __RME_EXTERN__ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
+__RME_EXTERN__ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                                       rme_ptr_t Is_Hyp_New,
+                                       struct RME_Reg_Struct* Reg_New,
+                                       void* Cop_New,
+                                       rme_ptr_t Attr_Cur,
+                                       rme_ptr_t Is_Hyp_Cur,
+                                       struct RME_Reg_Struct* Reg_Cur,
+                                       void* Cop_Cur);
 /* Kernel function handler */
-__RME_EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID, 
-                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+__RME_EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
+                                           struct RME_Reg_Struct* Reg,
+                                           rme_ptr_t Func_ID,
+                                           rme_ptr_t Sub_ID,
+                                           rme_ptr_t Param1,
+                                           rme_ptr_t Param2);
 /* Fault handler */
 __RME_EXTERN__ void __RME_A7A_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
@@ -1060,10 +1074,6 @@ __RME_EXTERN__ void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_pt
 __RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
-
-
-typedef struct RME_Cap_Pgt RME_Cap_Pgt;  // 不透明类型
-
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);

@@ -36,6 +36,7 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
+    __RME_Putchar('e');//test
     /* The main function of the kernel - we will start our kernel boot here */
     _RME_Kmain(RME_KOM_STACK_ADDR);
 
@@ -92,7 +93,7 @@ void __RME_A7A_Int_Init(void)
     RME_DBG_S("\r\nA7A-GIC: Revision: ");
     RME_DBG_I((Temp>>12)&0xF);
     RME_DBG_S("\r\nA7A-GIC: Implementer: 0x");
-    RME_DBG_U(Temp&0xFFF);
+    //RME_DBG_U(Temp&0xFFF);
 
     /* How many locked SPIs, security extension enabled or not, number of
      * actual CPUs and interrupt lines */
@@ -280,7 +281,7 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t __RME_Lowlvl_Init(void)
+void __RME_Lowlvl_Init(void)
 {
     /* Initialize hardware */
     RME_A7A_LOW_LEVEL_INIT();
@@ -296,13 +297,11 @@ rme_ptr_t __RME_Lowlvl_Init(void)
 
     /* Initialize the vector table */
     RME_DBG_S("\r\nA7A-Vector: 0x");
-    RME_DBG_U((rme_ptr_t)&__RME_A7A_Vector_Table);
+   // RME_DBG_U((rme_ptr_t)&__RME_A7A_Vector_Table);
     __RME_A7A_VBAR_Set((rme_ptr_t)&__RME_A7A_Vector_Table);
 
     RME_DBG_S("\r\nA7A-Non-Secure: ");
-    RME_DBG_U(__RME_A7A_SCR_Get());
-
-    return 0;
+    //RME_DBG_U(__RME_A7A_SCR_Get());
 }
 /* End Function:__RME_Lowlvl_Init *****************************************/
 
@@ -343,13 +342,12 @@ Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t __RME_Boot(void)
+void __RME_Boot(void)
 {
     /* Initialize timer */
 	__RME_A7A_Timer_Init();
-    __RME_Enable_Int();
+    __RME_Int_Enable();
 	while(1);
-    return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
 
@@ -385,7 +383,7 @@ Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
 ******************************************************************************/
-void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* Svc, rme_ptr_t* Capid, rme_ptr_t* Param)
+void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,rme_ptr_t* Svc,rme_ptr_t* Capid,rme_ptr_t* Param)
 {
     *Svc=(Reg->R0)>>16;
     *Capid=(Reg->R0)&0xFFFF;
@@ -403,7 +401,7 @@ Input       : rme_ret_t Retval - The return value.
 Output      : struct RME_Reg_Struct* Reg - The register set.
 Return      : None.
 ******************************************************************************/
-void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
+void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval)
 {
     Reg->R0=(rme_ptr_t)Retval;
 }
@@ -548,6 +546,38 @@ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
+/* Function:__RME_Thd_Cop_Swap ************************************************
+Description : Swap the cop register sets. This operation is flexible - If the
+              program does not use the FPU, we do not save/restore its context.
+              We do not need to turn off lazy stacking, because even if a fault
+              occurs, it (1) tails the execution of activates the will get dropped
+              by our handler deliberately and will not cause wrong attribution.
+              They can be alternatively disabled as well if you wish.
+Input       : rme_ptr_t Attr_New - The attribute of the context to switch to.
+              rme_ptr_t Is_Hyp_New - Whether the context to switch to is a
+                                     hypervisor dedicated one.
+              struct RME_Reg_Struct* Reg_New - The context to switch to.
+              rme_ptr_t Attr_Cur - The attribute of the context to switch from.
+              rme_ptr_t Is_Hyp_Cur - Whether the context to switch from is a
+                                     hypervisor dedicated one.
+              struct RME_Reg_Struct* Reg_Cur - The context to switch from.
+Output      : void* Cop_New - The coprocessor context to switch to.
+              void* Cop_Cur - The coprocessor context to switch from.
+Return      : None.
+******************************************************************************/
+void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
+                        rme_ptr_t Is_Hyp_New,
+                        struct RME_Reg_Struct* Reg_New,
+                        void* Cop_New,
+                        rme_ptr_t Attr_Cur,
+                        rme_ptr_t Is_Hyp_Cur,
+                        struct RME_Reg_Struct* Reg_Cur,
+                        void* Cop_Cur)
+{
+    
+}
+/* End Function:__RME_Thd_Cop_Swap *******************************************/
+
 /* Function:__RME_Kern_Func_Handler *******************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Reg_Struct* Reg - The current register set.
@@ -558,8 +588,12 @@ Input       : struct RME_Reg_Struct* Reg - The current register set.
 Output      : None.
 Return      : rme_ptr_t - The value that the function returned.
 ******************************************************************************/
-rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
+                                           struct RME_Reg_Struct* Reg,
+                                           rme_ptr_t Func_ID,
+                                           rme_ptr_t Sub_ID,
+                                           rme_ptr_t Param1,
+                                           rme_ptr_t Param2)
 {
 	/* Currently no kernel function implemented */
     return 0;
@@ -634,7 +668,7 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	{
 		/* Clear the interrupt flag */
 	    RME_A7A_PTWD_PTISR=0;
-		_RME_Tick_Handler(Reg);
+		//_RME_Tick_Handler(Reg);
 		/* Send interrupt to all other processors to notify them about this */
 		/* EOI the interrupt */
 		RME_A7A_GICC_EOIR=Int_ID;
@@ -652,7 +686,7 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	{
 		/* This must have originated from interface 0 */
 		RME_ASSERT(CPUID==0);
-		_RME_Tick_SMP_Handler(Reg);
+		//_RME_Tick_SMP_Handler(Reg);
 		/* EOI the interrupt */
 		RME_A7A_GICC_EOIR=Int_ID;
 		return;
