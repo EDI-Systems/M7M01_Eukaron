@@ -36,9 +36,13 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
-    __RME_Putchar('e');//test
+    __RME_Putchar('h');
+    __RME_Putchar('e');
+    __RME_Putchar('l');
+    __RME_Putchar('l');
+    __RME_Putchar('o');//test
     /* The main function of the kernel - we will start our kernel boot here */
-    _RME_Kmain(RME_KOM_STACK_ADDR);
+    //_RME_Kmain(RME_KOM_STACK_ADDR);
 
     return 0;
 }
