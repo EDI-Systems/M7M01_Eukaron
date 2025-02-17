@@ -183,12 +183,13 @@ typedef rme_s32_t rme_ret_t;
  *      reads will still have to load words from memory)
  * C- : Cacheable non-bufferable - normal, write-through without write allocate
  * CB : Cacheable bufferable - normal memory, write-back, write-allocate */
-#define RME_A7A_MMU_1M_PGDIR_PRESENT    (0x02U)
+#define RME_A7A_MMU_1M_PGDIR_PRESENT    (0x01U)
 #define RME_A7A_MMU_1M_PGDIR_NOTSECURE  (1U<<3U)
-#define RME_A7A_MMU_1M_PAGE_PRESENT     (0x01U)
+#define RME_A7A_MMU_1M_PAGE_PRESENT     (0x02U)
 #define RME_A7A_MMU_1M_BUFFERABLE       (1U<<2U)
 #define RME_A7A_MMU_1M_CACHEABLE        (1U<<3U)
 #define RME_A7A_MMU_1M_EXECUTENEVER     (1U<<4U)
+#define RME_A7A_MMU_1M_ACCESS           (1U<<10U)
 #define RME_A7A_MMU_1M_USER             (1U<<11U)
 #define RME_A7A_MMU_1M_READONLY         (1U<<15U)
 #define RME_A7A_MMU_1M_SHAREABLE        (1U<<16U)
@@ -196,11 +197,13 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7A_MMU_1M_NOTSECURE        (1U<<19U)
 
 #define RME_A7A_MMU_1M_PAGE_USER_COMMON (RME_A7A_MMU_1M_PAGE_PRESENT|RME_A7A_MMU_1M_USER| \
-		                                  RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL)
-#define RME_A7A_MMU_1M_PAGE_KERN_COMMON (RME_A7A_MMU_1M_PAGE_PRESENT|RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL)
+		                                  RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL|RME_A7A_MMU_1M_ACCESS)
+#define RME_A7A_MMU_1M_PAGE_KERN_COMMON (RME_A7A_MMU_1M_PAGE_PRESENT|RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL|RME_A7A_MMU_1M_ACCESS)
 
 /* These definitions are only used by the initial page table */
 #define RME_A7A_MMU_1M_PAGE_USER_DEF    (RME_A7A_MMU_1M_PAGE_USER_COMMON|RME_A7A_MMU_1M_BUFFERABLE|RME_A7A_MMU_1M_CACHEABLE)
+#define RME_A7A_MMU_1M_PAGE_USER_DEV    (RME_A7A_MMU_1M_PAGE_USER_COMMON|RME_A7A_MMU_1M_BUFFERABLE)
+#define RME_A7A_MMU_1M_PAGE_USER_SEQ    (RME_A7A_MMU_1M_PAGE_USER_COMMON)
 #define RME_A7A_MMU_1M_PAGE_KERN_DEF    (RME_A7A_MMU_1M_PAGE_KERN_COMMON|RME_A7A_MMU_1M_BUFFERABLE|RME_A7A_MMU_1M_CACHEABLE)
 #define RME_A7A_MMU_1M_PAGE_KERN_DEV    (RME_A7A_MMU_1M_PAGE_KERN_COMMON|RME_A7A_MMU_1M_BUFFERABLE)
 #define RME_A7A_MMU_1M_PAGE_KERN_SEQ    (RME_A7A_MMU_1M_PAGE_KERN_COMMON)
@@ -751,7 +754,7 @@ __RME_EXTERN__ struct RME_CPU_Local RME_A7A_Local;
 /* ARMv6-M use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_A7A_Kot[RME_KOT_WORD_NUM];
 /* The memory layout of this chip */
-__RME_EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES];
+__RME_EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES+30];
 /* The start of the contiguous stack area for all processors */
 RME_EXTERN rme_ptr_t __RME_A7A_Stack_Start;
 /* The CPU initialization counter */

@@ -392,13 +392,13 @@ _start:
     SUB                 R0,R0,R2
     SUB                 R1,R1,R2
     LDR                 R2,=0x00        
-/* clear_bss:
+clear_bss:
     CMP                 R0,R1
     BEQ                 clear_done
     STR                 R2,[R0]
     ADD                 R0,#0x04
     B                   clear_bss
-clear_done: */
+clear_done:
     /* Set stacks for all modes */
     LDR                 R4,=__RME_A7A_Stack_Start
     ADD                 R4,#0x10000
@@ -430,38 +430,11 @@ clear_done: */
     /* Turn off the MMU and all cache if it is already enabled. There's no need
      * to turn cache off because we are not modifying the instruction stream at
      * all; the TLB walker will start walking from L1D if it is enabled */
-    CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
-    LDR                 R1,=~((1<<0))  //(1<<2)|
+    CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0   //08C5187A off, 08C5187F on
+    LDR                 R1,=~((1<<2)|(1<<0))
     AND                 R0,R0,R1
-    /* CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 */ /* SCTLR.AFE,TRE,I,C,M */
+    CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 /* SCTLR.AFE,TRE,I,C,M */
     ISB
-
-    LDR					LR,=0x165f28
-    LDR					LR,[LR]
-    /* Print a hex number in LR, R12 used as counter ********************************************/
-    MOV					R12,#32     /* 32-bits */
-nextdigit:
-    SUB					R12,R12,#0x04
-    LSR					R11,LR,R12
-	AND					R11,R11,#0x0F
-	CMP					R11,#0x09
-	BGE					bigger
-	ADD					R11,R11,#0x30 /* add '0' */
-	B					printwait
-bigger:
-	ADD					R11,R11,#(0x41-10) /* add 'A' */
-printwait:
-    LDR                 R10,=0xE000102C
-    LDR					R10,[R10]
-    TST					R10,#0x08
-    BEQ					printwait
-    LDR                 R10,=0xE0001030
-    STR                 R11,[R10]
-finish:
-	CMP					R12,#0x00
-	BNE					nextdigit
-    /* Print a hex number in LR, R12 used as counter ********************************************/
-
     /* Flush TLB */
     LDR                 R0,=0x00
     CP15_SET_INIT       CRN=C8 OP1=0 CRM=C7 OP2=0 /* TLBIALL */
@@ -509,31 +482,76 @@ fill_pgtbl:
     CMP                 R0,R2
     BNE                 load_config
 
+    ISB
+
     /* Set the registers */
-    LDR                 R0,=0x00
-    CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=2 /* TTBCR */
-    LDR                 R0,=0x55555555
+    LDR                 R0,=0x02
+    CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=2 /* TTBCR, TTBR1 in use when accessing > 1GB */
+    ISB
+
+    LDR                 R0,=0xFFFFFFFFF//0x55555555
     CP15_SET_INIT       CRN=C3 OP1=0 CRM=C0 OP2=0 /* DACR */
+    ISB
+
     LDR                 R0,=0x000A00A4
     CP15_SET_INIT       CRN=C10 OP1=0 CRM=C2 OP2=0 /* PRRR */
+    ISB
+
     LDR                 R0,=0x006C006C
     CP15_SET_INIT       CRN=C10 OP1=0 CRM=C2 OP2=1 /* NMRR */
+    ISB
+
     /* Set base address */
     LDR                 R0,=__RME_A7A_Kern_Pgt
     LDR                 R1,=__va_offset__
-    SUB                 R0,R0,R1
+    SUB                 R0,R0,R1 //R0=00150000
+    ORR					R0,R0,#0x09 /* Stuff to write into TTBR */
     CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=0 /* TTBR0 */
+    CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=1 /* TTBR1 */
     /* Load the main function address to R3 first to prepare for a long jump */
-    LDR                 R3,=main
+    LDR                 R3,=main  //R3=80165848
     ISB
+
     /* Turn on paging and cache */
     CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
-    LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0)
-    ORR                 R0,R0,R1
+    LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
+    ORR                 R0,R0,R1  //R0=38C5187F
     CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 /* SCTLR.AFE,TRE,I,C,M */
     ISB
+
+    /* Flush TLB again */
+    LDR                 R0,=0x00
+    CP15_SET_INIT       CRN=C8 OP1=0 CRM=C7 OP2=0 /* TLBIALL */
+    ISB
+
     /* Branch to main function */
     BX                  R3
+
+	/* Print a hex number in LR, R12 used as counter ********************************************/
+    MOV 				LR,R0
+    MOV					R12,#32     /* 32-bits */
+nextdigit:
+    SUB					R12,R12,#0x04
+    LSR					R11,LR,R12
+	AND					R11,R11,#0x0F
+	CMP					R11,#0x09
+	BGE					bigger
+	ADD					R11,R11,#0x30 /* add '0' */
+	B					printwait
+bigger:
+	ADD					R11,R11,#(0x41-10) /* add 'A' */
+printwait:
+    LDR                 R10,=0xE000102C
+    LDR					R10,[R10]
+    TST					R10,#0x08
+    BEQ					printwait
+    LDR                 R10,=0xE0001030
+    STR                 R11,[R10]
+finish:
+	CMP					R12,#0x00
+	BNE					nextdigit
+    /* Print a hex number in LR, R12 used as counter ********************************************/
+
     .ltorg
 /* Initial page table ********************************************************/
 /* Das U-Boot will set up us an initial page table with all identical mappings.

@@ -374,7 +374,7 @@ rme_cnt_t RME_Str_Print(const rme_s8_t* String)
             /* No action required */
         }
         
-        __RME_Putchar(String[Count++]);
+        __RME_Putchar(String[Count]);
     }
     
     return (rme_cnt_t)Count;
