@@ -229,7 +229,6 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
         /* No action required */
     }
 
-
     /* Correct all negatives into positives */
     if(Int<0)
     {
@@ -251,7 +250,7 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
     Count=0;
     Div=1;
     Iter=Abs;
-    while(1U)
+    while(1)
     {
         Iter/=10;
         Count++;
@@ -318,7 +317,7 @@ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
     Iter=Uint;
     while((Iter>>(RME_WORD_BIT-4U))==0U)
     {
-        Iter<<=4;
+        Iter<<=4U;
         Count++;
     }
     
@@ -349,9 +348,8 @@ rme_cnt_t RME_Hex_Print(rme_ptr_t Uint)
 /* End Function:RME_Hex_Print ************************************************/
 
 /* Function:RME_Str_Print *****************************************************
-Description : Print a string the kernel console.
-              This is only used for kernel-level debugging.
-Input       : const rme_s8_t* String - The string to print
+Description : Print a string on the debugging console.
+Input       : const rme_s8_t* String - The string to print.
 Output      : None.
 Return      : rme_cnt_t - The length of the string printed, the '\0' is not included.
 ******************************************************************************/
@@ -374,7 +372,7 @@ rme_cnt_t RME_Str_Print(const rme_s8_t* String)
             /* No action required */
         }
         
-        __RME_Putchar(String[Count++]);
+        __RME_Putchar(String[Count]);
     }
     
     return (rme_cnt_t)Count;
@@ -431,8 +429,10 @@ void RME_Cov_Print(void)
         if(RME_BITMAP_IS_SET(RME_Cov,Count))
         {
             RME_COV_MARKER();
+            
             RME_DBG_I(Count);
             RME_DBG_S(",");
+            
             /* We put 12 markers on a single line */
             Next++;
             if(Next>11U)
@@ -445,13 +445,13 @@ void RME_Cov_Print(void)
             else
             {
                 RME_COV_MARKER();
-                /* No action needed */
+                /* No action required */
             }
         }
         else
         {
             RME_COV_MARKER();
-            /* No action needed */
+            /* No action required */
         }
     }
 }
