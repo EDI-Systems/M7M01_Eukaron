@@ -36,11 +36,23 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
+    RME_DBG_S("hello world");
     __RME_Putchar('h');
-    __RME_Putchar('e');
+    /*__RME_Putchar('e');
     __RME_Putchar('l');
+    __RME_Putchar('l');*/
+    __RME_Putchar('o');
+    /*__RME_Putchar('w');
+    __RME_Putchar('o');
+    __RME_Putchar('r');
     __RME_Putchar('l');
-    __RME_Putchar('o');//test
+    __RME_Putchar('d');*/
+    //_RME_Kmain(RME_KOM_STACK_ADDR);
+    // char* str="hello world";
+    //__RME_Putstr(str);
+    
+    
+    //test
     /* The main function of the kernel - we will start our kernel boot here */
     //_RME_Kmain(RME_KOM_STACK_ADDR);
 
@@ -58,6 +70,26 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Putchar(char Char)
 {
     RME_A7A_PUTCHAR(Char);
+    return 0;
+}
+/* End Function:__RME_Putchar ************************************************/
+
+/* Function:__RME_Putstr *****************************************************
+Description : Output a character to console. In Cortex-M, under most circumstances, 
+              we should use the ITM for such outputs.
+Input       : char Char - The character to print.
+Output      : None.
+Return      : rme_ptr_t - Always 0.
+******************************************************************************/
+rme_ptr_t __RME_Putstr(char* Str)
+{
+    if(Str==RME_NULL)
+    {
+        return 0;
+    }
+    for (int i = 0; Str[i] != '\0'; i++) {
+        RME_A7A_PUTCHAR(Str[i]);
+    }
     return 0;
 }
 /* End Function:__RME_Putchar ************************************************/
@@ -534,7 +566,7 @@ Return      : None.
 void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                           rme_ret_t Retval)
 {
-    //Reg->R5=(rme_ptr_t)Retval;
+    Reg->R5=(rme_ptr_t)Retval;
 }
 /* End Function:__RME_Inv_Retval_Set *****************************************/
 

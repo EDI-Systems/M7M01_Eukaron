@@ -391,14 +391,14 @@ _start:
     LDR                 R2,=__va_offset__
     SUB                 R0,R0,R2
     SUB                 R1,R1,R2
-    LDR                 R2,=0x00
-clear_bss:
+    LDR                 R2,=0x00        
+/* clear_bss:
     CMP                 R0,R1
     BEQ                 clear_done
     STR                 R2,[R0]
     ADD                 R0,#0x04
     B                   clear_bss
-clear_done:
+clear_done: */
     /* Set stacks for all modes */
     LDR                 R4,=__RME_A7A_Stack_Start
     ADD                 R4,#0x10000
@@ -431,10 +431,37 @@ clear_done:
      * to turn cache off because we are not modifying the instruction stream at
      * all; the TLB walker will start walking from L1D if it is enabled */
     CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
-    LDR                 R1,=~(1<<0)
+    LDR                 R1,=~((1<<0))  //(1<<2)|
     AND                 R0,R0,R1
-    CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 /* SCTLR.AFE,TRE,I,C,M */
+    /* CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 */ /* SCTLR.AFE,TRE,I,C,M */
     ISB
+
+    LDR					LR,=0x165f28
+    LDR					LR,[LR]
+    /* Print a hex number in LR, R12 used as counter ********************************************/
+    MOV					R12,#32     /* 32-bits */
+nextdigit:
+    SUB					R12,R12,#0x04
+    LSR					R11,LR,R12
+	AND					R11,R11,#0x0F
+	CMP					R11,#0x09
+	BGE					bigger
+	ADD					R11,R11,#0x30 /* add '0' */
+	B					printwait
+bigger:
+	ADD					R11,R11,#(0x41-10) /* add 'A' */
+printwait:
+    LDR                 R10,=0xE000102C
+    LDR					R10,[R10]
+    TST					R10,#0x08
+    BEQ					printwait
+    LDR                 R10,=0xE0001030
+    STR                 R11,[R10]
+finish:
+	CMP					R12,#0x00
+	BNE					nextdigit
+    /* Print a hex number in LR, R12 used as counter ********************************************/
+
     /* Flush TLB */
     LDR                 R0,=0x00
     CP15_SET_INIT       CRN=C8 OP1=0 CRM=C7 OP2=0 /* TLBIALL */
@@ -451,17 +478,17 @@ clear_done:
      * R7: Page counter
      * R8: Write index register
      * R9: Write content register */
-    LDR                 R0,=RME_A7A_Mem_Info
-    LDR                 R1,=__RME_A7A_Kern_Pgt
+    LDR                 R0,=RME_A7A_Mem_Info   //165F18
+    LDR                 R1,=__RME_A7A_Kern_Pgt //150000
     LDR                 R2,=__va_offset__
     /* Calculate the actual address */
     SUB                 R0,R0,R2
     SUB                 R1,R1,R2
     /* Calculate the configuration end address */
     LDR                 R3,[R0]
-    ADD                 R1,R0,R3
+    LSL					R3,R3,#2
+    ADD                 R2,R0,R3
     ADD                 R0,R0,#0x04
-
     /* Load configurations and generate page table layout one by one */
 load_config:
     LDMIA               R0!,{R3-R6}
@@ -475,6 +502,7 @@ fill_pgtbl:
     ADD                 R8,R8,#4
     ADD                 R7,R7,#1
     ADD                 R9,R9,#0x100000
+
     CMP                 R7,R5
     BNE                 fill_pgtbl
 
@@ -522,9 +550,9 @@ __RME_A7A_Stack_End:
 /* The kernel page table - the initialization sequence is totally controlled
  * by the configuration file, because there's no generic way to detect memory on
  * these devices. */
-    .align              14
+    .align              16
 __RME_A7A_Kern_Pgt:
-    .space              16384
+    .space              65536
 /* Vectors *******************************************************************/
     .align              8
 __RME_A7A_Vector_Table:

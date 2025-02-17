@@ -1020,6 +1020,7 @@ RME_EXTERN void __RME_A7A_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Val);
 RME_EXTERN rme_ptr_t __RME_A7A_MSB_Get(rme_ptr_t Val);
 /* Debugging */
 __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
+//__RME_EXTERN__ rme_ptr_t __RME_Putstr(char* Str);
 /* Coprocessor */
 RME_EXTERN void ___RME_A7A_Thd_Cop_Save(struct RME_Cop_Struct* Cop_Reg);
 RME_EXTERN void ___RME_A7A_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);

@@ -97,19 +97,38 @@ Description : The configuration file for XC7Z020, with 1MB memory.
  * The user memory mapped in here will become the user portion of the initial process,
  * and the kernel memory mapped in here will become the shared portion of processes.
  * We will map in the kernel entries as supersections whenever we can */
-#define RME_A7A_MEM_ENTRIES        8*4U+1U
+#define RME_A7A_MEM_ENTRIES        (1*4U+1U)
 #define RME_A7A_MEM_CONTENTS \
 /* Number of entries */ \
   RME_A7A_MEM_ENTRIES, \
 /* Start_PA    Start_VA    Num             Attributes         */ \
-  0x01000000, 0x01000000, 0x3F0, RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */, \
-  0xFFF00000, 0x00000000, 0x1,   RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 64kB User-OCSRAM */, \
-  0x40000000, 0x40000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
-  0xE0000000, 0x60000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
-  0x00000000, 0x80000000, 0x400, RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 1023MB DDR2 SDRAM */, \
-  0x00000000, 0xC0000000, 0x1,   RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 192kB OCSRAM */, \
-  0x40100000, 0xC0100000, 0x1FF, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB device space */, \
-  0xE0000000, 0xE0000000, 0x200, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB Cortex device space */
+  0x01000000, 0x01000000, 0x40, RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */
+///* Number of entries */ \
+//  RME_A7A_MEM_ENTRIES, \
+///* Start_PA    Start_VA    Num             Attributes         */ \
+//  0x01000000, 0x01000000, 0x3F0, RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */, \
+//  0xFFF00000, 0x00000000, 0x1,   RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 64kB User-OCSRAM */, \
+//  0x40000000, 0x40000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+//  0xE0000000, 0x60000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+//  0x00000000, 0x80000000, 0x400, RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 1023MB DDR2 SDRAM */, \
+//  0x00000000, 0xC0000000, 0x1,   RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 192kB OCSRAM */, \
+//  0x40100000, 0xC0100000, 0x1FF, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB device space */, \
+//  0xE0000000, 0xE0000000, 0x200, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB Cortex device space */
+
+///* Number of entries */ \
+//  RME_A7A_MEM_ENTRIES, \
+///* Start_PA    Start_VA    Num             Attributes         */ \
+//  0x01000000, 0x01000000, 0x3F0, RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 1008 MB DDR2 SDRAM identically mapped */, \
+//  0xFFF00000, 0x00000000, 0x1,   RME_A7A_MMU_1M_PAGE_USER_DEF /* User memory - 64kB User-OCSRAM */, \
+//  0x40000000, 0x40000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+//  0xE0000000, 0x60000000, 0x200, RME_A7A_MMU_1M_PAGE_USER_DEF /* User devices - 512MB identical mapping */, \
+//  0x00000000, 0x80000000, 0x400, RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 1023MB DDR2 SDRAM */, \
+//  0x00000000, 0xC0000000, 0x1,   RME_A7A_MMU_1M_PAGE_KERN_DEF /* Kernel memory - 192kB OCSRAM */, \
+//  0x40100000, 0xC0100000, 0x1FF, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB device space */, \
+//  0xE0000000, 0xE0000000, 0x200, RME_A7A_MMU_1M_PAGE_KERN_SEQ /* Kernel devices - 512MB Cortex device space */
+
+
+
 
 /* Kernel functions standard to Cortex-A, interrupt management and power */
 #define RME_A7A_KERN_INT(X)          (X)
