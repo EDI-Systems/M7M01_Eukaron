@@ -754,7 +754,7 @@ __RME_EXTERN__ struct RME_CPU_Local RME_A7A_Local;
 /* ARMv6-M use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_A7A_Kot[RME_KOT_WORD_NUM];
 /* The memory layout of this chip */
-__RME_EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES+30];
+__RME_EXTERN__ const rme_ptr_t RME_A7A_Mem_Info[RME_A7A_MEM_ENTRIES];
 /* The start of the contiguous stack area for all processors */
 RME_EXTERN rme_ptr_t __RME_A7A_Stack_Start;
 /* The CPU initialization counter */
