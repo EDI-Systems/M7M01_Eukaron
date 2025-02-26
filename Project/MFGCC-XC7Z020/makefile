@@ -9,10 +9,10 @@
 
 # Config ######################################################################
 TARGET=RME
-CPU=-mcpu=cortex-a7   -mfloat-abi=softfp -mfpu=neon-fp16
+CPU=-mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=neon-fp16 
 CDEFS=
 
-CFLAGS=-O3 -specs=nano.specs -fsigned-char -fno-common -fno-strict-aliasing -fdata-sections -ffunction-sections -ffreestanding
+CFLAGS=-O0 -specs=nano.specs -fsigned-char -fno-common -fno-strict-aliasing -fdata-sections -ffunction-sections -ffreestanding
 AFLAGS=-fdata-sections -ffunction-sections  
 WFLAGS=-Wall -Wno-strict-aliasing
 DFLAGS=-g3

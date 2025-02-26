@@ -220,7 +220,6 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
     {
         RME_COV_MARKER();
 
-        __RME_Putchar('0');
         return 1;
     }
     else
@@ -272,6 +271,7 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
 
     /* Print the integer */
     Iter=Abs;
+
     while(Count>0)
     {
         Count--;

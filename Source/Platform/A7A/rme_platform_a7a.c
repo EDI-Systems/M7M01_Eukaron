@@ -36,23 +36,25 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
-    __RME_Putchar('h');
+	RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
+	while(1);
+    /*__RME_Putchar('h');
     __RME_Putchar('e');
     __RME_Putchar('l');
     __RME_Putchar('l');
     __RME_Putchar('o');
     __RME_Putchar(' ');
-    __RME_Putchar('w');
+    __RME_Putchar('w');*/
 
+   /* RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
     RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    while(1);
-    __RME_Putchar('h');
+    while(1);*/
+   // __RME_Putchar('h');
     /*__RME_Putchar('e');
     __RME_Putchar('l');
     __RME_Putchar('l');*/
@@ -62,9 +64,7 @@ int main(void)
     __RME_Putchar('r');
     __RME_Putchar('l');
     __RME_Putchar('d');*/
-    //_RME_Kmain(RME_KOM_STACK_ADDR);
-    // char* str="hello world";
-    //__RME_Putstr(str);
+    RME_Kmain();
     
     
     //test
@@ -124,7 +124,7 @@ void __RME_A7A_Int_Init(void)
     RME_DBG_S("\r\nA7A-GIC: Revision: ");
     RME_DBG_I((Temp>>12)&0xF);
     RME_DBG_S("\r\nA7A-GIC: Implementer: 0x");
-    //RME_DBG_U(Temp&0xFFF);
+    RME_DBG_H(Temp&0xFFF);
 
     /* How many locked SPIs, security extension enabled or not, number of
      * actual CPUs and interrupt lines */
@@ -137,7 +137,8 @@ void __RME_A7A_Int_Init(void)
     RME_DBG_I(((Temp>>5)&0x7)+1);
     RME_DBG_S("\r\nA7A-GIC: Interrupt line number: ");
     Lines=((Temp&0x1F)+1)*32;
-    RME_DBG_I(Lines);
+    RME_DBG_H(Lines);
+
 
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
     /* Initialize all vectors to group 0, and disable all */
@@ -328,11 +329,11 @@ void __RME_Lowlvl_Init(void)
 
     /* Initialize the vector table */
     RME_DBG_S("\r\nA7A-Vector: 0x");
-   // RME_DBG_U((rme_ptr_t)&__RME_A7A_Vector_Table);
+    RME_DBG_H((rme_ptr_t)&__RME_A7A_Vector_Table);
     __RME_A7A_VBAR_Set((rme_ptr_t)&__RME_A7A_Vector_Table);
 
     RME_DBG_S("\r\nA7A-Non-Secure: ");
-    //RME_DBG_U(__RME_A7A_SCR_Get());
+    RME_DBG_H(__RME_A7A_SCR_Get());
 }
 /* End Function:__RME_Lowlvl_Init *****************************************/
 
@@ -685,6 +686,8 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	Int_ID=RME_A7A_GICC_IAR;
 	CPUID=Int_ID>>10;
 	Int_ID&=0x3FFU;
+    RME_DBG_S("\r\nINT_ID is ");
+	RME_DBG_H(Int_ID);
 
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Is this a spurious interrupt? (Can't be 1022 because GICv1 don't have group1) */
@@ -700,6 +703,7 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 		/* Clear the interrupt flag */
 	    RME_A7A_PTWD_PTISR=0;
 		//_RME_Tick_Handler(Reg);
+	    _RME_Tim_Handler(Reg,1);
 		/* Send interrupt to all other processors to notify them about this */
 		/* EOI the interrupt */
 		RME_A7A_GICC_EOIR=Int_ID;

@@ -357,7 +357,7 @@ The ARM Cortex-A also include various FPU implementations.
     /* The system call handler of RME. This will be defined in C language. */
     .global             _RME_Svc_Handler
     /* The system tick handler of RME. This will be defined in C language. */
-    .global             _RME_Tick_Handler
+    .global             _RME_Tim_Handler
     /* The entry of SMP after they have finished their initialization */
     .global             __RME_SMP_Low_Level_Init
     /* All other processor's timer interrupt handler */
@@ -1424,6 +1424,12 @@ __RME_A7A_MSB_Get:
 Description : Entering of the user mode, after the system finish its preliminary
               booting. The function shall never return. This function should only
               be used to boot the first process in the system.
+              Note that ARMv7 alone does not support VE instructions, hence no MSR
+              _usr, etc instructions are available. UDIV is not mandatory in base V7
+              thus Cortex-A7 actually supports MORE than Cortex-A9.
+              LDM cannot change base register by "!" when accessing user registers.
+              Even user-level SP cannot appear in list when exception returning
+              with kernel-level SP (!).
 Input       : ptr_t Entry - The user execution startpoint.
               ptr_t Stack - The user stack.
               ptr_t CPUID - The CPUID.
@@ -1431,12 +1437,15 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 __RME_User_Enter:
-    PUSH                {R0}
+    PUSH                {R0,R1}
     MOV                 R0,R2
     /* Prepare the SPSR for user-level */
-    MOV                 R2,#0x10
-    MSR                 SPSR,R2
-    MSR                 SP_usr,R1
+    LDR                 R2,=0x600F0010
+    MSR                 SPSR_cxsf,R2
+    /* Exception return as well as restoring user-level SP and PC */
+    MOV					R2,SP
+    LDMIA               R2,{SP}^
+    ADD					SP,R2,#0x04
     LDMIA               SP!,{PC}^
 /* End Function:__RME_User_Enter ****************************************/
 
@@ -1536,10 +1545,10 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 IRQ_Handler:
-    LDR                 R0,=0x41210000
-    LDR                 R1,=0x55555555
-    STR                 R1,[R0]
-    B .
+    //LDR                 R0,=0x41210000
+    //LDR                 R1,=0x55555555
+   // STR                 R1,[R0]
+   // B .
     SAVE_GP_REGS
     BL                  __RME_A7A_IRQ_Handler
     RESTORE_GP_REGS

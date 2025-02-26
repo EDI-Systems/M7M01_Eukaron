@@ -461,8 +461,7 @@ struct RME_A7A_Mem_Layout
 {
 	rme_ptr_t Kot_Start;
 	rme_ptr_t Kot_Size;
-
-	rme_ptr_t Pgreg_Start;
+    rme_ptr_t Pgreg_Start;
 	rme_ptr_t Pgreg_Size;
 
 	rme_ptr_t Kom1_Start;
