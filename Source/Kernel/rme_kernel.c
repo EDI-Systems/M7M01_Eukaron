@@ -5306,7 +5306,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         Thread->Ctx.Hyp_Attr=Attr|RME_THD_HYP_FLAG;
-        Thread->Ctx.Reg=RME_HYP_VA_BASE;
+        Thread->Ctx.Reg=(struct RME_Thd_Reg*)RME_HYP_VA_BASE;
     }
     /* Initialize the invocation stack */
     _RME_List_Crt(&(Thread->Ctx.Invstk));
