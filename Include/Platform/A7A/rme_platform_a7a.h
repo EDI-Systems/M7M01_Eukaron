@@ -1016,8 +1016,8 @@ RME_EXTERN void __RME_A7A_Wait_Int(void);
 //__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 //__RME_EXTERN__ rme_ptr_t __RME_A7A_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
 /* Memory barriers */
-RME_EXTERN rme_ptr_t __RME_A7A_Read_Acquire(rme_ptr_t* Ptr);
-RME_EXTERN void __RME_A7A_Write_Release(rme_ptr_t* Ptr, rme_ptr_t Val);
+RME_EXTERN rme_ptr_t __RME_A7A_Read_Acquire(volatile rme_ptr_t* Ptr);
+RME_EXTERN void __RME_A7A_Write_Release(volatile rme_ptr_t* Ptr, rme_ptr_t Val);
 /* MSB counting */
 RME_EXTERN rme_ptr_t __RME_A7A_MSB_Get(rme_ptr_t Val);
 /* Debugging */
@@ -1074,7 +1074,7 @@ __RME_EXTERN__ void __RME_A7A_Fault_Handler(struct RME_Reg_Struct* Reg);
 /* Generic interrupt handler */
 __RME_EXTERN__ void __RME_A7A_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__RME_EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__RME_EXTERN__ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
 __RME_EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);

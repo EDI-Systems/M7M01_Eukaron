@@ -36,8 +36,9 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
-	RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
-	while(1);
+	//RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
+	//RME_DBG_I(10);
+	//while(1);
     /*__RME_Putchar('h');
     __RME_Putchar('e');
     __RME_Putchar('l');
@@ -137,7 +138,7 @@ void __RME_A7A_Int_Init(void)
     RME_DBG_I(((Temp>>5)&0x7)+1);
     RME_DBG_S("\r\nA7A-GIC: Interrupt line number: ");
     Lines=((Temp&0x1F)+1)*32;
-    RME_DBG_H(Lines);
+    RME_DBG_I(Lines);
 
 
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
@@ -204,7 +205,7 @@ void __RME_A7A_Int_Local_Init(void)
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Enable all interrupts to this interface - FIQ is bypassed, and all
 	 * interrupts go through the IRQ. The FIQ feature is only available on
-	 * the stabdalone FIQ interrupt line */
+	 * the standalone FIQ interrupt line */
 	RME_A7A_GICC_CTLR=RME_A7A_GICC_ENABLEGRP0;
 #else
 	RME_A7A_GICC_CTLR=RME_A7A_GICC_CBPR|RME_A7A_GICC_FIQEN|
@@ -347,6 +348,7 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
+	/* Use initial page table here instead for kernel, which is sufficient */
 
     return 0;
 }
@@ -379,7 +381,9 @@ void __RME_Boot(void)
     /* Initialize timer */
 	__RME_A7A_Timer_Init();
     __RME_Int_Enable();
-	while(1);
+
+
+    // add code a7m
 }
 /* End Function:__RME_Boot ***************************************************/
 
@@ -687,7 +691,7 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	CPUID=Int_ID>>10;
 	Int_ID&=0x3FFU;
     RME_DBG_S("\r\nINT_ID is ");
-	RME_DBG_H(Int_ID);
+	RME_DBG_I(Int_ID);
 
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Is this a spurious interrupt? (Can't be 1022 because GICv1 don't have group1) */
@@ -785,7 +789,7 @@ Input       : rme_ptr_t Pgt - The virtual address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_Pgt_Set(rme_ptr_t Pgt)
+void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
 
 }

@@ -220,6 +220,7 @@ rme_cnt_t RME_Int_Print(rme_cnt_t Int)
     {
         RME_COV_MARKER();
 
+        __RME_Putchar('0');
         return 1;
     }
     else
@@ -1089,7 +1090,7 @@ rme_ret_t RME_Kmain(void)
     
     /* Initialize the kernel object allocation table - default init */
     _RME_Kot_Init(RME_KOT_WORD_NUM);
-    
+
     /* Boot into the first process */
     __RME_Boot();
     
@@ -5306,7 +5307,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         Thread->Ctx.Hyp_Attr=Attr|RME_THD_HYP_FLAG;
-        Thread->Ctx.Reg=RME_HYP_VA_BASE;
+        Thread->Ctx.Reg=(struct RME_Thd_Reg *)RME_HYP_VA_BASE;
     }
     /* Initialize the invocation stack */
     _RME_List_Crt(&(Thread->Ctx.Invstk));
@@ -7719,7 +7720,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */
-    RME_WRITE_RELEASE(&(Invocation->Thd_Act),0U);
+    RME_WRITE_RELEASE((volatile rme_ptr_t*)&(Invocation->Thd_Act),0U);
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Is_Exc!=0U))
