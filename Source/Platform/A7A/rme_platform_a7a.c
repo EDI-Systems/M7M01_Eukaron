@@ -378,12 +378,113 @@ Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 void __RME_Boot(void)
 {
-    /* Initialize timer */
+    rme_ptr_t Count;
+    rme_ptr_t Cur_Addr;
+    Cur_Addr=RME_KOM_VA_BASE;
+
+    RME_DBG_S("\r\nstart rme boot");
+
+    /* Create the capability table for the init process */
+    RME_DBG_S("\r\nstart cpt creation");
+    RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,
+                                  Cur_Addr,
+                                  RME_A7A_INIT_CPT_SIZE)==0);
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_A7A_INIT_CPT_SIZE));
+    
+    /* The top-level page table - covers 1M address range - align to 16kB */
+    RME_DBG_S("\r\nstart pgt creation.");
+    Cur_Addr=RME_ROUND_UP(Cur_Addr,14U);
+    RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7A_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PGT,
+                                 Cur_Addr,
+                                 0x00000000U,
+                                 RME_PGT_TOP,
+                                 RME_PGT_SIZE_1M,
+                                 RME_PGT_NUM_4K)==0);
+    Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
+
+    /* Normal memory, 1GiB 0x00000000 -> 0x00000000 */
+    for(Count=0U;Count<0x400U;Count++)
+    {
+		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
+									 RME_BOOT_INIT_PGT,
+									 Count*RME_POW2(RME_PGT_SIZE_1M),
+									 Count,
+									 RME_PGT_ALL_PERM)==0);
+    }
+
+	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
+    for(Count=0U;Count<0x200U;Count++)
+    {
+		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
+									 RME_BOOT_INIT_PGT,
+									 (Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M),
+									 (Count+0x400U),
+									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+    }
+
+    /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
+    for(Count=0U;Count<0x200U;Count++)
+    {
+		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
+									 RME_BOOT_INIT_PGT,
+									 (Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M),
+									 (Count+0x600U),
+									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+    }
+
+    /* Activate the first process - This process cannot be deleted */
+    RME_DBG_S("\r\nstart prc creation.");
+    RME_ASSERT(_RME_Prc_Boot_Crt(RME_A7A_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PRC,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_PGT)==0U);
+
+    /* Activate the first thread, and set its priority */
+    RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7A_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_THD,
+                                 RME_BOOT_INIT_PRC,
+                                 Cur_Addr,
+                                 0U,
+                                 &RME_A7A_Local)==0);
+    Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
+
+    /* Create the initial kernel function capability, and kernel memory capability */
+    RME_DBG_S("\r\nstart kfn/kom creation.");
+    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7A_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_KFN)==0);
+    RME_ASSERT(_RME_Kom_Boot_Crt(RME_A7A_CPT, 
+                                 RME_BOOT_INIT_CPT, 
+                                 RME_BOOT_INIT_KOM,
+                                 RME_KOM_VA_BASE,
+                                 RME_KOM_VA_BASE+RME_KOM_VA_SIZE-1U,
+                                 RME_KOM_FLAG_ALL)==0U);
+    
+    /* Create the initial kernel endpoint for timer ticks and interrupts */
+    RME_A7A_Local.Sig_Tim=(struct RME_Cap_Sig*)&(RME_A7A_CPT[RME_BOOT_INIT_VCT]);
+    RME_A7A_Local.Sig_Vct=(struct RME_Cap_Sig*)&(RME_A7A_CPT[RME_BOOT_INIT_VCT]);
+    RME_DBG_S("\r\nCreate the initial kernel endpoint for timer ticks and interrupts");
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7A_CPT,
+                                 RME_BOOT_INIT_CPT,
+                                 RME_BOOT_INIT_VCT)==0);
+
+    /* Set page table as current */
+    __RME_Pgt_Set(RME_A7A_Local.Thd_Cur->Sched.Prc->Pgt);
+
+    /* Initialize timer and enable interrupts */
+    RME_DBG_S("\r\nenable interrupts");
 	__RME_A7A_Timer_Init();
     __RME_Int_Enable();
 
-
-    // add code a7m
+    /* Boot into the init thread */
+    __RME_User_Enter(RME_A7A_INIT_ENTRY,RME_A7A_INIT_STACK,0U);
+    
+    /* Should never reach here */
+    while(1);
 }
 /* End Function:__RME_Boot ***************************************************/
 
@@ -814,7 +915,7 @@ Description : Check if the page table parameters are feasible, according to the
    functions instead, and the kernel function always maps/unmaps the pages as needed
    without checking for any permissions; this can be viewed as a hack, and require
    some caution when we are mapping pages in.
-Input       : rme_ptr_t Start_Addr - The start mapping address.
+Input       : rme_ptr_t Base - The start mapping address.
               rme_ptr_t Is_Top - The top-level flag,
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
@@ -822,10 +923,10 @@ Input       : rme_ptr_t Start_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top,
-                            rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
+rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base, rme_ptr_t Is_Top,
+                          rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
-    /* Top-level - 1MB pages, 4096 entries, 16kB alignment */
+    /* Top-level - 1MiB pages, 4096 entries, 16KiB alignment */
     if(Is_Top!=0)
     {
         if(Size_Order!=RME_PGT_SIZE_1M)
@@ -835,12 +936,12 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Start_Addr, rme_ptr_t Is_Top,
         if((Vaddr&0x3FFF)!=0)
             return RME_ERR_HAL_FAIL;
     }
-    /* Second-level - 1MB pages, 4096 entries, 16kB alignment */
+    /* Second-level - 4KiB pages, 256 entries, 1KiB alignment */
     else
     {
-        if(Size_Order!=RME_PGT_SIZE_64K)
+        if(Size_Order!=RME_PGT_SIZE_4K)
             return RME_ERR_HAL_FAIL;
-        if(Num_Order!=RME_PGT_NUM_1K)
+        if(Num_Order!=RME_PGT_NUM_256)
             return RME_ERR_HAL_FAIL;
         if((Vaddr&0x3FF)!=0)
             return RME_ERR_HAL_FAIL;
@@ -858,15 +959,14 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
-#if 0
     rme_cnt_t Count;
     rme_ptr_t* Ptr;
 
     /* Get the actual table */
-    //Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
+    Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);  *((volatile rme_ptr_t*)0x12345678)
 
     /* Is this a first-level or a second-level? */
-    if((Pgt_Op->Start_Addr&RME_PGT_TOP)!=0)
+    if((Pgt_Op->Base&RME_PGT_TOP)!=0)
     {
     	/* First-level - clean up the first half and map in the second half as kernel entries */
 		for(Count=0;Count<2048;Count++)
@@ -882,10 +982,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 			Ptr[Count]=0;
     }
 
-    RME_A7A_PGREG_POS(Ptr).Parent_Cnt=0;
-    RME_A7A_PGREG_POS(Ptr).ASID_Child_Cnt=0;
     return 0;
-#endif
 }
 /* End Function:__RME_Pgt_Init *********************************************/
 
@@ -897,26 +994,7 @@ Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
-    #if 0
-    rme_ptr_t* Table;
-
-    Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
-
-    /* See if this is a top-level. If yes, we only check child count */
-    if((Pgt_Op->Start_Addr&RME_PGT_TOP)!=0)
-    {
-    	if(((RME_A7A_PGREG_POS(Table).ASID_Child_Cnt)&0xFFFF)==0)
-    		return 0;
-    }
-    else
-    {
-    	/* Must be the second-level. We only check parent count because it can't have child anymore */
-    	if(RME_A7A_PGREG_POS(Table).Parent_Cnt==0)
-    	        return 0;
-    }
-
-    return RME_ERR_HAL_FAIL;
-    #endif
+    return 0;
 }
 /* End Function:__RME_Pgt_Del_Check ****************************************/
 
@@ -937,7 +1015,6 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
-    #if 0
     rme_ptr_t* Table;
     rme_ptr_t A7A_Flags;
 
@@ -946,14 +1023,14 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
         return RME_ERR_HAL_FAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgt_Op->Start_Addr&RME_PGT_TOP)!=0)&&(Pos>=2048))
+    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=2048))
         return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Generate flags */
-    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
+    if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
         A7A_Flags=RME_A7A_MMU_1M_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_1M_RME2NAT(Flags);
     else
         A7A_Flags=RME_A7A_MMU_4K_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_4K_RME2NAT(Flags);
@@ -963,7 +1040,6 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
         return RME_ERR_HAL_FAIL;
 
     return 0;
-    #endif
 }
 /* End Function:__RME_Pgt_Page_Map *****************************************/
 
@@ -976,12 +1052,11 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 {
-    #if 0
     rme_ptr_t* Table;
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgt_Op->Start_Addr&RME_PGT_TOP)!=0)&&(Pos>=2048))
+    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=2048))
         return RME_ERR_HAL_FAIL;
 
     /* Get the table */
@@ -993,7 +1068,7 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
         return RME_ERR_HAL_FAIL;
 
     /* Is this a page directory? We cannot unmap page directories like this */
-    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_A7A_MMU_1M_PGDIR_PRESENT)!=0))
+    if((RME_PGT_SZORD(Pgt_Op->Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_A7A_MMU_1M_PGDIR_PRESENT)!=0))
         return RME_ERR_HAL_FAIL;
 
     /* Try to unmap it. Use CAS just in case */
@@ -1001,7 +1076,6 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
         return RME_ERR_HAL_FAIL;
 
     return 0;
-    #endif
 }
 /* End Function:__RME_Pgt_Page_Unmap ***************************************/
 
@@ -1016,9 +1090,8 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
-                                struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
+                              struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
 {
-    #if 0
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
     rme_ptr_t A7A_Flags;
@@ -1028,7 +1101,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
         return RME_ERR_HAL_FAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgt_Parent->Start_Addr&RME_PGT_TOP)!=0)&&(Pos>=2048))
+    if(((Pgt_Parent->Base&RME_PGT_TOP)!=0)&&(Pos>=2048))
         return RME_ERR_HAL_FAIL;
 
     /* Get the table */
@@ -1042,12 +1115,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,A7A_Flags)==0)
         return RME_ERR_HAL_FAIL;
 
-    /* Map complete, increase reference count for both page tables */
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Child_Table).Parent_Cnt),1);
-    RME_FETCH_ADD((rme_ptr_t*)&(RME_A7A_PGREG_POS(Parent_Table).ASID_Child_Cnt),1);
-
     return 0;
-    #endif
 }
 /* End Function:__RME_Pgt_Pgdir_Map ****************************************/
 
@@ -1059,8 +1127,9 @@ Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent,rme_ptr_t Pos,
-                                               struct RME_Cap_Pgt* Pgt_Child)
+                                struct RME_Cap_Pgt* Pgt_Child)
 {
+
    return 0;
 }
 /* End Function:__RME_Pgt_Pgdir_Unmap **************************************/
@@ -1077,12 +1146,11 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags)
 {
-    #if 0
     rme_ptr_t* Table;
     rme_ptr_t Temp;
 
     /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0)
+    if((Pos>>RME_PGT_NMORD(Pgt_Op->Order))!=0)
         return RME_ERR_HAL_FAIL;
 
     /* Get the table */
@@ -1091,7 +1159,7 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
     Temp=Table[Pos];
 
     /* Start lookup - is this a terminal page, or? */
-    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
+    if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
     {
         if((Temp&RME_A7A_MMU_4K_PAGE_PRESENT)==0)
             return RME_ERR_HAL_FAIL;
@@ -1115,7 +1183,6 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
     }
 
     return 0;
-    #endif
 }
 /* End Function:__RME_Pgt_Lookup *******************************************/
 
@@ -1145,13 +1212,12 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
                            rme_ptr_t* Num_Order, 
                            rme_ptr_t* Flags)
 {
-    #if 0
     rme_ptr_t* Table;
     rme_ptr_t Pos;
     rme_ptr_t Temp;
 
     /* Check if this is the top-level page table */
-    if(((Pgt_Op->Start_Addr)&RME_PGT_TOP)==0)
+    if(((Pgt_Op->Base)&RME_PGT_TOP)==0)
         return RME_ERR_HAL_FAIL;
 
     /* Are we attempting a kernel or non-canonical lookup? If yes, stop immediately */
@@ -1215,7 +1281,6 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op,
 		return RME_ERR_HAL_FAIL;
 
     return 0;
-    #endif
 }
 /* End Function:__RME_Pgt_Walk *********************************************/
 

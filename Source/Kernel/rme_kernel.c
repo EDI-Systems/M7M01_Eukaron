@@ -1090,7 +1090,7 @@ rme_ret_t RME_Kmain(void)
     
     /* Initialize the kernel object allocation table - default init */
     _RME_Kot_Init(RME_KOT_WORD_NUM);
-
+    
     /* Boot into the first process */
     __RME_Boot();
     
@@ -2681,7 +2681,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
     {
         RME_COV_MARKER();
-        
+
         return RME_ERR_PGT_HW;
     }
     else
@@ -2700,7 +2700,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     if(__RME_Pgt_Check(Base,Is_Top,Size_Order,Num_Order,Vaddr)!=0)
     {
         RME_COV_MARKER();
-        
+    
         return RME_ERR_PGT_HW;
     }
     else
@@ -4258,7 +4258,7 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                    struct RME_Cap_Cpt*,Cpt_Op,Type_Stat);
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Op,RME_CPT_FLAG_CRT);
-    
+
     /* Get the cap slot */
     RME_CPT_GETSLOT(Cpt_Op,Cap_Kom,struct RME_Cap_Kom*,Kom_Crt);
     /* Take the slot if possible */
@@ -6742,7 +6742,7 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_GETSLOT(Cpt_Crt,Cap_Sig,struct RME_Cap_Sig*,Sig_Crt);
     /* Take the slot if possible */
     RME_CPT_OCCUPY(Sig_Crt);
-
+    
     /* Header init */
     Sig_Crt->Head.Root_Ref=1U;
     Sig_Crt->Head.Object=0U;

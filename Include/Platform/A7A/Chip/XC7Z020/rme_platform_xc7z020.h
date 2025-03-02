@@ -48,13 +48,15 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
 #define RME_A7A_INT_FLAG_ADDR       0x10008000U
 /* Initial kenel object frontier limit */
-#define RME_A7A_KOM_BOOT_FRONTIER  0x10003000U
+#define RME_A7A_KOM_BOOT_FRONTIER   0x10003000U
 /* Init process's first thread's entry point address */
-#define RME_A7A_INIT_ENTRY          0x08004001U
+#define RME_A7A_INIT_ENTRY          0x08004000U
 /* Init process's first thread's stack address */
-#define RME_A7A_INIT_STACK          0x1000FFF0U
+#define RME_A7A_INIT_STACK          0x081FFF00U
 /* What is the Systick value? in ticks. For XC7Z020, always clocked at 1/2 Fcpu */
 #define RME_A7A_SYSTICK_VAL         (7670000U/2U)
+/* Size of initial capability table */
+#define RME_A7A_INIT_CPT_SIZE       (256U)
 
 /* Processor type - This can make a huge difference when it comes
  * to timer configurations, as Cortex-A5/9 use private timer and

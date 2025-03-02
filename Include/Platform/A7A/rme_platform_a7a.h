@@ -77,54 +77,55 @@ typedef rme_s32_t rme_ret_t;
 
 /* System macros *************************************************************/
 /* Compiler "extern" keyword setting */
-#define RME_EXTERN                          extern
+#define RME_EXTERN                          	extern
 /* Compiler "inline" keyword setting */
-#define RME_INLINE                          inline
+#define RME_INLINE                          	inline
 /* Compiler likely & unlikely setting */
 #ifdef likely
-#define RME_LIKELY(X)                   (likely(X))
+#define RME_LIKELY(X)                   		(likely(X))
 #else
-#define RME_LIKELY(X)                   (X)
+#define RME_LIKELY(X)                   		(X)
 #endif
 #ifdef unlikely
-#define RME_UNLIKELY(X)                 (unlikely(X))
+#define RME_UNLIKELY(X)                 		(unlikely(X))
 #else
-#define RME_UNLIKELY(X)                 (X)
+#define RME_UNLIKELY(X)                 		(X)
 #endif
+/* Register access */
+#define RME_A7A_REG(X)                          (*((volatile rme_ptr_t*)(X)))
 /* CPU-local data structure location macro */
-//#define RME_CPU_LOCAL()                 (__RME_A7A_CPU_Local_Get())
-#define RME_CPU_LOCAL()                 (&RME_A7A_Local)
+#define RME_CPU_LOCAL()                 		(&RME_A7A_Local)
 /* The order of bits in one CPU machine word */
-#define RME_WORD_ORDER                  (5U)
+#define RME_WORD_ORDER                  		(5U)
 /* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                   (RME_FALSE)
+#define RME_VA_EQU_PA                   		(RME_FALSE)
 /* Quiescence timeslice value */
-#define RME_QUIE_TIME                   0
+#define RME_QUIE_TIME                   		10
 /* Cpt size limit - not restricted */
-#define RME_CPT_LIMIT                   0
+#define RME_CPT_LIMIT                   		0
 /* Cpt size limit - not restricted */
-#define RME_CPT_ENTRY_MAX                       (0U)
+#define RME_CPT_ENTRY_MAX               		(0U)
 /* Read timestamp counter */
-#define RME_TIMESTAMP                           (RME_A7A_Timestamp)
+#define RME_TIMESTAMP                 			(RME_A7A_Timestamp)
 /* Invocation stack maximum depth - not restricted */
-#define RME_INV_DEPTH_MAX                       (0U)
+#define RME_INV_DEPTH_MAX              			(0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)   (1<<(NUM_ORDER))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)   			RME_POW2(NUM_ORDER)
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)   RME_PGT_SIZE_NOM(NUM_ORDER)
+#define RME_PGT_SIZE_TOP(NUM_ORDER)   			RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
-#define RME_KOT_VA_BASE                       RME_A7A_Kot
+#define RME_KOT_VA_BASE                     	RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      _RME_Comp_Swap_Single(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)      		_RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)       _RME_Fetch_Add_Single(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)       	    _RME_Fetch_Add_Single(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
-#define RME_FETCH_AND(PTR,OPERAND)      _RME_Fetch_And_Single(PTR,OPERAND)
+#define RME_FETCH_AND(PTR,OPERAND)              _RME_Fetch_And_Single(PTR,OPERAND)
 /* Get most significant bit */
-#define RME_MSB_GET(VAL)                __RME_A7A_MSB_Get(VAL)
+#define RME_MSB_GET(VAL)                		__RME_A7A_MSB_Get(VAL)
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
-#define RME_READ_ACQUIRE(X)             __RME_A7A_Read_Acquire(X)
-#define RME_WRITE_RELEASE(X,V)          __RME_A7A_Write_Release(X,V)
+#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
+#define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release(X,V)
 
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7a_conf.h"
@@ -133,37 +134,33 @@ typedef rme_s32_t rme_ret_t;
 /* Cortex-A specific macros **************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_INIT_CPT                 0
+#define RME_BOOT_INIT_CPT                 		0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_INIT_PGT                  1
+#define RME_BOOT_INIT_PGT                  		1
 /* The init process */
-#define RME_BOOT_INIT_PRC              2
+#define RME_BOOT_INIT_PRC              			2
 /* The init thread */
-#define RME_BOOT_INIT_THD               3
+#define RME_BOOT_INIT_THD               		3
 /* The initial kernel function capability */
-#define RME_BOOT_INIT_KERN              4
+#define RME_BOOT_INIT_KFN                       (4U)
 /* The initial kernel memory capability */
-#define RME_BOOT_INIT_KOM              5
+#define RME_BOOT_INIT_KOM              			5
 /* The initial timer endpoint */
-#define RME_BOOT_INIT_TIMER             6
+#define RME_BOOT_INIT_VCT             			6
 /* The initial default endpoint for all other interrupts */
-#define RME_BOOT_INIT_INT               7
+#define RME_BOOT_INIT_INT               		7
 
 /* Booting capability layout */
-#define RME_A7A_CPT                     ((struct RME_Cap_Cpt*)(RME_KOM_VA_START))
+#define RME_A7A_CPT                     		((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 /* Kernel virtual address base - this is fixed */
-#define RME_A7A_VA_BASE                 (0x80000000U)
+#define RME_A7A_VA_BASE                 		(0x80000000U)
 /* For Cortex-A:
  * The layout of the page entry is complicated.
  * Refer to ARMv7-AR architecture reference manual (ARM) for details.
  * Physical address extension is NOT supported in RME */
 /* Get the actual table positions */
-#define RME_A7A_PGT_TBL_NOM(X)        (X)
-#define RME_A7A_PGT_TBL_TOP(X)        (X)
-
-/* Cortex-A (ARMv7) */
-#define RME_A7A_PGREG_POS(TABLE)        (((union __RME_A7A_Pgreg*)RME_A7A_PGREG_START) \
-		                                  [(((rme_ptr_t)(TABLE))-RME_A7A_VA_BASE)>>RME_PGT_SIZE_1K])
+#define RME_A7A_PGT_TBL_NOM(X)        			(X)
+#define RME_A7A_PGT_TBL_TOP(X)        			(X)
 
 /* MMU definitions operation flags, assuming the following changes:
  * TTBCR=0 : TTBR1 not used,

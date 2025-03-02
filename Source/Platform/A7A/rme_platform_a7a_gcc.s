@@ -485,8 +485,8 @@ fill_pgtbl:
     ISB
 
     /* Set the registers */
-    LDR                 R0,=0x02
-    CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=2 /* TTBCR, TTBR1 in use when accessing > 1GB */
+    LDR                 R0,=0x01
+    CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=2 /* TTBCR, TTBR1 in use when accessing > 2GB */
     ISB
 
     LDR                 R0,=0xFFFFFFFFF//0x55555555
