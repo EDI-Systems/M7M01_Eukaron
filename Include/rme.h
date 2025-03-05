@@ -222,9 +222,11 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGT_BUFFER                  (1U<<4)
 /* This page is pinned in TLB */
 #define RME_PGT_STATIC                  (1U<<5)
+/* All the permissions are set except for static */
+#define RME_PGT_ALL_DYN                 (RME_PGT_READ|RME_PGT_WRITE|RME_PGT_EXECUTE| \
+                                         RME_PGT_CACHE|RME_PGT_BUFFER)
 /* All the permissions are set */
-#define RME_PGT_ALL_PERM                (RME_PGT_READ|RME_PGT_WRITE|RME_PGT_EXECUTE| \
-                                         RME_PGT_CACHE|RME_PGT_BUFFER|RME_PGT_STATIC)
+#define RME_PGT_ALL_PERM                (RME_PGT_ALL_DYN|RME_PGT_STATIC)
                                         
 /* Generic page size order definitions */
 #define RME_PGT_SIZE_2B                 (1U)

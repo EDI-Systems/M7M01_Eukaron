@@ -381,7 +381,8 @@ void __RME_Boot(void)
     rme_ptr_t Count;
     rme_ptr_t Cur_Addr;
     Cur_Addr=RME_KOM_VA_BASE;
-
+    RME_DBG_S("\r\ncur addr= ");
+    RME_DBG_H(Cur_Addr);
     RME_DBG_S("\r\nstart rme boot");
 
     /* Create the capability table for the init process */
@@ -390,10 +391,13 @@ void __RME_Boot(void)
                                   Cur_Addr,
                                   RME_A7A_INIT_CPT_SIZE)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_A7A_INIT_CPT_SIZE));
-    
+    RME_DBG_S("\r\ncur addr= ");
+    RME_DBG_H(Cur_Addr);
     /* The top-level page table - covers 1M address range - align to 16kB */
     RME_DBG_S("\r\nstart pgt creation.");
     Cur_Addr=RME_ROUND_UP(Cur_Addr,14U);
+    RME_DBG_S("\r\ncur addr= ");
+    RME_DBG_H(Cur_Addr);
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7A_CPT,
                                  RME_BOOT_INIT_CPT,
                                  RME_BOOT_INIT_PGT,
@@ -405,14 +409,22 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
 
     /* Normal memory, 1GiB 0x00000000 -> 0x00000000 */
-    for(Count=0U;Count<0x400U;Count++)
+    //for(Count=0U;Count<0x400U;Count++)
+    for(Count=0U;Count<0x10U;Count++)
     {
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 Count*RME_POW2(RME_PGT_SIZE_1M),
 									 Count,
-									 RME_PGT_ALL_PERM)==0);
+                                     RME_PGT_ALL_DYN)==0);
+                                     
+         RME_DBG_S("\r\npaddr= ");
+         RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
+         RME_DBG_S("\r\nreg= ");
+         RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));
+
     }
+    while(1);
 
 	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
     for(Count=0U;Count<0x200U;Count++)
@@ -892,6 +904,21 @@ Return      : None.
 ******************************************************************************/
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
+    rme_ptr_t Count;
+    rme_ptr_t* Ptr;
+
+    Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
+
+    /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
+    for(Count=0U;Count<0x200U;Count++)
+    {
+		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
+									 RME_BOOT_INIT_PGT,
+									 (Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M),
+									 (Count+0x600U),
+									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+    }
+
 
 }
 /* End Function:__RME_Pgt_Set **********************************************/
@@ -926,6 +953,8 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base, rme_ptr_t Is_Top,
                           rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
+	RME_DBG_S("\r\nvaddr= ");
+	        RME_DBG_H(Vaddr);
     /* Top-level - 1MiB pages, 4096 entries, 16KiB alignment */
     if(Is_Top!=0)
     {
@@ -934,7 +963,11 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base, rme_ptr_t Is_Top,
         if(Num_Order!=RME_PGT_NUM_4K)
             return RME_ERR_HAL_FAIL;
         if((Vaddr&0x3FFF)!=0)
+        {
+            RME_DBG_S("\r\nvaddr error= ");
+            RME_DBG_H(Vaddr);
             return RME_ERR_HAL_FAIL;
+        }
     }
     /* Second-level - 4KiB pages, 256 entries, 1KiB alignment */
     else
@@ -963,7 +996,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
     rme_ptr_t* Ptr;
 
     /* Get the actual table */
-    Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);  *((volatile rme_ptr_t*)0x12345678)
+    Ptr=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);  //*((volatile rme_ptr_t*)0x12345678)
 
     /* Is this a first-level or a second-level? */
     if((Pgt_Op->Base&RME_PGT_TOP)!=0)
@@ -1015,6 +1048,18 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
+
+    /*RME_DBG_S("\r\nPgt_Op->Order");
+    RME_DBG_H(Pgt_Op->Order);
+    RME_DBG_S("\r\nPgt_Op->Order ");
+    RME_DBG_H(RME_PGT_SZORD(Pgt_Op->Order));
+    RME_DBG_S("\r\nPgt_Op->Order ");
+    RME_DBG_H(RME_PGT_SZORD(Pgt_Op->Order));
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
+    {
+        RME_DBG_S("\r\nhhhhhhhhhhhhhhh ");
+    }*/
+
     rme_ptr_t* Table;
     rme_ptr_t A7A_Flags;
 
@@ -1030,14 +1075,25 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Generate flags */
-    if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
+    //if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
+    if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
+    {
+        /*Flags&=(!RME_PGT_STATIC);
+        RME_DBG_S("\r\n Flags= ");
+        RME_DBG_H(Flags);*/
+
         A7A_Flags=RME_A7A_MMU_1M_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_1M_RME2NAT(Flags);
+        RME_DBG_S("\r\n A7A_Flags= ");
+        RME_DBG_H(A7A_Flags);
+    }
     else
         A7A_Flags=RME_A7A_MMU_4K_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_4K_RME2NAT(Flags);
-
     /* Try to map it in */
     if(RME_COMP_SWAP(&(Table[Pos]),0,A7A_Flags)==0)
         return RME_ERR_HAL_FAIL;
+
+    RME_DBG_S("\r\nTable[Pos] = ");
+    RME_DBG_H(Table[Pos]);
 
     return 0;
 }
