@@ -409,33 +409,36 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
 
     /* Normal memory, 1GiB 0x00000000 -> 0x00000000 */
-    //for(Count=0U;Count<0x400U;Count++)
-    for(Count=0U;Count<0x10U;Count++)
+    for(Count=0U;Count<0x400U;Count++)
+    //for(Count=0U;Count<0x3U;Count++)
     {
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 Count*RME_POW2(RME_PGT_SIZE_1M),
 									 Count,
                                      RME_PGT_ALL_DYN)==0);
-                                     
+                          
+         /*
          RME_DBG_S("\r\npaddr= ");
          RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
          RME_DBG_S("\r\nreg= ");
-         RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));
+         RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));*/
 
     }
-    while(1);
-
 	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
     for(Count=0U;Count<0x200U;Count++)
+    //for(Count=0U;Count<0x3U;Count++)
     {
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 (Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x400U),
 									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+                                     /*RME_DBG_S("\r\npaddr= ");
+                                     RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
+                                     RME_DBG_S("\r\nreg= ");
+                                     RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));*/
     }
-
     /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
     for(Count=0U;Count<0x200U;Count++)
     {
@@ -905,19 +908,36 @@ Return      : None.
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
     rme_ptr_t Count;
-    rme_ptr_t* Ptr;
-
-    Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
-
+    RME_DBG_S("\r\n__RME_Pgt_Set");
+    /* Normal memory, 1GiB 0x00000000 -> 0x00000000 */
+    for(Count=0U;Count<0x400U;Count++)
+    //for(Count=0U;Count<0x3U;Count++)
+    {
+		RME_ASSERT(__RME_Pgt_Page_Map(Pgt,
+									 Count*RME_POW2(RME_PGT_SIZE_1M),
+									 Count,
+                                     RME_PGT_ALL_DYN)==0);
+    }
+    RME_DBG_S("\r\nNormal memory");
+	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
+    for(Count=0U;Count<0x200U;Count++)
+    //for(Count=0U;Count<0x3U;Count++)
+    {
+		RME_ASSERT(__RME_Pgt_Page_Map(Pgt,
+									 (Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M),
+									 (Count+0x400U),
+									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+    }
+    RME_DBG_S("\r\nDevice memory 1");
     /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
     for(Count=0U;Count<0x200U;Count++)
     {
-		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
-									 RME_BOOT_INIT_PGT,
+		RME_ASSERT(__RME_Pgt_Page_Map(Pgt,
 									 (Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x600U),
 									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
     }
+    RME_DBG_S("\r\nDevice memory 2");
 
 
 }
@@ -1065,12 +1085,16 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
 
     /* It should at least be readable */
     if((Flags&RME_PGT_READ)==0)
+    {
+        RME_DBG_S("\r\nunreadable");
         return RME_ERR_HAL_FAIL;
+    }
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=2048))
+    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=2048)){
+        RME_DBG_S("\r\nAre we trying to map into the kernel space on the top level?");
         return RME_ERR_HAL_FAIL;
-
+    }
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
@@ -1078,22 +1102,27 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
     //if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
     if(((Pgt_Op->Base)&RME_PGT_TOP)!=0U)
     {
-        /*Flags&=(!RME_PGT_STATIC);
-        RME_DBG_S("\r\n Flags= ");
-        RME_DBG_H(Flags);*/
-
+        Flags&=(~RME_PGT_STATIC);
+        /*RME_DBG_S("\r\n Flags ");
+        RME_DBG_H(Flags); */
+        
         A7A_Flags=RME_A7A_MMU_1M_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_1M_RME2NAT(Flags);
-        RME_DBG_S("\r\n A7A_Flags= ");
-        RME_DBG_H(A7A_Flags);
+        /*RME_DBG_S("\r\n A7A_Flags= ");
+        RME_DBG_H(A7A_Flags);*/
     }
     else
         A7A_Flags=RME_A7A_MMU_4K_PAGE_ADDR(Paddr)|RME_A7A_PGFLG_4K_RME2NAT(Flags);
     /* Try to map it in */
     if(RME_COMP_SWAP(&(Table[Pos]),0,A7A_Flags)==0)
+    {
+        RME_DBG_S("\r\n*(Table[Pos])");
+        RME_DBG_H(Table[Pos]);
+        RME_DBG_S("\r\nmap it in error");
         return RME_ERR_HAL_FAIL;
+    }
 
-    RME_DBG_S("\r\nTable[Pos] = ");
-    RME_DBG_H(Table[Pos]);
+    /*RME_DBG_S("\r\nTable[Pos] = ");
+    RME_DBG_H(Table[Pos]);*/
 
     return 0;
 }

@@ -2868,7 +2868,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
        ((Paddr&RME_MASK_END(Szord-1U))!=0U))
     {
         RME_COV_MARKER();
-        
+        RME_DBG_S("\r\nmapping range and the granularity is not allowed ");
         return RME_ERR_PGT_ADDR;
     }
     else
@@ -2882,7 +2882,8 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
     if(__RME_Pgt_Page_Map(Pgt_Op,Paddr,Pos,Flag)!=0)
     {
         RME_COV_MARKER();
-        
+        int a=__RME_Pgt_Page_Map(Pgt_Op,Paddr,Pos,Flag);
+        RME_DBG_S("\r\nThis work is not passed down to the HAL ");
         return RME_ERR_PGT_MAP;
     }
     else
