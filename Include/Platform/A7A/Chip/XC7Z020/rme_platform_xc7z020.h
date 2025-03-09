@@ -4,9 +4,10 @@ Author      : pry
 Date        : 24/06/2017
 Licence     : LGPL v3+; see COPYING for details.
 Description : The configuration file for XC7Z020, with 1MB memory.
-              Kernel : 0x80100000 - 0x80EFFFFF.
-              Kom1  : 0x81000000 - 0xC0FFFFFF.
-              Kom2  : None.
+              Kernel : 0x80100000 - 0x80FFFFFF.
+              Kom1   : 0x81000000 - 0x81FFFFFF.
+              User   : 0x84000000 - 0x84FFFFFF.(test)
+              Kom2   : None.
               Periph : 0xC1000000 - 0xFFFFFFFF.
 ******************************************************************************/
 
@@ -23,7 +24,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_KOM_VA_BASE              0x81000000U
 /* The size of the kernel object virtual memory - the excess 16MB is for mapping
  * in extra memory, like on-chip SRAM, if they are to be used */
-#define RME_KOM_VA_SIZE              0x40000000U
+#define RME_KOM_VA_SIZE              0x01000000U
 /* The granularity of kernel memory allocation, in bytes */
 #define RME_KOM_SLOT_ORDER           4U
 /* Kernel stack size and address */
@@ -46,9 +47,9 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_A7A_VA2PA(X)            (((rme_ptr_t)(X))-RME_A7A_VA_BASE)
 #define RME_A7A_PA2VA(X)            (((rme_ptr_t)(X))+RME_A7A_VA_BASE)
 /* Shared interrupt flag region address - always use 256*4 = 1kB memory */
-#define RME_A7A_INT_FLAG_ADDR       0x10008000U
+//#define RME_A7A_INT_FLAG_ADDR       0x10008000U
 /* Initial kenel object frontier limit */
-#define RME_A7A_KOM_BOOT_FRONTIER   0x10003000U
+//#define RME_A7A_KOM_BOOT_FRONTIER   0x10003000U
 /* Init process's first thread's entry point address */
 #define RME_A7A_INIT_ENTRY          0x08004000U
 /* Init process's first thread's stack address */

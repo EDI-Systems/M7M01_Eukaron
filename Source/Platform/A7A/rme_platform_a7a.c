@@ -38,6 +38,7 @@ int main(void)
 {
 	//RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
 	//RME_DBG_I(10);
+	//RME_DBG_S("hello world\n");
 	//while(1);
     /*__RME_Putchar('h');
     __RME_Putchar('e');
@@ -65,7 +66,7 @@ int main(void)
     __RME_Putchar('r');
     __RME_Putchar('l');
     __RME_Putchar('d');*/
-    RME_Kmain();
+   RME_Kmain();
     
     
     //test
@@ -380,23 +381,20 @@ void __RME_Boot(void)
 {
     rme_ptr_t Count;
     rme_ptr_t Cur_Addr;
+
     Cur_Addr=RME_KOM_VA_BASE;
-    RME_DBG_S("\r\ncur addr= ");
-    RME_DBG_H(Cur_Addr);
-    RME_DBG_S("\r\nstart rme boot");
 
     /* Create the capability table for the init process */
-    RME_DBG_S("\r\nstart cpt creation");
+    RME_DBG_S("\r\nCreating boot-time capability table @ ");
+    RME_DBG_H(Cur_Addr);
     RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,
                                   Cur_Addr,
                                   RME_A7A_INIT_CPT_SIZE)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_A7A_INIT_CPT_SIZE));
-    RME_DBG_S("\r\ncur addr= ");
-    RME_DBG_H(Cur_Addr);
+
     /* The top-level page table - covers 1M address range - align to 16kB */
-    RME_DBG_S("\r\nstart pgt creation.");
-    Cur_Addr=RME_ROUND_UP(Cur_Addr,14U);
-    RME_DBG_S("\r\ncur addr= ");
+    Cur_Addr=RME_ROUND_UP(Cur_Addr,16U);
+    RME_DBG_S("\r\nCreating boot-time page table @ ");
     RME_DBG_H(Cur_Addr);
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_A7A_CPT,
                                  RME_BOOT_INIT_CPT,
@@ -406,65 +404,63 @@ void __RME_Boot(void)
                                  RME_PGT_TOP,
                                  RME_PGT_SIZE_1M,
                                  RME_PGT_NUM_4K)==0);
-    Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
+
     /* Normal memory, 1GiB 0x00000000 -> 0x00000000 */
     for(Count=0U;Count<0x400U;Count++)
-    //for(Count=0U;Count<0x3U;Count++)
     {
-        /*if(a==1)
-        {
-            RME_DBG_S("\r\npaddr= ");
-            RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
-            a=0;
-        }*/
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 Count*RME_POW2(RME_PGT_SIZE_1M),
 									 Count,
                                      RME_PGT_ALL_DYN)==0);
-                          
-         /*
-         RME_DBG_S("\r\npaddr= ");
-         RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
-         RME_DBG_S("\r\nreg= ");
-         RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));*/
-
     }
 	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
     for(Count=0U;Count<0x200U;Count++)
-    //for(Count=0U;Count<0x3U;Count++)
     {
-        /*if(b==1)
-        {
-            RME_DBG_S("\r\npaddr= ");
-            RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
-            b=0;
-        }*/
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 (Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x400U),
-									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
-                                     /*RME_DBG_S("\r\npaddr= ");
-                                     RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
-                                     RME_DBG_S("\r\nreg= ");
-                                     RME_DBG_H(RME_A7A_REG(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K)));*/
+									 RME_PGT_READ|RME_PGT_WRITE)==0);
     }
+    
     /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
     for(Count=0U;Count<0x200U;Count++)
     {
-        /*if(c==1)
-        {
-            RME_DBG_S("\r\npaddr= ");
-            RME_DBG_H(Cur_Addr+Count*4-RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
-            c=0;
-        }*/
 		RME_ASSERT(_RME_Pgt_Boot_Add(RME_A7A_CPT,
 									 RME_BOOT_INIT_PGT,
 									 (Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x600U),
-									 RME_PGT_READ|RME_PGT_WRITE|RME_PGT_STATIC)==0);
+									 RME_PGT_READ|RME_PGT_WRITE)==0);
     }
+
+    RME_DBG_S("\r\nFirst section's first entry ");
+    RME_DBG_H(RME_A7A_REG(Cur_Addr));
+    RME_DBG_S(" @ ");
+    RME_DBG_H(Cur_Addr);
+
+    RME_DBG_S("\r\nFirst section's 0x080th entry ");
+    RME_DBG_H(RME_A7A_REG(Cur_Addr+0x080*RME_WORD_BYTE));
+    RME_DBG_S(" @ ");
+    RME_DBG_H(Cur_Addr+0x080*RME_WORD_BYTE);
+
+    RME_DBG_S("\r\nSecond section's first entry ");
+    RME_DBG_H(RME_A7A_REG(Cur_Addr+0x400*RME_WORD_BYTE));
+    RME_DBG_S(" @ ");
+    RME_DBG_H(Cur_Addr+0x400*RME_WORD_BYTE);
+
+    RME_DBG_S("\r\nThird section's first entry ");
+    RME_DBG_H(RME_A7A_REG(Cur_Addr+0x600*RME_WORD_BYTE));
+    RME_DBG_S(" @ ");
+    RME_DBG_H(Cur_Addr+0x600*RME_WORD_BYTE);
+
+    RME_DBG_S("\r\nKernel pgtbl's 80th entry ");
+    RME_DBG_H(RME_A7A_REG(((rme_ptr_t)(&__RME_A7A_Kern_Pgt))+0x080*RME_WORD_BYTE));
+    RME_DBG_S(" @ ");
+    RME_DBG_H(((rme_ptr_t)(&__RME_A7A_Kern_Pgt))+0x080*RME_WORD_BYTE);
+
+    Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_4K));
+
     /* Activate the first process - This process cannot be deleted */
     RME_DBG_S("\r\nstart prc creation.");
     RME_ASSERT(_RME_Prc_Boot_Crt(RME_A7A_CPT,
@@ -473,17 +469,9 @@ void __RME_Boot(void)
                                  RME_BOOT_INIT_CPT,
                                  RME_BOOT_INIT_PGT)==0U);
 
-    /* Clean up the region for vectors and events */
-    _RME_Clear((void*)0x81004000U,(0x400U*4));
-    _RME_Clear((void*)0x81005000U,(0x200U*4));
-    _RME_Clear((void*)0x81005800U,(0x200U*4));
-    RME_DBG_S("\r\nclear");
-    RME_DBG_H(RME_A7A_REG(0x81004FFCU));
-    RME_DBG_S("\r\nclear");
-    RME_DBG_H(RME_A7A_REG(0x81005000U));
-    RME_DBG_S("\r\nclear");
-    RME_DBG_H(RME_A7A_REG(0x81005800U));
     /* Activate the first thread, and set its priority */
+    RME_DBG_S("\r\nCreating boot-time thread @ ");
+    RME_DBG_H(Cur_Addr);
     RME_ASSERT(_RME_Thd_Boot_Crt(RME_A7A_CPT,
                                  RME_BOOT_INIT_CPT,
                                  RME_BOOT_INIT_THD,
@@ -494,10 +482,11 @@ void __RME_Boot(void)
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
 
     /* Create the initial kernel function capability, and kernel memory capability */
-    RME_DBG_S("\r\nstart kfn/kom creation.");
+    RME_DBG_S("\r\nCreating boot-time kernel function");
     RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7A_CPT,
                                  RME_BOOT_INIT_CPT,
                                  RME_BOOT_INIT_KFN)==0);
+    RME_DBG_S("\r\nCreating boot-time kernel memory");
     RME_ASSERT(_RME_Kom_Boot_Crt(RME_A7A_CPT, 
                                  RME_BOOT_INIT_CPT, 
                                  RME_BOOT_INIT_KOM,
@@ -517,8 +506,8 @@ void __RME_Boot(void)
     __RME_Pgt_Set(RME_A7A_Local.Thd_Cur->Sched.Prc->Pgt);
 
     /* Initialize timer and enable interrupts */
-    RME_DBG_S("\r\nenable interrupts");
-	__RME_A7A_Timer_Init();
+    RME_DBG_S("\r\nenable interrupts\r\n");
+	//__RME_A7A_Timer_Init();
     __RME_Int_Enable();
 
     /* Boot into the init thread */
@@ -787,6 +776,11 @@ Return      : None.
 void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle undefined instructions now */
+	RME_DBG_S("Undefined_Handler");
+	RME_DBG_S(" PC - ");
+	RME_DBG_H(Reg->PC);
+	RME_DBG_S(" SP - ");
+	RME_DBG_H(Reg->SP);
 	while(1);
 }
 /* End Function:__RME_A7A_Undefined_Handler *********************************/
@@ -800,6 +794,11 @@ Return      : None.
 void __RME_A7A_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle prefetch aborts now */
+	RME_DBG_S("Prefetch_Abort_Handler");
+	RME_DBG_S(" PC - ");
+	RME_DBG_H(Reg->PC);
+	RME_DBG_S(" SP - ");
+	RME_DBG_H(Reg->SP);
 	while(1);
 }
 /* End Function:__RME_A7A_Prefetch_Abort_Handler ****************************/
@@ -813,6 +812,11 @@ Return      : None.
 void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle data aborts now */
+	RME_DBG_S("Data_Abort_Handler");
+	RME_DBG_S(" PC - ");
+	RME_DBG_H(Reg->PC);
+	RME_DBG_S(" SP - ");
+	RME_DBG_H(Reg->SP);
 	while(1);
 }
 /* End Function:__RME_A7A_Data_Abort_Handler ********************************/
@@ -933,18 +937,16 @@ Return      : None.
 ******************************************************************************/
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
-    rme_ptr_t Count;
-    RME_DBG_S("\r\n__RME_Pgt_Set");
     rme_ptr_t* Ptr;
 
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
-    RME_A7A_VA2PA(Ptr);
-    __RME_A7A_TTBR0_Set(Pgt->Base);
-    
-    
 
+    RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
+    RME_DBG_H(Ptr);
 
+    __RME_A7A_TTBR0_Set(RME_A7A_VA2PA(Ptr)|0x4A);
+	__RME_A7A_TLBIALL_Set(0);
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
@@ -1126,8 +1128,10 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
         return RME_ERR_HAL_FAIL;
     }
 
-    RME_DBG_S("\r\n&Table[Pos] = ");
+    /*RME_DBG_S("\r\n&Table[Pos] = ");
     RME_DBG_H(&Table[Pos]);
+    RME_DBG_S("\r\n*(Table[Pos])");
+    RME_DBG_H(Table[Pos]);*/
 
     return 0;
 }

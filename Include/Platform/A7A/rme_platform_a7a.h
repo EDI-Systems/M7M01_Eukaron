@@ -110,7 +110,7 @@ typedef rme_s32_t rme_ret_t;
 /* Invocation stack maximum depth - not restricted */
 #define RME_INV_DEPTH_MAX              			(0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)   			RME_POW2(NUM_ORDER)
+#define RME_PGT_SIZE_NOM(NUM_ORDER)   			(RME_POW2(NUM_ORDER)*RME_WORD_BYTE)
 /* Top-level page directory size calculation macro */
 #define RME_PGT_SIZE_TOP(NUM_ORDER)   			RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
@@ -519,23 +519,23 @@ union __RME_A7A_Pgreg
 /*****************************************************************************/
 /* Translate the flags into Cortex-A specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
- * [MSB                                                                                         LSB]
+ * [MSB                                                                               LSB]
  * RME_PGT_BUFFERABLE | RME_PGT_CACHEABLE | RME_PGT_EXECUTE | RME_PGT_WRITE | RME_PGT_READ
  * The C snippet to generate this (gcc x64):
 
 #include <stdio.h>
 
-#define A7A_1M_PRESENT      (0x01U)
+#define A7A_1M_PRESENT      (0x02U)
 #define A7A_1M_USER         (1U<<11U)
 #define A7A_1M_SHAREABLE    (1U<<16U)
 #define A7A_1M_NOTGLOBAL    (1U<<17U)
-
+#define A7A_1M_ACCESS       (1U<<10U)
 #define A7A_1M_EXECUTENEVER (1U<<4U)
 #define A7A_1M_READONLY     (1U<<15U)
 #define A7A_1M_BUFFERABLE   (1U<<2U)
 #define A7A_1M_CACHEABLE    (1U<<3U)
 
-#define A7A_1M_COMMON       (A7A_1M_PRESENT|A7A_1M_USER|A7A_1M_SHAREABLE|A7A_1M_NOTGLOBAL)
+#define A7A_1M_COMMON       (A7A_1M_PRESENT|A7A_1M_USER|A7A_1M_SHAREABLE|A7A_1M_NOTGLOBAL|A7A_1M_ACCESS)
 
 #define RME_READ             (1<<0)
 #define RME_WRITE            (1<<1)
@@ -566,14 +566,15 @@ int main(void)
 } */
 static const rme_ptr_t RME_A7A_Pgflg_1M_RME2NAT[32]=
 {
-	0x00038811,0x00038811,0x00030811,0x00030811,
-	0x00038801,0x00038801,0x00030801,0x00030801,
-	0x00038819,0x00038819,0x00030819,0x00030819,
-	0x00038809,0x00038809,0x00030809,0x00030809,
-	0x00038815,0x00038815,0x00030815,0x00030815,
-	0x00038805,0x00038805,0x00030805,0x00030805,
-	0x0003881D,0x0003881D,0x0003081D,0x0003081D,
-	0x0003880D,0x0003880D,0x0003080D,0x0003080D
+	0x00038C12,0x00038C12,0x00030C12,0x00030C12,
+	0x00038C02,0x00038C02,0x00030C02,0x00030C02,
+	0x00038C1A,0x00038C1A,0x00030C1A,0x00030C1A,
+	0x00038C0A,0x00038C0A,0x00030C0A,0x00030C0A,
+	0x00038C16,0x00038C16,0x00030C16,0x00030C16,
+	0x00038C06,0x00038C06,0x00030C06,0x00030C06,
+	0x00038C1E,0x00038C1E,0x00030C1E,0x00030C1E,
+	0x00038C0E,0x00038C0E,0x00030C0E,0x00030C0E
+
 };
 
 /* Translate the flags into Cortex-A specific ones - the STATIC bit will never be
@@ -584,7 +585,7 @@ static const rme_ptr_t RME_A7A_Pgflg_1M_RME2NAT[32]=
 
 #include <stdio.h>
 
-#define A7A_4K_PRESENT      (1U<<1U)
+#define A7A_4K_PRESENT      (0x02U)
 #define A7A_4K_USER         (1U<<5U)
 #define A7A_4K_SHAREABLE    (1U<<10U)
 #define A7A_4K_NOTGLOBAL    (1U<<11U)
