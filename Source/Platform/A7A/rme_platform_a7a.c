@@ -245,6 +245,7 @@ void __RME_A7A_Timer_Init(void)
 
     /* Enable the timer interrupt in the GIC */
     RME_A7A_GICD_ISENABLER(0)|=1<<29;
+    RME_DBG_S("\r\ntimer init finish");
 #else
 	#error Cortex-A7/8/15/17 is not supported at the moment.
     Cortex-A7/15/17 use the new generic timer, and Cortex-A8 does not
@@ -480,7 +481,8 @@ void __RME_Boot(void)
                                  0U,
                                  &RME_A7A_Local)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(0U));
-
+    RME_DBG_S("\r\nFinish creating boot-time thread @ ");
+    RME_DBG_H(Cur_Addr);
     /* Create the initial kernel function capability, and kernel memory capability */
     RME_DBG_S("\r\nCreating boot-time kernel function");
     RME_ASSERT(_RME_Kfn_Boot_Crt(RME_A7A_CPT,
@@ -776,7 +778,7 @@ Return      : None.
 void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle undefined instructions now */
-	RME_DBG_S("Undefined_Handler");
+	RME_DBG_S("\r\nUndefined_Handler");
 	RME_DBG_S(" PC - ");
 	RME_DBG_H(Reg->PC);
 	RME_DBG_S(" SP - ");

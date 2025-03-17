@@ -134,7 +134,7 @@ typedef rme_s32_t rme_ret_t;
 /* Cortex-A specific macros **************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_INIT_CPT                 		0
+#define RME_BOOT_INIT_CPT                       0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
 #define RME_BOOT_INIT_PGT                  		1
 /* The init process */
@@ -589,13 +589,13 @@ static const rme_ptr_t RME_A7A_Pgflg_1M_RME2NAT[32]=
 #define A7A_4K_USER         (1U<<5U)
 #define A7A_4K_SHAREABLE    (1U<<10U)
 #define A7A_4K_NOTGLOBAL    (1U<<11U)
-
+#define A7A_4K_ACCESS       (1U<<4U)
 #define A7A_4K_EXECUTENEVER (1U<<0U)
 #define A7A_4K_READONLY     (1U<<9U)
 #define A7A_4K_BUFFERABLE   (1U<<2U)
 #define A7A_4K_CACHEABLE    (1U<<3U)
 
-#define A7A_4K_COMMON       (A7A_4K_PRESENT|A7A_4K_USER|A7A_4K_SHAREABLE|A7A_4K_NOTGLOBAL)
+#define A7A_4K_COMMON       (A7A_4K_PRESENT|A7A_4K_USER|A7A_4K_SHAREABLE|A7A_4K_NOTGLOBAL|A7A_4K_ACCESS)
 
 #define RME_READ             (1<<0)
 #define RME_WRITE            (1<<1)
@@ -626,15 +626,18 @@ int main(void)
 } */
 static const rme_ptr_t RME_A7A_Pgflg_4K_RME2NAT[32]=
 {
-	0x00000E23,0x00000E23,0x00000C23,0x00000C23,
-	0x00000E22,0x00000E22,0x00000C22,0x00000C22,
-	0x00000E2B,0x00000E2B,0x00000C2B,0x00000C2B,
-	0x00000E2A,0x00000E2A,0x00000C2A,0x00000C2A,
-	0x00000E27,0x00000E27,0x00000C27,0x00000C27,
-	0x00000E26,0x00000E26,0x00000C26,0x00000C26,
-	0x00000E2F,0x00000E2F,0x00000C2F,0x00000C2F,
-	0x00000E2E,0x00000E2E,0x00000C2E,0x00000C2E
+		0x00000E33,0x00000E33,0x00000C33,0x00000C33,
+		0x00000E32,0x00000E32,0x00000C32,0x00000C32,
+		0x00000E3B,0x00000E3B,0x00000C3B,0x00000C3B,
+		0x00000E3A,0x00000E3A,0x00000C3A,0x00000C3A,
+		0x00000E37,0x00000E37,0x00000C37,0x00000C37,
+		0x00000E36,0x00000E36,0x00000C36,0x00000C36,
+		0x00000E3F,0x00000E3F,0x00000C3F,0x00000C3F,
+		0x00000E3E,0x00000E3E,0x00000C3E,0x00000C3E
 };
+
+
+
 
 /* Translate the 1M flags back to RME format. In order to use this table, it is needed to extract the
  * Cortex-A bits: [15](READONLY) [4](EXECUTENEVER) [3](CACHEABLE) [2](BUFFERABLE). The C snippet to

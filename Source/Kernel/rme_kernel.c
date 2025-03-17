@@ -1501,7 +1501,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         case RME_SVC_THD_CRT:
         {
             RME_COV_MARKER();
-            
+
             Retval=_RME_Thd_Crt(Cpt,
                                 (rme_cid_t)Cid,                             /* rme_cid_t Cap_Cpt */
                                 (rme_cid_t)RME_PARAM_D1(Param[0]),          /* rme_cid_t Cap_Kom */
@@ -3916,7 +3916,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
     {
         RME_COV_MARKER();
-
+        RME_DBG_S("\r\nCheck if the marking is well aligned");
         return RME_ERR_KOT_BMP;
     }
     else
@@ -3938,13 +3938,19 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     if(Start==End)
     {
         RME_COV_MARKER();
-
+        
         /* Someone already populated something here */
         Old_Val=RME_KOT_VA_BASE[Start];
         if((Old_Val&(Mask_Begin&Mask_End))!=0U)
         {
             RME_COV_MARKER();
-
+            RME_DBG_S("\r\nSomeone already populated something here");
+            RME_DBG_S("\r\nOld_Val ");
+            RME_DBG_H(Old_Val);
+            RME_DBG_S("\r\nMask_Begin ");
+            RME_DBG_H(Mask_Begin);
+            RME_DBG_S("\r\nMask_End ");
+            RME_DBG_H(Mask_End);
             return RME_ERR_KOT_BMP;
         }
         else
@@ -3959,7 +3965,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
                          Old_Val|(Mask_Begin&Mask_End))==RME_CASFAIL)
         {
             RME_COV_MARKER();
-
+            RME_DBG_S("\r\nCheck done, do the marking with CAS");
             return RME_ERR_KOT_BMP;
         }
         else
@@ -3978,7 +3984,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         if((Old_Val&Mask_Begin)!=0U)
         {
             RME_COV_MARKER();
-
+            RME_DBG_S("\r\nCheck&Mark the start");
             return RME_ERR_KOT_BMP;
         }
         else
@@ -3992,7 +3998,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
                          Old_Val|Mask_Begin)==RME_CASFAIL)
         {
             RME_COV_MARKER();
-
+            RME_DBG_S("\r\nRME_COMP_SWAP(&RME_KOT_VA_BASE[Start],");
             return RME_ERR_KOT_BMP;
         }
         else
@@ -5213,13 +5219,32 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     rme_ptr_t Vaddr;
     rme_ptr_t Size;
+    RME_DBG_S("\r\nCpt addr ");
+    RME_DBG_H((rme_ptr_t)Cpt);
+    RME_DBG_S("\r\nCap_Cpt ");
+    RME_DBG_H(Cap_Cpt);
+    RME_DBG_S("\r\nCap_Kom ");
+    RME_DBG_H(Cap_Kom);
+    RME_DBG_S("\r\nCap_Thd ");
+    RME_DBG_H(Cap_Thd);
+    RME_DBG_S("\r\nCap_Prc ");
+    RME_DBG_H(Cap_Prc);
+    RME_DBG_S("\r\nPrio_Max ");
+    RME_DBG_H(Prio_Max);
+    RME_DBG_S("\r\nRaddr ");
+    RME_DBG_H(Raddr);
+    RME_DBG_S("\r\nAttr ");
+    RME_DBG_H(Attr);
+    RME_DBG_S("\r\nIs_Hyp ");
+    RME_DBG_H(Is_Hyp);
+     
     
     /* See if the maximum priority relationship is correct - a thread
      * can never create a thread with higher maximum priority */
     if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Prio_Max)
     {
         RME_COV_MARKER();
-
+        RME_DBG_S("\r\nmaximum priority relationship is not correct");
         return RME_ERR_PTH_PRIO;
     }
     else
@@ -5231,13 +5256,18 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slots */
     RME_CPT_GETCAP(Cpt,Cap_Cpt,RME_CAP_TYPE_CPT,
                    struct RME_Cap_Cpt*,Cpt_Op,Type_Stat); 
+                   RME_DBG_S("\r\nreach 1");
     RME_CPT_GETCAP(Cpt,Cap_Kom,RME_CAP_TYPE_KOM,
                    struct RME_Cap_Kom*,Kom_Op,Type_Stat);
+                   RME_DBG_S("\r\nreach 2");
     RME_CPT_GETCAP(Cpt,Cap_Prc,RME_CAP_TYPE_PRC,
                    struct RME_Cap_Prc*,Prc_Op,Type_Stat);
+                   RME_DBG_S("\r\nreach 3");
     /* Check if the target caps is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Op,RME_CPT_FLAG_CRT);
+    RME_DBG_S("\r\nreach 4");
     RME_CAP_CHECK(Prc_Op,RME_PRC_FLAG_THD);
+    RME_DBG_S("\r\nreach 5");
     /* See if the creation is valid for this kmem range */
     if(Is_Hyp==0U)
     {
@@ -5256,18 +5286,29 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
 #endif
     }
     
+    if(RME_UNLIKELY((Vaddr)<(Raddr))) 
+    {
+      RME_DBG_S("\r\nvaddr= ");
+      RME_DBG_H(Vaddr);
+      RME_DBG_S("\r\nRaddr= ");
+      RME_DBG_H(Raddr);
+    }
     RME_KOM_CHECK(Kom_Op,RME_KOM_FLAG_THD,Raddr,Vaddr,Size);
     
+    RME_DBG_S("\r\nreach 6");
     /* Get the cap slot */
     RME_CPT_GETSLOT(Cpt_Op,Cap_Thd,struct RME_Cap_Thd*,Thd_Crt);
+    RME_DBG_S("\r\nreach 7");
     /* Take the slot if possible */
     RME_CPT_OCCUPY(Thd_Crt);
+    RME_DBG_S("\r\nreach 8");
      
     /* Try to populate the area */
     if(_RME_Kot_Mark(Vaddr,Size)<0)
     {
         RME_COV_MARKER();
-
+        RME_DBG_S("\r\n_RME_Kot_Mark(Vaddr,Size)");
+        RME_DBG_I(_RME_Kot_Mark(Vaddr,Size));
         RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Stat),0U);
         return RME_ERR_CPT_KOT;
     }
