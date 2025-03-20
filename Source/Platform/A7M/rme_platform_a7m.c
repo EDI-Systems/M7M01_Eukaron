@@ -1377,7 +1377,9 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Power and frequency adjustment operations *********************************/
         case RME_KFN_IDLE_SLEEP:
         {
+            RME_A7M_WAIT_INT_PRE();
             __RME_A7M_Wait_Int();
+            RME_A7M_WAIT_INT_POST();
             Retval=0;
             break;
         }
@@ -1624,6 +1626,8 @@ void __RME_Lowlvl_Init(void)
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT,0xFFU);
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR,0xFFU);
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT,0xFFU);
+    /* Make sure that any pending interrupts will turn into events */
+    RME_A7M_SCB_SCR=RME_A7M_SCB_SCR_SEVONPEND;
 
     /* Initialize CPU-local data structures */
     _RME_CPU_Local_Init(&RME_A7M_Local,0U);

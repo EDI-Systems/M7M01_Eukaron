@@ -93,9 +93,8 @@ F31    $ft11      temporary (caller-save)
     .extern             __RME_Data_End
     .extern             __RME_Zero_Start
     .extern             __RME_Zero_End
-    /* Handlers */
-    .extern             __RME_RV32GP_Handler
-    .extern             __RME_RV32GP_Lowlvl_Preinit
+    /* Nonstandard low-level preinit that some platforms require */
+    .extern             __RME_RV32P_Lowlvl_Preinit
     /* Kernel entry */
     .extern             main
 /* End Import ****************************************************************/
@@ -109,6 +108,8 @@ F31    $ft11      temporary (caller-save)
     .global             __RME_Int_Enable
     /* Entering of the user mode */
     .global             __RME_User_Enter
+    /* Wait for interrupts */
+    .global             __RME_RV32P_Wait_Int
     /* A full barrier */
     .global             __RME_RV32P_Barrier
     /* CSR manipulations */
@@ -230,6 +231,20 @@ ___RME_RV32P_Barrier:
     FENCE.I
     RET
 /* End Function:__RME_RV32P_Barrier ******************************************/
+
+/* Function:__RME_RV32P_Wait_Int **********************************************
+Description : Wait until a new interrupt comes, to save power.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.__rme_rv32p_wait_int
+    .align              3
+
+__RME_RV32P_Wait_Int:
+    WFI
+    RET
+/* End Function:__RME_RV32P_Wait_Int *****************************************/
 
 /* Function:___RME_RV32P_MCAUSE_Get *******************************************
 Description : Get the MCAUSE register content.

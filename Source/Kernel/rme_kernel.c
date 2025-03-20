@@ -7719,7 +7719,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */
-    RME_WRITE_RELEASE(&(Invocation->Thd_Act),0U);
+    RME_WRITE_RELEASE((volatile rme_ptr_t*)&(Invocation->Thd_Act),0U);
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Is_Exc!=0U))

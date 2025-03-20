@@ -285,6 +285,11 @@ do \
 while(0)
     
 #define RME_A6M_PRFTH_STATE_GET() ((RME_A6M_FLASH_ACR&RME_A6M_FLASH_ACR_PRFTEN)!=0U)
+
+/* Action before placing processor in low-power mode */
+#define RME_A6M_WAIT_INT_PRE()
+/* Action after placing processor in low-power mode */
+#define RME_A6M_WAIT_INT_POST()
 /* End Define ****************************************************************/
 
 /* End Of File ***************************************************************/

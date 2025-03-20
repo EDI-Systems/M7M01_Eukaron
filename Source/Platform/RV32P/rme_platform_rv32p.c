@@ -91,19 +91,6 @@ rme_ptr_t __RME_CPUID_Get(void)
 }
 /* End Function:__RME_CPUID_Get **********************************************/
 
-/* Function:__RME_RV32P_Wait_Int **********************************************
-Description : Wait until a new interrupt comes, to save power.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_RV32P_Wait_Int(void)
-{
-    /* Calling functions implemented by risc-v library */
-    RME_RV32P_WAIT_INT();
-}
-/* End Function:__RME_RV32P_Wait_Int *****************************************/
-
 /* Function:__RME_RV32P_Exc_Handler *******************************************
 Description : The fault handler of RME.
 Input       : struct RME_Reg_Struct* Reg - The register set.
@@ -842,7 +829,9 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Power and frequency adjustment operations *********************************/
         case RME_KFN_IDLE_SLEEP:
         {
+            RME_RV32P_WAIT_INT_PRE();
             __RME_RV32P_Wait_Int();
+            RME_RV32P_WAIT_INT_POST();
             Retval=0;
             break;
         }

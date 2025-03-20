@@ -317,6 +317,11 @@ do \
 while(0)
     
 #define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ARTEN)!=0U)
+
+/* Action before placing processor in low-power mode */
+#define RME_A7M_WAIT_INT_PRE()
+/* Action after placing processor in low-power mode */
+#define RME_A7M_WAIT_INT_POST()
 /* End Define ****************************************************************/
 
 /* Struct ********************************************************************/
