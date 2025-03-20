@@ -5827,15 +5827,14 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     /* Cleanup all remaining timeslices on it */
     Thread->Sched.Slice=0U;
     
-    /* Check if this thread is the current one and we may need to switch away */
+    /* Check if this thread is the current one and we may need to switch away.
+     * This check is not necessary to guarantee correctness, but it does boost
+     * the efficiency. Might be removed in the future due to WCET concerns. */
     if(Local->Thd_Cur==Thread)
     {
         RME_COV_MARKER();
 
-        Local->Thd_Cur=_RME_Run_High(Local);
-        _RME_Run_Ins(Local->Thd_Cur);
-        RME_ASSERT(Local->Thd_Cur->Sched.State==RME_THD_READY);
-        _RME_Run_Swt(Reg,Thread,Local->Thd_Cur);
+        _RME_Kern_High(Reg,Local);
     }
     else
     {
@@ -6532,8 +6531,9 @@ Description : Switch to another thread. The thread to switch to must have the sa
               the kernel wiull let it preempt the current thread. 
               If trying to switch to a lower priority thread, this is impossible
               because the current thread just preempts it after the thread switch.
-              This syscall does not end with _RME_Kern_High because the user may
-              designate a specific thread rather than a random one.
+              This syscall does not end with _RME_Kern_High because (1) the user
+              may designate a specific thread rather than a random one, and (2)
+              extreme efficiency is needed for this system call.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table. 
               volatile struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Thd - The capability to the thread. If this is -1,
@@ -6686,8 +6686,8 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
     __RME_Svc_Retval_Set(Reg,0);
 
     RME_ASSERT(Thd_New->Sched.State==RME_THD_READY);
-    /* We cannot call _RME_Kern_High because it picks some random thread. Instead,
-     * we use a manual implementation that is faster than the _RME_Kern_High. */
+    
+    /* Is the chosen thread the same as the current one? If yes, consider it done */
     if(Thd_Cur==Thd_New)
     {
         RME_COV_MARKER();
