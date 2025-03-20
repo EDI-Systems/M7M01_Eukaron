@@ -4621,7 +4621,7 @@ static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     /* Are we going to switch page tables? If yes, we change it now */
     Pgt_Cur=_RME_Thd_Pgt(Thd_Cur);
     Pgt_New=_RME_Thd_Pgt(Thd_New);
-    
+
 #if(RME_PGT_RAW_ENABLE==0U)
     /* The page tables here must be root cap */
     RME_ASSERT(RME_CAP_IS_ROOT(Pgt_Cur)!=0U);
@@ -4635,7 +4635,13 @@ static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
 #endif
     {
         RME_COV_MARKER();
-        
+        RME_DBG_S("***************************SWT PGT*********************************\r\n");
+        RME_DBG_S("Cur - ");
+        RME_DBG_H(Pgt_Cur);
+        RME_DBG_S("\r\n");;
+        RME_DBG_S("New - ");
+        RME_DBG_H(Pgt_New);
+        RME_DBG_S("\r\n");
         __RME_Pgt_Set(Pgt_New);
     }
     else
@@ -5256,18 +5262,18 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slots */
     RME_CPT_GETCAP(Cpt,Cap_Cpt,RME_CAP_TYPE_CPT,
                    struct RME_Cap_Cpt*,Cpt_Op,Type_Stat); 
-                   RME_DBG_S("\r\nreach 1");
+                   //RME_DBG_S("\r\nreach 1");
     RME_CPT_GETCAP(Cpt,Cap_Kom,RME_CAP_TYPE_KOM,
                    struct RME_Cap_Kom*,Kom_Op,Type_Stat);
-                   RME_DBG_S("\r\nreach 2");
+                   //RME_DBG_S("\r\nreach 2");
     RME_CPT_GETCAP(Cpt,Cap_Prc,RME_CAP_TYPE_PRC,
                    struct RME_Cap_Prc*,Prc_Op,Type_Stat);
-                   RME_DBG_S("\r\nreach 3");
+                   //RME_DBG_S("\r\nreach 3");
     /* Check if the target caps is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Op,RME_CPT_FLAG_CRT);
-    RME_DBG_S("\r\nreach 4");
+    //RME_DBG_S("\r\nreach 4");
     RME_CAP_CHECK(Prc_Op,RME_PRC_FLAG_THD);
-    RME_DBG_S("\r\nreach 5");
+    //RME_DBG_S("\r\nreach 5");
     /* See if the creation is valid for this kmem range */
     if(Is_Hyp==0U)
     {
@@ -5295,13 +5301,11 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     }
     RME_KOM_CHECK(Kom_Op,RME_KOM_FLAG_THD,Raddr,Vaddr,Size);
     
-    RME_DBG_S("\r\nreach 6");
     /* Get the cap slot */
     RME_CPT_GETSLOT(Cpt_Op,Cap_Thd,struct RME_Cap_Thd*,Thd_Crt);
-    RME_DBG_S("\r\nreach 7");
+
     /* Take the slot if possible */
     RME_CPT_OCCUPY(Thd_Crt);
-    RME_DBG_S("\r\nreach 8");
      
     /* Try to populate the area */
     if(_RME_Kot_Mark(Vaddr,Size)<0)
@@ -5514,14 +5518,35 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Hyp_Attr;
     rme_ptr_t End;
 
+    RME_DBG_S("\r\nCpt addr ");
+    RME_DBG_H((rme_ptr_t)Cpt);
+    RME_DBG_S("\r\nCap_Thd ");
+    RME_DBG_H(Cap_Thd);
+    RME_DBG_S("\r\nCap_Thd_Sched ");
+    RME_DBG_H(Cap_Thd_Sched);
+    RME_DBG_S("\r\nCap_Sig ");
+    RME_DBG_H(Cap_Sig);
+    RME_DBG_S("\r\nTID ");
+    RME_DBG_H(TID);
+    RME_DBG_S("\r\nPrio ");
+    RME_DBG_H(Prio);
+    RME_DBG_S("\r\nHaddr ");
+    RME_DBG_H(Haddr);
+    //RME_DBG_S("\r\nRME_CID_NULL ");
+    //RME_DBG_I(RME_CID_NULL);
+
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
                    struct RME_Cap_Thd*,Thd_Op,Type_Stat);
+                   //RME_DBG_S("\r\nreach 1");
     RME_CPT_GETCAP(Cpt,Cap_Thd_Sched,RME_CAP_TYPE_THD,
                    struct RME_Cap_Thd*,Thd_Sched,Type_Stat);
+                   //RME_DBG_S("\r\nreach 2");
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_CHILD);
+    //RME_DBG_S("\r\nreach 3");
     RME_CAP_CHECK(Thd_Sched,RME_THD_FLAG_SCHED_PARENT);
+    //RME_DBG_S("\r\nreach 4");
     
     /* Check if we need the signal endpoint for this operation */
     if(Cap_Sig!=RME_CID_NULL)
@@ -5541,6 +5566,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
 
     /* Check if the target thread is already bound. If yes, we just quit */
     Thread=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
+    RME_DBG_S("\r\nreach 5");
     Local_Old=Thread->Sched.Local;
     if(Local_Old!=RME_THD_FREE)
     {
@@ -5919,6 +5945,16 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
     struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     
+    RME_DBG_S("\r\nCap_Thd ");
+    RME_DBG_H(Cap_Thd);
+    RME_DBG_S("\r\nEntry ");
+    RME_DBG_H(Entry);
+    RME_DBG_S("\r\nStack ");
+    RME_DBG_H(Stack);
+    RME_DBG_S("\r\nParam ");
+    RME_DBG_H(Param);
+
+
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Thd,RME_CAP_TYPE_THD,
                    struct RME_Cap_Thd*,Thd_Op,Type_Stat);
@@ -6322,6 +6358,12 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Time_Xfer;
     rme_ptr_t Type_Stat;
     
+    RME_DBG_S("\r\nCap_Thd_Dst ");
+    RME_DBG_I(Cap_Thd_Dst);
+    RME_DBG_S("\r\nCap_Thd_Src ");
+    RME_DBG_I(Cap_Thd_Src);
+    RME_DBG_S("\r\nTime ");
+    RME_DBG_I(Time);
     /* We may allow transferring infinite time here */
     if(Time==0U)
     {
@@ -6338,19 +6380,26 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Thd_Dst,RME_CAP_TYPE_THD,
                    struct RME_Cap_Thd*,Thd_Dst_Op,Type_Stat);
+                   RME_DBG_S("\r\nreach 1");
     RME_CPT_GETCAP(Cpt,Cap_Thd_Src,RME_CAP_TYPE_THD,
                    struct RME_Cap_Thd*,Thd_Src_Op,Type_Stat);
+                   RME_DBG_S("\r\nreach 2");
     /* Check if the target cap is not frozen and allows such operations */
     RME_CAP_CHECK(Thd_Dst_Op,RME_THD_FLAG_XFER_DST);
+    RME_DBG_S("\r\nreach 3");
     RME_CAP_CHECK(Thd_Src_Op,RME_THD_FLAG_XFER_SRC);
+    RME_DBG_S("\r\nreach 4");
 
     /* Check if the two threads are on the core that is accordance with what we are on */
     Local=RME_CPU_LOCAL();
     Thd_Src=RME_CAP_GETOBJ(Thd_Src_Op,struct RME_Thd_Struct*);
+    RME_DBG_S("\r\nreach 5");
+    RME_DBG_S("\r\nThd_Src");
+    RME_DBG_H(Thd_Src);
     if(Thd_Src->Sched.Local!=Local)
     {
         RME_COV_MARKER();
-
+        RME_DBG_S("\r\nRME_ERR_PTH_INVSTATE");
         return RME_ERR_PTH_INVSTATE;
     }
     else
@@ -6602,6 +6651,8 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
     struct RME_CPU_Local* Local;
     struct RME_Thd_Struct* Thd_Cur;
     rme_ptr_t Type_Stat;
+    
+    
 
     Local=RME_CPU_LOCAL();
     Thd_Cur=Local->Thd_Cur;

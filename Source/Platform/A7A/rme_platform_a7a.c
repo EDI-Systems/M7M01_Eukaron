@@ -590,8 +590,13 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t
     /* Set the entry and stack */
     Reg->PC=Entry;
     Reg->SP=Stack;
+    /* LR needs to be a multiple of 4 upon return, ARMv7-A does not allow
+     * unaligned LR upon exception entry. Setting it to PC for convenience. */
+    Reg->LR=Entry;
     /* Set the parameter */
     Reg->R0=Param;
+    /* Initialize CPSR */
+    Reg->CPSR=0U;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 
@@ -783,6 +788,8 @@ void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg)
 	RME_DBG_H(Reg->PC);
 	RME_DBG_S(" SP - ");
 	RME_DBG_H(Reg->SP);
+	RME_DBG_S(" CPSR - ");
+	RME_DBG_H(Reg->CPSR);
 	while(1);
 }
 /* End Function:__RME_A7A_Undefined_Handler *********************************/
@@ -801,6 +808,8 @@ void __RME_A7A_Prefetch_Abort_Handler(struct RME_Reg_Struct* Reg)
 	RME_DBG_H(Reg->PC);
 	RME_DBG_S(" SP - ");
 	RME_DBG_H(Reg->SP);
+	RME_DBG_S(" CPSR - ");
+	RME_DBG_H(Reg->CPSR);
 	while(1);
 }
 /* End Function:__RME_A7A_Prefetch_Abort_Handler ****************************/
@@ -814,11 +823,13 @@ Return      : None.
 void __RME_A7A_Data_Abort_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle data aborts now */
-	RME_DBG_S("Data_Abort_Handler");
+	RME_DBG_S("\r\nData_Abort_Handler");
 	RME_DBG_S(" PC - ");
 	RME_DBG_H(Reg->PC);
 	RME_DBG_S(" SP - ");
 	RME_DBG_H(Reg->SP);
+	RME_DBG_S(" CPSR - ");
+	RME_DBG_H(Reg->CPSR);
 	while(1);
 }
 /* End Function:__RME_A7A_Data_Abort_Handler ********************************/
