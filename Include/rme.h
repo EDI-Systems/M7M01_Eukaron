@@ -11,8 +11,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define __RME__
 /* Define ********************************************************************/
 
-/* Errors ********************************************************************/
-/* The base of capability table error */
+/* System Call Error *********************************************************/
+/* Capability table **********************************************************/
 #define RME_ERR_CPT                     (0)
 /* The capability is empty */
 #define RME_ERR_CPT_NULL                ((-1)+RME_ERR_CPT)
@@ -35,7 +35,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* The capability is a root one and therefore cannot use removal */
 #define RME_ERR_CPT_ROOT                ((-10)+RME_ERR_CPT)
 
-/* The base of page table errors */
+/* Page table ****************************************************************/
 #define RME_ERR_PGT                     (-100)
 /* Incorrect address */
 #define RME_ERR_PGT_ADDR                ((-1)+RME_ERR_PGT)
@@ -46,7 +46,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Wrong permissions */
 #define RME_ERR_PGT_PERM                ((-4)+RME_ERR_PGT)
 
-/* The base of process/thread errors */
+/* Process/thread ************************************************************/
 #define RME_ERR_PTH                     (-200)
 /* Incorrect address */
 #define RME_ERR_PTH_PGT                 ((-1)+RME_ERR_PTH)
@@ -65,7 +65,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* The time is full for this thread */
 #define RME_ERR_PTH_OVERFLOW            ((-8)+RME_ERR_PTH)
 
-/* The base of signal/invocation errors */
+/* Signal/invocation *********************************************************/
 #define RME_ERR_SIV                     (-300)
 /* This invocation capability/signal endpoint is already active, or wrong option on receive */
 #define RME_ERR_SIV_ACT                 ((-1)+RME_ERR_SIV)
@@ -81,10 +81,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_SIV_FREE                ((-6)+RME_ERR_SIV)
 /* The signal receive failed because we are the boot-time thread */
 #define RME_ERR_SIV_BOOT                ((-7)+RME_ERR_SIV)
-/* End Errors ****************************************************************/
+/* End System Call Error *****************************************************/
 
-/* Operation Flags ***********************************************************/
-/* Cpt */
+/* System Call Flag **********************************************************/
+/* Capability table **********************************************************/
 /* This cap to captbl allows creating kernel objects in the captbl */
 #define RME_CPT_FLAG_CRT                (1U<<0)
 /* This cap to captbl allows deleting kernel objects in the captbl */
@@ -106,7 +106,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
                                          RME_CPT_FLAG_ADD_SRC|RME_CPT_FLAG_ADD_DST|RME_CPT_FLAG_REM| \
                                          RME_CPT_FLAG_PRC_CRT|RME_CPT_FLAG_PRC_CPT)
 
-/* Page table */
+/* Page table ****************************************************************/
 /* This cap to pgtbl allows delegating pages in it */
 #define RME_PGT_FLAG_ADD_SRC            (1U<<0)
 /* This cap to pgtbl allows receiving delegated pages to it */
@@ -129,7 +129,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
                                          RME_PGT_FLAG_CHILD|RME_PGT_FLAG_CON_PARENT|RME_PGT_FLAG_DES_PARENT| \
                                          RME_PGT_FLAG_PRC_CRT|RME_PGT_FLAG_PRC_PGT)
 
-/* Kernel memory */
+/* Kernel memory *************************************************************/
 /* This cap to kernel memory allows creation of captbl */
 #define RME_KOM_FLAG_CPT                (1U<<0)
 /* This cap to kernel memory allows creation of pgtbl */
@@ -142,7 +142,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KOM_FLAG_ALL                (RME_KOM_FLAG_CPT|RME_KOM_FLAG_PGT| \
                                          RME_KOM_FLAG_THD|RME_KOM_FLAG_INV)
 
-/* Process */
+/* Process *******************************************************************/
 /* This cap to process allows creating invocation stubs in it */
 #define RME_PRC_FLAG_INV                (1U<<0)
 /* This cap to process allows creating threads in it */
@@ -155,7 +155,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PRC_FLAG_ALL                (RME_PRC_FLAG_INV|RME_PRC_FLAG_THD| \
                                          RME_PRC_FLAG_CPT|RME_PRC_FLAG_PGT)
 
-/* Thread */
+/* Thread ********************************************************************/
 /* This cap to thread allows setting its execution parameters */
 #define RME_THD_FLAG_EXEC_SET           (1U<<0)
 /* This cap to thread allows setting its scheduling parameters */
@@ -179,7 +179,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
                                          RME_THD_FLAG_SCHED_PARENT|RME_THD_FLAG_SCHED_PRIO| \
                                          RME_THD_FLAG_SCHED_FREE|RME_THD_FLAG_SCHED_RCV| \
                                          RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST|RME_THD_FLAG_SWT)
-/* Signal */
+                                         
+/* Signal *********************************************************************/
 /* This cap to signal endpoint allows sending to it */
 #define RME_SIG_FLAG_SND                (1U<<0)
 /* This cap to signal endpoint allows blocking single receive on it */
@@ -198,7 +199,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* This cap to signal endpoint allows all operations */
 #define RME_SIG_FLAG_ALL                (RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV|RME_SIG_FLAG_SCHED)
 
-/* Invocation */
+/* Invocation ****************************************************************/
 /* This cap to invocation allows setting parameters for it */
 #define RME_INV_FLAG_SET                (1U<<0)
 /* This cap to invocation allows activating it */
@@ -206,10 +207,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* The return operation does not need a flag, nor does it need a capability */
 /* This cap to invocation allows all operations */
 #define RME_INV_FLAG_ALL                (RME_INV_FLAG_SET|RME_INV_FLAG_ACT)
-/* End Operation Flags *******************************************************/
+/* End System Call Flag ******************************************************/
 
-/* Special Definitions *******************************************************/
-/* Generic page table flags */
+/* Page Table Special Flag ***************************************************/
+/* Generic *******************************************************************/
 /* This page allows to be read */
 #define RME_PGT_READ                    (1U<<0)
 /* This page allows to be written */
@@ -227,8 +228,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
                                          RME_PGT_CACHE|RME_PGT_BUFFER)
 /* All the permissions are set */
 #define RME_PGT_ALL_PERM                (RME_PGT_ALL_DYN|RME_PGT_STATIC)
-                                        
-/* Generic page size order definitions */
+
+/* Size order ****************************************************************/
 #define RME_PGT_SIZE_2B                 (1U)
 #define RME_PGT_SIZE_4B                 (2U)
 #define RME_PGT_SIZE_8B                 (3U)
@@ -300,7 +301,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGT_SIZE_512E               (69U)
 #define RME_PGT_SIZE_1Z                 (70U)
 
-/* Generic page table entry number definitions */
+/* Entry number order ********************************************************/
 #define RME_PGT_NUM_1                   (0U)
 #define RME_PGT_NUM_2                   (1U)
 #define RME_PGT_NUM_4                   (2U)
@@ -324,15 +325,16 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGT_NUM_1M                  (20U)
 #define RME_PGT_NUM_2M                  (21U)
 #define RME_PGT_NUM_4M                  (22U)
+/* End Page Table Special Flag ***********************************************/
 
-/* Receive options */
+/* Receive Special Flag ******************************************************/
 #define RME_RCV_BS                      (0U)
 #define RME_RCV_BM                      (1U)
 #define RME_RCV_NS                      (2U)
 #define RME_RCV_NM                      (3U)
-/* End Special Definitions ***************************************************/
+/* End Receive Special Flag **************************************************/
 
-/* Syystem Calls *************************************************************/
+/* System Call Number ********************************************************/
 /* IPC activation ************************************************************/
 /* Return from an invocation */
 #define RME_SVC_INV_RET                 (0U)
@@ -342,9 +344,9 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_SIG_SND                 (2U)
 /* Receive from a signal endpoint */
 #define RME_SVC_SIG_RCV                 (3U)
-/* Kernel function calling ***************************************************/
+/* Kernel function ***********************************************************/
 #define RME_SVC_KFN                     (4U)
-/* The operations that may cause a context switch ****************************/
+/* System calls that may cause a context switch ******************************/
 /* Free a thread from some core */
 #define RME_SVC_THD_SCHED_FREE          (5U)
 /* Set entry&stack */
@@ -355,7 +357,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_THD_TIME_XFER           (8U)
 /* Switch to another thread */
 #define RME_SVC_THD_SWT                 (9U)
-/* Capability table operations ***********************************************/
+/* Capability table **********************************************************/
 /* Create */
 #define RME_SVC_CPT_CRT                 (10U)
 /* Delete */
@@ -366,7 +368,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_CPT_ADD                 (13U)
 /* Remove */
 #define RME_SVC_CPT_REM                 (14U)
-/* Page table operations *****************************************************/
+/* Page table ****************************************************************/
 /* Create */
 #define RME_SVC_PGT_CRT                 (15U)
 /* Delete */
@@ -379,7 +381,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_PGT_CON                 (19U)
 /* Destruction */
 #define RME_SVC_PGT_DES                 (20U)
-/* Process operations ********************************************************/
+/* Process *******************************************************************/
 /* Create */
 #define RME_SVC_PRC_CRT                 (21U)
 /* Delete */
@@ -388,7 +390,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_PRC_CPT                 (23U)
 /* Change pgtbl */ 
 #define RME_SVC_PRC_PGT                 (24U)
-/* Thread operations *********************************************************/
+/* Thread ********************************************************************/
 /* Create */
 #define RME_SVC_THD_CRT                 (25U)
 /* Delete */
@@ -397,22 +399,22 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SVC_THD_SCHED_BIND          (27U)
 /* Try to receive scheduling notifications */
 #define RME_SVC_THD_SCHED_RCV           (28U)
-/* Signal operations *********************************************************/
+/* Signal ********************************************************************/
 /* Create */
 #define RME_SVC_SIG_CRT                 (29U)
 /* Delete */
 #define RME_SVC_SIG_DEL                 (30U)
-/* Invocation operations *****************************************************/
+/* Invocation ****************************************************************/
 /* Create */
 #define RME_SVC_INV_CRT                 (31U)
 /* Delete */
 #define RME_SVC_INV_DEL                 (32U)
 /* Set entry&stack */
 #define RME_SVC_INV_SET                 (33U)
-/* End System Calls **********************************************************/
+/* End System Call Number ****************************************************/
 
-/* Kernel Functions **********************************************************/
-/* Page table operations *****************************************************/
+/* Kernel Function Number ****************************************************/
+/* Page table ****************************************************************/
 /* Clear the whole TLB */
 #define RME_KFN_PGT_CACHE_CLR           (0xF000U)
 /* Clear a single TLB line */
@@ -423,7 +425,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_PGT_TLB_LOCK            (0xF003U)
 /* Query or modify the content of an entry */
 #define RME_KFN_PGT_ENTRY_MOD           (0xF004U)
-/* Interrupt controller operations *******************************************/
+/* Interrupt controller ******************************************************/
 /* Modify local interrupt controller */
 #define RME_KFN_INT_LOCAL_MOD           (0xF100U)
 /* Modify global interrupt controller */
@@ -432,7 +434,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_INT_LOCAL_TRIG          (0xF102U)
 /* Trigger a local event */
 #define RME_KFN_EVT_LOCAL_TRIG          (0xF103U)
-/* Cache operations **********************************************************/
+/* Cache maintenance *********************************************************/
 /* Modify cache state */
 #define RME_KFN_CACHE_MOD               (0xF200U)
 /* Configure cache */
@@ -443,14 +445,14 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_CACHE_LOCK              (0xF203U)
 /* Modify prefetcher state */
 #define RME_KFN_PRFTH_MOD               (0xF204U)
-/* Hot plug and pull operations **********************************************/
+/* Hot plug ******************************************************************/
 /* Modify physical CPU configuration */
 #define RME_KFN_HPNP_PCPU_MOD           (0xF300U)
 /* Modify logical CPU configuration */
 #define RME_KFN_HPNP_LCPU_MOD           (0xF301U)
 /* Modify physical memory configuration */
 #define RME_KFN_HPNP_PMEM_MOD           (0xF302U)
-/* Power and frequency adjustment operations *********************************/
+/* Power and frequency adjustmentment ****************************************/
 /* Put CPU into idle sleep mode */
 #define RME_KFN_IDLE_SLEEP              (0xF400U)
 /* Reboot the whole system */
@@ -465,7 +467,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_PMOD_MOD                (0xF405U)
 /* Modify safety lock state */
 #define RME_KFN_SAFETY_MOD              (0xF406U)
-/* Performance monitoring operations *****************************************/
+/* Performance monitoring ****************************************************/
 /* Query or modify CPU function configuration */
 #define RME_KFN_PERF_CPU_FUNC           (0xF500U)
 /* Query or modify performance monitor configuration */
@@ -480,7 +482,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_PERF_PHYS_MOD           (0xF505U)
 /* Query or modify cumulative monitor register */
 #define RME_KFN_PERF_CUMUL_MOD          (0xF506U)
-/* Hardware virtualization operations ****************************************/
+/* Hardware-assisted virtualization ******************************************/
 /* Create a virtual machine */
 #define RME_KFN_VM_CRT                  (0xF600U)
 /* Delete a virtual machine */
@@ -501,7 +503,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_VCPU_MOD                (0xF608U)
 /* Run the VCPU on this thread */
 #define RME_KFN_VCPU_RUN                (0xF609U)
-/* Security monitor operations ***********************************************/
+/* Security monitor **********************************************************/
 /* Create an enclave */
 #define RME_KFN_ECLV_CRT                (0xF700U)
 /* Query or modify an enclave */
@@ -512,7 +514,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_ECLV_ACT                (0xF703U)
 /* Return from an enclave */
 #define RME_KFN_ECLV_RET                (0xF704U)
-/* Debugging operations ******************************************************/
+/* Debugging *****************************************************************/
 /* Debug printing - a single character or a series of characters */
 #define RME_KFN_DEBUG_PRINT             (0xF800U)
 /* Modify thread register content */
@@ -527,7 +529,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KFN_DEBUG_IBP_MOD           (0xF805U)
 /* Modify data breakpoint state */
 #define RME_KFN_DEBUG_DBP_MOD           (0xF806U)
-/* End Kernel Functions ******************************************************/
+/* End Kernel Function Number ************************************************/
 /* End Define ****************************************************************/
 
 #endif /* __RME__ */
