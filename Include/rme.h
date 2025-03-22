@@ -530,10 +530,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Modify data breakpoint state */
 #define RME_KFN_DEBUG_DBP_MOD           (0xF806U)
 /* End Kernel Function Number ************************************************/
+
 /* End Define ****************************************************************/
 
 #endif /* __RME__ */
-
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/

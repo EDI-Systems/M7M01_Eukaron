@@ -882,7 +882,7 @@ __RME_EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Param);
 __RME_EXTERN__ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
-/* Thread register sets */
+/* Thread register set */
 __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                                        rme_ptr_t Entry,
                                        rme_ptr_t Stack,
@@ -890,14 +890,17 @@ __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
                                        struct RME_Reg_Struct* Src);
-/* Invocation register sets */
+#if(RME_DBGLOG_ENABLE!=0U)
+__RME_EXTERN__ void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg);
+#endif
+/* Invocation register set */
 __RME_EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,
                                           struct RME_Iret_Struct* Ret);
 __RME_EXTERN__ void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
-/* Coprocessor register sets */
+/* Coprocessor register set */
 __RME_EXTERN__ rme_ret_t __RME_Thd_Cop_Check(rme_ptr_t Attr);
 __RME_EXTERN__ rme_ptr_t __RME_Thd_Cop_Size(rme_ptr_t Attr);
 __RME_EXTERN__ void __RME_Thd_Cop_Init(rme_ptr_t Attr,

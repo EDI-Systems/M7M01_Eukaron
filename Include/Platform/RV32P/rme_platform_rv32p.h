@@ -850,6 +850,9 @@ __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
                                        struct RME_Reg_Struct* Src);
+#if(RME_DBGLOG_ENABLE!=0U)
+__RME_EXTERN__ void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg);
+#endif
 /* Invocation register sets */
 __RME_EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
                                        struct RME_Reg_Struct* Reg);

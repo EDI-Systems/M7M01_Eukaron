@@ -4361,7 +4361,7 @@ void _RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             RME_DBG_S("Attempted to kill init thread.");
-            RME_ASSERT(0U);
+            RME_ASSERT_REG(0U,Reg);
         }
         else
         {

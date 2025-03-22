@@ -3,7 +3,7 @@ Filename    : rme_platform_a6m.c
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The hardware abstraction layer for ARMv6-M microcontrollers.
+Description : The ARMv6-M hardware abstraction layer implementation.
 
 * Generic Code Section ********************************************************
 Small utility functions that can be either implemented with C or assembly, and 
@@ -1217,17 +1217,39 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
 {
     /* Make sure that the ordering is the same so the compiler can optimize */
     Dst->SP=Src->SP;
-    Dst->R4=Src->R4;
-    Dst->R5=Src->R5;
-    Dst->R6=Src->R6;
-    Dst->R7=Src->R7;
     Dst->R8=Src->R8;
     Dst->R9=Src->R9;
     Dst->R10=Src->R10;
     Dst->R11=Src->R11;
+    Dst->R4=Src->R4;
+    Dst->R5=Src->R5;
+    Dst->R6=Src->R6;
+    Dst->R7=Src->R7;
     Dst->LR=Src->LR;
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
+
+/* Function:__RME_Thd_Reg_Print ***********************************************
+Description : Print thread registers. This is used exclusively for debugging.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+#if(RME_DBGLOG_ENABLE!=0U)
+void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg)
+{
+    RME_DBG_SHS("R4: 0x",Reg->R4,"\r\n");
+    RME_DBG_SHS("R5: 0x",Reg->R5,"\r\n");
+    RME_DBG_SHS("R6: 0x",Reg->R6,"\r\n");
+    RME_DBG_SHS("R7: 0x",Reg->R7,"\r\n");
+    RME_DBG_SHS("R8: 0x",Reg->R8,"\r\n");
+    RME_DBG_SHS("R9: 0x",Reg->R9,"\r\n");
+    RME_DBG_SHS("R10: 0x",Reg->R10,"\r\n");
+    RME_DBG_SHS("R11: 0x",Reg->R11,"\r\n");
+    RME_DBG_SHS("LR: 0x",Reg->LR,"\r\n");
+}
+#endif
+/* End Function:__RME_Thd_Reg_Print ******************************************/
 
 /* Function:__RME_Inv_Reg_Save ************************************************
 Description : Save the necessary registers on invocation for returning. Only the

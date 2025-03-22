@@ -83,11 +83,42 @@ Description : The header of the kernel. Whitebox testing of all branches
 #define RME_DBG_I(INT)                              RME_Int_Print((rme_cnt_t)(INT))
 #define RME_DBG_H(HEX)                              RME_Hex_Print((rme_ptr_t)(HEX))
 #define RME_DBG_S(STR)                              RME_Str_Print((const rme_s8_t*)(STR))
+#define RME_DBG_R(REG)                              __RME_Thd_Reg_Print(REG)
 #else
-#define RME_DBG_I(INT)
-#define RME_DBG_H(HEX)
-#define RME_DBG_S(STR)
+#define RME_DBG_I(INT)                              while(0)
+#define RME_DBG_H(HEX)                              while(0)
+#define RME_DBG_S(STR)                              while(0)
+#define RME_DBG_R(REG)                              while(0)
 #endif
+
+#define RME_DBG_SIS(STR1,INT,STR2) \
+do \
+{ \
+    RME_DBG_S(STR1); \
+    RME_DBG_I(INT); \
+    RME_DBG_S(STR2); \
+} \
+while(0)
+    
+#define RME_DBG_SHS(STR1,HEX,STR2) \
+do \
+{ \
+    RME_DBG_S(STR1); \
+    RME_DBG_H(HEX); \
+    RME_DBG_S(STR2); \
+} \
+while(0)
+    
+#define RME_DBG_SISHS(STR1,INT,STR2,HEX,STR3) \
+do \
+{ \
+    RME_DBG_S(STR1); \
+    RME_DBG_I(INT); \
+    RME_DBG_S(STR2); \
+    RME_DBG_H(HEX); \
+    RME_DBG_S(STR3); \
+} \
+while(0)
 
 /* Logging macro */
 #ifndef RME_LOG
@@ -116,6 +147,18 @@ do \
     } \
 } \
 while(0)
+#define RME_ASSERT_REG(X,REG) \
+do \
+{ \
+    if(!(X)) \
+    { \
+        RME_LOG_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
+        RME_DBG_R(REG); \
+        RME_ASSERT_FAIL_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
+        while(1); \
+    } \
+} \
+while(0)
 #else
 #define RME_ASSERT(X) \
 do \
@@ -123,6 +166,7 @@ do \
     RME_USE(X); \
 } \
 while(0)
+#define RME_ASSERT_REG(X,REG)                       RME_ASSERT(X)
 #endif
 
 /* Coverage marker enabling */
