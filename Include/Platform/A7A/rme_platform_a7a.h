@@ -348,6 +348,14 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7A_GIC_GROUPING_P0S8       (7U)
 
 /* Timer definitions */
+/* global timer count register 0 */
+#define RME_A7A_GTWD_GTCR0              RME_A7A_SFR(RME_A7A_GTWD_BASE,0x0000)
+/* global timer count register 1 ,not need to use */
+#define RME_A7A_GTWD_GTCR1              RME_A7A_SFR(RME_A7A_GTWD_BASE,0x0004)
+/* global timer control register */
+#define RME_A7A_GTWD_GTCTLR             RME_A7A_SFR(RME_A7A_GTWD_BASE,0x0008)
+/* global timer is enabled and the counter increments normally */
+#define RME_A7A_GTWD_GTCTLR_TIMEN       (1U<<0U)
 /* Private timer load register */
 #define RME_A7A_PTWD_PTLR               RME_A7A_SFR(RME_A7A_PTWD_BASE,0x0000)
 /* Private timer counter register */

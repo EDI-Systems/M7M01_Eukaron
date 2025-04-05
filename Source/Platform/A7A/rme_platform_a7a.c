@@ -39,33 +39,7 @@ int main(void)
 	//RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
 	//RME_DBG_I(10);
 	//RME_DBG_S("hello world\n");
-	//while(1);
-    /*__RME_Putchar('h');
-    __RME_Putchar('e');
-    __RME_Putchar('l');
-    __RME_Putchar('l');
-    __RME_Putchar('o');
-    __RME_Putchar(' ');
-    __RME_Putchar('w');*/
 
-   /* RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    RME_DBG_S("0123456789\n");
-    while(1);*/
-   // __RME_Putchar('h');
-    /*__RME_Putchar('e');
-    __RME_Putchar('l');
-    __RME_Putchar('l');*/
-    //__RME_Putchar('o');
-    /*__RME_Putchar('w');
-    __RME_Putchar('o');
-    __RME_Putchar('r');
-    __RME_Putchar('l');
-    __RME_Putchar('d');*/
    RME_Kmain();
     
     
@@ -76,6 +50,14 @@ int main(void)
     return 0;
 }
 /* End Function:main *********************************************************/
+
+/* Performs an output operation for a 32-bit memory location by writing the
+ specified Value to the the specified address. */
+void RME_Out32(rme_ptr_t Addr, rme_ptr_t Value)
+{
+	rme_ptr_t *LocalAddr = (rme_ptr_t *)Addr;
+	*LocalAddr = Value;
+}
 
 /* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
@@ -192,6 +174,88 @@ void __RME_A7A_Int_Init(void)
 }
 /* End Function:__RME_A7A_Int_Init ******************************************/
 
+static void RME_L2CacheSync(void)
+{
+#ifdef CONFIG_PL310_ERRATA_753970
+	RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_DUMMY_CACHE_SYNC_OFFSET, 0x0U);
+#else
+	RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_CACHE_SYNC_OFFSET, 0x0U);
+#endif
+}
+
+/* Function: __RME_L2CacheInvalidate *****************************************
+Description : Invalidate the L2 cache. If the byte specified by the address (adr)
+			  is cached by the Data cache, the cacheline containing that byte is
+			  invalidated.	If the cacheline is modified (dirty), the modified contents
+			  are lost and are NOT written to system memory before the line is
+			  invalidated.The bottom 4 bits are set to 0, forced by architecture.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_L2CacheInvalidate(void)
+{
+	rme_ptr_t ResultDCache;
+	/* Invalidate the caches */
+	RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_CACHE_INVLD_WAY_OFFSET,
+		  0x0000FFFFU);
+	ResultDCache = RME_A7A_REG(RME_L2CC_BASEADDR + RME_L2CC_CACHE_INVLD_WAY_OFFSET)
+							& 0x0000FFFFU;
+	while(ResultDCache != (rme_ptr_t)0U) {
+		ResultDCache = RME_A7A_REG(RME_L2CC_BASEADDR + RME_L2CC_CACHE_INVLD_WAY_OFFSET)
+							& 0x0000FFFFU;
+	}
+
+	/* Wait for the invalidate to complete */
+	RME_L2CacheSync();
+
+	/* synchronize the processor */
+	dsb();
+}
+
+/* End Function:__RME_L2CacheInvalidate ******************************************/
+/* Function: __RME_L2CacheEnable *****************************************
+Description : Initialize the local CPU interface of the processor.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_L2CacheEnable(void)
+{
+	rme_ptr_t L2CCReg;
+
+	L2CCReg=RME_A7A_REG(RME_L2CC_BASEADDR + RME_L2CC_CNTRL_OFFSET);
+	/* check the L2CC, only enable if L2CC is currently disabled */
+		if ((L2CCReg & 0x01U) == 0U)
+		{
+			L2CCReg = RME_A7A_REG(RME_L2CC_BASEADDR +
+					   RME_L2CC_AUX_CNTRL_OFFSET);
+			L2CCReg &= RME_L2CC_AUX_REG_ZERO_MASK;
+			L2CCReg |= RME_L2CC_AUX_REG_DEFAULT_MASK;
+			RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_AUX_CNTRL_OFFSET,
+				  L2CCReg);
+			RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_TAG_RAM_CNTRL_OFFSET,
+				  RME_L2CC_TAG_RAM_DEFAULT_MASK);
+			RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_DATA_RAM_CNTRL_OFFSET,
+				  RME_L2CC_DATA_RAM_DEFAULT_MASK);
+			/* Clear the pending interrupts */
+			L2CCReg = RME_A7A_REG(RME_L2CC_BASEADDR +
+					   RME_L2CC_ISR_OFFSET);
+			RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_IAR_OFFSET, L2CCReg);
+
+			__RME_L2CacheInvalidate();
+			/* Enable the L2CC */
+			L2CCReg = RME_A7A_REG(RME_L2CC_BASEADDR +
+					   RME_L2CC_CNTRL_OFFSET);
+			RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_CNTRL_OFFSET,
+				  (L2CCReg | (0x01U)));
+
+	        RME_L2CacheSync();
+
+		}
+}
+/* End Function:__RME_L2CacheEnable ******************************************/
+
 /* Function:__RME_A7A_Int_Local_Init *****************************************
 Description : Initialize the local CPU interface of the processor.
 Input       : None.
@@ -231,26 +295,34 @@ Return      : None.
 ******************************************************************************/
 void __RME_A7A_Timer_Init(void)
 {
+	RME_DBG_S("\r\ntimer init begin");
 #if((RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A5)|| \
 	(RME_A7A_CPU_TYPE==RME_A7A_CPU_CORTEX_A9))
     /* Writing this will also write the counter register as well */
     RME_A7A_PTWD_PTLR=RME_A7A_SYSTICK_VAL;
     /* Clear the interrupt flag */
     RME_A7A_PTWD_PTISR=0;
-    /* Start the timer */
+    /* Start the timer
     RME_A7A_PTWD_PTCTLR=RME_A7A_PTWD_PTCTLR_PRESC(0)|
                          RME_A7A_PTWD_PTCTLR_IRQEN|
 						 RME_A7A_PTWD_PTCTLR_AUTOREL|
-						 RME_A7A_PTWD_PTCTLR_TIMEN;
-
+						 RME_A7A_PTWD_PTCTLR_TIMEN; */
+//RME_A7A_PTWD_PTLR
     /* Enable the timer interrupt in the GIC */
     RME_A7A_GICD_ISENABLER(0)|=1<<29;
-    RME_DBG_S("\r\ntimer init finish");
 #else
 	#error Cortex-A7/8/15/17 is not supported at the moment.
     Cortex-A7/15/17 use the new generic timer, and Cortex-A8 does not
 	have a processor timer due to very early release dates.
 #endif
+
+	// init global timer here
+	// global timer free-running
+	// 0-0xFFFFFFFF
+	RME_A7A_GTWD_GTCR0=RME_A7A_SYSTICK_VAL;
+    RME_A7A_GTWD_GTCTLR=RME_A7A_GTWD_GTCTLR_TIMEN;
+    RME_DBG_S("\r\ntimer init finish");
+
 }
 /* End Function:__RME_A7A_Timer_Init ****************************************/
 
@@ -509,8 +581,11 @@ void __RME_Boot(void)
 
     /* Initialize timer and enable interrupts */
     RME_DBG_S("\r\nenable interrupts\r\n");
-	//__RME_A7A_Timer_Init();
+	__RME_A7A_Timer_Init();
     __RME_Int_Enable();
+
+    /* enable l2 cache */
+    //__RME_L2CacheEnable();
 
     /* Boot into the init thread */
     __RME_User_Enter(RME_A7A_INIT_ENTRY,RME_A7A_INIT_STACK,0U);
@@ -849,8 +924,8 @@ void __RME_A7A_IRQ_Handler(struct RME_Reg_Struct* Reg)
 	Int_ID=RME_A7A_GICC_IAR;
 	CPUID=Int_ID>>10;
 	Int_ID&=0x3FFU;
-    RME_DBG_S("\r\nINT_ID is ");
-	RME_DBG_I(Int_ID);
+    //RME_DBG_S("\r\nINT_ID is ");
+	//RME_DBG_I(Int_ID);
 
 #if(RME_A7A_GIC_TYPE==RME_A7A_GIC_V1)
 	/* Is this a spurious interrupt? (Can't be 1022 because GICv1 don't have group1) */
@@ -955,8 +1030,8 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
 
-    RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
-    RME_DBG_H(Ptr);
+    /*RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
+    RME_DBG_H(Ptr);*/
 
     __RME_A7A_TTBR0_Set(RME_A7A_VA2PA(Ptr)|0x4A);
 	__RME_A7A_TLBIALL_Set(0);
@@ -1002,7 +1077,7 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base, rme_ptr_t Is_Top,
             return RME_ERR_HAL_FAIL;
         if((Vaddr&0x3FFF)!=0)
         {
-            RME_DBG_S("\r\nvaddr error= ");
+            RME_DBG_S("\r\nvaddr alignment error= ");
             RME_DBG_H(Vaddr);
             return RME_ERR_HAL_FAIL;
         }
@@ -1015,7 +1090,11 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base, rme_ptr_t Is_Top,
         if(Num_Order!=RME_PGT_NUM_256)
             return RME_ERR_HAL_FAIL;
         if((Vaddr&0x3FF)!=0)
+        {
+            RME_DBG_S("\r\nvaddr alignment error= ");
+            RME_DBG_H(Vaddr);
             return RME_ERR_HAL_FAIL;
+        }
     }
 
     return 0;

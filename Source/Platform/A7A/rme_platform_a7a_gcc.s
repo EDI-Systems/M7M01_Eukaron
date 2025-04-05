@@ -514,8 +514,34 @@ fill_pgtbl:
 
     /* Turn on paging and cache */
     CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
-    LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
-    ORR                 R0,R0,R1  //SCTCR=38C5187F
+    //LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
+    LDR  				R1,=(1<<29)|(1<<28)|(0<<12)|(1<<2)|(1<<0)
+    ORR                 R0,R0,R1           //SCTCR=38C5187F
+    BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F
+    /* Print a hex number in LR, R12 used as counter print r0 ********************************************/
+    MOV 				LR,R0
+    MOV					R12,#32     /* 32-bits */
+nextdigit:
+    SUB					R12,R12,#0x04
+    LSR					R11,LR,R12
+	AND					R11,R11,#0x0F
+	CMP					R11,#0x09
+	BGE					bigger
+	ADD					R11,R11,#0x30 /* add '0' */
+	B					printwait
+bigger:
+	ADD					R11,R11,#(0x41-10) /* add 'A' */
+printwait:
+    LDR                 R10,=0xE000102C
+    LDR					R10,[R10]
+    TST					R10,#0x08
+    BEQ					printwait
+    LDR                 R10,=0xE0001030
+    STR                 R11,[R10]
+finish:
+	CMP					R12,#0x00
+	BNE					nextdigit
+    /* Print a hex number in LR, R12 used as counter ********************************************/
     CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 /* SCTLR.AFE,TRE,I,C,M */
     ISB
 
@@ -527,7 +553,7 @@ fill_pgtbl:
     /* Branch to main function */
     BX                  R3
 
-	
+
 
     .ltorg
 /* Initial page table ********************************************************/
@@ -1427,31 +1453,7 @@ __RME_User_Enter:
     LDMIA               SP!,{PC}^
 
 
-    /* Print a hex number in LR, R12 used as counter ********************************************/
-    LDR 				LR,=0x08004000
-    LDR					LR,[LR]
-    MOV					R12,#32     /* 32-bits */
-nextdigit:
-    SUB					R12,R12,#0x04
-    LSR					R11,LR,R12
-	AND					R11,R11,#0x0F
-	CMP					R11,#0x09
-	BGE					bigger
-	ADD					R11,R11,#0x30 /* add '0' */
-	B					printwait
-bigger:
-	ADD					R11,R11,#(0x41-10) /* add 'A' */
-printwait:
-    LDR                 R10,=0xE000102C
-    LDR					R10,[R10]
-    TST					R10,#0x08
-    BEQ					printwait
-    LDR                 R10,=0xE0001030
-    STR                 R11,[R10]
-finish:
-	CMP					R12,#0x00
-	BNE					nextdigit
-/* Print a hex number in LR, R12 used as counter ********************************************/
+
 
 /* End Function:__RME_User_Enter ****************************************/
 

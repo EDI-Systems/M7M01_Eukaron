@@ -55,7 +55,9 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* Init process's first thread's stack address */
 #define RME_A7A_INIT_STACK          0x081FFF00U
 /* What is the Systick value? in ticks. For XC7Z020, always clocked at 1/2 Fcpu */
-#define RME_A7A_SYSTICK_VAL         (7670000U/2U)
+/* Each Cortex-A9 processor has its own private 32-bit timer and 32-bit watchdog timer,
+ * and the two processors share a global 64-bit timer that is always timed at 1/2 of the CPU frequency (CPU_3x2x). */
+#define RME_A7A_SYSTICK_VAL        (7670000U/2U)
 /* Size of initial capability table */
 #define RME_A7A_INIT_CPT_SIZE       (128U)
 
@@ -75,7 +77,55 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_A7A_GICC_BASE           0xF8F00100
 /* Private timer and watchdog block base */
 #define RME_A7A_PTWD_BASE           0xF8F00600
+/* global timer base */
+#define RME_A7A_GTWD_BASE           0xF8F00200
 
+/*
+ *  Errata No: 	 753970
+ *  Description: Cache sync operation may be faulty
+ */
+#define CONFIG_PL310_ERRATA_753970 1
+/* Data Synchronization Barrier */
+#define dsb() __asm__ __volatile__ ("dsb" : : : "memory")
+
+/* L2 cache baseaddr */
+#define RME_L2CC_BASEADDR		0xF8F02000U
+/* L2CC Register Offsets */
+#define RME_L2CC_ID_OFFSET		0x0000U
+#define RME_L2CC_TYPE_OFFSET		0x0004U
+#define RME_L2CC_CNTRL_OFFSET		0x0100U
+#define RME_L2CC_AUX_CNTRL_OFFSET	0x0104U
+#define RME_L2CC_TAG_RAM_CNTRL_OFFSET	0x0108U
+#define RME_L2CC_DATA_RAM_CNTRL_OFFSET	0x010CU
+
+#define RME_L2CC_EVNT_CNTRL_OFFSET	0x0200U
+#define RME_L2CC_EVNT_CNT1_CTRL_OFFSET	0x0204U
+#define RME_L2CC_EVNT_CNT0_CTRL_OFFSET	0x0208U
+#define RME_L2CC_EVNT_CNT1_VAL_OFFSET	0x020CU
+#define RME_L2CC_EVNT_CNT0_VAL_OFFSET	0x0210U
+
+#define RME_L2CC_IER_OFFSET		0x0214U		/* Interrupt Mask */
+#define RME_L2CC_IPR_OFFSET		0x0218U		/* Masked interrupt status */
+#define RME_L2CC_ISR_OFFSET		0x021CU		/* Raw Interrupt Status */
+#define RME_L2CC_IAR_OFFSET		0x0220U		/* Interrupt Clear */
+
+#define RME_L2CC_CACHE_SYNC_OFFSET		0x0730U		/* Cache Sync */
+#define RME_L2CC_DUMMY_CACHE_SYNC_OFFSET	0x0740U		/* Dummy Register for Cache Sync */
+#define RME_L2CC_CACHE_INVLD_PA_OFFSET		0x0770U		/* Cache Invalid by PA */
+#define RME_L2CC_CACHE_INVLD_WAY_OFFSET		0x077CU		/* Cache Invalid by Way */
+#define RME_L2CC_CACHE_CLEAN_PA_OFFSET		0x07B0U		/* Cache Clean by PA */
+#define RME_L2CC_CACHE_CLEAN_INDX_OFFSET	0x07B8U		/* Cache Clean by Index */
+#define RME_L2CC_CACHE_CLEAN_WAY_OFFSET		0x07BCU		/* Cache Clean by Way */
+#define RME_L2CC_CACHE_INV_CLN_PA_OFFSET	0x07F0U		/* Cache Invalidate and Clean by PA */
+#define RME_L2CC_CACHE_INV_CLN_INDX_OFFSET	0x07F8U		/* Cache Invalidate and Clean by Index */
+#define RME_L2CC_CACHE_INV_CLN_WAY_OFFSET	0x07FCU		/* Cache Invalidate and Clean by Way */
+
+#define RME_L2CC_TAG_RAM_DEFAULT_MASK	0x00000111U	/* latency for TAG RAM */
+#define RME_L2CC_DATA_RAM_DEFAULT_MASK	0x00000121U	/* latency for DATA RAM */
+#define RME_L2CC_AUX_REG_DEFAULT_MASK	0x72360000U	/* Enable all prefetching, */
+                                                    /* Cache replacement policy, Parity enable, */
+                                                    /* Event monitor bus enable and Way Size (64 KB) */
+#define RME_L2CC_AUX_REG_ZERO_MASK	0xFFF1FFFFU	/* */
 /* Because the system memory map of Cortex-A based systems are not decided by
  * a particular standard (unlike x86-64), and they cannot be probed as well
  * (memory probing is dangerous). Additionally, the layout of embedded systems
