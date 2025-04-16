@@ -53,9 +53,9 @@ int main(void)
 
 /* Performs an output operation for a 32-bit memory location by writing the
  specified Value to the the specified address. */
-void RME_Out32(rme_ptr_t Addr, rme_ptr_t Value)
+void RME_Out32(volatile rme_ptr_t Addr, rme_ptr_t Value)
 {
-	rme_ptr_t *LocalAddr = (rme_ptr_t *)Addr;
+	volatile rme_ptr_t *LocalAddr = (rme_ptr_t *)Addr;
 	*LocalAddr = Value;
 }
 
@@ -195,7 +195,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_L2CacheInvalidate(void)
 {
-	rme_ptr_t ResultDCache;
+	 rme_ptr_t ResultDCache;
 	/* Invalidate the caches */
 	RME_Out32(RME_L2CC_BASEADDR + RME_L2CC_CACHE_INVLD_WAY_OFFSET,
 		  0x0000FFFFU);
@@ -585,8 +585,8 @@ void __RME_Boot(void)
     __RME_Int_Enable();
 
     /* enable l2 cache */
-    //__RME_L2CacheEnable();
-
+    __RME_L2CacheEnable();
+    RME_DBG_S("\r\nenable l2 cache\r\n");
     /* Boot into the init thread */
     __RME_User_Enter(RME_A7A_INIT_ENTRY,RME_A7A_INIT_STACK,0U);
     
