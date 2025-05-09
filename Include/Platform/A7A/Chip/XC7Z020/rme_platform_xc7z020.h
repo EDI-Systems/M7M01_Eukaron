@@ -57,7 +57,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* What is the Systick value? in ticks. For XC7Z020, always clocked at 1/2 Fcpu */
 /* Each Cortex-A9 processor has its own private 32-bit timer and 32-bit watchdog timer,
  * and the two processors share a global 64-bit timer that is always timed at 1/2 of the CPU frequency (CPU_3x2x). */
-#define RME_A7A_SYSTICK_VAL        (7670000U/2U)
+#define RME_A7A_SYSTICK_VAL        (6670000U/2U)
 /* Size of initial capability table */
 #define RME_A7A_INIT_CPT_SIZE       (128U)
 

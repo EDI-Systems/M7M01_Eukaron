@@ -302,11 +302,11 @@ void __RME_A7A_Timer_Init(void)
     RME_A7A_PTWD_PTLR=RME_A7A_SYSTICK_VAL;
     /* Clear the interrupt flag */
     RME_A7A_PTWD_PTISR=0;
-    /* Start the timer
-    RME_A7A_PTWD_PTCTLR=RME_A7A_PTWD_PTCTLR_PRESC(0)|
+     //Start the timer
+    /*RME_A7A_PTWD_PTCTLR=RME_A7A_PTWD_PTCTLR_PRESC(0)|
                          RME_A7A_PTWD_PTCTLR_IRQEN|
 						 RME_A7A_PTWD_PTCTLR_AUTOREL|
-						 RME_A7A_PTWD_PTCTLR_TIMEN; */
+						 RME_A7A_PTWD_PTCTLR_TIMEN;*/
 //RME_A7A_PTWD_PTLR
     /* Enable the timer interrupt in the GIC */
     RME_A7A_GICD_ISENABLER(0)|=1<<29;
@@ -321,6 +321,8 @@ void __RME_A7A_Timer_Init(void)
 	// 0-0xFFFFFFFF
 	RME_A7A_GTWD_GTCR0=RME_A7A_SYSTICK_VAL;
     RME_A7A_GTWD_GTCTLR=RME_A7A_GTWD_GTCTLR_TIMEN;
+
+
     RME_DBG_S("\r\ntimer init finish");
 
 }
@@ -585,7 +587,7 @@ void __RME_Boot(void)
     __RME_Int_Enable();
 
     /* enable l2 cache */
-    __RME_L2CacheEnable();
+    //__RME_L2CacheEnable();
     RME_DBG_S("\r\nenable l2 cache\r\n");
     /* Boot into the init thread */
     __RME_User_Enter(RME_A7A_INIT_ENTRY,RME_A7A_INIT_STACK,0U);
@@ -670,8 +672,20 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t
     Reg->LR=Entry;
     /* Set the parameter */
     Reg->R0=Param;
+    Reg->R1=1;
+    Reg->R2=2;
+    Reg->R3=3;
+    Reg->R4=4;
+    Reg->R5=5;
+    Reg->R6=6;
+    Reg->R7=7;
+    Reg->R8=8;
+    Reg->R9=9;
+    Reg->R10=10;
+    Reg->R11=11;
+    Reg->R12=12;
     /* Initialize CPSR */
-    Reg->CPSR=0U;
+    Reg->CPSR=0x00000010U;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 
@@ -779,21 +793,9 @@ Return      : None.
 void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,
                           rme_ret_t Retval)
 {
-    Reg->R5=(rme_ptr_t)Retval;
-}
-/* End Function:__RME_Inv_Retval_Set *****************************************/
-
-/* Function:__RME_Set_Inv_Retval **********************************************
-Description : Set the invocation return value to the stack frame.
-Input       : rme_ret_t Retval - The return value.
-Output      : struct RME_Reg_Struct* Reg - The register set.
-Return      : None.
-******************************************************************************/
-void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
-{
     Reg->R1=(rme_ptr_t)Retval;
 }
-/* End Function:__RME_Set_Inv_Retval *****************************************/
+/* End Function:__RME_Inv_Retval_Set *****************************************/
 
 /* Function:__RME_Thd_Cop_Swap ************************************************
 Description : Swap the cop register sets. This operation is flexible - If the
@@ -858,6 +860,10 @@ Return      : None.
 void __RME_A7A_Undefined_Handler(struct RME_Reg_Struct* Reg)
 {
 	/* We don't handle undefined instructions now */
+	rme_ptr_t end;
+	end=RME_A7A_REG(&RME_A7A_GTWD_GTCR0);
+	RME_DBG_S(" \r\ntime ");
+	RME_DBG_H(end);
 	RME_DBG_S("\r\nUndefined_Handler");
 	RME_DBG_S(" PC - ");
 	RME_DBG_H(Reg->PC);
@@ -1030,8 +1036,8 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
 
-    /*RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
-    RME_DBG_H(Ptr);*/
+    RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
+    RME_DBG_H(Ptr);
 
     __RME_A7A_TTBR0_Set(RME_A7A_VA2PA(Ptr)|0x4A);
 	__RME_A7A_TLBIALL_Set(0);

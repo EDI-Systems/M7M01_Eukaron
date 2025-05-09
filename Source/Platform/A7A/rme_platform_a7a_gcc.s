@@ -517,7 +517,7 @@ fill_pgtbl:
     //LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
     LDR  				R1,=(1<<29)|(1<<28)|(0<<12)|(1<<2)|(1<<0)
     ORR                 R0,R0,R1           //SCTCR=38C5187F
-    //BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F
+    BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F
     /* Print a hex number in LR, R12 used as counter print r0 ********************************************/
     MOV 				LR,R0
     MOV					R12,#32     /* 32-bits */
@@ -1451,10 +1451,6 @@ __RME_User_Enter:
     LDMIA               R2,{SP}^
     ADD					SP,R2,#0x04
     LDMIA               SP!,{PC}^
-
-
-
-
 /* End Function:__RME_User_Enter ****************************************/
 
 /* Function:Reset_Handler *****************************************************

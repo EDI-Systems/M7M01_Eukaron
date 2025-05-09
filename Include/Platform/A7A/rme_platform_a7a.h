@@ -402,8 +402,7 @@ typedef rme_s32_t rme_ret_t;
 #define __HDR_DEF__
 #undef __HDR_DEF__
 /*****************************************************************************/
-/* The register set struct - R0-R3, R12, PC, LR, xPSR is automatically pushed.
- * Here we need LR to decide EXC_RETURN, that's why it is here */
+/* The register set struct */
 struct RME_Reg_Struct
 {
     rme_ptr_t CPSR;
@@ -419,6 +418,7 @@ struct RME_Reg_Struct
     rme_ptr_t R9;
     rme_ptr_t R10;
     rme_ptr_t R11;
+    rme_ptr_t R12;
     rme_ptr_t SP;
     rme_ptr_t LR;
     rme_ptr_t PC;

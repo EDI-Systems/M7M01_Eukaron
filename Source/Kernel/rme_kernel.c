@@ -1199,6 +1199,14 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                             Reg,                                            /* volatile struct RME_Reg_Struct* Reg */
                             (rme_cid_t)Param[0],                            /* rme_cid_t Cap_Inv */
                             Param[1]);                                      /* rme_ptr_t Param */
+       RME_DBG_S("\r\n CPSR= ");
+       RME_DBG_H(Reg->CPSR);
+       RME_DBG_S("\r\n PC= ");
+       RME_DBG_H(Reg->PC);
+       RME_DBG_S("\r\n LR= ");
+       RME_DBG_H(Reg->LR);
+       RME_DBG_S("\r\n SP= ");
+       RME_DBG_H(Reg->SP);
         RME_SWITCH_RETURN(Reg,Retval);
     }
     else
@@ -4661,8 +4669,8 @@ static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     if(Pgt_Cur!=Pgt_New)
 #endif
     {
-        RME_COV_MARKER();
-        /*RME_DBG_S("\r\n***************************SWT PGT*********************************\r\n");
+        /*RME_COV_MARKER();
+        RME_DBG_S("\r\n***************************SWT PGT*********************************\r\n");
         RME_DBG_S("Cur - ");
         RME_DBG_H(Pgt_Cur);
         RME_DBG_S("\r\n");;
@@ -7698,13 +7706,17 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Inv,
                               rme_ptr_t Param)
 {
+	/*RME_DBG_S("\r\n  Cap_Inv ");
+	RME_DBG_I(Cap_Inv);
+	RME_DBG_S("\r\n  Param ");
+	RME_DBG_I(Param);*/
     struct RME_Cap_Inv* Inv_Op;
     struct RME_Inv_Struct* Invocation;
     struct RME_Thd_Struct* Thd_Cur;
     struct RME_Thd_Struct* Thd_Act;
     rme_ptr_t Type_Stat;
     
-#if(RME_CPT_ENTRY_MAX!=0U)
+#if(RME_INV_DEPTH_MAX!=0U)
     /* Check if the current invocation stack has reached its limit */
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
     if(Thd_Cur->Ctx.Invstk_Depth>=RME_INV_DEPTH_MAX)
@@ -7742,7 +7754,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
 
-#if(RME_CPT_ENTRY_MAX==0U)
+#if(RME_INV_DEPTH_MAX==0U)
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
 #endif
     
@@ -7785,7 +7797,6 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     RME_ASSERT(RME_CAP_IS_ROOT(Invocation->Prc->Pgt)!=0U);
 #endif
     __RME_Pgt_Set(Invocation->Prc->Pgt);
-    
     return 0;
 }
 /* End Function:_RME_Inv_Act *************************************************/
@@ -7806,7 +7817,6 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 {
     struct RME_Thd_Struct* Thread;
     struct RME_Inv_Struct* Invocation;
-
     /* See if we can return; If we can, get the structure */
     Thread=RME_CPU_LOCAL()->Thd_Cur;
     Invocation=RME_INVSTK_TOP(Thread);
@@ -7883,7 +7893,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 #endif
         __RME_Pgt_Set(Thread->Sched.Prc->Pgt);
     }
-    
+
     return 0;
 }
 /* End Function:_RME_Inv_Ret *************************************************/
