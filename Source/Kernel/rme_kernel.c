@@ -7576,7 +7576,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     struct RME_Thd_Struct* Thd_Act;
     rme_ptr_t Type_Stat;
     
-#if(RME_CPT_ENTRY_MAX!=0U)
+#if(RME_INV_DEPTH_MAX!=0U)
     /* Check if the current invocation stack has reached its limit */
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
     if(Thd_Cur->Ctx.Invstk_Depth>=RME_INV_DEPTH_MAX)
@@ -7614,7 +7614,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
         /* No action required */
     }
 
-#if(RME_CPT_ENTRY_MAX==0U)
+#if(RME_INV_DEPTH_MAX==0U)
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
 #endif
     
