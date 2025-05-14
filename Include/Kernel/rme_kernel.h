@@ -3,8 +3,7 @@ Filename    : rme_kernel.h
 Author      : pry
 Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of the kernel. Whitebox testing of all branches
-              encapsulated in macros are inspected manually carefully.
+Description : The RME kernel header.
               Note that the kernel global variables usually don't need to be 
               'volatile'-qualified (unlike the RMP library operating system)
               because these kernel calls are over the protection boundary. That

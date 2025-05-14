@@ -3,8 +3,7 @@ Filename    : rme_kernel.c
 Author      : pry
 Date        : 23/03/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The system call processing path, debugging primitives and kernel
-              capability implementation for the RME system.
+Description : The RME kernel implementation.
 
 * Capability Table ************************************************************
 This section of code might be confusing if the underlying principles

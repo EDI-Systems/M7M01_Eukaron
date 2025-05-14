@@ -3,7 +3,7 @@ Filename    : rme_platform_rv32p.h
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of "rme_platform_rv32p.c".
+Description : The RV32P(PMP) hardware abstraction layer header.
 ******************************************************************************/
 
 /* Define ********************************************************************/

@@ -3,7 +3,7 @@ Filename    : rme_platform_a7m.h
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of "rme_platform_a7m.c".
+Description : The ARMv7-M hardware abstraction layer header.
 ******************************************************************************/
 
 /* Define ********************************************************************/
