@@ -21,7 +21,7 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
-/* Modifiable ****************************************************************/
+/* Kernel ********************************************************************/
 /* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x20003000)
 /* Kernel object virtual memory size */
@@ -68,11 +68,11 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_COP_RVF                               (1U)
 #define RME_RV32P_COP_RVD                               (0U)
 
-/* Fixed *********************************************************************/
+/* Chip specific *************************************************************/
 /* Timer interrupt MCAUSE value */
 #define RME_RV32P_MCAUSE_TIM                            (0x8000000CU)
 
-/* Initialization registers **************************************************/
+/* Register address */
 /* RCC CTLR */
 #define RME_RV32P_RCC_CTLR                              RME_RV32P_REG(0x40021000U)
 /* RCC control */
