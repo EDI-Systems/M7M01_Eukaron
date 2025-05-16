@@ -15,7 +15,7 @@ Description: The configuration file for STM32L071CB.
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
-/* Modifiable ****************************************************************/
+/* Kernel ********************************************************************/
 /* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x10002000U)
 /* Kernel object virtual memory size */
@@ -60,7 +60,8 @@ Description: The configuration file for STM32L071CB.
 /* What is the FPU type? - always a no */
 #define RME_COP_NUM                                     (0U)
 
-/* Initialization registers **************************************************/
+/* Chip specific *************************************************************/
+/* Register address */
 #define RME_A6M_RCC_APB1ENR                             RME_A6M_REG(0x40021038U)
 #define RME_A6M_RCC_APB1ENR_PWREN                       RME_POW2(28U)
 

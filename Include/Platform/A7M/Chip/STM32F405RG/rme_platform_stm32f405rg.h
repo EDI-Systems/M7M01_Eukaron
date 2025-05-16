@@ -15,7 +15,7 @@ Description: The configuration file for STM32F405RG.
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
-/* Modifiable ****************************************************************/
+/* Kernel ********************************************************************/
 /* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x10002000U)
 /* Kernel object virtual memory size */
@@ -65,16 +65,17 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_COP_FPV5_SP                             (0U)
 #define RME_A7M_COP_FPV5_DP                             (0U)
 
-/* Fixed *********************************************************************/
-/* What is the external crystal frequency? */
+/* Chip specific *************************************************************/
+/* Crystal frequency */
 #define RME_A7M_STM32F405RG_XTAL                        (8U)
-/* What are the PLL values? */
+
+/* PLL parameter */
 #define RME_A7M_STM32F405RG_PLLM                        (8U)
 #define RME_A7M_STM32F405RG_PLLN                        (336U)
 #define RME_A7M_STM32F405RG_PLLP                        (2U)
 #define RME_A7M_STM32F405RG_PLLQ                        (7U)
 
-/* Initialization registers **************************************************/
+/* Register address */
 #define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840U)
 #define RME_A7M_RCC_APB1ENR_PWREN                       RME_POW2(28U)
 

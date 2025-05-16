@@ -7010,19 +7010,23 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
     {
         RME_COV_MARKER();
 
-        /* The guy who blocked on it is not on our core, or nobody blocked.
-         * We just faa the counter value and return. */
-        if(RME_FETCH_ADD(&(Cap_Sig->Sig_Num),1U)>=RME_MAX_SIG_NUM)
+        /* The guy who blocked on it is not on our core, we just faa and
+         * return. Note that we cannot use add - if exceed - revert method,
+         * because other cores can reduce the signal count to zero when we
+         * try to revert. The current method actually CAN have signal number
+         * larger than the RME_MAX_SIG_NUM, but the maximum is temporary
+         * and will only be RME_MAX_SIG_NUM + number-of-cores. */
+        if(Sig_Root->Sig_Num>=RME_MAX_SIG_NUM)
         {
             RME_COV_MARKER();
-
-            RME_FETCH_ADD(&(Cap_Sig->Sig_Num),-1);
+            
             return RME_ERR_SIV_FULL;
         }
         else
         {
             RME_COV_MARKER();
-            /* No action required */
+            
+            RME_FETCH_ADD(&(Sig_Root->Sig_Num),1U);
         }
     }
 
@@ -7127,18 +7131,18 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
 
-        /* The guy who blocked on it is not on our core, we just faa and return */
-        if(RME_FETCH_ADD(&(Sig_Root->Sig_Num),1U)>=RME_MAX_SIG_NUM)
+        /* See _RME_Kern_Snd for details */
+        if(Sig_Root->Sig_Num>=RME_MAX_SIG_NUM)
         {
             RME_COV_MARKER();
-
-            RME_FETCH_ADD(&(Sig_Root->Sig_Num),-1);
+            
             return RME_ERR_SIV_FULL;
         }
         else
         {
             RME_COV_MARKER();
-            /* No action required */
+            
+            RME_FETCH_ADD(&(Sig_Root->Sig_Num),1U);
         }
         
         /* Now save the system call return value to the caller stack */
@@ -7157,7 +7161,7 @@ Description : Try to receive from a signal endpoint. The rules for signal
               2.If some thread blocks on a receive endpoint, the wakeup is only
                 possible from the same core that thread is on.
               3.It is not recommended to let 2 cores operate on the rcv endpoint
-                simutaneously.
+                simutaneously as this causes cache line bounces.
               This system call can potentially trigger a context switch.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               volatile struct RME_Reg_Struct* Reg - The register set.
