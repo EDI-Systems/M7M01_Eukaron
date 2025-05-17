@@ -81,6 +81,10 @@ typedef rme_s32_t rme_ret_t;
 /* Compiler "inline" keyword setting */
 #define RME_INLINE                              inline
 /* Compiler "likely" & "unlikely" keyword setting */
+#if((defined __GNUC__)||(defined __clang__))
+#define RME_LIKELY(X)                           (__builtin_expect(!!(X),1))
+#define RME_UNLIKELY(X)                         (__builtin_expect(!!(X),0))
+#else
 #ifdef likely
 #define RME_LIKELY(X)                           (likely(X))
 #else
@@ -90,6 +94,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_UNLIKELY(X)                         (unlikely(X))
 #else
 #define RME_UNLIKELY(X)                         (X)
+#endif
 #endif
 /* CPU-local data structure location macro */
 #define RME_CPU_LOCAL()                         (&RME_RV32P_Local)

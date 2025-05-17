@@ -194,7 +194,7 @@ void __RME_A6M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
         __RME_A6M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
 #endif
         /* Send to the kernel endpoint */
-        _RME_Kern_Snd(RME_A6M_Local.Sig_Vct);
+        _RME_Kern_Snd(RME_A6M_Local.Sig_Vct,1U);
         /* Pick the highest priority thread after we did all sends */
         _RME_Kern_High(Reg,&RME_A6M_Local);
 #if(RME_RVM_GEN_ENABLE!=0U)
@@ -380,7 +380,7 @@ rme_ret_t __RME_A6M_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
 
     __RME_A6M_Flag_Slow(RME_RVM_VIRT_EVTF_BASE,RME_RVM_VIRT_EVTF_SIZE,Evt_Num);
     
-    if(_RME_Kern_Snd(RME_A6M_Local.Sig_Vct)!=0U)
+    if(_RME_Kern_Snd(RME_A6M_Local.Sig_Vct,1U)!=0U)
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */

@@ -848,7 +848,7 @@ rme_ptr_t _RME_Comp_Swap_Single(volatile rme_ptr_t* Ptr,
                                 rme_ptr_t Old,
                                 rme_ptr_t New)
 {
-    if(*Ptr==Old)
+    if(RME_LIKELY(*Ptr==Old))
     {
         RME_COV_MARKER();
         
@@ -1124,8 +1124,8 @@ static rme_ret_t _RME_Lowlvl_Check(void)
     /* Check if the other configurations are correct */
     /* Kernel memory allocation minimal size aligned to word boundary */
     RME_ASSERT(RME_KOM_SLOT_ORDER>=RME_WORD_ORDER-3U);
-    /* Make sure the number of priorities do not exceed half-word boundary */
-    RME_ASSERT(RME_PREEMPT_PRIO_NUM<=RME_POW2(RME_WORD_BIT>>1));
+    /* Make sure the number of priorities do not exceed 1/4 word boundary */
+    RME_ASSERT(RME_PREEMPT_PRIO_NUM<=(RME_MASK_WORD_Q+1U));
     
     return 0;
 }
@@ -1156,7 +1156,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     Svc_Num=Svc&RME_MASK_END(5U);
     
     /* Ultra-fast path - synchronous invocation returning */
-    if(Svc_Num==RME_SVC_INV_RET)
+    if(RME_LIKELY(Svc_Num==RME_SVC_INV_RET))
     {
         RME_COV_MARKER();
         
@@ -1171,11 +1171,10 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* No action required */
     }
     
-    /* Get our current capability table. No need to check whether it is frozen
-     * because it can't be deleted anyway */
+    /* Get our current capability table - could be in an invocation */
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
     Inv_Top=RME_INVSTK_TOP(Thd_Cur);
-    if(Inv_Top==RME_NULL)
+    if(RME_LIKELY(Inv_Top==RME_NULL))
     {
         RME_COV_MARKER();
         
@@ -1188,8 +1187,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         Cpt=Inv_Top->Prc->Cpt;
     }
 
-    /* Fast path - synchronous invocation activation */
-    if(Svc_Num==RME_SVC_INV_ACT)
+    /* Fast path - invocation activation */
+    if(RME_LIKELY(Svc_Num==RME_SVC_INV_ACT))
     {
         RME_COV_MARKER();
         
@@ -1221,7 +1220,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             
             Retval=_RME_Sig_Snd(Cpt,
                                 Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
-                                (rme_cid_t)Param[0]);                       /* rme_cid_t Cap_Sig */
+                                (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Sig */
+                                Param[1]);                                  /* rme_ptr_t Number */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Receive from a signal endpoint */
@@ -1281,11 +1281,13 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
                                        Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
                                        Cid,                                 /* rme_ptr_t Number */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Thd0 */
-                                       RME_PARAM_D1(Param[0]),              /* rme_ptr_t Prio0 */
-                                       (rme_cid_t)RME_PARAM_D0(Param[1]),   /* rme_cid_t Cap_Thd1 */
-                                       RME_PARAM_D1(Param[1]),              /* rme_ptr_t Prio1 */
-                                       (rme_cid_t)RME_PARAM_D0(Param[2]),   /* rme_cid_t Cap_Thd2 */
-                                       RME_PARAM_D1(Param[2]));             /* rme_ptr_t Prio2 */
+                                       RME_PARAM_Q0(Param[2]),              /* rme_ptr_t Prio0 */
+                                       (rme_cid_t)RME_PARAM_D1(Param[0]),   /* rme_cid_t Cap_Thd1 */
+                                       RME_PARAM_Q1(Param[2]),              /* rme_ptr_t Prio1 */
+                                       (rme_cid_t)RME_PARAM_D0(Param[1]),   /* rme_cid_t Cap_Thd2 */
+                                       RME_PARAM_Q2(Param[2]),              /* rme_ptr_t Prio2 */
+                                       (rme_cid_t)RME_PARAM_D1(Param[1]),   /* rme_cid_t Cap_Thd3 */
+                                       RME_PARAM_Q3(Param[2]));             /* rme_ptr_t Prio3 */
             RME_SWITCH_RETURN(Reg,Retval);
         }
         /* Transfer time to a thread */
@@ -1657,7 +1659,7 @@ void _RME_Tim_Handler(struct RME_Reg_Struct* Reg,
     }
 
     /* Send to the system tick timer endpoint. This endpoint is per-core */
-    _RME_Kern_Snd(Local->Sig_Tim);
+    _RME_Kern_Snd(Local->Sig_Tim,1U);
 
     /* All kernel send complete, now pick the highest priority thread to run */
     _RME_Kern_High(Reg,Local);
@@ -1742,7 +1744,7 @@ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
     struct RME_Cap_Cpt* Cpt;
 
     /* See if the entry number is too big */
-    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
+    if(RME_UNLIKELY((Entry_Num==0U)||(Entry_Num>RME_CID_2L)))
     {
         RME_COV_MARKER();
         
@@ -1755,7 +1757,7 @@ rme_ret_t _RME_Cpt_Boot_Init(rme_cid_t Cap_Cpt,
     }
     
     /* Try to populate the area */
-    if(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))!=0))
     {
         RME_COV_MARKER();
         
@@ -1820,7 +1822,7 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     
     /* See if the entry number is too big - this is not restricted by RME_CPT_ENTRY_MAX */
-    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
+    if(RME_UNLIKELY((Entry_Num==0U)||(Entry_Num>RME_CID_2L)))
     {
         RME_COV_MARKER();
         
@@ -1848,7 +1850,7 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_OCCUPY(Cpt_Crt);
 
     /* Try to mark this area as populated */
-    if(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))!=0))
     {
         RME_COV_MARKER();
         
@@ -1917,7 +1919,7 @@ static rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Vaddr;
 
     /* See if the entry number is too big */
-    if((Entry_Num==0U)||(Entry_Num>RME_CID_2L))
+    if(RME_UNLIKELY((Entry_Num==0U)||(Entry_Num>RME_CID_2L)))
     {
         RME_COV_MARKER();
         
@@ -1931,7 +1933,7 @@ static rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
 
     /* Are we overrunning the size limit? */
 #if(RME_CPT_ENTRY_MAX!=0U)
-    if(Entry_Num>RME_CPT_ENTRY_MAX)
+    if(RME_UNLIKELY(Entry_Num>RME_CPT_ENTRY_MAX))
     {
         RME_COV_MARKER();
         
@@ -1960,11 +1962,11 @@ static rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_OCCUPY(Cpt_Crt);
 
     /* Try to mark this area as populated */
-    if(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))<0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,RME_CPT_SIZE(Entry_Num))<0))
     {
         RME_COV_MARKER();
         
-        /* Failure. Set the Type_Stat back to 0 and abort the creation process */
+        /* Failure; set Type_Stat back to 0 and abort the creation process */
         RME_WRITE_RELEASE(&(Cpt_Crt->Head.Type_Stat),0U);
         return RME_ERR_CPT_KOT;
     }
@@ -2044,7 +2046,7 @@ static rme_ret_t _RME_Cpt_Del(struct RME_Cap_Cpt* Cpt,
     Entry_Num=Cpt_Del->Entry_Num;
     for(Count=0U;Count<Entry_Num;Count++)
     {
-        if(Table[Count].Head.Type_Stat!=0U)
+        if(RME_UNLIKELY(Table[Count].Head.Type_Stat!=0U))
         {
             RME_COV_MARKER();
             
@@ -2104,7 +2106,7 @@ static rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
      * Need a read acquire barrier here to avoid stale reads below. */
     Type_Stat=RME_READ_ACQUIRE(&(Capobj_Frz->Head.Type_Stat));
     /* See if there is a cap */
-    if(RME_CAP_TYPE(Type_Stat)==RME_CAP_TYPE_NOP)
+    if(RME_UNLIKELY(RME_CAP_TYPE(Type_Stat)==RME_CAP_TYPE_NOP))
     {
         RME_COV_MARKER();
         
@@ -2119,7 +2121,7 @@ static rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
     /* If this is a root capability, check if the reference count allows freezing */
     if(RME_CAP_ATTR(Type_Stat)==RME_CAP_ATTR_ROOT)
     {
-        if(Capobj_Frz->Head.Root_Ref!=0U)
+        if(RME_UNLIKELY(Capobj_Frz->Head.Root_Ref!=0U))
         {
             RME_COV_MARKER();
             
@@ -2138,7 +2140,7 @@ static rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
     }
     
     /* The capability is already frozen - why do it again? */
-    if(RME_CAP_STAT(Type_Stat)==RME_CAP_STAT_FROZEN)
+    if(RME_UNLIKELY(RME_CAP_STAT(Type_Stat)==RME_CAP_STAT_FROZEN))
     {
         RME_COV_MARKER();
         
@@ -2230,7 +2232,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     /* Atomic read - Read barrier to avoid premature checking of the rest */
     Type_Stat=RME_READ_ACQUIRE(&(Capobj_Src->Head.Type_Stat));
     /* Is the source cap frozen? */
-    if(RME_CAP_STAT(Type_Stat)==RME_CAP_STAT_FROZEN)
+    if(RME_UNLIKELY(RME_CAP_STAT(Type_Stat)==RME_CAP_STAT_FROZEN))
     {
         RME_COV_MARKER();
         
@@ -2243,7 +2245,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Does the source cap exist at all? */
-    if(Type_Stat==0U)
+    if(RME_UNLIKELY(Type_Stat==0U))
     {
         RME_COV_MARKER();
         
@@ -2267,7 +2269,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         /* Check the delegation range */
-        if(RME_PGT_FLAG_HIGH(Flag)>RME_PGT_FLAG_HIGH(Capobj_Src->Head.Flag))
+        if(RME_UNLIKELY(RME_PGT_FLAG_HIGH(Flag)>RME_PGT_FLAG_HIGH(Capobj_Src->Head.Flag)))
         {
             RME_COV_MARKER();
         
@@ -2279,7 +2281,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if(RME_PGT_FLAG_LOW(Flag)<RME_PGT_FLAG_LOW(Capobj_Src->Head.Flag))
+        if(RME_UNLIKELY(RME_PGT_FLAG_LOW(Flag)<RME_PGT_FLAG_LOW(Capobj_Src->Head.Flag)))
         {
             RME_COV_MARKER();
             
@@ -2291,7 +2293,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if(RME_PGT_FLAG_HIGH(Flag)<RME_PGT_FLAG_LOW(Flag))
+        if(RME_UNLIKELY(RME_PGT_FLAG_HIGH(Flag)<RME_PGT_FLAG_LOW(Flag)))
         {
             RME_COV_MARKER();
             
@@ -2304,7 +2306,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
         
         /* Check the flags - if there are extra ones, or all zero */
-        if(RME_PGT_FLAG_FLAG(Flag)==0U)
+        if(RME_UNLIKELY(RME_PGT_FLAG_FLAG(Flag)==0U))
         {
             RME_COV_MARKER();
             
@@ -2316,7 +2318,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if((RME_PGT_FLAG_FLAG(Flag)&(~RME_PGT_FLAG_FLAG(Capobj_Src->Head.Flag)))!=0U)
+        if(RME_UNLIKELY((RME_PGT_FLAG_FLAG(Flag)&(~RME_PGT_FLAG_FLAG(Capobj_Src->Head.Flag)))!=0U))
         {
             RME_COV_MARKER();
             
@@ -2333,7 +2335,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         /* Kernel funcrions only have ranges, no flags - check the delegation range */
-        if(RME_KFN_FLAG_HIGH(Flag)>RME_KFN_FLAG_HIGH(Capobj_Src->Head.Flag))
+        if(RME_UNLIKELY(RME_KFN_FLAG_HIGH(Flag)>RME_KFN_FLAG_HIGH(Capobj_Src->Head.Flag)))
         {
             RME_COV_MARKER();
             
@@ -2345,7 +2347,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if(RME_KFN_FLAG_LOW(Flag)<RME_KFN_FLAG_LOW(Capobj_Src->Head.Flag))
+        if(RME_UNLIKELY(RME_KFN_FLAG_LOW(Flag)<RME_KFN_FLAG_LOW(Capobj_Src->Head.Flag)))
         {
             RME_COV_MARKER();
             
@@ -2357,7 +2359,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if(RME_KFN_FLAG_HIGH(Flag)<RME_KFN_FLAG_LOW(Flag))
+        if(RME_UNLIKELY(RME_KFN_FLAG_HIGH(Flag)<RME_KFN_FLAG_LOW(Flag)))
         {
             RME_COV_MARKER();
             
@@ -2383,7 +2385,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         Kom_End=RME_ROUND_DOWN(Kom_End,RME_KOM_SLOT_ORDER);
         Kom_Begin=RME_ROUND_UP(Kom_Begin,RME_KOM_SLOT_ORDER);
 #endif
-        if(Kom_End<=Kom_Begin)
+        if(RME_UNLIKELY(Kom_End<=Kom_Begin))
         {
             RME_COV_MARKER();
             
@@ -2397,7 +2399,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
 
         /* Convert relative addresses to absolute addresses and check for overflow */
         Kom_Begin+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
-        if(Kom_Begin<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin)
+        if(RME_UNLIKELY(Kom_Begin<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin))
         {
             RME_COV_MARKER();
             
@@ -2410,7 +2412,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
         
         Kom_End+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
-        if(Kom_End<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin)
+        if(RME_UNLIKELY(Kom_End<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin))
         {
             RME_COV_MARKER();
             
@@ -2423,7 +2425,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
 
         /* Check the ranges of kernel memory */
-        if(((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin>Kom_Begin)
+        if(RME_UNLIKELY(((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin>Kom_Begin))
         {
             RME_COV_MARKER();
             
@@ -2436,7 +2438,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
         
         /* Internal encoding of 'end' is inclusive */
-        if(((volatile struct RME_Cap_Kom*)Capobj_Src)->End<(Kom_End-1U))
+        if(RME_UNLIKELY(((volatile struct RME_Cap_Kom*)Capobj_Src)->End<(Kom_End-1U)))
         {
             RME_COV_MARKER();
             
@@ -2449,7 +2451,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
         
         /* Check the flags - if there are extra ones, or all zero */
-        if(Kom_Flag==0U)
+        if(RME_UNLIKELY(Kom_Flag==0U))
         {
             RME_COV_MARKER();
             
@@ -2461,7 +2463,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        if((Kom_Flag&(~(Capobj_Src->Head.Flag)))!=0U)
+        if(RME_UNLIKELY((Kom_Flag&(~(Capobj_Src->Head.Flag)))!=0U))
         {
             RME_COV_MARKER();
             
@@ -2479,7 +2481,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         /* Check the flags - if there are extra ones, or all zero */
-        if(Flag==0U)
+        if(RME_UNLIKELY(Flag==0U))
         {
             RME_COV_MARKER();
             
@@ -2490,7 +2492,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
             /* No action required */
         }
-        if((Flag&(~(Capobj_Src->Head.Flag)))!=0U)
+        if(RME_UNLIKELY((Flag&(~(Capobj_Src->Head.Flag)))!=0U))
         {
             RME_COV_MARKER();
             
@@ -2504,7 +2506,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Is the destination slot unoccupied? */
-    if(Capobj_Dst->Head.Type_Stat!=0U)
+    if(RME_UNLIKELY(Capobj_Dst->Head.Type_Stat!=0U))
     {
         RME_COV_MARKER();
             
@@ -2619,7 +2621,7 @@ static rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
         
         RME_CAP_DELETE(Capobj_Rem,Type_Stat);
 
-        /* Check done, decrease its parent's refcnt. This must be done at last */
+        /* Check done, decrease its parent's refcnt - this must be done at last */
         RME_FETCH_ADD(&(Capobj_Root->Head.Root_Ref),-1);
     }
     else
@@ -2676,7 +2678,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* Check if the total representable memory exceeds our maximum possible
      * addressible memory under the machine word length */
-    if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
+    if(RME_UNLIKELY((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER)))
     {
         RME_COV_MARKER();
         
@@ -2695,7 +2697,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Cpt_Op,RME_CPT_FLAG_CRT);
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgt_Check(Base,Is_Top,Size_Order,Num_Order,Vaddr)!=0)
+    if(RME_UNLIKELY(__RME_Pgt_Check(Base,Is_Top,Size_Order,Num_Order,Vaddr)!=0))
     {
         RME_COV_MARKER();
         
@@ -2708,7 +2710,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Check if the base address is properly aligned to the total order of the page table */
-    if((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
+    if(RME_UNLIKELY((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U))
     {
         RME_COV_MARKER();
 
@@ -2740,7 +2742,7 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Try to populate the area */
-    if(_RME_Kot_Mark(Vaddr, Table_Size)!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr, Table_Size)!=0))
     {
         RME_COV_MARKER();
     
@@ -2766,14 +2768,14 @@ rme_ret_t _RME_Pgt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Pgt_Crt->ASID=0U;
 
     /* Object init - need to add all kernel pages if they are top-level */
-    if(__RME_Pgt_Init(Pgt_Crt)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Init(Pgt_Crt)<0))
     {
         RME_COV_MARKER();
         
         /* This must be successful */
         RME_ASSERT(_RME_Kot_Erase(Vaddr, Table_Size)==0);
 
-        /* Unsuccessful. Revert operations */
+        /* Unsuccessful - revert operations */
         RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),0U);
         return RME_ERR_PGT_HW;
     }
@@ -2836,7 +2838,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
         
-        if((Paddr!=0U)||(Pos!=0U))
+        if(RME_UNLIKELY((Paddr!=0U)||(Pos!=0U)))
         {
             RME_COV_MARKER();
             
@@ -2848,7 +2850,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
     }
-    else if(Paddr!=(RME_PGT_BASE(Pgt_Op->Base)+(Pos<<Szord)))
+    else if(RME_UNLIKELY(Paddr!=(RME_PGT_BASE(Pgt_Op->Base)+(Pos<<Szord))))
     {
         RME_COV_MARKER();
         
@@ -2862,8 +2864,8 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 #endif
 
     /* See if the mapping range and the granularity is allowed */
-    if(((Pos>>RME_PGT_NMORD(Pgt_Op->Order))!=0U)||
-       ((Paddr&RME_MASK_END(Szord-1U))!=0U))
+    if(RME_UNLIKELY(((Pos>>RME_PGT_NMORD(Pgt_Op->Order))!=0U)||
+                    ((Paddr&RME_MASK_END(Szord-1U))!=0U)))
     {
         RME_COV_MARKER();
         
@@ -2877,7 +2879,7 @@ rme_ret_t _RME_Pgt_Boot_Add(struct RME_Cap_Cpt* Cpt,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgt_Page_Map(Pgt_Op,Paddr,Pos,Flag)!=0)
+    if(RME_UNLIKELY(__RME_Pgt_Page_Map(Pgt_Op,Paddr,Pos,Flag)!=0))
     {
         RME_COV_MARKER();
         
@@ -2937,7 +2939,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Pgt_Child,0U);
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
+    if(RME_UNLIKELY((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U))
     {
         RME_COV_MARKER();
         
@@ -2952,7 +2954,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     /* See if the child table falls within one slot of the parent table */
     Order_Child=RME_PGT_NMORD(Pgt_Child->Order)+RME_PGT_SZORD(Pgt_Child->Order);
     Szord_Parent=RME_PGT_SZORD(Pgt_Parent->Order);
-    if(Szord_Parent<Order_Child)
+    if(RME_UNLIKELY(Szord_Parent<Order_Child))
     {
         RME_COV_MARKER();
         
@@ -2974,7 +2976,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
          * could also be a top-level page table. Whether constructing a top into 
          * another top is allowed is HAL-defined. */
         Begin_Parent=RME_PGT_BASE(Pgt_Parent->Base)+(Pos<<Szord_Parent);
-        if(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent)
+        if(RME_UNLIKELY(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent))
         {
             RME_COV_MARKER();
             
@@ -2996,7 +2998,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
-            if((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            if(RME_UNLIKELY((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent))
             {
                 RME_COV_MARKER();
 
@@ -3036,8 +3038,8 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
 #endif
 
     /* Actually do the mapping - This work is passed down to the HAL. 
-     * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgt_Pgdir_Map(Pgt_Parent,Pos,Pgt_Child,Flag_Child)<0)
+     * Under multi-core, HAL should use CAS to avoid a conflict. */
+    if(RME_UNLIKELY(__RME_Pgt_Pgdir_Map(Pgt_Parent,Pos,Pgt_Child,Flag_Child)<0))
     {
         RME_COV_MARKER();
 
@@ -3106,7 +3108,7 @@ static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* Check if the total representable memory exceeds our maximum possible
      * addressible memory under the machine word length */
-    if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
+    if(RME_UNLIKELY((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER)))
     {
         RME_COV_MARKER();
         
@@ -3144,7 +3146,7 @@ static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     RME_KOM_CHECK(Kom_Op,RME_KOM_FLAG_PGT,Raddr,Vaddr,Table_Size);
 
     /* Check if these parameters are feasible */
-    if(__RME_Pgt_Check(Base,Is_Top,Size_Order,Num_Order,Vaddr)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Check(Base,Is_Top,Size_Order,Num_Order,Vaddr)<0))
     {
         RME_COV_MARKER();
 
@@ -3157,7 +3159,7 @@ static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Check if the start address is properly aligned to the total order of the page table */
-    if((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U)
+    if(RME_UNLIKELY((Base&RME_MASK_END(Size_Order+Num_Order-1U))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3175,7 +3177,7 @@ static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_OCCUPY(Pgt_Crt);
 
     /* Try to populate the area */
-    if(_RME_Kot_Mark(Vaddr,Table_Size)!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,Table_Size)!=0))
     {
         RME_COV_MARKER();
 
@@ -3199,14 +3201,14 @@ static rme_ret_t _RME_Pgt_Crt(struct RME_Cap_Cpt* Cpt,
     Pgt_Crt->ASID=0U;
     
     /* Object init - need to add all kernel pages if they are top-level */
-    if(__RME_Pgt_Init(Pgt_Crt)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Init(Pgt_Crt)<0))
     {
         RME_COV_MARKER();
 
         /* This must be successful */
         RME_ASSERT(_RME_Kot_Erase(Vaddr,Table_Size)==0);
         
-        /* Unsuccessful. Revert operations */
+        /* Unsuccessful - revert operations */
         RME_WRITE_RELEASE(&(Pgt_Crt->Head.Type_Stat),0U);
         return RME_ERR_PGT_HW;
     }
@@ -3267,7 +3269,7 @@ static rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
      * not conform to this, the deletion of page table is not guaranteed to main kernel
      * consistency, and such consistency must be maintained by the user-level. It is 
      * recommended that the driver layer enforce such consistency. */
-    if(__RME_Pgt_Del_Check(Pgt_Del)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Del_Check(Pgt_Del)<0))
     {
         RME_COV_MARKER();
 
@@ -3298,7 +3300,7 @@ static rme_ret_t _RME_Pgt_Del(struct RME_Cap_Cpt* Cpt,
     /* Now we can safely delete the cap */
     RME_CAP_DELETE(Pgt_Del,Type_Stat);
 
-    /* Try to erase the area - This must be successful */
+    /* Try to erase the area - this must be successful */
     RME_ASSERT(_RME_Kot_Erase(Object,Table_Size)==0);
 
     return 0;
@@ -3360,10 +3362,10 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Pgt_Dst,RME_PGT_FLAG_ADD_DST);
     RME_CAP_CHECK(Pgt_Src,RME_PGT_FLAG_ADD_SRC);
     /* Check the operation range - This is page table specific */
-    if((Pos_Dst>RME_PGT_FLAG_HIGH(Pgt_Dst->Head.Flag))||
-       (Pos_Dst<RME_PGT_FLAG_LOW(Pgt_Dst->Head.Flag))||
-       (Pos_Src>RME_PGT_FLAG_HIGH(Pgt_Src->Head.Flag))||
-       (Pos_Src<RME_PGT_FLAG_LOW(Pgt_Src->Head.Flag)))
+    if(RME_UNLIKELY((Pos_Dst>RME_PGT_FLAG_HIGH(Pgt_Dst->Head.Flag))||
+                    (Pos_Dst<RME_PGT_FLAG_LOW(Pgt_Dst->Head.Flag))||
+                    (Pos_Src>RME_PGT_FLAG_HIGH(Pgt_Src->Head.Flag))||
+                    (Pos_Src<RME_PGT_FLAG_LOW(Pgt_Src->Head.Flag))))
     {
         RME_COV_MARKER();
 
@@ -3378,7 +3380,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     /* See if the size order relationship is correct */
     Szord_Dst=RME_PGT_SZORD(Pgt_Dst->Order);
     Szord_Src=RME_PGT_SZORD(Pgt_Src->Order);
-    if(Szord_Dst>Szord_Src)
+    if(RME_UNLIKELY(Szord_Dst>Szord_Src))
     {
         RME_COV_MARKER();
 
@@ -3391,8 +3393,8 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if the positions are out of range - NMORD is restricted, no UB */
-    if(((Pos_Dst>>RME_PGT_NMORD(Pgt_Dst->Order))!=0U)||
-       ((Pos_Src>>RME_PGT_NMORD(Pgt_Src->Order))!=0U))
+    if(RME_UNLIKELY(((Pos_Dst>>RME_PGT_NMORD(Pgt_Dst->Order))!=0U)||
+                    ((Pos_Src>>RME_PGT_NMORD(Pgt_Src->Order))!=0U)))
     {
         RME_COV_MARKER();
 
@@ -3410,7 +3412,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
         
         /* No UB because Szord_Dst<=Szord_Src */
-        if(RME_POW2(Szord_Src)<=(Index<<Szord_Dst))
+        if(RME_UNLIKELY(RME_POW2(Szord_Src)<=(Index<<Szord_Dst)))
         {
             RME_COV_MARKER();
 
@@ -3429,7 +3431,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Get the physical address and RME standard flags of that source page */
-    if(__RME_Pgt_Lookup(Pgt_Src,Pos_Src,&Paddr_Src,&Flag_Src)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Lookup(Pgt_Src,Pos_Src,&Paddr_Src,&Flag_Src)<0))
     {
         RME_COV_MARKER();
 
@@ -3449,7 +3451,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         Paddr_Dst=Paddr_Src+(Index<<Szord_Dst);
 #if(RME_PGT_PHYS_ENABLE!=0U)
         /* Check if we force identical mapping */
-        if(Paddr_Dst!=(RME_PGT_BASE(Pgt_Dst->Base)+(Pos_Dst<<Szord_Dst)))
+        if(RME_UNLIKELY(Paddr_Dst!=(RME_PGT_BASE(Pgt_Dst->Base)+(Pos_Dst<<Szord_Dst))))
         {
             RME_COV_MARKER();
 
@@ -3469,7 +3471,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
         
         Paddr_Dst=Paddr_Src;
 #if(RME_PGT_PHYS_ENABLE!=0U)
-        if(Paddr_Dst!=RME_PGT_BASE(Pgt_Dst->Base))
+        if(RME_UNLIKELY(Paddr_Dst!=RME_PGT_BASE(Pgt_Dst->Base)))
         {
             RME_COV_MARKER();
 
@@ -3484,7 +3486,7 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Analyze the flags - we do not allow expansion of access permissions */
-    if(((Flag_Dst)&(~Flag_Src))!=0U)
+    if(RME_UNLIKELY(((Flag_Dst)&(~Flag_Src))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3497,8 +3499,8 @@ static rme_ret_t _RME_Pgt_Add(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Actually do the mapping - This work is passed down to the HAL. 
-     * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgt_Page_Map(Pgt_Dst,Paddr_Dst,Pos_Dst,Flag_Dst)<0)
+     * Under multi-core, HAL should use CAS to avoid a conflict. */
+    if(RME_UNLIKELY(__RME_Pgt_Page_Map(Pgt_Dst,Paddr_Dst,Pos_Dst,Flag_Dst)<0))
     {
         RME_COV_MARKER();
 
@@ -3539,8 +3541,8 @@ static rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
     /* Check if the target captbl is not frozen and allows such operations */
     RME_CAP_CHECK(Pgt_Rem,RME_PGT_FLAG_REM);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Rem->Head.Flag))||
-       (Pos<RME_PGT_FLAG_LOW(Pgt_Rem->Head.Flag)))
+    if(RME_UNLIKELY((Pos>RME_PGT_FLAG_HIGH(Pgt_Rem->Head.Flag))||
+                    (Pos<RME_PGT_FLAG_LOW(Pgt_Rem->Head.Flag))))
     {
         RME_COV_MARKER();
 
@@ -3553,7 +3555,7 @@ static rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGT_NMORD(Pgt_Rem->Order))!=0U)
+    if(RME_UNLIKELY((Pos>>RME_PGT_NMORD(Pgt_Rem->Order))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3567,7 +3569,7 @@ static rme_ret_t _RME_Pgt_Rem(struct RME_Cap_Cpt* Cpt,
 
     /* Actually do the mapping - This work is passed down to the HAL. 
      * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgt_Page_Unmap(Pgt_Rem,Pos)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Page_Unmap(Pgt_Rem,Pos)<0))
     {
         RME_COV_MARKER();
 
@@ -3626,8 +3628,8 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Pgt_Parent, RME_PGT_FLAG_CON_PARENT);
     RME_CAP_CHECK(Pgt_Child, RME_PGT_FLAG_CHILD);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||
-       (Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag)))
+    if(RME_UNLIKELY((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||
+                    (Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag))))
     {
         RME_COV_MARKER();
 
@@ -3640,7 +3642,7 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     }
     
     /* See if the mapping range is allowed */
-    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
+    if(RME_UNLIKELY((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3655,7 +3657,7 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
     /* See if the child table falls within one slot of the parent table */
     Order_Child=RME_PGT_NMORD(Pgt_Child->Order)+RME_PGT_SZORD(Pgt_Child->Order);
     Szord_Parent=RME_PGT_SZORD(Pgt_Parent->Order);
-    if(Szord_Parent<Order_Child)
+    if(RME_UNLIKELY(Szord_Parent<Order_Child))
     {
         RME_COV_MARKER();
         
@@ -3677,7 +3679,7 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
          * could also be a top-level page table. Whether constructing a top into 
          * another top is allowed is HAL-defined. */
         Begin_Parent=RME_PGT_BASE(Pgt_Parent->Base)+(Pos<<Szord_Parent);
-        if(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent)
+        if(RME_UNLIKELY(RME_PGT_BASE(Pgt_Child->Base)<Begin_Parent))
         {
             RME_COV_MARKER();
             
@@ -3699,7 +3701,7 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
             
-            if((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent)
+            if(RME_UNLIKELY((RME_PGT_BASE(Pgt_Child->Base)+RME_POW2(Order_Child))>End_Parent))
             {
                 RME_COV_MARKER();
 
@@ -3739,8 +3741,8 @@ static rme_ret_t _RME_Pgt_Con(struct RME_Cap_Cpt* Cpt,
 #endif
 
     /* Actually do the mapping - This work is passed down to the HAL. 
-     * Under multi-core, HAL should use CAS to avoid a conflict */
-    if(__RME_Pgt_Pgdir_Map(Pgt_Parent,Pos,Pgt_Child,Flag_Child)<0)
+     * Under multi-core, HAL should use CAS to avoid a conflict. */
+    if(RME_UNLIKELY(__RME_Pgt_Pgdir_Map(Pgt_Parent,Pos,Pgt_Child,Flag_Child)<0))
     {
         RME_COV_MARKER();
 
@@ -3798,8 +3800,8 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
     RME_CAP_CHECK(Pgt_Parent, RME_PGT_FLAG_DES_PARENT);
     RME_CAP_CHECK(Pgt_Child, RME_PGT_FLAG_CHILD);
     /* Check the operation range - This is page table specific */
-    if((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||
-       (Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag)))
+    if(RME_UNLIKELY((Pos>RME_PGT_FLAG_HIGH(Pgt_Parent->Head.Flag))||
+                    (Pos<RME_PGT_FLAG_LOW(Pgt_Parent->Head.Flag))))
     {
         RME_COV_MARKER();
 
@@ -3812,7 +3814,7 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if the unmapping range is allowed */
-    if((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U)
+    if(RME_UNLIKELY((Pos>>RME_PGT_NMORD(Pgt_Parent->Order))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3828,7 +3830,7 @@ static rme_ret_t _RME_Pgt_Des(struct RME_Cap_Cpt* Cpt,
      * Under multi-core, HAL should use CAS to avoid a conflict. Also,
      * the HAL needs to guarantee that the Child is actually mapped there,
      * and use that as the old value in CAS */
-    if(__RME_Pgt_Pgdir_Unmap(Pgt_Parent,Pos,Pgt_Child)<0)
+    if(RME_UNLIKELY(__RME_Pgt_Pgdir_Unmap(Pgt_Parent,Pos,Pgt_Child)<0))
     {
         RME_COV_MARKER();
 
@@ -3863,7 +3865,7 @@ rme_ret_t _RME_Kot_Init(rme_ptr_t Word)
 {
     rme_ptr_t Count;
     
-    if(Word<RME_KOT_WORD_NUM)
+    if(RME_UNLIKELY(Word<RME_KOT_WORD_NUM))
     {
         RME_COV_MARKER();
 
@@ -3910,7 +3912,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
     rme_ptr_t Mask_End;
 
     /* Check if the marking is well aligned */
-    if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
+    if(RME_UNLIKELY((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U))
     {
         RME_COV_MARKER();
 
@@ -3938,7 +3940,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
         /* Someone already populated something here */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&(Mask_Begin&Mask_End))!=0U)
+        if(RME_UNLIKELY((Old_Val&(Mask_Begin&Mask_End))!=0U))
         {
             RME_COV_MARKER();
 
@@ -3951,9 +3953,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         }
         
         /* Check done, do the marking with CAS */
-        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
-                         Old_Val,
-                         Old_Val|(Mask_Begin&Mask_End))==RME_CASFAIL)
+        if(RME_UNLIKELY(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
+                                      Old_Val,
+                                      Old_Val|(Mask_Begin&Mask_End))==RME_CASFAIL))
         {
             RME_COV_MARKER();
 
@@ -3972,7 +3974,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         Undo=0U;
         /* Check&Mark the start */
         Old_Val=RME_KOT_VA_BASE[Start];
-        if((Old_Val&Mask_Begin)!=0U)
+        if(RME_UNLIKELY((Old_Val&Mask_Begin)!=0U))
         {
             RME_COV_MARKER();
 
@@ -3984,9 +3986,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             /* No action required */
         }
         
-        if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
-                         Old_Val,
-                         Old_Val|Mask_Begin)==RME_CASFAIL)
+        if(RME_UNLIKELY(RME_COMP_SWAP(&RME_KOT_VA_BASE[Start],
+                                      Old_Val,
+                                      Old_Val|Mask_Begin)==RME_CASFAIL))
         {
             RME_COV_MARKER();
 
@@ -4002,7 +4004,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         for(Count=Start+1U;Count<End;Count++)
         {
             Old_Val=RME_KOT_VA_BASE[Count];
-            if(Old_Val!=0U)
+            if(RME_UNLIKELY(Old_Val!=0U))
             {
                 RME_COV_MARKER();
 
@@ -4013,9 +4015,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             {
                 RME_COV_MARKER();
                 
-                if(RME_COMP_SWAP(&RME_KOT_VA_BASE[Count],
-                                 Old_Val,
-                                 RME_MASK_FULL)==RME_CASFAIL)
+                if(RME_UNLIKELY(RME_COMP_SWAP(&RME_KOT_VA_BASE[Count],
+                                              Old_Val,
+                                              RME_MASK_FULL)==RME_CASFAIL))
                 {
                     RME_COV_MARKER();
                     
@@ -4037,7 +4039,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
 
             /* Check&Mark the end */
             Old_Val=RME_KOT_VA_BASE[End];
-            if((Old_Val&Mask_End)!=0U)
+            if(RME_UNLIKELY((Old_Val&Mask_End)!=0U))
             {
                 RME_COV_MARKER();
 
@@ -4047,9 +4049,9 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
             {
                 RME_COV_MARKER();
 
-                if(RME_COMP_SWAP(&RME_KOT_VA_BASE[End],
-                                 Old_Val,
-                                 Old_Val|Mask_End)==RME_CASFAIL)
+                if(RME_UNLIKELY(RME_COMP_SWAP(&RME_KOT_VA_BASE[End],
+                                              Old_Val,
+                                              Old_Val|Mask_End)==RME_CASFAIL))
                 {
                     RME_COV_MARKER();
 
@@ -4068,7 +4070,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         }
         
         /* See if we need to undo. If yes, proceed to unroll and return error */
-        if(Undo!=0U)
+        if(RME_UNLIKELY(Undo!=0U))
         {
             RME_COV_MARKER();
 
@@ -4115,7 +4117,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
     rme_ptr_t Count;
 
     /* Check if the marking is well aligned */
-    if((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U)
+    if(RME_UNLIKELY((Kaddr&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))!=0U))
     {
         RME_COV_MARKER();
 
@@ -4142,7 +4144,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         RME_COV_MARKER();
 
         /* This address range is not fully populated */
-        if((RME_KOT_VA_BASE[Start]&(Mask_Begin&Mask_End))!=(Mask_Begin&Mask_End))
+        if(RME_UNLIKELY((RME_KOT_VA_BASE[Start]&(Mask_Begin&Mask_End))!=(Mask_Begin&Mask_End)))
         {
             RME_COV_MARKER();
 
@@ -4162,7 +4164,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         RME_COV_MARKER();
 
         /* Check the start */
-        if((RME_KOT_VA_BASE[Start]&Mask_Begin)!=Mask_Begin)
+        if(RME_UNLIKELY((RME_KOT_VA_BASE[Start]&Mask_Begin)!=Mask_Begin))
         {
             RME_COV_MARKER();
 
@@ -4177,7 +4179,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         /* Check the middle */
         for(Count=Start+1U;Count<End-1U;Count++)
         {
-            if(RME_KOT_VA_BASE[Count]!=RME_MASK_FULL)
+            if(RME_UNLIKELY(RME_KOT_VA_BASE[Count]!=RME_MASK_FULL))
             {
                 RME_COV_MARKER();
 
@@ -4191,7 +4193,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         }
 
         /* Check the end */
-        if((RME_KOT_VA_BASE[End]&Mask_End)!=Mask_End)
+        if(RME_UNLIKELY((RME_KOT_VA_BASE[End]&Mask_End)!=Mask_End))
         {
             RME_COV_MARKER();
 
@@ -4527,7 +4529,7 @@ static void _RME_Run_Notif(struct RME_Thd_Struct* Thd)
     if(Thd->Sched.Sched_Sig!=0U)
     {
         RME_COV_MARKER();
-        _RME_Kern_Snd(Thd->Sched.Sched_Sig);
+        _RME_Kern_Snd(Thd->Sched.Sched_Sig,1U);
     }
     else
     {
@@ -4931,8 +4933,8 @@ static rme_ret_t _RME_Prc_Cpt(struct RME_Cap_Cpt* Cpt,
     
     /* Commit the change */
     Cpt_Old=Prc_Op->Cpt;
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Cpt)),
-                     (rme_ptr_t)Cpt_Old,(rme_ptr_t)Cpt_New)==RME_CASFAIL)
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Cpt)),
+                                  (rme_ptr_t)Cpt_Old,(rme_ptr_t)Cpt_New)==RME_CASFAIL))
     {
         RME_COV_MARKER();
         
@@ -5004,14 +5006,14 @@ static rme_ret_t _RME_Prc_Pgt(struct RME_Cap_Cpt* Cpt,
     /* Convert to root */
     Pgt_New=RME_CAP_CONV_ROOT(Pgt_New,struct RME_Cap_Pgt*);
     /* Actually commit the change */
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
-                     (rme_ptr_t)Pgt_Old,
-                     (rme_ptr_t)Pgt_New)==RME_CASFAIL)
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
+                                  (rme_ptr_t)Pgt_Old,
+                                  (rme_ptr_t)Pgt_New)==RME_CASFAIL))
 #else
     /* Actually commit the change */
-    if(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
-                     (rme_ptr_t)Pgt_Old,
-                     Raw_Pgt)==RME_CASFAIL)
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)(&(Prc_Op->Pgt)),
+                                  (rme_ptr_t)Pgt_Old,
+                                  Raw_Pgt)==RME_CASFAIL))
 #endif
     {
         RME_COV_MARKER();
@@ -5076,7 +5078,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     
     /* Check whether the priority level is allowed */
-    if(Prio>=RME_PREEMPT_PRIO_NUM)
+    if(RME_UNLIKELY(Prio>=RME_PREEMPT_PRIO_NUM))
     {
         RME_COV_MARKER();
 
@@ -5103,7 +5105,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_OCCUPY(Thd_Crt);
      
     /* Try to populate the area */
-    if(_RME_Kot_Mark(Vaddr,RME_THD_SIZE(0U))!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,RME_THD_SIZE(0U))!=0))
     {
         RME_COV_MARKER();
 
@@ -5125,6 +5127,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Prc_Root=RME_CAP_CONV_ROOT(Prc_Op,struct RME_Cap_Prc*);
     Thread->Sched.Prc=Prc_Root;
     Thread->Sched.Signal=0U;
+    /* Maximum priority of all boot-time threads is RME_PREEMPT_PRIO_NUM-1U */
     Thread->Sched.Prio=Prio;
     Thread->Sched.Prio_Max=RME_PREEMPT_PRIO_NUM-1U;
     /* Set scheduler reference to 1 so cannot be free */
@@ -5153,7 +5156,7 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                        RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT;
 
     /* Referece process */
-    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref), 1);
     
     /* Insert this into the runqueue, and set current thread to it */
     _RME_Run_Ins(Thread);
@@ -5213,7 +5216,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     
     /* See if the maximum priority relationship is correct - a thread
      * can never create a thread with higher maximum priority */
-    if((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Prio_Max)
+    if(RME_UNLIKELY((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prio_Max<Prio_Max))
     {
         RME_COV_MARKER();
 
@@ -5235,8 +5238,9 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     /* Check if the target caps is not frozen and allows such operations */
     RME_CAP_CHECK(Cpt_Op,RME_CPT_FLAG_CRT);
     RME_CAP_CHECK(Prc_Op,RME_PRC_FLAG_THD);
-    /* See if the creation is valid for this kmem range */
-    if(Is_Hyp==0U)
+    
+    /* Register size dependent on the attributes and hypervisor dedicated status */
+    if(RME_LIKELY(Is_Hyp==0U))
     {
         RME_COV_MARKER();
         
@@ -5253,6 +5257,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
 #endif
     }
     
+    /* See if the creation is valid for this kmem range */
     RME_KOM_CHECK(Kom_Op,RME_KOM_FLAG_THD,Raddr,Vaddr,Size);
     
     /* Get the cap slot */
@@ -5291,15 +5296,15 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     /* This is a marking that this thread haven't sent any notifications */
     _RME_List_Crt(&(Thread->Sched.Notif));
     _RME_List_Crt(&(Thread->Sched.Event));
-    /* Point its pointer to itself - this is not a hypervisor thread yet */
-    if(Is_Hyp==0U)
+    /* Point its pointer to itself - this is not a hypervisor thread */
+    if(RME_LIKELY(Is_Hyp==0U))
     {
         RME_COV_MARKER();
         
         Thread->Ctx.Hyp_Attr=Attr;
         Thread->Ctx.Reg=(struct RME_Thd_Reg*)(Vaddr+RME_HYP_SIZE);
     }
-    /* Default to HYP_VA_BASE for all created hypervisor threads */
+    /* Default to HYP_VA_BASE for hypervisor dedicated threads on creation */
     else
     {
         RME_COV_MARKER();
@@ -5365,7 +5370,7 @@ static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
     Thread=RME_CAP_GETOBJ(Thd_Del,struct RME_Thd_Struct*);
     
     /* See if the thread is free. If still bound, we cannot proceed to deletion */
-    if(Thread->Sched.Local!=RME_THD_FREE)
+    if(RME_UNLIKELY(Thread->Sched.Local!=RME_THD_FREE))
     {
         RME_COV_MARKER();
 
@@ -5498,7 +5503,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* Check if the target thread is already bound. If yes, we just quit */
     Thread=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Local_Old=Thread->Sched.Local;
-    if(Local_Old!=RME_THD_FREE)
+    if(RME_UNLIKELY(Local_Old!=RME_THD_FREE))
     {
         RME_COV_MARKER();
 
@@ -5513,7 +5518,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* See if the parent thread is on the same core with the current processor */
     Local_New=RME_CPU_LOCAL();
     Scheduler=RME_CAP_GETOBJ(Thd_Sched,struct RME_Thd_Struct*);
-    if(Scheduler->Sched.Local!=Local_New)
+    if(RME_UNLIKELY(Scheduler->Sched.Local!=Local_New))
     {
         RME_COV_MARKER();
 
@@ -5526,7 +5531,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
 
     /* See if we are trying to bind to ourself - prohibited */
-    if(Thread==Scheduler)
+    if(RME_UNLIKELY(Thread==Scheduler))
     {
         RME_COV_MARKER();
 
@@ -5539,7 +5544,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
     
     /* See if the priority relationship is correct */
-    if(Scheduler->Sched.Prio_Max<Prio)
+    if(RME_UNLIKELY(Thread->Sched.Prio_Max<Prio))
     {
         RME_COV_MARKER();
 
@@ -5554,14 +5559,14 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* Check whether the coprocessor context attribute is compatible with this core */
     Hyp_Attr=Thread->Ctx.Hyp_Attr;
 #if(RME_COP_NUM!=0U)
-    if(__RME_Thd_Cop_Check(RME_THD_ATTR(Hyp_Attr))<0)
+    if(RME_UNLIKELY(__RME_Thd_Cop_Check(RME_THD_ATTR(Hyp_Attr))<0))
     {
         RME_COV_MARKER();
 
         return RME_ERR_CPT_FLAG;
     }
 #else
-    if(RME_THD_ATTR(Hyp_Attr)!=0U)
+    if(RME_UNLIKELY(RME_THD_ATTR(Hyp_Attr)!=0U))
     {
         RME_COV_MARKER();
 
@@ -5575,18 +5580,18 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Check the hypervisor context buffer passed in to see whether it is good */
-    if((Haddr!=RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)!=0U))
+    if(RME_UNLIKELY((Haddr!=RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)!=0U)))
     {
         RME_COV_MARKER();
         
         /* Register save area must be aligned to word boundary */
-        if(RME_IS_ALIGNED(Haddr)!=0U)
+        if(RME_LIKELY(RME_IS_ALIGNED(Haddr)!=0U))
         {
             RME_COV_MARKER();
             
             /* It needs to be safely accessible to the kernel as well */
 #if(RME_HYP_VA_BASE!=0U)
-            if(Haddr<RME_HYP_VA_BASE)
+            if(RME_UNLIKELY(Haddr<RME_HYP_VA_BASE))
             {
                 RME_COV_MARKER();
 
@@ -5596,7 +5601,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
             {
 #endif
                 End=Haddr+RME_REG_SIZE(RME_THD_ATTR(Thread->Ctx.Hyp_Attr));
-                if((End<=Haddr)||(End>(RME_HYP_VA_BASE+RME_HYP_VA_SIZE)))
+                if(RME_UNLIKELY((End<=Haddr)||(End>(RME_HYP_VA_BASE+RME_HYP_VA_SIZE))))
                 {
                     RME_COV_MARKER();
 
@@ -5621,8 +5626,8 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
     /* We don't allow setting HYP addr for normal threads, nor do we allow
      * setting HYP addr to NULL for hypervisor-managed threads. */
-    else if(((Haddr!=RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)==0U))||
-            ((Haddr==RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)!=0U)))
+    else if(RME_UNLIKELY(((Haddr!=RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)==0U))||
+                         ((Haddr==RME_NULL)&&((Hyp_Attr&RME_THD_HYP_FLAG)!=0U))))
     {
         RME_COV_MARKER();
 
@@ -5635,9 +5640,9 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
 
     /* Try to bind the thread */
-    if(RME_COMP_SWAP((rme_ptr_t*)&(Thread->Sched.Local),
-                     (rme_ptr_t)Local_Old,
-                     (rme_ptr_t)Local_New)==RME_CASFAIL)
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)&(Thread->Sched.Local),
+                                  (rme_ptr_t)Local_Old,
+                                  (rme_ptr_t)Local_New)==RME_CASFAIL))
     {
         RME_COV_MARKER();
 
@@ -5682,7 +5687,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Set hypervisor context address if we're hypervisor-managed */
-    if((Thread->Ctx.Hyp_Attr&RME_THD_HYP_FLAG)!=0U)
+    if(RME_UNLIKELY((Thread->Ctx.Hyp_Attr&RME_THD_HYP_FLAG)!=0U))
     {
         RME_COV_MARKER();
         Thread->Ctx.Reg=(struct RME_Thd_Reg*)Haddr;
@@ -5730,7 +5735,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     /* Check if the target thread is already bound to this core */
     Local=RME_CPU_LOCAL();
     Thread=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thread->Sched.Local!=Local)
+    if(RME_UNLIKELY(Thread->Sched.Local!=Local))
     {
         RME_COV_MARKER();
 
@@ -5744,7 +5749,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     
     /* Am I referenced by someone as a scheduler? If yes, we cannot unbind. Because
      * boot-time thread's refcnt will never be 0, thus they will never pass this checking */
-    if(Thread->Sched.Sched_Ref!=0U)
+    if(RME_UNLIKELY(Thread->Sched.Sched_Ref!=0U))
     {
         RME_COV_MARKER();
 
@@ -5759,7 +5764,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     /* Decrease the parent's reference count - on the same core */
     Thread->Sched.Sched_Thd->Sched.Sched_Ref--;
 
-    /* See if we have any events sent to the parent. If yes, remove that event */
+    /* See if we have any events sent to the parent - if yes, remove that event */
     if(Thread->Sched.Notif.Next!=&(Thread->Sched.Notif))
     {
         RME_COV_MARKER();
@@ -5883,7 +5888,7 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
     /* Check if the target thread is already bound, and quit if it is not on our core */
     Thread=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Local=RME_CPU_LOCAL();
-    if(Thread->Sched.Local!=Local)
+    if(RME_UNLIKELY(Thread->Sched.Local!=Local))
     {
         RME_COV_MARKER();
 
@@ -5957,14 +5962,14 @@ static rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Cpt* Cpt,
 /* Function:_RME_Thd_Sched_Prio ***********************************************
 Description : Change a thread's priority level. This can only be called from
               the core that have the thread bound. To facilitate scheduling,
-              this system call allows up to 3 thread's priority changes per
+              this system call allows up to 4 thread's priority changes per
               call. This system call can cause a potential context switch.
               It is impossible to set a thread's priority beyond its maximum
               priority. 
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               struct RME_Reg_Struct* Reg - The register set.
               rme_ptr_t Number - The number of threads to adjust priority.
-                                 Allowed values are 1, 2 and 3.
+                                 Allowed values are 1, 2, 3, and 4.
               rme_cid_t Cap_Thd0 - The capability to the first thread.
                                    2-Level.
               rme_ptr_t Prio0 - The priority level, higher is more critical.
@@ -5974,6 +5979,9 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               rme_cid_t Cap_Thd2 - The capability to the third thread.
                                    2-Level.
               rme_ptr_t Prio2 - The priority level, higher is more critical.
+              rme_cid_t Cap_Thd3 - The capability to the fourth thread.
+                                   2-Level.
+              rme_ptr_t Prio3 - The priority level, higher is more critical.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
@@ -5985,18 +5993,20 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      rme_cid_t Cap_Thd1,
                                      rme_ptr_t Prio1,
                                      rme_cid_t Cap_Thd2,
-                                     rme_ptr_t Prio2)
+                                     rme_ptr_t Prio2,
+                                     rme_cid_t Cap_Thd3,
+                                     rme_ptr_t Prio3)
 {
     rme_ptr_t Count;
-    rme_cid_t Cap_Thd[3];
-    rme_ptr_t Prio[3];
-    struct RME_Cap_Thd* Thd_Op[3];
-    struct RME_Thd_Struct* Thread[3];
+    rme_cid_t Cap_Thd[4];
+    rme_ptr_t Prio[4];
+    struct RME_Cap_Thd* Thd_Op[4];
+    struct RME_Thd_Struct* Thread[4];
     struct RME_CPU_Local* Local;
     rme_ptr_t Type_Stat;
     
     /* Check parameter validity */
-    if((Number==0U)||(Number>3U))
+    if(RME_UNLIKELY((Number==0U)||(Number>4U)))
     {
         RME_COV_MARKER();
 
@@ -6007,9 +6017,11 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
     Cap_Thd[0]=Cap_Thd0;
     Cap_Thd[1]=Cap_Thd1;
     Cap_Thd[2]=Cap_Thd2;
+    Cap_Thd[3]=Cap_Thd3;
     Prio[0]=Prio0;
     Prio[1]=Prio1;
     Prio[2]=Prio2;
+    Prio[3]=Prio3;
 
     Local=RME_CPU_LOCAL();
     for(Count=0U;Count<Number;Count++)
@@ -6022,7 +6034,7 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
         
         /* See if the target thread is already bound to this core. If no, we just quit */
         Thread[Count]=(struct RME_Thd_Struct*)(Thd_Op[Count]->Head.Object);
-        if(Thread[Count]->Sched.Local!=Local)
+        if(RME_UNLIKELY(Thread[Count]->Sched.Local!=Local))
         {
             RME_COV_MARKER();
 
@@ -6035,7 +6047,7 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
         }
         
         /* See if the priority relationship is correct */
-        if(Thread[Count]->Sched.Prio_Max<Prio[Count])
+        if(RME_UNLIKELY(Thread[Count]->Sched.Prio_Max<Prio[Count]))
         {
             RME_COV_MARKER();
 
@@ -6052,7 +6064,7 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
     __RME_Svc_Retval_Set(Reg,0);
     
     /* Change priority for each thread, and we'll switch to the real highest priority
-     * thread after all these changes. This can help remove the excessive overhead. */
+     * thread after all these changes. This can help remove the excessive overheads. */
     for(Count=0U;Count<Number;Count++)
     {
         /* See if this thread is currently in the runqueue */
@@ -6111,7 +6123,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     
     /* Check if we are on the same core with the target thread */
     Scheduler=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Scheduler->Sched.Local!=RME_CPU_LOCAL())
+    if(RME_UNLIKELY(Scheduler->Sched.Local!=RME_CPU_LOCAL()))
     {
         RME_COV_MARKER();
 
@@ -6124,7 +6136,7 @@ static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Check if there are any notifications */
-    if(Scheduler->Sched.Event.Next==&(Scheduler->Sched.Event))
+    if(RME_UNLIKELY(Scheduler->Sched.Event.Next==&(Scheduler->Sched.Event)))
     {
         RME_COV_MARKER();
 
@@ -6278,7 +6290,7 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Type_Stat;
     
     /* We may allow transferring infinite time here */
-    if(Time==0U)
+    if(RME_UNLIKELY(Time==0U))
     {
         RME_COV_MARKER();
 
@@ -6302,7 +6314,7 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     /* Check if the two threads are on the core that is accordance with what we are on */
     Local=RME_CPU_LOCAL();
     Thd_Src=RME_CAP_GETOBJ(Thd_Src_Op,struct RME_Thd_Struct*);
-    if(Thd_Src->Sched.Local!=Local)
+    if(RME_UNLIKELY(Thd_Src->Sched.Local!=Local))
     {
         RME_COV_MARKER();
 
@@ -6315,7 +6327,7 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Check if we have slices to transfer; 0 implies TIMEOUT, BLOCKED, or EXCPEND */
-    if(Thd_Src->Sched.Slice==0U)
+    if(RME_UNLIKELY(Thd_Src->Sched.Slice==0U))
     {
         RME_COV_MARKER();
 
@@ -6329,7 +6341,7 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
     
     Thd_Dst=RME_CAP_GETOBJ(Thd_Dst_Op,struct RME_Thd_Struct*);
     
-    if(Thd_Dst->Sched.Local!=Local)
+    if(RME_UNLIKELY(Thd_Dst->Sched.Local!=Local))
     {
         RME_COV_MARKER();
 
@@ -6343,8 +6355,8 @@ static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
 
     /* The destination must never have higher maximum priority than the source,
      * unless it is a init thread which could be used as a black hole */
-    if((Thd_Src->Sched.Prio_Max<Thd_Dst->Sched.Prio_Max)&&
-       (Thd_Dst->Sched.Slice!=RME_THD_INIT_TIME))
+    if(RME_UNLIKELY((Thd_Src->Sched.Prio_Max<Thd_Dst->Sched.Prio_Max)&&
+                    (Thd_Dst->Sched.Slice!=RME_THD_INIT_TIME)))
     {
         RME_COV_MARKER();
 
@@ -6573,7 +6585,7 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         RME_CAP_CHECK(Thd_Cap_New,RME_THD_FLAG_SWT);
         /* See if we can do operation on this core */
         Thd_New=RME_CAP_GETOBJ(Thd_Cap_New,struct RME_Thd_Struct*);
-        if(Thd_New->Sched.Local!=Local)
+        if(RME_UNLIKELY(Thd_New->Sched.Local!=Local))
         {
             RME_COV_MARKER();
 
@@ -6586,7 +6598,7 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         }
             
         /* See if we can yield to the thread */
-        if(Thd_Cur->Sched.Prio!=Thd_New->Sched.Prio)
+        if(RME_UNLIKELY(Thd_Cur->Sched.Prio!=Thd_New->Sched.Prio))
         {
             RME_COV_MARKER();
 
@@ -6599,9 +6611,9 @@ static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Cpt* Cpt,
         }
             
         /* Check if the target thread state is valid */
-        if((Thd_New->Sched.State==RME_THD_BLOCKED)||
-           (Thd_New->Sched.State==RME_THD_TIMEOUT)||
-           (Thd_New->Sched.State==RME_THD_EXCPEND))
+        if(RME_UNLIKELY((Thd_New->Sched.State==RME_THD_BLOCKED)||
+                        (Thd_New->Sched.State==RME_THD_TIMEOUT)||
+                        (Thd_New->Sched.State==RME_THD_EXCPEND)))
         {
             RME_COV_MARKER();
 
@@ -6746,7 +6758,7 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Sig_Crt->Head.Object=0U;
     Sig_Crt->Head.Flag=RME_SIG_FLAG_ALL;
     
-    /* Info init */
+    /* Info init - Option excluded */
     Sig_Crt->Sig_Num=0U;
     Sig_Crt->Thd=RME_NULL;
 
@@ -6796,9 +6808,9 @@ static rme_ret_t _RME_Sig_Crt(struct RME_Cap_Cpt* Cpt,
     Sig_Crt->Head.Object=0U;
     Sig_Crt->Head.Flag=RME_SIG_FLAG_ALL;
     
-    /* Info init */
+    /* Info init - Option excluded */
     Sig_Crt->Sig_Num=0U;
-    Sig_Crt->Thd=0U;
+    Sig_Crt->Thd=RME_NULL;
     
     /* Establish cap */
     RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Stat),
@@ -6841,7 +6853,7 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
     RME_CAP_DEL_CHECK(Sig_Del,Type_Stat,RME_CAP_TYPE_SIG);
 
     /* Check if the signal endpoint is currently used and cannot be deleted */
-    if(Sig_Del->Thd!=0U)
+    if(RME_UNLIKELY(Sig_Del->Thd!=0U))
     {
         RME_COV_MARKER();
 
@@ -6883,7 +6895,7 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
     Thd_Cur=Local->Thd_Cur;
 
     /* Are these two threads the same? */
-    if(Thd_New==Thd_Cur)
+    if(RME_UNLIKELY(Thd_New==Thd_Cur))
     {
         RME_COV_MARKER();
 
@@ -6902,7 +6914,7 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
         RME_COV_MARKER();
 
         /* Check priority to see if the switch is necessary */
-        if(Thd_New->Sched.Prio<=Thd_Cur->Sched.Prio)
+        if(RME_UNLIKELY(Thd_New->Sched.Prio<=Thd_Cur->Sched.Prio))
         {
             RME_COV_MARKER();
 
@@ -6934,22 +6946,39 @@ Description : Try to send a signal to an endpoint from kernel. This is intended
               not a system call. The capability passed in must be the root
               capability, and this function will not check whether it really is.
 Input       : struct RME_Cap_Sig* Cap_Sig - The signal root capability.
+              rme_ptr_t Number - The number of signals to send, which must not
+                                 be zero or exceed RME_SIG_MAX_SND.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
+rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
+                        rme_ptr_t Number)
 {
     rme_ptr_t Unblock;
     struct RME_Thd_Struct* Thd_Sig;
     
+    /* Check if the numbers will allow this */
+    if(RME_UNLIKELY((Number==0U)||(Number>RME_SIG_MAX_SND)||
+                    (Cap_Sig->Sig_Num>=RME_SIG_MAX_NUM)))
+    {
+        RME_COV_MARKER();
+            
+        return RME_ERR_SIV_FULL;
+    }
+    else
+    {
+        RME_COV_MARKER();
+        /* No action required */
+    }
+    
     Thd_Sig=Cap_Sig->Thd;
     
     /* If and only if we are calling from the same core do we unblock */
-    if(Thd_Sig!=RME_NULL)
+    if(RME_LIKELY(Thd_Sig!=RME_NULL))
     {
         RME_COV_MARKER();
 
-        if(Thd_Sig->Sched.Local==RME_CPU_LOCAL())
+        if(RME_LIKELY(Thd_Sig->Sched.Local==RME_CPU_LOCAL()))
         {
             RME_COV_MARKER();
 
@@ -6969,18 +6998,42 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
         Unblock=0U;
     }
 
-    if(Unblock!=0U)
+    if(RME_LIKELY(Unblock!=0U))
     {
         RME_COV_MARKER();
 
-        /* The thread is blocked, and it is on our core. Unblock it, and
-         * set the return value to one as always, Even if we were specifying
-         * multi-receive. This is because other cores may reduce the count
-         * to zero while we are doing this. */
-        __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),1);
-        
+        /* The thread is blocked, and it is on our core, unblock it. We refrain from capturing
+         * existing counts because other cores may reduce the count to zero in the meantime. */
+        if(Cap_Sig->Option==RME_RCV_BS)
+        {
+            RME_COV_MARKER();
+            
+            /* Return a single signal */
+            __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),1U);
+            
+            /* The rest goes to the counter */
+            if(Number>1U)
+            {
+                RME_COV_MARKER();
+                
+                RME_FETCH_ADD(&(Cap_Sig->Sig_Num),Number-1U);
+            }
+            else
+            {
+                RME_COV_MARKER();
+                /* No action required */
+            }
+        }
+        else
+        {
+            RME_COV_MARKER();
+            
+            /* Return all signals at once and don't touch the existing counts */
+            __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),Number);
+        }
+
         /* See if the thread still have time left */
-        if(Thd_Sig->Sched.Slice!=0U)
+        if(RME_LIKELY(Thd_Sig->Sched.Slice!=0U))
         {
             RME_COV_MARKER();
 
@@ -7003,31 +7056,18 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
          * handler. Also note that the current thread could be EXCPEND as well;
          * this is different from the normal signal sending system call. */
         
-        /* Clear endpoint blocking status - no write release required */
-        Cap_Sig->Thd=RME_NULL;
+        /* Write release required because Option must be read before this */
+        RME_WRITE_RELEASE(&(Cap_Sig->Thd),RME_NULL);
     }
     else
     {
         RME_COV_MARKER();
 
         /* The guy who blocked on it is not on our core, we just faa and
-         * return. Note that we cannot use add - if exceed - revert method,
-         * because other cores can reduce the signal count to zero when we
-         * try to revert. The current method actually CAN have signal number
-         * larger than the RME_MAX_SIG_NUM, but the maximum is temporary
-         * and will only be RME_MAX_SIG_NUM + number-of-cores. */
-        if(Sig_Root->Sig_Num>=RME_MAX_SIG_NUM)
-        {
-            RME_COV_MARKER();
-            
-            return RME_ERR_SIV_FULL;
-        }
-        else
-        {
-            RME_COV_MARKER();
-            
-            RME_FETCH_ADD(&(Sig_Root->Sig_Num),1U);
-        }
+         * return. The current method actually CAN have signal number
+         * larger than the RME_SIG_MAX_NUM, but the maximum is temporary
+         * and will only be RME_SIG_MAX_NUM + num-cores*RME_SIG_MAX_SND. */
+        RME_FETCH_ADD(&(Cap_Sig->Sig_Num),Number);
     }
 
     return 0;
@@ -7041,12 +7081,15 @@ Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
               struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Sig - The capability to the signal.
                                   2-Level.
+              rme_ptr_t Number - The number of signals to send, which must not
+                                 be zero or exceed RME_SIG_MAX_SND.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
 static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt, 
                               struct RME_Reg_Struct* Reg,
-                              rme_cid_t Cap_Sig)
+                              rme_cid_t Cap_Sig,
+                              rme_ptr_t Number)
 {
     struct RME_Cap_Sig* Sig_Op;
     struct RME_Cap_Sig* Sig_Root;
@@ -7064,13 +7107,27 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
     Local=RME_CPU_LOCAL();
     Sig_Root=RME_CAP_CONV_ROOT(Sig_Op,struct RME_Cap_Sig*);
     Thd_Rcv=Sig_Root->Thd;
+    
+    /* Check if the numbers will allow this */
+    if(RME_UNLIKELY((Number==0U)||(Number>RME_SIG_MAX_SND)||
+                    (Sig_Root->Sig_Num>=RME_SIG_MAX_NUM)))
+    {
+        RME_COV_MARKER();
+            
+        return RME_ERR_SIV_FULL;
+    }
+    else
+    {
+        RME_COV_MARKER();
+        /* No action required */
+    }
 
     /* If and only if we are calling from the same core do we unblock */
-    if(Thd_Rcv!=RME_NULL)
+    if(RME_LIKELY(Thd_Rcv!=RME_NULL))
     {
         RME_COV_MARKER();
 
-        if(Thd_Rcv->Sched.Local==Local)
+        if(RME_LIKELY(Thd_Rcv->Sched.Local==Local))
         {
             RME_COV_MARKER();
 
@@ -7090,21 +7147,44 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         Unblock=0U;
     }
     
-    if(Unblock!=0U)
+    if(RME_LIKELY(Unblock!=0U))
     {
         RME_COV_MARKER();
 
         /* Now save the system call return value to the caller stack */
         __RME_Svc_Retval_Set(Reg,0);
         
-        /* The thread is blocked, and it is on our core. Unblock it, and
-         * set the return value to one as always, Even if we were specifying
-         * multi-receive. This is because other cores may reduce the count
-         * to zero while we are doing this. */
-        __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),1);
+        /* See _RME_Kern_Snd for details */
+        if(Sig_Root->Option==RME_RCV_BS)
+        {
+            RME_COV_MARKER();
+            
+            /* Return a single signal */
+            __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),1U);
+            
+            /* The rest goes to the counter */
+            if(Number>1U)
+            {
+                RME_COV_MARKER();
+                
+                RME_FETCH_ADD(&(Sig_Root->Sig_Num),Number-1U);
+            }
+            else
+            {
+                RME_COV_MARKER();
+                /* No action required */
+            }
+        }
+        else
+        {
+            RME_COV_MARKER();
+            
+            /* Return all signals at once and don't touch the existing counts */
+            __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),Number);
+        }
         
         /* See if the thread still have time left */
-        if(Thd_Rcv->Sched.Slice!=0U)
+        if(RME_LIKELY(Thd_Rcv->Sched.Slice!=0U))
         {
             RME_COV_MARKER();
 
@@ -7124,26 +7204,15 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         /* Pick the highest priority thread to run */
         _RME_Kern_High(Reg,Local);
         
-        /* Clear endpoint blocking status - no write release required */
-        Sig_Root->Thd=RME_NULL;
+        /* Write release required because Option must be read before this */
+        RME_WRITE_RELEASE(&(Sig_Root->Thd),RME_NULL);
     }
     else
     {
         RME_COV_MARKER();
 
         /* See _RME_Kern_Snd for details */
-        if(Sig_Root->Sig_Num>=RME_MAX_SIG_NUM)
-        {
-            RME_COV_MARKER();
-            
-            return RME_ERR_SIV_FULL;
-        }
-        else
-        {
-            RME_COV_MARKER();
-            
-            RME_FETCH_ADD(&(Sig_Root->Sig_Num),1U);
-        }
+        RME_FETCH_ADD(&(Sig_Root->Sig_Num),Number);
         
         /* Now save the system call return value to the caller stack */
         __RME_Svc_Retval_Set(Reg,0);
@@ -7231,7 +7300,7 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
     
     /* See if we can receive on that endpoint - if someone blocks on it, we 
      * must wait for it to unblock before we can proceed. */
-    if(Sig_Root->Thd!=RME_NULL)
+    if(RME_UNLIKELY(Sig_Root->Thd!=RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7250,7 +7319,7 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
      * disallowed. Additionally, if the current thread have no timeslice left
      * (which shouldn't happen under any circumstances), we assert and die. */
     RME_ASSERT(Thd_Cur->Sched.Slice!=0U);
-    if(Thd_Cur->Sched.Slice==RME_THD_INIT_TIME)
+    if(RME_UNLIKELY(Thd_Cur->Sched.Slice==RME_THD_INIT_TIME))
     {
         RME_COV_MARKER();
 
@@ -7274,9 +7343,9 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
 
             /* Try to take one */
-            if(RME_COMP_SWAP(&(Sig_Root->Sig_Num),
-                             Old_Value,
-                             Old_Value-1U)==RME_CASFAIL)
+            if(RME_UNLIKELY(RME_COMP_SWAP(&(Sig_Root->Sig_Num),
+                                          Old_Value,
+                                          Old_Value-1U)==RME_CASFAIL))
             {
                 RME_COV_MARKER();
 
@@ -7296,9 +7365,9 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
 
             /* Try to take all */
-            if(RME_COMP_SWAP(&(Sig_Root->Sig_Num),
-                             Old_Value,
-                             0U)==RME_CASFAIL)
+            if(RME_UNLIKELY(RME_COMP_SWAP(&(Sig_Root->Sig_Num),
+                                          Old_Value,
+                                          0U)==RME_CASFAIL))
             {
                 RME_COV_MARKER();
 
@@ -7325,9 +7394,9 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
         {
             RME_COV_MARKER();
 
-            if(RME_COMP_SWAP((rme_ptr_t*)&(Sig_Root->Thd),
-                             RME_NULL,
-                             (rme_ptr_t)Thd_Cur)==RME_CASFAIL)
+            if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)&(Sig_Root->Thd),
+                                          RME_NULL,
+                                          (rme_ptr_t)Thd_Cur)==RME_CASFAIL))
             {
                 RME_COV_MARKER();
 
@@ -7341,9 +7410,9 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
 
             /* Now we block our current thread. No need to set any return value
              * to the register set here, because we do not yet know how many
-             * signals will be there when the thread unblocks. The unblocking
-             * does not need an option so we don't keep that; we always treat
-             * it as single receive when we unblock anyway. */
+             * signals will be there when the thread unblocks. In addition, this
+             * may fail altogether if the thread is unbind from the core later. */
+            Sig_Root->Option=Option;
             Thd_Cur->Sched.Signal=Sig_Root;
             Thd_Cur->Sched.State=RME_THD_BLOCKED;
             _RME_Run_Del(Thd_Cur);
@@ -7415,7 +7484,7 @@ static rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
     RME_CPT_OCCUPY(Inv_Crt);
     
     /* Try to populate the area */
-    if(_RME_Kot_Mark(Vaddr,RME_INV_SIZE)!=0)
+    if(RME_UNLIKELY(_RME_Kot_Mark(Vaddr,RME_INV_SIZE)!=0))
     {
         RME_COV_MARKER();
 
@@ -7489,8 +7558,8 @@ static rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
     /* Get the invocation */
     Invocation=RME_CAP_GETOBJ(Inv_Del,struct RME_Inv_Struct*);
     
-    /* See if the invocation is currently being used. If yes, we cannot delete it */
-    if(Invocation->Thd_Act!=RME_NULL)
+    /* See if the invocation is currently being used - if yes, we cannot delete it */
+    if(RME_UNLIKELY(Invocation->Thd_Act!=RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7582,7 +7651,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
 #if(RME_INV_DEPTH_MAX!=0U)
     /* Check if the current invocation stack has reached its limit */
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
-    if(Thd_Cur->Ctx.Invstk_Depth>=RME_INV_DEPTH_MAX)
+    if(RME_UNLIKELY(Thd_Cur->Ctx.Invstk_Depth>=RME_INV_DEPTH_MAX))
     {
         RME_COV_MARKER();
 
@@ -7605,7 +7674,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     Invocation=RME_CAP_GETOBJ(Inv_Op,struct RME_Inv_Struct*);
     /* Check if this invocation port is already active */
     Thd_Act=Invocation->Thd_Act;
-    if(RME_UNLIKELY(Thd_Act!=0U))
+    if(RME_UNLIKELY(RME_UNLIKELY(Thd_Act!=0U)))
     {
         RME_COV_MARKER();
 
@@ -7682,7 +7751,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
     struct RME_Thd_Struct* Thread;
     struct RME_Inv_Struct* Invocation;
 
-    /* See if we can return; If we can, get the structure */
+    /* See if we can return - if we can, get the structure */
     Thread=RME_CPU_LOCAL()->Thd_Cur;
     Invocation=RME_INVSTK_TOP(Thread);
     if(RME_UNLIKELY(Invocation==RME_NULL))
@@ -7697,7 +7766,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
         /* No action required */
     }
 
-    /* See if this port allows return-on-fault */
+    /* See if this invocation port allows return-on-fault */
     if(RME_UNLIKELY((Is_Exc!=0U)&&(Invocation->Is_Exc_Ret==0U)))
     {
         RME_COV_MARKER();
@@ -7847,8 +7916,8 @@ static rme_ret_t _RME_Kfn_Act(struct RME_Cap_Cpt* Cpt,
                    struct RME_Cap_Kfn*,Kfn_Op,Type_Stat);    
 
     /* Check if the range of calling is allowed - kernel function specific */
-    if((Func_ID>RME_KFN_FLAG_HIGH(Kfn_Op->Head.Flag))||
-       (Func_ID<RME_KFN_FLAG_LOW(Kfn_Op->Head.Flag)))
+    if(RME_UNLIKELY((Func_ID>RME_KFN_FLAG_HIGH(Kfn_Op->Head.Flag))||
+                    (Func_ID<RME_KFN_FLAG_LOW(Kfn_Op->Head.Flag))))
     {
         RME_COV_MARKER();
 

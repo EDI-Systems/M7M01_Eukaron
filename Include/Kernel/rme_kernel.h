@@ -138,7 +138,7 @@ while(0)
 #define RME_ASSERT(X) \
 do \
 { \
-    if(!(X)) \
+    if(RME_UNLIKELY(!(X))) \
     { \
         RME_LOG_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
         RME_ASSERT_FAIL_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
@@ -149,7 +149,7 @@ while(0)
 #define RME_ASSERT_REG(X,REG) \
 do \
 { \
-    if(!(X)) \
+    if(RME_UNLIKELY(!(X))) \
     { \
         RME_LOG_OP(__FILE__,__LINE__,__DATE__,__TIME__); \
         RME_DBG_R(REG); \
@@ -397,11 +397,11 @@ do \
 } \
 while(0)
 
-/* Defrost a frozen cap - we do not check failure because if we fail, someone must 
- * have done it for us. The reason why we need to defrost a capability after we decide
- * that it is unfit for deletion or removal is that the capability may later be used in
- * kernel object deallocation operations. If we keep it freezed, we can't deallocate
- * other resources that may depend on it.
+/* Defrost a frozen cap - we do not check failure because if we fail, someone
+ * must have done it for us (helping). The reason why we need to defrost a
+ * capability after we decide that it is unfit for deletion or removal is that
+ * the capability may later be used in kernel object deallocation operations.
+ * If we keep it frozen, we can't deallocate resources that may depend on it.
  * CAP - The pointer to the capability slot to defreeze.
  * TEMP - A temporary variable, for compare-and-swap. */
 #define RME_CAP_DEFROST(CAP,TEMP) \
@@ -686,7 +686,9 @@ while(0)
 
 /* Signal and Invocation *****************************************************/
 /* The maximum number of signals on an endpoint */
-#define RME_MAX_SIG_NUM                             (RME_MASK_FULL>>1)
+#define RME_SIG_MAX_NUM                             (RME_MASK_FULL>>2)
+/* The maximum number of signals that can be posted in a single send */
+#define RME_SIG_MAX_SND                             RME_MASK_WORD_D
 
 /* The kernel object sizes */
 #define RME_SIG_SIZE                                sizeof(struct RME_Sig_Struct)
@@ -910,7 +912,8 @@ struct RME_Cap_Sig
     rme_ptr_t Sig_Num;
     /* What thread blocked on this one - need to convert to root cap to r/w */
     struct RME_Thd_Struct* Thd;
-    rme_ptr_t Info[1];
+    /* What mode did it block with - need to convert to root cap to r/w */
+    rme_ptr_t Option;
 };
 
 /* Invocation object structure */
@@ -1131,7 +1134,9 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Cpt* Cpt,
                                      rme_cid_t Cap_Thd1,
                                      rme_ptr_t Prio1,
                                      rme_cid_t Cap_Thd2,
-                                     rme_ptr_t Prio2);
+                                     rme_ptr_t Prio2,
+                                     rme_cid_t Cap_Thd3,
+                                     rme_ptr_t Prio3);
 static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Cpt* Cpt,
                                     rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Cpt* Cpt,
@@ -1154,7 +1159,8 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Sig);
 static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
                               struct RME_Reg_Struct* Reg,
-                              rme_cid_t Cap_Sig);
+                              rme_cid_t Cap_Sig,
+                              rme_ptr_t Number);
 static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
                               struct RME_Reg_Struct* Reg,
                               rme_cid_t Cap_Sig,
@@ -1357,7 +1363,8 @@ __RME_EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
-__RME_EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig);
+__RME_EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Sig,
+                                       rme_ptr_t Number);
 __RME_EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
                                    struct RME_CPU_Local* Local);
 /* Boot-time calls */
