@@ -3,7 +3,7 @@ Filename    : rme_platform_a6m.h
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of "rme_platform_a6m.c".
+Description : The ARMv6-M hardware abstraction layer header.
 ******************************************************************************/
 
 /* Define ********************************************************************/
@@ -81,6 +81,10 @@ typedef rme_s32_t rme_ret_t;
 /* Compiler "inline" keyword setting */
 #define RME_INLINE                              inline
 /* Compiler "likely" & "unlikely" keyword setting */
+#if((defined __GNUC__)||(defined __clang__))
+#define RME_LIKELY(X)                           (__builtin_expect(!!(X),1))
+#define RME_UNLIKELY(X)                         (__builtin_expect(!!(X),0))
+#else
 #ifdef likely
 #define RME_LIKELY(X)                           (likely(X))
 #else
@@ -90,6 +94,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_UNLIKELY(X)                         (unlikely(X))
 #else
 #define RME_UNLIKELY(X)                         (X)
+#endif
 #endif
 /* CPU-local data structure location macro */
 #define RME_CPU_LOCAL()                         (&RME_A6M_Local)
@@ -681,7 +686,7 @@ __RME_EXTERN__ void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
                                         rme_ptr_t* Param);
 __RME_EXTERN__ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
                                          rme_ret_t Retval);
-/* Thread register sets */
+/* Thread register set */
 __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                                        rme_ptr_t Entry,
                                        rme_ptr_t Stack,
@@ -689,7 +694,10 @@ __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
                                        struct RME_Reg_Struct* Src);
-/* Invocation register sets */
+#if(RME_DBGLOG_ENABLE!=0U)
+__RME_EXTERN__ void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg);
+#endif
+/* Invocation register set */
 __RME_EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg,

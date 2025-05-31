@@ -3,8 +3,8 @@ Filename    : rme_platform_rv32p.c
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The hardware abstraction layer for RV32P PMP-based microcontrollers.
-              This supports only one core, and with MPU. If you'd have a MMU,
+Description : The RV32P(PMP) hardware abstraction layer implementation.
+              This supports only one core, and with PMP. If you'd have a MMU,
               use the RV32GV port instead. This port is only aware of two modes,
               M and U. The S-mode which supports MMU is not honored.
 
@@ -90,19 +90,6 @@ rme_ptr_t __RME_CPUID_Get(void)
     return 0U;
 }
 /* End Function:__RME_CPUID_Get **********************************************/
-
-/* Function:__RME_RV32P_Wait_Int **********************************************
-Description : Wait until a new interrupt comes, to save power.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_RV32P_Wait_Int(void)
-{
-    /* Calling functions implemented by risc-v library */
-    RME_RV32P_WAIT_INT();
-}
-/* End Function:__RME_RV32P_Wait_Int *****************************************/
 
 /* Function:__RME_RV32P_Exc_Handler *******************************************
 Description : The fault handler of RME.
@@ -291,7 +278,7 @@ void _RME_RV32P_Handler(struct RME_Reg_Struct* Reg)
             __RME_RV32P_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Mcause);
 #endif
             /* Send to the kernel endpoint */
-            _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct);
+            _RME_Kern_Snd(RME_RV32P_Local.Sig_Vct,1U);
             /* Pick the highest priority thread after we did all sends */
             _RME_Kern_High(Reg,&RME_RV32P_Local);
 #if(RME_RVM_GEN_ENABLE!=0U)
@@ -448,7 +435,7 @@ rme_ret_t __RME_RV32P_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
 
     __RME_RV32P_Flag_Slow(RME_RVM_VIRT_EVTF_BASE,RME_RVM_VIRT_EVTF_SIZE,Evt_Num);
     
-    if(_RME_Kern_Snd(RME_RV32P_Local.Sig_Vct)!=0U)
+    if(_RME_Kern_Snd(RME_RV32P_Local.Sig_Vct,1U)!=0U)
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
@@ -842,7 +829,9 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Power and frequency adjustment operations *********************************/
         case RME_KFN_IDLE_SLEEP:
         {
+            RME_RV32P_WAIT_INT_PRE();
             __RME_RV32P_Wait_Int();
+            RME_RV32P_WAIT_INT_POST();
             Retval=0;
             break;
         }
@@ -1281,6 +1270,52 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
     Dst->X31_T6=Src->X31_T6;
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
+
+/* Function:__RME_Thd_Reg_Print ***********************************************
+Description : Print thread registers. This is used exclusively for debugging.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+#if(RME_DBGLOG_ENABLE!=0U)
+void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg)
+{
+    RME_DBG_SHS("MSTATUS: 0x",Reg->MSTATUS,"\r\n");
+    RME_DBG_SHS("PC: 0x",Reg->PC,"\r\n");
+    RME_DBG_SHS("X1_RA: 0x",Reg->X1_RA,"\r\n");
+    RME_DBG_SHS("X2_SP: 0x",Reg->X2_SP,"\r\n");
+    RME_DBG_SHS("X3_GP: 0x",Reg->X3_GP,"\r\n");
+    RME_DBG_SHS("X4_TP: 0x",Reg->X4_TP,"\r\n");
+    RME_DBG_SHS("X5_T0: 0x",Reg->X5_T0,"\r\n");
+    RME_DBG_SHS("X6_T1: 0x",Reg->X6_T1,"\r\n");
+    RME_DBG_SHS("X7_T2: 0x",Reg->X7_T2,"\r\n");
+    RME_DBG_SHS("X8_S0_FP: 0x",Reg->X8_S0_FP,"\r\n");
+    RME_DBG_SHS("X9_S1: 0x",Reg->X9_S1,"\r\n");
+    RME_DBG_SHS("X10_A0: 0x",Reg->X10_A0,"\r\n");
+    RME_DBG_SHS("X11_A1: 0x",Reg->X11_A1,"\r\n");
+    RME_DBG_SHS("X12_A2: 0x",Reg->X12_A2,"\r\n");
+    RME_DBG_SHS("X13_A3: 0x",Reg->X13_A3,"\r\n");
+    RME_DBG_SHS("X14_A4: 0x",Reg->X14_A4,"\r\n");
+    RME_DBG_SHS("X15_A5: 0x",Reg->X15_A5,"\r\n");
+    RME_DBG_SHS("X16_A6: 0x",Reg->X16_A6,"\r\n");
+    RME_DBG_SHS("X17_A7: 0x",Reg->X17_A7,"\r\n");
+    RME_DBG_SHS("X18_S2: 0x",Reg->X18_S2,"\r\n");
+    RME_DBG_SHS("X19_S3: 0x",Reg->X19_S3,"\r\n");
+    RME_DBG_SHS("X20_S4: 0x",Reg->X20_S4,"\r\n");
+    RME_DBG_SHS("X21_S5: 0x",Reg->X21_S5,"\r\n");
+    RME_DBG_SHS("X22_S6: 0x",Reg->X22_S6,"\r\n");
+    RME_DBG_SHS("X23_S7: 0x",Reg->X23_S7,"\r\n");
+    RME_DBG_SHS("X24_S8: 0x",Reg->X24_S8,"\r\n");
+    RME_DBG_SHS("X25_S9: 0x",Reg->X25_S9,"\r\n");
+    RME_DBG_SHS("X26_S10: 0x",Reg->X26_S10,"\r\n");
+    RME_DBG_SHS("X27_S11: 0x",Reg->X27_S11,"\r\n");
+    RME_DBG_SHS("X28_T3: 0x",Reg->X28_T3,"\r\n");
+    RME_DBG_SHS("X29_T4: 0x",Reg->X29_T4,"\r\n");
+    RME_DBG_SHS("X30_T5: 0x",Reg->X30_T5,"\r\n");
+    RME_DBG_SHS("X31_T6: 0x",Reg->X31_T6,"\r\n");
+}
+#endif
+/* End Function:__RME_Thd_Reg_Print ******************************************/
 
 /* Function:__RME_Inv_Reg_Save ************************************************
 Description : Save the necessary registers on invocation for returning. Only the

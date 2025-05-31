@@ -21,7 +21,7 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
-/* Modifiable ****************************************************************/
+/* Kernel ********************************************************************/
 /* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x20003000)
 /* Kernel object virtual memory size */
@@ -68,11 +68,11 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_COP_RVF                               (1U)
 #define RME_RV32P_COP_RVD                               (0U)
 
-/* Fixed *********************************************************************/
+/* Chip specific *************************************************************/
 /* Timer interrupt MCAUSE value */
 #define RME_RV32P_MCAUSE_TIM                            (0x8000000CU)
 
-/* Initialization registers **************************************************/
+/* Register address */
 /* RCC CTLR */
 #define RME_RV32P_RCC_CTLR                              RME_RV32P_REG(0x40021000U)
 /* RCC control */
@@ -163,7 +163,9 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_PFIC_IPSR(X)                          RME_RV32P_REG(0xE000E200U+(((X)>>5)<<2))
 #define RME_RV32P_PFIC_IPRIOR(X)                        RME_RV32P_REGB(0xE000E400U+(X))
 #define RME_RV32P_PFIC_SCTLR                            RME_RV32P_REG(0xE000ED10U)
-#define RME_RV32P_PFIC_SCTLR_SYSRST                     (0x80000000U)
+#define RME_RV32P_PFIC_SCTLR_SYSRST                     RME_POW2(31U)
+#define RME_RV32P_PFIC_SCTLR_SEVONPEND                  RME_POW2(4U)
+#define RME_RV32P_PFIC_SCTLR_WFITOWFE                   RME_POW2(3U)
 #define RME_RV32P_EXC_IRQN                              (3U)
 #define RME_RV32P_ECALL_M_MODE_IRQN                     (5U)
 #define RME_RV32P_ECALL_U_MODE_IRQN                     (8U)
@@ -192,9 +194,6 @@ Description : The configuration file for CH32V307VC. This chip carries multiple
 #define RME_RV32P_FLASH_CTLR                            RME_RV32P_REG(0x40022010U)
 #define RME_RV32P_FLASH_CTLR_RSENACT                    (0x00400000U)
 #define RME_RV32P_FLASH_CTLR_EHMOD                      (0x01000000U)
-
-/* Wait for interrupt and place processor in low-power mode */
-#define RME_RV32P_WAIT_INT()
 
 /* Get interrupt state */
 #define RME_RV32P_INT_STATE_GET(INT_NUM)                ((RME_RV32P_PFIC_ISR(INT_NUM)& \
@@ -309,6 +308,8 @@ do \
     RME_RV32P_INT_PRIO_SET(RME_RV32P_BREAK_POINT_IRQN,0xFFU); \
     RME_RV32P_INT_PRIO_SET(RME_RV32P_SYSTICK_IRQN,0xFFU); \
     RME_RV32P_INT_PRIO_SET(RME_RV32P_SOFTWARE_IRQN,0xFFU); \
+    /* The WCH chip require these for correct RISC-V WFI behavior */ \
+    RME_RV32P_PFIC_SCTLR=RME_RV32P_PFIC_SCTLR_SEVONPEND|RME_RV32P_PFIC_SCTLR_WFITOWFE; \
 } \
 while(0)
 
@@ -370,6 +371,11 @@ while(0)
 
 #define RME_RV32P_PRFTH_STATE_GET()                    ((RME_RV32P_FLASH_CTLR& \
                                                          RME_RV32P_FLASH_CTLR_EHMOD)!=0U)
+
+/* Action before placing processor in low-power mode */
+#define RME_RV32P_WAIT_INT_PRE()
+/* Action after placing processor in low-power mode */
+#define RME_RV32P_WAIT_INT_POST()
 /* End Define ****************************************************************/
 
 /* End Of File ***************************************************************/

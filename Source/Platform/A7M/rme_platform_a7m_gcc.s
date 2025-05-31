@@ -1286,7 +1286,7 @@ Return      : None.
 
     .thumb_func
 __RME_A7M_Wait_Int:
-    WFE 
+    WFE
     BX                  LR
 /* End Function:__RME_A7M_Wait_Int *******************************************/
 

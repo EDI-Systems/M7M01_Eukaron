@@ -8,6 +8,7 @@
 [![Github release](https://img.shields.io/github/release/EDI-Systems/M7M01_Eukaron.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/releases/latest)
 [![Github commits](https://img.shields.io/github/commits-since/EDI-Systems/M7M01_Eukaron/main@{30day}.svg)](https://github.com/EDI-Systems/M7M01_Eukaron/compare/main@{30day}...main)
 [![Discord](https://img.shields.io/badge/chat-Discord-purple)](https://discord.gg/VxCFSFC6bW)
+![QQ Group](https://img.shields.io/badge/QQ_Group-1038895132-red)
 
 </div>
 <div align="center">

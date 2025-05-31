@@ -15,7 +15,7 @@ Description: The configuration file for STM32F767IG.
 #define RME_RVM_GEN_ENABLE                              (0U)
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
-/* Modifiable ****************************************************************/
+/* Kernel ********************************************************************/
 /* Kernel object virtual memory base */
 #define RME_KOM_VA_BASE                                 (0x20003000U)
 /* Kernel object virtual memory size */
@@ -65,17 +65,18 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_COP_FPV5_SP                             (1U)
 #define RME_A7M_COP_FPV5_DP                             (1U)
 
-/* Fixed *********************************************************************/
-/* What is the external crystal frequency? */
+/* Chip specific *************************************************************/
+/* Crystal frequency */
 #define RME_A7M_STM32F767IG_XTAL                        (25U)
-/* What are the PLL values? */
+
+/* PLL parameter */
 #define RME_A7M_STM32F767IG_PLLM                        (25U)
 #define RME_A7M_STM32F767IG_PLLN                        (432U)
 #define RME_A7M_STM32F767IG_PLLP                        (2U)
 #define RME_A7M_STM32F767IG_PLLQ                        (9U)
 #define RME_A7M_STM32F767IG_PLLR                        (0U)
 
-/* Initialization registers **************************************************/
+/* Register address */
 #define RME_A7M_RCC_APB1ENR                             RME_A7M_REG(0x40023840U)
 #define RME_A7M_RCC_APB1ENR_PWREN                       RME_POW2(28U)
 
@@ -317,6 +318,11 @@ do \
 while(0)
     
 #define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ARTEN)!=0U)
+
+/* Action before placing processor in low-power mode */
+#define RME_A7M_WAIT_INT_PRE()
+/* Action after placing processor in low-power mode */
+#define RME_A7M_WAIT_INT_POST()
 /* End Define ****************************************************************/
 
 /* Struct ********************************************************************/

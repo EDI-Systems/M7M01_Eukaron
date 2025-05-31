@@ -3,7 +3,7 @@ Filename    : rme_platform_a6m.c
 Author      : pry
 Date        : 01/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The hardware abstraction layer for ARMv6-M microcontrollers.
+Description : The ARMv6-M hardware abstraction layer implementation.
 
 * Generic Code Section ********************************************************
 Small utility functions that can be either implemented with C or assembly, and 
@@ -194,7 +194,7 @@ void __RME_A6M_Vct_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vct_Num)
         __RME_A6M_Flag_Slow(RME_RVM_PHYS_VCTF_BASE,RME_RVM_PHYS_VCTF_SIZE,Vct_Num);
 #endif
         /* Send to the kernel endpoint */
-        _RME_Kern_Snd(RME_A6M_Local.Sig_Vct);
+        _RME_Kern_Snd(RME_A6M_Local.Sig_Vct,1U);
         /* Pick the highest priority thread after we did all sends */
         _RME_Kern_High(Reg,&RME_A6M_Local);
 #if(RME_RVM_GEN_ENABLE!=0U)
@@ -380,7 +380,7 @@ rme_ret_t __RME_A6M_Evt_Local_Trig(struct RME_Reg_Struct* Reg,
 
     __RME_A6M_Flag_Slow(RME_RVM_VIRT_EVTF_BASE,RME_RVM_VIRT_EVTF_SIZE,Evt_Num);
     
-    if(_RME_Kern_Snd(RME_A6M_Local.Sig_Vct)!=0U)
+    if(_RME_Kern_Snd(RME_A6M_Local.Sig_Vct,1U)!=0U)
         return RME_ERR_KFN_FAIL;
     
     /* Set return value first before we really do context switch */
@@ -770,7 +770,9 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Power and frequency adjustment operations *********************************/
         case RME_KFN_IDLE_SLEEP:
         {
+            RME_A6M_WAIT_INT_PRE();
             __RME_A6M_Wait_Int();
+            RME_A6M_WAIT_INT_POST();
             Retval=0;
             break;
         }
@@ -959,6 +961,8 @@ void __RME_Lowlvl_Init(void)
     __RME_A6M_NVIC_Set_Exc_Prio(RME_A6M_IRQN_SVCALL,0x80U);
     __RME_A6M_NVIC_Set_Exc_Prio(RME_A6M_IRQN_PENDSV,0xFFU);
     __RME_A6M_NVIC_Set_Exc_Prio(RME_A6M_IRQN_SYSTICK,0xFFU);
+    /* Make sure that any pending interrupts will turn into events */
+    RME_A6M_SCB_SCR=RME_A6M_SCB_SCR_SEVONPEND;
 
     /* Initialize CPU-local data structures */
     _RME_CPU_Local_Init(&RME_A6M_Local, 0U);
@@ -1213,17 +1217,39 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst,
 {
     /* Make sure that the ordering is the same so the compiler can optimize */
     Dst->SP=Src->SP;
-    Dst->R4=Src->R4;
-    Dst->R5=Src->R5;
-    Dst->R6=Src->R6;
-    Dst->R7=Src->R7;
     Dst->R8=Src->R8;
     Dst->R9=Src->R9;
     Dst->R10=Src->R10;
     Dst->R11=Src->R11;
+    Dst->R4=Src->R4;
+    Dst->R5=Src->R5;
+    Dst->R6=Src->R6;
+    Dst->R7=Src->R7;
     Dst->LR=Src->LR;
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
+
+/* Function:__RME_Thd_Reg_Print ***********************************************
+Description : Print thread registers. This is used exclusively for debugging.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+#if(RME_DBGLOG_ENABLE!=0U)
+void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg)
+{
+    RME_DBG_SHS("R4: 0x",Reg->R4,"\r\n");
+    RME_DBG_SHS("R5: 0x",Reg->R5,"\r\n");
+    RME_DBG_SHS("R6: 0x",Reg->R6,"\r\n");
+    RME_DBG_SHS("R7: 0x",Reg->R7,"\r\n");
+    RME_DBG_SHS("R8: 0x",Reg->R8,"\r\n");
+    RME_DBG_SHS("R9: 0x",Reg->R9,"\r\n");
+    RME_DBG_SHS("R10: 0x",Reg->R10,"\r\n");
+    RME_DBG_SHS("R11: 0x",Reg->R11,"\r\n");
+    RME_DBG_SHS("LR: 0x",Reg->LR,"\r\n");
+}
+#endif
+/* End Function:__RME_Thd_Reg_Print ******************************************/
 
 /* Function:__RME_Inv_Reg_Save ************************************************
 Description : Save the necessary registers on invocation for returning. Only the
