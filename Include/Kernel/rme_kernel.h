@@ -646,6 +646,7 @@ while(0)
 #define RME_MAX_SIG_NUM                             (RME_MASK_FULL>>1)
 
 /* The kernel object sizes */
+#define RME_SIG_SIZE                                sizeof(struct RME_Sig_Struct)
 #define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
 /* Get the top of invocation stack - no volatile needed here because this is single-threaded */
