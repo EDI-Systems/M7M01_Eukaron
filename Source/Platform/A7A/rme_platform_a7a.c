@@ -488,6 +488,10 @@ void __RME_Boot(void)
 									 Count*RME_POW2(RME_PGT_SIZE_1M),
 									 Count,
                                      RME_PGT_ALL_DYN)==0);
+			  /*RME_DBG_S("\r\npaddr=");
+				RME_DBG_H((Count)*RME_POW2(RME_PGT_SIZE_1M));
+				RME_DBG_S("\r\nvaddr=");
+				RME_DBG_H((Count)*RME_POW2(RME_PGT_SIZE_1M));*/
     }
 	/* Device memory 1, 512MiB 0x40000000 -> 0x40000000 */
     for(Count=0U;Count<0x200U;Count++)
@@ -497,6 +501,10 @@ void __RME_Boot(void)
 									 (Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x400U),
 									 RME_PGT_READ|RME_PGT_WRITE)==0);
+		   	  /*RME_DBG_S("\r\npaddr=");
+				RME_DBG_H((Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M));
+				RME_DBG_S("\r\nvaddr=");
+				RME_DBG_H((Count+0x400U)*RME_POW2(RME_PGT_SIZE_1M));*/
     }
     
     /* Device memory 2, 512MiB 0x60000000 -> 0xE0000000 */
@@ -507,6 +515,10 @@ void __RME_Boot(void)
 									 (Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M),
 									 (Count+0x600U),
 									 RME_PGT_READ|RME_PGT_WRITE)==0);
+			  /*RME_DBG_S("\r\npaddr=");
+				RME_DBG_H((Count+0xE00U)*RME_POW2(RME_PGT_SIZE_1M));
+				RME_DBG_S("\r\nvaddr=");
+				RME_DBG_H((Count+0x600U)*RME_POW2(RME_PGT_SIZE_1M));*/
     }
 
     RME_DBG_S("\r\nFirst section's first entry ");
@@ -587,7 +599,7 @@ void __RME_Boot(void)
     __RME_Int_Enable();
 
     /* enable l2 cache */
-    //__RME_L2CacheEnable();
+    __RME_L2CacheEnable();
     RME_DBG_S("\r\nenable l2 cache\r\n");
     /* Boot into the init thread */
     __RME_User_Enter(RME_A7A_INIT_ENTRY,RME_A7A_INIT_STACK,0U);
@@ -653,6 +665,8 @@ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Syscall_Retval *************************************/
 
+
+
 /* Function:__RME_Thd_Reg_Init ************************************************
 Description : Initialize the register set for the thread.
 Input       : rme_ptr_t Entry - The thread entry address.
@@ -711,11 +725,33 @@ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src)
     Dst->R9=Src->R9;
     Dst->R10=Src->R10;
     Dst->R11=Src->R11;
+    Dst->R12=Src->R12;
     Dst->SP=Src->SP;
     Dst->LR=Src->LR;
     Dst->PC=Src->PC;
 }
 /* End Function:__RME_Thd_Reg_Copy *******************************************/
+
+/* Function:__RME_Thd_Reg_Print ***********************************************
+Description : Print thread registers. This is used exclusively for debugging.
+Input       : struct RME_Reg_Struct* Reg - The register set.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg)
+{
+    RME_DBG_SHS("R4: 0x",Reg->R4,"\r\n");
+
+    RME_DBG_SHS("R5: 0x",Reg->R5,"\r\n");
+    RME_DBG_SHS("R6: 0x",Reg->R6,"\r\n");
+    RME_DBG_SHS("R7: 0x",Reg->R7,"\r\n");
+    RME_DBG_SHS("R8: 0x",Reg->R8,"\r\n");
+    RME_DBG_SHS("R9: 0x",Reg->R9,"\r\n");
+    RME_DBG_SHS("R10: 0x",Reg->R10,"\r\n");
+    RME_DBG_SHS("R11: 0x",Reg->R11,"\r\n");
+    RME_DBG_SHS("LR: 0x",Reg->LR,"\r\n");
+}
+/* End Function:__RME_Thd_Reg_Print ******************************************/
 
 /* Function:__RME_Thd_Cop_Init ************************************************
 Description : Initialize the coprocessor register set for the thread.
@@ -1036,8 +1072,8 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
     /* Get the actual table */
     Ptr=RME_CAP_GETOBJ(Pgt,rme_ptr_t*);
 
-    RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
-    RME_DBG_H(Ptr);
+    /*RME_DBG_S("\r\n__RME_Pgt_Set table kernel VA @ ");
+    RME_DBG_H(Ptr);*/
 
     __RME_A7A_TTBR0_Set(RME_A7A_VA2PA(Ptr)|0x4A);
 	__RME_A7A_TLBIALL_Set(0);

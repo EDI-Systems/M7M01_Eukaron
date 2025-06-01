@@ -1,10 +1,10 @@
 ###############################################################################
-#Filename    : RMP
-#Author      : hrs
-#Date        : 29/11/2023 16:55:31
+#Filename    : RME
+#Author      : hjw
+#Date        : 29/1/2025 16:55:31
 #Licence     : LGPL v3+; see COPYING for details.
 #Description : Generic Makefile (based on gcc). This file is intended
-#              to be used with STM32F405RG, and the GNU toolchain.
+#              to be used with XC7Z020, and the GCC toolchain.
 ###############################################################################
 
 # Config ######################################################################
@@ -12,7 +12,7 @@ TARGET=RME
 CPU=-mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=neon-fp16 
 CDEFS=
 
-CFLAGS=-O0 -specs=nano.specs -fsigned-char -fno-common -fno-strict-aliasing -fdata-sections -ffunction-sections -ffreestanding
+CFLAGS=-O3 -specs=nano.specs -fsigned-char -fno-common -fno-strict-aliasing -fdata-sections -ffunction-sections -ffreestanding
 AFLAGS=-fdata-sections -ffunction-sections  
 WFLAGS=-Wall -Wno-strict-aliasing
 DFLAGS=-g3

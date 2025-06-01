@@ -516,8 +516,8 @@ fill_pgtbl:
     CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
     //LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
     LDR  				R1,=(1<<29)|(1<<28)|(0<<12)|(1<<2)|(1<<0)
-    ORR                 R0,R0,R1           //SCTCR=38C5187F
-    BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F
+    ORR                 R0,R0,R1           //SCTCR=38C5187F L1 cache on
+    //BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F L1 cache off
     /* Print a hex number in LR, R12 used as counter print r0 ********************************************/
     MOV 				LR,R0
     MOV					R12,#32     /* 32-bits */

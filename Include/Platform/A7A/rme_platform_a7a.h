@@ -124,9 +124,10 @@ typedef rme_s32_t rme_ret_t;
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                		__RME_A7A_MSB_Get(VAL)
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
-#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
-#define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release(X,V)
-
+//#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
+//define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release(X,V)
+#define RME_READ_ACQUIRE(X)                     (*(X))
+#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7a_conf.h"
 /* End System macros *********************************************************/
@@ -1054,6 +1055,7 @@ __RME_EXTERN__ void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,
 __RME_EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry,rme_ptr_t Stack,rme_ptr_t Param,
                                        struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
+__RME_EXTERN__ void __RME_Thd_Reg_Print(struct RME_Reg_Struct* Reg);
 __RME_EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __RME_EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __RME_EXTERN__ void __RME_Thd_Cop_Restore(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
