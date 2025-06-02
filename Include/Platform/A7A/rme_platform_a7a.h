@@ -124,10 +124,10 @@ typedef rme_s32_t rme_ret_t;
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                		__RME_A7A_MSB_Get(VAL)
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
-//#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
-//define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release(X,V)
-#define RME_READ_ACQUIRE(X)                     (*(X))
-#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
+#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
+#define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release((volatile unsigned int *)X,V)
+//#define RME_READ_ACQUIRE(X)                     (*(X))
+//#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7a_conf.h"
 /* End System macros *********************************************************/
