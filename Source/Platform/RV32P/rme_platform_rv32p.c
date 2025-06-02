@@ -1676,10 +1676,10 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
         /* The new thread did not touch the coprocessor */
         else if(State_New==RME_RV32P_MSTATUS_FPU_INIT)
         {
-            /* Reinitialize the coprocessor context */
+            /* Reinitialize the coprocessor context - untrustworthy "did not touch" */
             RME_RV32P_THD_COP_CLEAR();
         }
-        /* The new thread touched the coprocessor, and was saved */
+        /* The new thread touched the coprocessor, and its context was saved */
         else
         {
             /* Load the new coprocessor context */
@@ -1709,7 +1709,7 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
             /* Reinitialize the coprocessor context */
             RME_RV32P_THD_COP_CLEAR();
         }
-        /* The new thread touched the coprocessor, and was saved */
+        /* The new thread touched the coprocessor, and its context was saved */
         else
         {
             /* Load the new coprocessor context */
