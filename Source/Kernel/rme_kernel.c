@@ -162,7 +162,8 @@ system calls or directly manipulate hardware.
 'volatile' is not needed in the kernel because the syscall interface acts as a
 natural compiler barrier. We're safe to assume that, during one syscall, data
 in memory remains unchanged. If anything changes, it has been dealt with the 
-dedicated assembly atomics. If LTO has been enabled, there are three cases:
+dedicated assembly atomics, which act both as a compiler and architectural
+barrier. If LTO has been enabled, there are three cases:
 (1) Uniprocessor with C-implemented "atomics" with no real atomic support.
     In this case, compiler barriers are not needed due to no kernel concurrency.
 (2) Multiprocessor with assembly-implemented atomics, but the compiler LTO does
@@ -1017,8 +1018,8 @@ rme_ret_t _RME_Memcmp(const void* Ptr1,
 /* Function:_RME_Memcpy *******************************************************
 Description : Copy one segment of memory to another segment. This is not fast
               due to byte operations; this is not meant for large memory.
-Input       : volatile void* Dst - The first memory region.
-              volatile void* Src - The second memory region.
+Input       : void* Dst - The first memory region.
+              void* Src - The second memory region.
               rme_ptr_t Num - The number of bytes to compare.
               rme_ptr_t Size - The size to clear.
 Output      : None.
@@ -1032,7 +1033,7 @@ void _RME_Memcpy(void* Dst,
 
     for(Count=0U;Count<Num;Count++)
     {
-        ((volatile rme_u8_t*)Dst)[Count]=((volatile rme_u8_t*)Src)[Count];
+        ((rme_u8_t*)Dst)[Count]=((rme_u8_t*)Src)[Count];
     }
 }
 /* End Function:_RME_Memcpy **************************************************/
@@ -1109,6 +1110,7 @@ static rme_ret_t _RME_Lowlvl_Check(void)
     RME_ASSERT(RME_WORD_ORDER>=5U);
     /* Check if the word order setting is correct */
     RME_ASSERT(RME_WORD_BIT==RME_POW2(RME_WORD_ORDER));
+    
     /* Check if the struct sizes are correct */
     RME_ASSERT(sizeof(struct RME_Cap_Struct)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Cpt)==RME_CAP_SIZE);
@@ -1121,9 +1123,12 @@ static rme_ret_t _RME_Lowlvl_Check(void)
     RME_ASSERT(sizeof(struct RME_Cap_Inv)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Kfn)==RME_CAP_SIZE);
     RME_ASSERT(sizeof(struct RME_Cap_Kom)==RME_CAP_SIZE);
-    /* Check if the other configurations are correct */
+    
     /* Kernel memory allocation minimal size aligned to word boundary */
     RME_ASSERT(RME_KOM_SLOT_ORDER>=RME_WORD_ORDER-3U);
+    /* The kernel object memory base address must be aligned to KOM granularity */
+    RME_ASSERT((RME_KOM_VA_BASE&RME_MASK_END(RME_KOM_SLOT_ORDER-1U))==0U);
+    
     /* Make sure the number of priorities do not exceed 1/4 word boundary */
     RME_ASSERT(RME_PREEMPT_PRIO_NUM<=(RME_MASK_WORD_Q+1U));
     
@@ -1160,7 +1165,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     {
         RME_COV_MARKER();
         
-        Retval=_RME_Inv_Ret(Reg,                                            /* volatile struct RME_Reg_Struct* Reg */
+        Retval=_RME_Inv_Ret(Reg,                                            /* struct RME_Reg_Struct* Reg */
                             Param[0],                                       /* rme_ptr_t Retval */
                             0U);                                            /* rme_ptr_t Is_Exc */
         RME_SWITCH_RETURN(Reg, Retval);
@@ -1193,7 +1198,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         RME_COV_MARKER();
         
         Retval=_RME_Inv_Act(Cpt,
-                            Reg,                                            /* volatile struct RME_Reg_Struct* Reg */
+                            Reg,                                            /* struct RME_Reg_Struct* Reg */
                             (rme_cid_t)Param[0],                            /* rme_cid_t Cap_Inv */
                             Param[1]);                                      /* rme_ptr_t Param */
         RME_SWITCH_RETURN(Reg,Retval);
@@ -1219,7 +1224,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Sig_Snd(Cpt,
-                                Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
+                                Reg,                                        /* struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Sig */
                                 Param[1]);                                  /* rme_ptr_t Number */
             RME_SWITCH_RETURN(Reg,Retval);
@@ -1230,7 +1235,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Sig_Rcv(Cpt,
-                                Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
+                                Reg,                                        /* struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Sig */
                                 Param[1]);                                  /* rme_ptr_t Option */
             RME_SWITCH_RETURN(Reg,Retval);
@@ -1241,7 +1246,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Kfn_Act(Cpt,
-                                Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
+                                Reg,                                        /* struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Cid,                             /* rme_cid_t Cap_Kfn */
                                 RME_PARAM_D0(Param[0]),                     /* rme_ptr_t Func_ID */
                                 RME_PARAM_D1(Param[0]),                     /* rme_ptr_t Sub_ID */
@@ -1255,7 +1260,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Thd_Sched_Free(Cpt,
-                                       Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
+                                       Reg,                                 /* struct RME_Reg_Struct* Reg */
                                        (rme_cid_t)Param[0]);                /* rme_cid_t Cap_Thd */
             RME_SWITCH_RETURN(Reg,Retval);
         }
@@ -1265,7 +1270,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Thd_Exec_Set(Cpt,
-                                     Reg,                                   /* volatile struct RME_Reg_Struct* Reg */
+                                     Reg,                                   /* struct RME_Reg_Struct* Reg */
                                      (rme_cid_t)Cid,                        /* rme_cid_t Cap_Thd */
                                      Param[0],                              /* rme_ptr_t Entry */
                                      Param[1],                              /* rme_ptr_t Stack */
@@ -1278,7 +1283,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Thd_Sched_Prio(Cpt,
-                                       Reg,                                 /* volatile struct RME_Reg_Struct* Reg */
+                                       Reg,                                 /* struct RME_Reg_Struct* Reg */
                                        Cid,                                 /* rme_ptr_t Number */
                                        (rme_cid_t)RME_PARAM_D0(Param[0]),   /* rme_cid_t Cap_Thd0 */
                                        RME_PARAM_Q0(Param[2]),              /* rme_ptr_t Prio0 */
@@ -1296,7 +1301,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Thd_Time_Xfer(Cpt,
-                                      Reg,                                  /* volatile struct RME_Reg_Struct* Reg */
+                                      Reg,                                  /* struct RME_Reg_Struct* Reg */
                                       (rme_cid_t)Param[0],                  /* rme_cid_t Cap_Thd_Dst */
                                       (rme_cid_t)Param[1],                  /* rme_cid_t Cap_Thd_Src */
                                       Param[2]);                            /* rme_ptr_t Time */
@@ -1308,7 +1313,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COV_MARKER();
             
             Retval=_RME_Thd_Swt(Cpt,
-                                Reg,                                        /* volatile struct RME_Reg_Struct* Reg */
+                                Reg,                                        /* struct RME_Reg_Struct* Reg */
                                 (rme_cid_t)Param[0],                        /* rme_cid_t Cap_Thd */
                                 Param[1]);                                  /* rme_ptr_t Full_Yield */
             RME_SWITCH_RETURN(Reg,Retval);
@@ -2375,7 +2380,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
         
-        /* The Kom_End here is exclusive */
+        /* The Kom_End passed in by the user is exclusive */
         Kom_Begin=RME_KOM_FLAG_LOW(Flag,Ext_Flag);
         Kom_End=RME_KOM_FLAG_HIGH(Flag,Ext_Flag);
         Kom_Flag=RME_KOM_FLAG_KOM(Ext_Flag);
@@ -3924,7 +3929,7 @@ rme_ret_t _RME_Kot_Mark(rme_ptr_t Kaddr,
         /* No action required */
     }
     
-    /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
+    /* Get the starting position and the ending position of the marking */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Mask_Begin=RME_MASK_BEGIN(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
@@ -4129,7 +4134,7 @@ rme_ret_t _RME_Kot_Erase(rme_ptr_t Kaddr,
         /* No action required */
     }
     
-    /* Round the marking to RME_KOM_SLOT_ORDER boundary, and rely on compiler for optimization */
+    /* Get the starting position and the ending position of the marking */
     Start=(Kaddr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER;
     Mask_Begin=RME_MASK_BEGIN(Start&RME_MASK_END(RME_WORD_ORDER-1U));
     Start=Start>>RME_WORD_ORDER;
@@ -5710,7 +5715,7 @@ Description : Free a thread from its current processor binding. This function
               its parent though.
               This system call can cause a potential context switch.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
-              volatile struct RME_Reg_Struct* Reg - The register set.
+              struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Thd - The capability to the thread.
                                   2-Level.
 Output      : None.
@@ -6546,7 +6551,7 @@ Description : Switch to another thread. The thread to switch to must have the sa
               may designate a specific thread rather than a random one, and (2)
               extreme efficiency is needed for this system call.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table. 
-              volatile struct RME_Reg_Struct* Reg - The register set.
+              struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Thd - The capability to the thread. If this is -1,
                                   the kernel will pickup whatever thread that
                                   has the highest priority and time to run. 
@@ -6881,7 +6886,7 @@ Description : Pick the thread with the highest priority to run. Always call
               highest priority thread.
 Input       : struct RME_Reg_Struct* Reg - The register set.
               struct RME_CPU_Local* Local - The CPU-local data structure.
-Output      : volatile struct RME_Reg_Struct* Reg - The updated register set.
+Output      : struct RME_Reg_Struct* Reg - The updated register set.
 Return      : None.
 ******************************************************************************/
 void _RME_Kern_High(struct RME_Reg_Struct* Reg,
@@ -7057,7 +7062,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
          * this is different from the normal signal sending system call. */
         
         /* Write release required because Option must be read before this */
-        RME_WRITE_RELEASE(&(Cap_Sig->Thd),RME_NULL);
+        RME_WRITE_RELEASE((rme_ptr_t*)&(Cap_Sig->Thd),RME_NULL);
     }
     else
     {
@@ -7205,7 +7210,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         _RME_Kern_High(Reg,Local);
         
         /* Write release required because Option must be read before this */
-        RME_WRITE_RELEASE(&(Sig_Root->Thd),RME_NULL);
+        RME_WRITE_RELEASE((rme_ptr_t*)&(Sig_Root->Thd),RME_NULL);
     }
     else
     {
@@ -7233,7 +7238,7 @@ Description : Try to receive from a signal endpoint. The rules for signal
                 simutaneously as this causes cache line bounces.
               This system call can potentially trigger a context switch.
 Input       : struct RME_Cap_Cpt* Cpt - The master capability table.
-              volatile struct RME_Reg_Struct* Reg - The register set.
+              struct RME_Reg_Struct* Reg - The register set.
               rme_cid_t Cap_Sig - The capability to the signal.
                                   2-Level.
               rme_ptr_t Option - The receive option.
@@ -7674,7 +7679,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     Invocation=RME_CAP_GETOBJ(Inv_Op,struct RME_Inv_Struct*);
     /* Check if this invocation port is already active */
     Thd_Act=Invocation->Thd_Act;
-    if(RME_UNLIKELY(RME_UNLIKELY(Thd_Act!=0U)))
+    if(RME_UNLIKELY(RME_UNLIKELY(Thd_Act!=RME_NULL)))
     {
         RME_COV_MARKER();
 
@@ -7691,7 +7696,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
 #endif
     
     /* Try to do CAS and activate this port */
-    if(RME_UNLIKELY(RME_COMP_SWAP((volatile rme_ptr_t*)&(Invocation->Thd_Act),
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)&(Invocation->Thd_Act),
                                   (rme_ptr_t)Thd_Act,
                                   (rme_ptr_t)Thd_Cur)==RME_CASFAIL))
     {
@@ -7791,7 +7796,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 
     /* We have successfully returned, set the invocation as inactive. We need
      * a barrier here to avoid potential destruction of the return value. */
-    RME_WRITE_RELEASE((volatile rme_ptr_t*)&(Invocation->Thd_Act),0U);
+    RME_WRITE_RELEASE((rme_ptr_t*)&(Invocation->Thd_Act),RME_NULL);
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Is_Exc!=0U))

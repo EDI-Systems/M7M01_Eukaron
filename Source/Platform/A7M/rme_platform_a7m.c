@@ -2157,7 +2157,7 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
         /* The new thread did not touch the coprocessor */
         else if(State_New!=0U)
         {
-            /* Reinitialize the coprocessor context */
+            /* Reinitialize the coprocessor context - untrustworthy "did not touch" */
             ___RME_A7M_Thd_Cop_Clear();
         }
         /* The new thread touched the coprocessor */
