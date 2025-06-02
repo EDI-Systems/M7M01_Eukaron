@@ -7021,7 +7021,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
             {
                 RME_COV_MARKER();
                 
-                RME_FETCH_ADD(&(Cap_Sig->Sig_Num),Number-1U);
+                RME_FETCH_ADD(&(Cap_Sig->Sig_Num),(rme_cnt_t)(Number-1U));
             }
             else
             {
@@ -7034,7 +7034,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
             RME_COV_MARKER();
             
             /* Return all signals at once and don't touch the existing counts */
-            __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),Number);
+            __RME_Svc_Retval_Set(&(Thd_Sig->Ctx.Reg->Reg),(rme_cnt_t)Number);
         }
 
         /* See if the thread still have time left */
@@ -7072,7 +7072,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
          * return. The current method actually CAN have signal number
          * larger than the RME_SIG_MAX_NUM, but the maximum is temporary
          * and will only be RME_SIG_MAX_NUM + num-cores*RME_SIG_MAX_SND. */
-        RME_FETCH_ADD(&(Cap_Sig->Sig_Num),Number);
+        RME_FETCH_ADD(&(Cap_Sig->Sig_Num),(rme_cnt_t)Number);
     }
 
     return 0;
@@ -7172,7 +7172,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
             {
                 RME_COV_MARKER();
                 
-                RME_FETCH_ADD(&(Sig_Root->Sig_Num),Number-1U);
+                RME_FETCH_ADD(&(Sig_Root->Sig_Num),(rme_cnt_t)(Number-1U));
             }
             else
             {
@@ -7185,7 +7185,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
             
             /* Return all signals at once and don't touch the existing counts */
-            __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),Number);
+            __RME_Svc_Retval_Set(&(Thd_Rcv->Ctx.Reg->Reg),(rme_cnt_t)Number);
         }
         
         /* See if the thread still have time left */
@@ -7217,7 +7217,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
 
         /* See _RME_Kern_Snd for details */
-        RME_FETCH_ADD(&(Sig_Root->Sig_Num),Number);
+        RME_FETCH_ADD(&(Sig_Root->Sig_Num),(rme_cnt_t)Number);
         
         /* Now save the system call return value to the caller stack */
         __RME_Svc_Retval_Set(Reg,0);
