@@ -36,18 +36,8 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(void)
 {
-	//RME_DBG_H(__RME_A7A_ID_ISAR0_Get());
-	//RME_DBG_I(10);
-	//RME_DBG_S("hello world\n");
-
    RME_Kmain();
-    
-    
-    //test
-    /* The main function of the kernel - we will start our kernel boot here */
-    //_RME_Kmain(RME_KOM_STACK_ADDR);
-
-    return 0;
+   return 0;
 }
 /* End Function:main *********************************************************/
 

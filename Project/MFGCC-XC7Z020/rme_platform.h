@@ -1,7 +1,7 @@
 /******************************************************************************
 Filename    : rme_platform.h
-Author      : pry 
-Date        : 22/07/2017
+Author      : hjw
+Date        : 2/06/2025
 Licence     : LGPL v3+; see COPYING for details.
 Description : The platform specific types for RME.
 ******************************************************************************/

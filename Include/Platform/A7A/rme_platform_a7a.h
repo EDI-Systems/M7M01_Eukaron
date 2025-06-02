@@ -1,7 +1,7 @@
 /******************************************************************************
 Filename    : rme_platform_a7a.h
-Author      : pry
-Date        : 01/04/2017
+Author      : hjw
+Date        : 01/06/2025
 Licence     : LGPL v3+; see COPYING for details.
 Description : The header of "rme_platform_a7a.c".
 ******************************************************************************/
@@ -143,7 +143,7 @@ typedef rme_s32_t rme_ret_t;
 /* The init thread */
 #define RME_BOOT_INIT_THD               		3
 /* The initial kernel function capability */
-#define RME_BOOT_INIT_KFN                       (4U)
+#define RME_BOOT_INIT_KFN                       4
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM              			5
 /* The initial timer endpoint */
@@ -218,23 +218,23 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7A_MMU_4K_PAGE_USER_COMMON (RME_A7A_MMU_4K_PAGE_PRESENT|RME_A7A_MMU_4K_USER| \
                                           RME_A7A_MMU_4K_SHAREABLE|RME_A7A_MMU_4K_NOTGLOBAL)
 
-#define RME_A7A_MMU_4G_PGT_ADDR(X)    ((X)&0xFFFFC000U)
-#define RME_A7A_MMU_1M_PGT_ADDR(X)    ((X)&0xFFFFFC00U)
+#define RME_A7A_MMU_4G_PGT_ADDR(X)      ((X)&0xFFFFC000U)
+#define RME_A7A_MMU_1M_PGT_ADDR(X)      ((X)&0xFFFFFC00U)
 #define RME_A7A_MMU_1M_PAGE_ADDR(X)     ((X)&0xFFF00000U)
 #define RME_A7A_MMU_4K_PAGE_ADDR(X)     ((X)&0xFFFFF000U)
 
 #define RME_A7A_PGFLG_1M_RME2NAT(X)     (RME_A7A_Pgflg_1M_RME2NAT[X])
-#define RME_A7A_PGFLG_1M_PREPRC(X)     ((((X)&RME_A7A_MMU_1M_READONLY)>>12)| \
-                                          (((X)&RME_A7A_MMU_1M_EXECUTENEVER)>>2)| \
-		                                  (((X)&RME_A7A_MMU_1M_CACHEABLE)>>2)| \
-										  (((X)&RME_A7A_MMU_1M_BUFFERABLE)>>2))
+#define RME_A7A_PGFLG_1M_PREPRC(X)      ((((X)&RME_A7A_MMU_1M_READONLY)>>12)| \
+                                        (((X)&RME_A7A_MMU_1M_EXECUTENEVER)>>2)| \
+		                                (((X)&RME_A7A_MMU_1M_CACHEABLE)>>2)| \
+										(((X)&RME_A7A_MMU_1M_BUFFERABLE)>>2))
 #define RME_A7A_PGFLG_1M_NAT2RME(X)     (RME_A7A_Pgflg_1M_NAT2RME[RME_A7A_PGFLG_1M_PREPRC(X)])
 
 #define RME_A7A_PGFLG_4K_RME2NAT(X)     (RME_A7A_Pgflg_4K_RME2NAT[X])
-#define RME_A7A_PGFLG_4K_PREPRC(X)     ((((X)&RME_A7A_MMU_4K_READONLY)>>6)| \
-		                                  (((X)&RME_A7A_MMU_4K_CACHEABLE)>>1)| \
-		                                  (((X)&RME_A7A_MMU_4K_BUFFERABLE)>>1)| \
-										  (((X)&RME_A7A_MMU_4K_EXECUTENEVER)>>0))
+#define RME_A7A_PGFLG_4K_PREPRC(X)      ((((X)&RME_A7A_MMU_4K_READONLY)>>6)| \
+		                                (((X)&RME_A7A_MMU_4K_CACHEABLE)>>1)| \
+		                                (((X)&RME_A7A_MMU_4K_BUFFERABLE)>>1)| \
+										(((X)&RME_A7A_MMU_4K_EXECUTENEVER)>>0))
 #define RME_A7A_PGFLG_4K_NAT2RME(X)     (RME_A7A_Pgflg_4K_NAT2RME[RME_A7A_PGFLG_4K_PREPRC(X)])
 
 /* Processor type definitions */
