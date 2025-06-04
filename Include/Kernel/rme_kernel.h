@@ -4,20 +4,6 @@ Author      : pry
 Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
 Description : The RME kernel header.
-              Note that the kernel global variables usually don't need to be 
-              'volatile'-qualified (unlike the RMP library operating system)
-              because these kernel calls are over the protection boundary. That
-              way, there's no chance that the compiler can cache values in 
-              registers since all kernel execution are short-lived in nature.
-              It is indeed possible that, when the compilers are clever enough 
-              (whole-program optimizations of GCC, etc.), optimize out the final
-              stages of writes to memory, because this will not alter the 
-              behavior of the abstract machine w.r.t. the current kernel trap.
-              In this case, the 'volatile' is needed. Note that this cannot be
-              replaced by the compiler barriers: they only tell the compiler
-              that instruction shouldn't be reordered across the barrier, and
-              don't mean that writes (that are provably useless in this
-              particular kernel trap execution) cannot be optimized away.
 ******************************************************************************/
 
 /* Define ********************************************************************/
@@ -565,7 +551,7 @@ do \
         if(RME_UNLIKELY(RME_CAP_TYPE(TEMP)!=RME_CAP_TYPE_CPT)) \
             return RME_ERR_CPT_TYPE; \
         /* Check if the 2nd-layer captbl is over range */ \
-        if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((volatile struct RME_Cap_Cpt*)(PARAM))->Entry_Num))) \
+        if(RME_UNLIKELY(RME_CAP_L(CAP_NUM)>=(((struct RME_Cap_Cpt*)(PARAM))->Entry_Num))) \
             return RME_ERR_CPT_RANGE; \
         /* Get the cap slot and check the type */ \
         (PARAM)=(TYPE)(&RME_CAP_GETOBJ(PARAM,struct RME_Cap_Struct*)[RME_CAP_L(CAP_NUM)]); \
@@ -643,8 +629,6 @@ while(0)
 /* Priority level bitmap */
 #define RME_PRIO_WORD_NUM                           (RME_ROUND_UP(RME_PREEMPT_PRIO_NUM,RME_WORD_ORDER)>>RME_WORD_ORDER)
 
-/* Thread binding state */
-#define RME_THD_FREE                                ((struct RME_CPU_Local*)RME_MASK_FULL)
 /* Thread sched rcv timeout state */
 #define RME_THD_TIMEOUT_FLAG                        RME_POW2(RME_WORD_BIT-3U)
 /* Thread sched rcv faulty state */
@@ -838,8 +822,9 @@ struct RME_Thd_Sched
     /* TID of the thread - internally unsigned */
     rme_ptr_t TID;
     /* What is the CPU-local data structure that this thread is on? If this is
-     * 0xFF....FF, then this is not bound to any core. "struct RME_CPU_Local" is
-     * not yet defined here but compilation will still pass - it is a pointer */
+     * RME_NULL, then this is not bound to any core (assuming that the CPU-local
+     * data structures will never appear at virtual address zero). The struct is
+     * not yet defined here but compilation will still pass - it's a pointer. */
     struct RME_CPU_Local* Local;
     /* How much time slices is left for this thread? */
     rme_ptr_t Slice;

@@ -161,9 +161,11 @@ system calls or directly manipulate hardware.
 * The Use of 'volatile' *******************************************************
 'volatile' is not needed in the kernel because the syscall interface acts as a
 natural compiler barrier. We're safe to assume that, during one syscall, data
-in memory remains unchanged. If anything changes, it has been dealt with the 
-dedicated assembly atomics, which act both as a compiler and architectural
-barrier. If LTO has been enabled, there are three cases:
+in memory remains unchanged, as syscalls are short-lived in nature (which is very
+different from RMP's library style where syscalls are linked as a part of the
+application code). If anything changes, it's been dealt with the assembly atomics,
+which act both as compiler and architectural barriers.
+If LTO has been enabled, there are three cases:
 (1) Uniprocessor with C-implemented "atomics" with no real atomic support.
     In this case, compiler barriers are not needed due to no kernel concurrency.
 (2) Multiprocessor with assembly-implemented atomics, but the compiler LTO does
@@ -173,9 +175,20 @@ barrier. If LTO has been enabled, there are three cases:
     honor the assembly functions.
     In this case, the compiler should be aware of the semantics of the assembly,
     and produce correct code.
+It is theoretically possible that, when the LTO compilers are clever enough, they
+optimize out the final stages of writes to memory, because this will not alter
+the behavior of the abstract machine w.r.t. the current kernel trap. This behavior
+was not allowed in C17 but is allowed in C20.
+In this case, the 'volatile' is needed, and cannot be replaced by the compiler
+barriers because the latter only tell the compiler that instruction shouldn't be
+reordered across the barrier, and don't mean that writes (that are seemingly
+useless in this particular kernel trap execution) cannot be optimized away. 
+However, this is not realistic because it will mandate the use of volatile on all
+shared variables even when proper locking protocols are in use, and for this reason
+no compiler ever implemented it. As this is the case, we don't bother.
 * Function Name Rules *********************************************************
 (1) No "_": OS entry function RME_Kmain and C entry "main".
-(2) "_"   : Kernel functions that are be called by kernel.
+(2) "_"   : Kernel functions that are called by kernel.
 (3) "__"  : HAL functions that are called by kernel.
 (4) "___" : HAL functions that should only be called by HAL.
 ******************************************************************************/
@@ -1823,7 +1836,7 @@ rme_ret_t _RME_Cpt_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 {
     rme_ptr_t Count;
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Cpt* Cpt_Crt;
+    struct RME_Cap_Cpt* Cpt_Crt;
     rme_ptr_t Type_Stat;
     
     /* See if the entry number is too big - this is not restricted by RME_CPT_ENTRY_MAX */
@@ -1919,7 +1932,7 @@ static rme_ret_t _RME_Cpt_Crt(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Count;
     struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Kom* Kom_Op;
-    volatile struct RME_Cap_Cpt* Cpt_Crt;
+    struct RME_Cap_Cpt* Cpt_Crt;
     rme_ptr_t Type_Stat;
     rme_ptr_t Vaddr;
 
@@ -2024,7 +2037,7 @@ static rme_ret_t _RME_Cpt_Del(struct RME_Cap_Cpt* Cpt,
     rme_ptr_t Count;
     rme_ptr_t Entry_Num;
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Cpt* Cpt_Del;
+    struct RME_Cap_Cpt* Cpt_Del;
     struct RME_Cap_Struct* Table;
     rme_ptr_t Type_Stat;
     /* These are used for deletion */
@@ -2095,7 +2108,7 @@ static rme_ret_t _RME_Cpt_Frz(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Frz)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Struct* Capobj_Frz;
+    struct RME_Cap_Struct* Capobj_Frz;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -2211,8 +2224,8 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Cpt* Cpt_Dst;
     struct RME_Cap_Cpt* Cpt_Src;
-    volatile struct RME_Cap_Struct* Capobj_Dst;
-    volatile struct RME_Cap_Struct* Capobj_Src;
+    struct RME_Cap_Struct* Capobj_Dst;
+    struct RME_Cap_Struct* Capobj_Src;
     rme_ptr_t Type_Stat;
     rme_ptr_t Src_Type;
     
@@ -2385,7 +2398,7 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         Kom_End=RME_KOM_FLAG_HIGH(Flag,Ext_Flag);
         Kom_Flag=RME_KOM_FLAG_KOM(Ext_Flag);
         
-        /* Round start and end to the slot boundary, if we are using slots bigger than 64 bytes */
+        /* Round start and end to the slot boundary, if we are using slots > 64 bytes */
 #if(RME_KOM_SLOT_ORDER>6U)
         Kom_End=RME_ROUND_DOWN(Kom_End,RME_KOM_SLOT_ORDER);
         Kom_Begin=RME_ROUND_UP(Kom_Begin,RME_KOM_SLOT_ORDER);
@@ -2403,8 +2416,8 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         }
 
         /* Convert relative addresses to absolute addresses and check for overflow */
-        Kom_Begin+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
-        if(RME_UNLIKELY(Kom_Begin<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin))
+        Kom_Begin+=((struct RME_Cap_Kom*)Capobj_Src)->Begin;
+        if(RME_UNLIKELY(Kom_Begin<((struct RME_Cap_Kom*)Capobj_Src)->Begin))
         {
             RME_COV_MARKER();
             
@@ -2416,8 +2429,8 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
         
-        Kom_End+=((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin;
-        if(RME_UNLIKELY(Kom_End<((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin))
+        Kom_End+=((struct RME_Cap_Kom*)Capobj_Src)->Begin;
+        if(RME_UNLIKELY(Kom_End<((struct RME_Cap_Kom*)Capobj_Src)->Begin))
         {
             RME_COV_MARKER();
             
@@ -2429,21 +2442,10 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             /* No action required */
         }
 
-        /* Check the ranges of kernel memory */
-        if(RME_UNLIKELY(((volatile struct RME_Cap_Kom*)Capobj_Src)->Begin>Kom_Begin))
-        {
-            RME_COV_MARKER();
-            
-            return RME_ERR_CPT_FLAG;
-        }
-        else
-        {
-            RME_COV_MARKER();
-            /* No action required */
-        }
-        
-        /* Internal encoding of 'end' is inclusive */
-        if(RME_UNLIKELY(((volatile struct RME_Cap_Kom*)Capobj_Src)->End<(Kom_End-1U)))
+        /* Check the kernel memory range; the internal encoding of 'End' is inclusive.
+         * We don't check the 'Kom_Begin' again here because if it falls out of the
+         * range then 'Kom_End' is certainly out of range, and this check won't pass. */
+        if(RME_UNLIKELY((Kom_End-1U)>((struct RME_Cap_Kom*)Capobj_Src)->End))
         {
             RME_COV_MARKER();
             
@@ -2533,9 +2535,9 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
             
         RME_CAP_COPY(Capobj_Dst,Capobj_Src,Kom_Flag);
         /* Write absolute range information for kernel memory caps */
-        ((volatile struct RME_Cap_Kom*)Capobj_Dst)->Begin=Kom_Begin;
+        ((struct RME_Cap_Kom*)Capobj_Dst)->Begin=Kom_Begin;
         /* The Kom_End encoded inclusively to avoid overflow at max address */
-        ((volatile struct RME_Cap_Kom*)Capobj_Dst)->End=Kom_End-1U;
+        ((struct RME_Cap_Kom*)Capobj_Dst)->End=Kom_End-1U;
     }
     else
     {
@@ -2560,8 +2562,8 @@ static rme_ret_t _RME_Cpt_Add(struct RME_Cap_Cpt* Cpt,
         Capobj_Dst->Head.Root_Ref=RME_CAP_CONV_ROOT(Capobj_Src,rme_ptr_t);
     
         /* Increase the parent's refcnt - never overflows, guaranteed by field size */
-        RME_FETCH_ADD(&(((volatile struct RME_Cap_Struct*)
-                        (Capobj_Dst->Head.Root_Ref))->Head.Root_Ref),1U);
+        RME_FETCH_ADD(&(((struct RME_Cap_Struct*)
+                        (Capobj_Dst->Head.Root_Ref))->Head.Root_Ref),1);
     }
     else
     {
@@ -2598,11 +2600,11 @@ static rme_ret_t _RME_Cpt_Rem(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Rem)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Struct* Capobj_Rem;
+    struct RME_Cap_Struct* Capobj_Rem;
     rme_ptr_t Type_Stat;
     rme_ptr_t Rem_Type;
     /* This is used for removal */
-    volatile struct RME_Cap_Struct* Capobj_Root;
+    struct RME_Cap_Struct* Capobj_Root;
     
     /* Get the capability slot */
     RME_CPT_GETCAP(Cpt,Cap_Cpt_Rem,RME_CAP_TYPE_CPT,
@@ -2925,7 +2927,7 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
 {
     struct RME_Cap_Pgt* Pgt_Parent;
     struct RME_Cap_Pgt* Pgt_Child;
-    volatile struct RME_Cap_Pgt* Pgt_Root;
+    struct RME_Cap_Pgt* Pgt_Root;
     rme_ptr_t Type_Stat;
     rme_ptr_t Order_Child;
     rme_ptr_t Szord_Parent;
@@ -3058,9 +3060,9 @@ rme_ret_t _RME_Pgt_Boot_Con(struct RME_Cap_Cpt* Cpt,
     
     /* Increase refcnt for both parent/child */
     Pgt_Root=RME_CAP_CONV_ROOT(Pgt_Parent,struct RME_Cap_Pgt*);
-    RME_FETCH_ADD(&(Pgt_Root->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Pgt_Root->Head.Root_Ref),1);
     Pgt_Root=RME_CAP_CONV_ROOT(Pgt_Child,struct RME_Cap_Pgt*);
-    RME_FETCH_ADD(&(Pgt_Root->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Pgt_Root->Head.Root_Ref),1);
 
     return 0;
 }
@@ -4253,7 +4255,7 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                             rme_ptr_t Flag)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Kom* Kom_Crt;
+    struct RME_Cap_Kom* Kom_Crt;
     rme_ptr_t Kom_Begin;
     rme_ptr_t Kom_End;
     rme_ptr_t Type_Stat;
@@ -4286,7 +4288,7 @@ rme_ret_t _RME_Kom_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Kom_Crt->Head.Object=0U;
     Kom_Crt->Head.Flag=Flag;
     
-    /* Info init */
+    /* Info init - the internal encoding of 'End' is inclusive */
     Kom_Crt->Begin=Kom_Begin;
     Kom_Crt->End=Kom_End-1U;
 
@@ -4414,7 +4416,7 @@ static void _RME_Run_Ins(struct RME_Thd_Struct* Thd)
     Local=Thd->Sched.Local;
     
     /* It can't be free or there must be an error */
-    RME_ASSERT(Local!=RME_THD_FREE);
+    RME_ASSERT(Local!=RME_NULL);
     
     /* Insert this thread into the runqueue */
     _RME_List_Ins(&(Thd->Sched.Run),
@@ -4440,7 +4442,7 @@ static void _RME_Run_Del(struct RME_Thd_Struct* Thd)
     Prio=Thd->Sched.Prio;
     Local=Thd->Sched.Local;
     /* It can't be free or there must be an error */
-    RME_ASSERT(Local!=RME_THD_FREE);
+    RME_ASSERT(Local!=RME_NULL);
     
     /* Delete this thread from the runqueue */
     _RME_List_Del(Thd->Sched.Run.Prev,Thd->Sched.Run.Next);
@@ -4734,9 +4736,9 @@ rme_ret_t _RME_Prc_Boot_Crt(struct RME_Cap_Cpt* Cpt,
 #endif
     
     /* Reference objects */
-    RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref),1);
 #if(RME_PGT_RAW_ENABLE==0U)
-    RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref),1);
 #endif
 
     /* Establish cap */
@@ -4835,9 +4837,9 @@ static rme_ret_t _RME_Prc_Crt(struct RME_Cap_Cpt* Cpt,
 #endif
     
     /* Reference objects */
-    RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Prc_Cpt->Head.Root_Ref),1);
 #if(RME_PGT_RAW_ENABLE==0U)
-    RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Prc_Pgt->Head.Root_Ref),1);
 #endif
 
     /* Establish cap */
@@ -5131,13 +5133,14 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Cpt* Cpt,
     Thread->Sched.State=RME_THD_READY;
     Prc_Root=RME_CAP_CONV_ROOT(Prc_Op,struct RME_Cap_Prc*);
     Thread->Sched.Prc=Prc_Root;
-    Thread->Sched.Signal=0U;
+    Thread->Sched.Signal=RME_NULL;
     /* Maximum priority of all boot-time threads is RME_PREEMPT_PRIO_NUM-1U */
     Thread->Sched.Prio=Prio;
     Thread->Sched.Prio_Max=RME_PREEMPT_PRIO_NUM-1U;
-    /* Set scheduler reference to 1 so cannot be free */
+    /* Set scheduler reference to 1 so it cannot be freed */
     Thread->Sched.Sched_Ref=1U;
-    Thread->Sched.Sched_Sig=0U;
+    Thread->Sched.Sched_Thd=RME_NULL;
+    Thread->Sched.Sched_Sig=RME_NULL;
     /* Bind the thread to the current CPU */
     Thread->Sched.Local=Local;
     /* This is a marking that this thread haven't sent any notifications */
@@ -5292,12 +5295,13 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     Thread->Sched.State=RME_THD_TIMEOUT;
     Prc_Root=RME_CAP_CONV_ROOT(Prc_Op,struct RME_Cap_Prc*);
     Thread->Sched.Prc=Prc_Root;
-    Thread->Sched.Signal=0U;
+    Thread->Sched.Signal=RME_NULL;
     Thread->Sched.Prio_Max=Prio_Max;
     Thread->Sched.Sched_Ref=0U;
-    Thread->Sched.Sched_Sig=0U;
+    Thread->Sched.Sched_Thd=RME_NULL;
+    Thread->Sched.Sched_Sig=RME_NULL;
     /* Currently the thread is not bound to any particular CPU */
-    Thread->Sched.Local=RME_THD_FREE;
+    Thread->Sched.Local=RME_NULL;
     /* This is a marking that this thread haven't sent any notifications */
     _RME_List_Crt(&(Thread->Sched.Notif));
     _RME_List_Crt(&(Thread->Sched.Event));
@@ -5327,7 +5331,7 @@ static rme_ret_t _RME_Thd_Crt(struct RME_Cap_Cpt* Cpt,
     Thd_Crt->Head.Flag=RME_THD_FLAG_ALL;
 
     /* Reference process */
-    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref), 1U);
+    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref), 1);
     
     /* Establish cap */
     RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Stat),
@@ -5374,8 +5378,8 @@ static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
     /* Get the thread */
     Thread=RME_CAP_GETOBJ(Thd_Del,struct RME_Thd_Struct*);
     
-    /* See if the thread is free. If still bound, we cannot proceed to deletion */
-    if(RME_UNLIKELY(Thread->Sched.Local!=RME_THD_FREE))
+    /* See if the thread is free - if still bound, we cannot proceed to deletion */
+    if(RME_UNLIKELY(Thread->Sched.Local!=RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -5420,7 +5424,7 @@ static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
         RME_COV_MARKER();
 
         RME_ASSERT(_RME_Kot_Erase((rme_ptr_t)Thread,
-                   RME_HYP_SIZE)==0);
+                                  RME_HYP_SIZE)==0);
     }
     
     return 0;
@@ -5508,7 +5512,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* Check if the target thread is already bound. If yes, we just quit */
     Thread=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Local_Old=Thread->Sched.Local;
-    if(RME_UNLIKELY(Local_Old!=RME_THD_FREE))
+    if(RME_UNLIKELY(Local_Old!=RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -5688,7 +5692,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
         Thread->Sched.Sched_Sig=RME_CAP_CONV_ROOT(Sig_Op,struct RME_Cap_Sig*);
         
         /* Increase refcnt */
-        RME_FETCH_ADD(&(Thread->Sched.Sched_Sig->Head.Root_Ref),1U);
+        RME_FETCH_ADD(&(Thread->Sched.Sched_Sig->Head.Root_Ref),1);
     }
     
     /* Set hypervisor context address if we're hypervisor-managed */
@@ -5852,8 +5856,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     }
     
     /* Set the state to free so other cores can bind */
-    RME_WRITE_RELEASE((rme_ptr_t*)&(Thread->Sched.Local),
-                      (rme_ptr_t)RME_THD_FREE);
+    RME_WRITE_RELEASE((rme_ptr_t*)&(Thread->Sched.Local),RME_NULL);
 
     return 0;
 }
@@ -6794,7 +6797,7 @@ static rme_ret_t _RME_Sig_Crt(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Sig)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Sig* Sig_Crt;
+    struct RME_Cap_Sig* Sig_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slots */
@@ -6843,7 +6846,7 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Sig)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Sig* Sig_Del;
+    struct RME_Cap_Sig* Sig_Del;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -7464,7 +7467,7 @@ static rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
     struct RME_Cap_Cpt* Cpt_Op;
     struct RME_Cap_Prc* Prc_Op;
     struct RME_Cap_Kom* Kom_Op;
-    volatile struct RME_Cap_Inv* Inv_Crt;
+    struct RME_Cap_Inv* Inv_Crt;
     struct RME_Cap_Prc* Prc_Root;
     struct RME_Inv_Struct* Invocation;
     rme_ptr_t Type_Stat;
@@ -7516,7 +7519,7 @@ static rme_ret_t _RME_Inv_Crt(struct RME_Cap_Cpt* Cpt,
     Inv_Crt->Head.Flag=RME_INV_FLAG_ALL;
     
     /* Reference object */
-    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref),1U);
+    RME_FETCH_ADD(&(Prc_Root->Head.Root_Ref),1);
     
     /* Establish cap */
     RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Stat),
@@ -7544,7 +7547,7 @@ static rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
                               rme_cid_t Cap_Inv)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Inv* Inv_Del;
+    struct RME_Cap_Inv* Inv_Del;
     rme_ptr_t Type_Stat;
     /* These are for deletion */
     struct RME_Inv_Struct* Invocation;
@@ -7612,7 +7615,7 @@ static rme_ret_t _RME_Inv_Set(struct RME_Cap_Cpt* Cpt,
                               rme_ptr_t Is_Exc_Ret)
 {
     struct RME_Cap_Inv* Inv_Op;
-    volatile struct RME_Inv_Struct* Invocation;
+    struct RME_Inv_Struct* Invocation;
     rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
@@ -7857,7 +7860,7 @@ rme_ret_t _RME_Kfn_Boot_Crt(struct RME_Cap_Cpt* Cpt,
                             rme_cid_t Cap_Kfn)
 {
     struct RME_Cap_Cpt* Cpt_Op;
-    volatile struct RME_Cap_Kfn* Kfn_Crt;
+    struct RME_Cap_Kfn* Kfn_Crt;
     rme_ptr_t Type_Stat;
     
     /* Get the cap location that we care about */
