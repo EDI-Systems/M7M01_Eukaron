@@ -376,13 +376,13 @@ void __RME_A7M_Tim_Handler(struct RME_Reg_Struct* Reg)
 /* End Function:__RME_A7M_Tim_Handler ****************************************/
 
 /* Function:__RME_A7M_Svc_Handler *********************************************
-Description : The timer interrupt handler of RME for ARMv7-M.
+Description : The system call interrupt handler of RME for ARMv7-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
 ******************************************************************************/
 void __RME_A7M_Svc_Handler(struct RME_Reg_Struct* Reg)
-{    
+{
     _RME_Svc_Handler(Reg);
     
     /* Make sure the LR returns to the user level */
@@ -1610,9 +1610,9 @@ void __RME_Lowlvl_Init(void)
      * If not, ARMv7-M may pend the asynchronous SVC, causing the following execution:
      * 1> SVC is triggered but not yet in execution.
      * 2> SysTick or some other random vector comes in.
-     * 3> Processor choose to respond to SysTick first.
+     * 3> Processor choose to respond to SysTick first, SVC pended.
      * 4> There is a context switch in SysTick, we switch to another thread.
-     * 5> SVC is now processed on the new thread rather than the calling thread.
+     * 5> SVC is now processed on behalf of the new thread rather than the calling thread.
      * This MUST be avoided, thus we place SVC at a higher priority.
      * All vectors that have a higher priority than SVC shall not call any RME
      * kernel functions; for those who can call kernel functions, they must be
@@ -1622,10 +1622,13 @@ void __RME_Lowlvl_Init(void)
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SVCALL,0x80U);
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_PENDSV,0xFFU);
     __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SYSTICK,0xFFU);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_BUSFAULT,0xFFU);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT,0xFFU);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR,0xFFU);
-    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT,0xFFU);
+    /* It is fine to place all fault handlers at 0x80 as well because precise faults
+     * are synchronous (per ARMv7-M reference manual) and will not tailchain with
+     * the SVC - and we don't process unattributable imprecise faults anyway. */
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_BUSFAULT,0x80U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT,0x80U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR,0x80U);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT,0x80U);
     /* Make sure that any pending interrupts will turn into events */
     RME_A7M_SCB_SCR=RME_A7M_SCB_SCR_SEVONPEND;
 

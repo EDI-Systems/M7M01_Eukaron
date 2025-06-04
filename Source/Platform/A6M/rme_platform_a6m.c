@@ -113,9 +113,10 @@ void __RME_A6M_Exc_Handler(struct RME_Reg_Struct* Reg)
     
     /* Clear SVC pend indicators, because the fault could have happened before
      * the SVC. The access to SHCSR is implementation defined (always a no in 
-     * ARMv6-M0+, in fact), so if the processor does not support this, we're
-     * left with nothing to help. This is not the case in ARMv6-M where it's 
-     * guaranteed to be accessible by the processor. */
+     * Cortex-M0+, in fact), so if the processor does not support this, we're
+     * left with nothing to help. This is not the case in ARMv7-M where it's 
+     * guaranteed to be accessible. Let's just hope that the fault does not
+     * too much of a latency and can be precisely attributed to a thread. */
     RME_A6M_SCB_SHCSR&=~RME_A6M_SCB_SHCSR_SVCALLPENDED;
     
     /* ARMv6-M have no fault indicators. Any fault is fatal */
@@ -228,7 +229,7 @@ void __RME_A6M_Tim_Handler(struct RME_Reg_Struct* Reg)
 /* End Function:__RME_A6M_Tim_Handler ****************************************/
 
 /* Function:__RME_A6M_Svc_Handler *********************************************
-Description : The timer interrupt handler of RME for ARMv6-M.
+Description : The system call interrupt handler of RME for ARMv6-M.
 Input       : struct RME_Reg_Struct* Reg - The register set.
 Output      : struct RME_Reg_Struct* Reg - The update register set.
 Return      : None.
@@ -949,9 +950,9 @@ void __RME_Lowlvl_Init(void)
      * If not, ARMv6-M may pend the asynchronous SVC, causing the following execution:
      * 1> SVC is triggered but not yet in execution.
      * 2> SysTick or some other random vector comes in.
-     * 3> Processor choose to respond to SysTick first.
+     * 3> Processor choose to respond to SysTick first, SVC pended.
      * 4> There is a context switch in SysTick, we switch to another thread.
-     * 5> SVC is now processed on the new thread rather than the calling thread.
+     * 5> SVC is now processed on behalf of the new thread rather than the calling thread.
      * This MUST be avoided, thus we place SVC at a higher priority.
      * All vectors that have a higher priority than SVC shall not call any RME
      * kernel functions; for those who can call kernel functions, they must be
