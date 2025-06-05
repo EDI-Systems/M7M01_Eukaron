@@ -77,55 +77,55 @@ typedef rme_s32_t rme_ret_t;
 
 /* System macros *************************************************************/
 /* Compiler "extern" keyword setting */
-#define RME_EXTERN                          	extern
+#define RME_EXTERN                              extern
 /* Compiler "inline" keyword setting */
-#define RME_INLINE                          	inline
+#define RME_INLINE                              inline
 /* Compiler likely & unlikely setting */
 #ifdef likely
-#define RME_LIKELY(X)                   		(likely(X))
+#define RME_LIKELY(X)                           (likely(X))
 #else
-#define RME_LIKELY(X)                   		(X)
+#define RME_LIKELY(X)                           (X)
 #endif
 #ifdef unlikely
-#define RME_UNLIKELY(X)                 		(unlikely(X))
+#define RME_UNLIKELY(X)                         (unlikely(X))
 #else
-#define RME_UNLIKELY(X)                 		(X)
+#define RME_UNLIKELY(X)                         (X)
 #endif
 /* Register access */
 #define RME_A7A_REG(X)                          (*((volatile rme_ptr_t*)(X)))
 /* CPU-local data structure location macro */
-#define RME_CPU_LOCAL()                 		(&RME_A7A_Local)
+#define RME_CPU_LOCAL()                         (&RME_A7A_Local)
 /* The order of bits in one CPU machine word */
-#define RME_WORD_ORDER                  		(5U)
+#define RME_WORD_ORDER                          (5U)
 /* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                   		(RME_FALSE)
+#define RME_VA_EQU_PA                           (RME_FALSE)
 /* Quiescence timeslice value */
-#define RME_QUIE_TIME                   		10
+#define RME_QUIE_TIME                           10
 /* Cpt size limit - not restricted */
-#define RME_CPT_LIMIT                   		0
+#define RME_CPT_LIMIT                           0
 /* Cpt size limit - not restricted */
-#define RME_CPT_ENTRY_MAX               		(0U)
+#define RME_CPT_ENTRY_MAX                       (0U)
 /* Read timestamp counter */
-#define RME_TIMESTAMP                 			(RME_A7A_Timestamp)
+#define RME_TIMESTAMP                           (RME_A7A_Timestamp)
 /* Invocation stack maximum depth - not restricted */
-#define RME_INV_DEPTH_MAX              			(0U)
+#define RME_INV_DEPTH_MAX                       (0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)   			(RME_POW2(NUM_ORDER)*RME_WORD_BYTE)
+#define RME_PGT_SIZE_NOM(NUM_ORDER)             (RME_POW2(NUM_ORDER)*RME_WORD_BYTE)
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)   			RME_PGT_SIZE_NOM(NUM_ORDER)
+#define RME_PGT_SIZE_TOP(NUM_ORDER)             RME_PGT_SIZE_NOM(NUM_ORDER)
 /* The kernel object allocation table address - original */
-#define RME_KOT_VA_BASE                     	RME_A7A_Kot
+#define RME_KOT_VA_BASE                         RME_A7A_Kot
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)      		_RME_Comp_Swap_Single(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_Comp_Swap_Single(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)       	    _RME_Fetch_Add_Single(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)               _RME_Fetch_Add_Single(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
 #define RME_FETCH_AND(PTR,OPERAND)              _RME_Fetch_And_Single(PTR,OPERAND)
 /* Get most significant bit */
-#define RME_MSB_GET(VAL)                		__RME_A7A_MSB_Get(VAL)
+#define RME_MSB_GET(VAL)                        __RME_A7A_MSB_Get(VAL)
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
-#define RME_READ_ACQUIRE(X)             		__RME_A7A_Read_Acquire(X)
-#define RME_WRITE_RELEASE(X,V)          		__RME_A7A_Write_Release(X,V)
+#define RME_READ_ACQUIRE(X)                     __RME_A7A_Read_Acquire(X)
+#define RME_WRITE_RELEASE(X,V)                  __RME_A7A_Write_Release(X,V)
 //#define RME_READ_ACQUIRE(X)                     (*(X))
 //#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
 /* The CPU and application specific macros are here */
@@ -135,33 +135,33 @@ typedef rme_s32_t rme_ret_t;
 /* Cortex-A specific macros **************************************************/
 /* Initial boot capabilities */
 /* The capability table of the init process */
-#define RME_BOOT_INIT_CPT                       0
+#define RME_BOOT_INIT_CPT                         0
 /* The top-level page table of the init process - always 4GB full range split into 8 pages */
-#define RME_BOOT_INIT_PGT                  		1
+#define RME_BOOT_INIT_PGT                         1
 /* The init process */
-#define RME_BOOT_INIT_PRC              			2
+#define RME_BOOT_INIT_PRC                         2
 /* The init thread */
-#define RME_BOOT_INIT_THD               		3
+#define RME_BOOT_INIT_THD                         3
 /* The initial kernel function capability */
-#define RME_BOOT_INIT_KFN                       4
+#define RME_BOOT_INIT_KFN                         4
 /* The initial kernel memory capability */
-#define RME_BOOT_INIT_KOM              			5
+#define RME_BOOT_INIT_KOM                         5
 /* The initial timer endpoint */
-#define RME_BOOT_INIT_VCT             			6
+#define RME_BOOT_INIT_VCT                         6
 /* The initial default endpoint for all other interrupts */
-#define RME_BOOT_INIT_INT               		7
+#define RME_BOOT_INIT_INT                         7
 
 /* Booting capability layout */
-#define RME_A7A_CPT                     		((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
+#define RME_A7A_CPT                               ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
 /* Kernel virtual address base - this is fixed */
-#define RME_A7A_VA_BASE                 		(0x80000000U)
+#define RME_A7A_VA_BASE                           (0x80000000U)
 /* For Cortex-A:
  * The layout of the page entry is complicated.
  * Refer to ARMv7-AR architecture reference manual (ARM) for details.
  * Physical address extension is NOT supported in RME */
 /* Get the actual table positions */
-#define RME_A7A_PGT_TBL_NOM(X)        			(X)
-#define RME_A7A_PGT_TBL_TOP(X)        			(X)
+#define RME_A7A_PGT_TBL_NOM(X)                    (X)
+#define RME_A7A_PGT_TBL_TOP(X)                    (X)
 
 /* MMU definitions operation flags, assuming the following changes:
  * TTBCR=0 : TTBR1 not used,
@@ -181,7 +181,7 @@ typedef rme_s32_t rme_ret_t;
  *      reads will still have to load words from memory)
  * C- : Cacheable non-bufferable - normal, write-through without write allocate
  * CB : Cacheable bufferable - normal memory, write-back, write-allocate */
-#define RME_A7A_MMU_1M_PGDIR_PRESENT    (0x01U)
+#define RME_A7A_MMU_1M_PGDIR_PRESENT            (0x01U)
 #define RME_A7A_MMU_1M_PGDIR_NOTSECURE  (1U<<3U)
 #define RME_A7A_MMU_1M_PAGE_PRESENT     (0x02U)
 #define RME_A7A_MMU_1M_BUFFERABLE       (1U<<2U)
@@ -195,7 +195,7 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7A_MMU_1M_NOTSECURE        (1U<<19U)
 
 #define RME_A7A_MMU_1M_PAGE_USER_COMMON (RME_A7A_MMU_1M_PAGE_PRESENT|RME_A7A_MMU_1M_USER| \
-		                                  RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL|RME_A7A_MMU_1M_ACCESS)
+                                          RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL|RME_A7A_MMU_1M_ACCESS)
 #define RME_A7A_MMU_1M_PAGE_KERN_COMMON (RME_A7A_MMU_1M_PAGE_PRESENT|RME_A7A_MMU_1M_SHAREABLE|RME_A7A_MMU_1M_NOTGLOBAL|RME_A7A_MMU_1M_ACCESS)
 
 /* These definitions are only used by the initial page table */
@@ -226,15 +226,15 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7A_PGFLG_1M_RME2NAT(X)     (RME_A7A_Pgflg_1M_RME2NAT[X])
 #define RME_A7A_PGFLG_1M_PREPRC(X)      ((((X)&RME_A7A_MMU_1M_READONLY)>>12)| \
                                         (((X)&RME_A7A_MMU_1M_EXECUTENEVER)>>2)| \
-		                                (((X)&RME_A7A_MMU_1M_CACHEABLE)>>2)| \
-										(((X)&RME_A7A_MMU_1M_BUFFERABLE)>>2))
+                                        (((X)&RME_A7A_MMU_1M_CACHEABLE)>>2)| \
+                                        (((X)&RME_A7A_MMU_1M_BUFFERABLE)>>2))
 #define RME_A7A_PGFLG_1M_NAT2RME(X)     (RME_A7A_Pgflg_1M_NAT2RME[RME_A7A_PGFLG_1M_PREPRC(X)])
 
 #define RME_A7A_PGFLG_4K_RME2NAT(X)     (RME_A7A_Pgflg_4K_RME2NAT[X])
 #define RME_A7A_PGFLG_4K_PREPRC(X)      ((((X)&RME_A7A_MMU_4K_READONLY)>>6)| \
-		                                (((X)&RME_A7A_MMU_4K_CACHEABLE)>>1)| \
-		                                (((X)&RME_A7A_MMU_4K_BUFFERABLE)>>1)| \
-										(((X)&RME_A7A_MMU_4K_EXECUTENEVER)>>0))
+                                        (((X)&RME_A7A_MMU_4K_CACHEABLE)>>1)| \
+                                        (((X)&RME_A7A_MMU_4K_BUFFERABLE)>>1)| \
+                                        (((X)&RME_A7A_MMU_4K_EXECUTENEVER)>>0))
 #define RME_A7A_PGFLG_4K_NAT2RME(X)     (RME_A7A_Pgflg_4K_NAT2RME[RME_A7A_PGFLG_4K_PREPRC(X)])
 
 /* Processor type definitions */
@@ -465,16 +465,16 @@ struct RME_Exc_Struct
  *  that issue properly, and the Kom1 description also needs to take care of that. */
 struct RME_A7A_Mem_Layout
 {
-	rme_ptr_t Kot_Start;
-	rme_ptr_t Kot_Size;
+    rme_ptr_t Kot_Start;
+    rme_ptr_t Kot_Size;
     rme_ptr_t Pgreg_Start;
-	rme_ptr_t Pgreg_Size;
+    rme_ptr_t Pgreg_Size;
 
-	rme_ptr_t Kom1_Start;
-	rme_ptr_t Kom1_Size;
+    rme_ptr_t Kom1_Start;
+    rme_ptr_t Kom1_Size;
 
-	rme_ptr_t Kom2_Start;
-	rme_ptr_t Kom2_Size;
+    rme_ptr_t Kom2_Start;
+    rme_ptr_t Kom2_Size;
 };
 
 /* Interrupt flags - this type of flags will only appear on MPU-based systems */
@@ -497,10 +497,10 @@ struct __RME_A7A_Flags
  * us some memory, and shred down the pgreg memory consumption to 1/256 of the total */
 union __RME_A7A_Pgreg
 {
-	/* What is the ASID of this page table? - This can be set through kernel function caps */
-	rme_ptr_t ASID_Child_Cnt;
+    /* What is the ASID of this page table? - This can be set through kernel function caps */
+    rme_ptr_t ASID_Child_Cnt;
     /* How many parent page tables does this page table have? */
-	rme_ptr_t Parent_Cnt;
+    rme_ptr_t Parent_Cnt;
 };
 /*****************************************************************************/
 /* __RME_PLATFORM_A7A_STRUCT__ */
@@ -554,35 +554,35 @@ union __RME_A7A_Pgreg
 
 int main(void)
 {
-	unsigned long result;
-	int count;
-	for(count=0;count<32;count++)
-	{
-	    result=A7A_1M_COMMON;
-		if((count&RME_WRITE)==0)
-			result|=A7A_1M_READONLY;
-		if((count&RME_EXECUTE)==0)
-			result|=A7A_1M_EXECUTENEVER;
-		if((count&RME_CACHEABLE)!=0)
-			result|=A7A_1M_CACHEABLE;
-		if((count&RME_BUFFERABLE)!=0)
-			result|=A7A_1M_BUFFERABLE;
-	    printf("0x%08lX,",result);
-	    if(count%4==3)
-	    	printf("\n");
-	}
-	return 0;
+    unsigned long result;
+    int count;
+    for(count=0;count<32;count++)
+    {
+        result=A7A_1M_COMMON;
+        if((count&RME_WRITE)==0)
+            result|=A7A_1M_READONLY;
+        if((count&RME_EXECUTE)==0)
+            result|=A7A_1M_EXECUTENEVER;
+        if((count&RME_CACHEABLE)!=0)
+            result|=A7A_1M_CACHEABLE;
+        if((count&RME_BUFFERABLE)!=0)
+            result|=A7A_1M_BUFFERABLE;
+        printf("0x%08lX,",result);
+        if(count%4==3)
+            printf("\n");
+    }
+    return 0;
 } */
 static const rme_ptr_t RME_A7A_Pgflg_1M_RME2NAT[32]=
 {
-	0x00038C12,0x00038C12,0x00030C12,0x00030C12,
-	0x00038C02,0x00038C02,0x00030C02,0x00030C02,
-	0x00038C1A,0x00038C1A,0x00030C1A,0x00030C1A,
-	0x00038C0A,0x00038C0A,0x00030C0A,0x00030C0A,
-	0x00038C16,0x00038C16,0x00030C16,0x00030C16,
-	0x00038C06,0x00038C06,0x00030C06,0x00030C06,
-	0x00038C1E,0x00038C1E,0x00030C1E,0x00030C1E,
-	0x00038C0E,0x00038C0E,0x00030C0E,0x00030C0E
+    0x00038C12,0x00038C12,0x00030C12,0x00030C12,
+    0x00038C02,0x00038C02,0x00030C02,0x00030C02,
+    0x00038C1A,0x00038C1A,0x00030C1A,0x00030C1A,
+    0x00038C0A,0x00038C0A,0x00030C0A,0x00030C0A,
+    0x00038C16,0x00038C16,0x00030C16,0x00030C16,
+    0x00038C06,0x00038C06,0x00030C06,0x00030C06,
+    0x00038C1E,0x00038C1E,0x00030C1E,0x00030C1E,
+    0x00038C0E,0x00038C0E,0x00030C0E,0x00030C0E
 
 };
 
@@ -614,35 +614,35 @@ static const rme_ptr_t RME_A7A_Pgflg_1M_RME2NAT[32]=
 
 int main(void)
 {
-	unsigned long result;
-	int count;
-	for(count=0;count<32;count++)
-	{
-	    result=A7A_4K_COMMON;
-		if((count&RME_WRITE)==0)
-			result|=A7A_4K_READONLY;
-		if((count&RME_EXECUTE)==0)
-			result|=A7A_4K_EXECUTENEVER;
-		if((count&RME_CACHEABLE)!=0)
-			result|=A7A_4K_CACHEABLE;
-		if((count&RME_BUFFERABLE)!=0)
-			result|=A7A_4K_BUFFERABLE;
-	    printf("0x%08lX,",result);
-	    if(count%4==3)
-	    	printf("\n");
-	}
-	return 0;
+    unsigned long result;
+    int count;
+    for(count=0;count<32;count++)
+    {
+        result=A7A_4K_COMMON;
+        if((count&RME_WRITE)==0)
+            result|=A7A_4K_READONLY;
+        if((count&RME_EXECUTE)==0)
+            result|=A7A_4K_EXECUTENEVER;
+        if((count&RME_CACHEABLE)!=0)
+            result|=A7A_4K_CACHEABLE;
+        if((count&RME_BUFFERABLE)!=0)
+            result|=A7A_4K_BUFFERABLE;
+        printf("0x%08lX,",result);
+        if(count%4==3)
+            printf("\n");
+    }
+    return 0;
 } */
 static const rme_ptr_t RME_A7A_Pgflg_4K_RME2NAT[32]=
 {
-		0x00000E33,0x00000E33,0x00000C33,0x00000C33,
-		0x00000E32,0x00000E32,0x00000C32,0x00000C32,
-		0x00000E3B,0x00000E3B,0x00000C3B,0x00000C3B,
-		0x00000E3A,0x00000E3A,0x00000C3A,0x00000C3A,
-		0x00000E37,0x00000E37,0x00000C37,0x00000C37,
-		0x00000E36,0x00000E36,0x00000C36,0x00000C36,
-		0x00000E3F,0x00000E3F,0x00000C3F,0x00000C3F,
-		0x00000E3E,0x00000E3E,0x00000C3E,0x00000C3E
+        0x00000E33,0x00000E33,0x00000C33,0x00000C33,
+        0x00000E32,0x00000E32,0x00000C32,0x00000C32,
+        0x00000E3B,0x00000E3B,0x00000C3B,0x00000C3B,
+        0x00000E3A,0x00000E3A,0x00000C3A,0x00000C3A,
+        0x00000E37,0x00000E37,0x00000C37,0x00000C37,
+        0x00000E36,0x00000E36,0x00000C36,0x00000C36,
+        0x00000E3F,0x00000E3F,0x00000C3F,0x00000C3F,
+        0x00000E3E,0x00000E3E,0x00000C3E,0x00000C3E
 };
 
 
@@ -681,16 +681,16 @@ int main(void)
         if((count&A7A_1M_READONLY)==0)
             flag|=RME_WRITE;
         printf("0x%08lX,",flag);
-	    if(count%4==3)
-	    	printf("\n");
+        if(count%4==3)
+            printf("\n");
     }
 } */
 static const rme_ptr_t RME_A7A_Pgflg_1M_NAT2RME[16]=
 {
-	0x00000007,0x00000017,0x0000000F,0x0000001F,
-	0x00000003,0x00000013,0x0000000B,0x0000001B,
-	0x00000005,0x00000015,0x0000000D,0x0000001D,
-	0x00000001,0x00000011,0x00000009,0x00000019
+    0x00000007,0x00000017,0x0000000F,0x0000001F,
+    0x00000003,0x00000013,0x0000000B,0x0000001B,
+    0x00000005,0x00000015,0x0000000D,0x0000001D,
+    0x00000001,0x00000011,0x00000009,0x00000019
 };
 
 /* Translate the 4K flags back to RME format. In order to use this table, it is needed to extract the
@@ -726,16 +726,16 @@ int main(void)
         if((count&A7A_4K_READONLY)==0)
             flag|=RME_WRITE;
         printf("0x%08lX,",flag);
-	    if(count%4==3)
-	    	printf("\n");
+        if(count%4==3)
+            printf("\n");
     }
 } */
 static const rme_ptr_t RME_A7A_Pgflg_4K_NAT2RME[16]=
 {
-	0x00000007,0x00000003,0x00000017,0x00000013,
-	0x0000000F,0x0000000B,0x0000001F,0x0000001B,
-	0x00000005,0x00000001,0x00000015,0x00000011,
-	0x0000000D,0x00000009,0x0000001D,0x00000019
+    0x00000007,0x00000003,0x00000017,0x00000013,
+    0x0000000F,0x0000000B,0x0000001F,0x0000001B,
+    0x00000005,0x00000001,0x00000015,0x00000011,
+    0x0000000D,0x00000009,0x0000001D,0x00000019
 };
 /*****************************************************************************/
 /* End Private Variable ******************************************************/

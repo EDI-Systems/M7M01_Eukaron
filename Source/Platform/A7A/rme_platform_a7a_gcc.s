@@ -1,7 +1,7 @@
 /******************************************************************************
 Filename    : platform_A7A_asm.s
-Author      : pry
-Date        : 19/01/2017
+Author      : hjw
+Date        : 20/04/2025
 Description : The Cortex-A (ARMv7) assembly support of the RME RTOS.
               We don't seek to support AFE or TRE on this architecture for RME.
               This is because some processors does not implement these two features
@@ -459,7 +459,7 @@ clear_done:
     SUB                 R1,R1,R2
     /* Calculate the configuration end address */
     LDR                 R3,[R0]
-    LSL					R3,R3,#2
+    LSL                    R3,R3,#2
     ADD                 R2,R0,R3
     ADD                 R0,R0,#0x04
     /* Load configurations and generate page table layout one by one */
@@ -505,7 +505,7 @@ fill_pgtbl:
     LDR                 R0,=__RME_A7A_Kern_Pgt
     LDR                 R1,=__va_offset__
     SUB                 R0,R0,R1 //R0=00150000
-    ORR					R0,R0,#0x09 /* Stuff to write into TTBR */
+    ORR                    R0,R0,#0x09 /* Stuff to write into TTBR */
     CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=0 /* TTBR0 */
     CP15_SET_INIT       CRN=C2 OP1=0 CRM=C0 OP2=1 /* TTBR1 */
     /* Load the main function address to R3 first to prepare for a long jump */
@@ -514,33 +514,33 @@ fill_pgtbl:
 
     /* Turn on paging and cache */
     CP15_GET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0
-    //LDR                 R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
-    LDR  				R1,=(1<<29)|(1<<28)|(0<<12)|(1<<2)|(1<<0)
+    //LDR               R1,=(1<<29)|(1<<28)|(1<<12)|(1<<2)|(1<<0) //R1=30001005 |(1<<12)|(1<<2)|(1<<0)
+    LDR                 R1,=(1<<29)|(1<<28)|(0<<12)|(1<<2)|(1<<0)
     ORR                 R0,R0,R1           //SCTCR=38C5187F L1 cache on
-    //BIC 				r0, r0, #(1 << 12) //SCTCR=38C5087F L1 cache off
+    //BIC               r0, r0, #(1 << 12) //SCTCR=38C5087F L1 cache off
     /* Print a hex number in LR, R12 used as counter print r0 ********************************************/
-    MOV 				LR,R0
-    MOV					R12,#32     /* 32-bits */
+    MOV                 LR,R0
+    MOV                 R12,#32     /* 32-bits */
 nextdigit:
-    SUB					R12,R12,#0x04
-    LSR					R11,LR,R12
-	AND					R11,R11,#0x0F
-	CMP					R11,#0x09
-	BGE					bigger
-	ADD					R11,R11,#0x30 /* add '0' */
-	B					printwait
+    SUB                 R12,R12,#0x04
+    LSR                 R11,LR,R12
+    AND                 R11,R11,#0x0F
+    CMP                 R11,#0x09
+    BGE                 bigger
+    ADD                 R11,R11,#0x30 /* add '0' */
+    B                   printwait
 bigger:
-	ADD					R11,R11,#(0x41-10) /* add 'A' */
+    ADD                 R11,R11,#(0x41-10) /* add 'A' */
 printwait:
     LDR                 R10,=0xE000102C
-    LDR					R10,[R10]
-    TST					R10,#0x08
-    BEQ					printwait
+    LDR                 R10,[R10]
+    TST                 R10,#0x08
+    BEQ                 printwait
     LDR                 R10,=0xE0001030
     STR                 R11,[R10]
 finish:
-	CMP					R12,#0x00
-	BNE					nextdigit
+    CMP                 R12,#0x00
+    BNE                 nextdigit
     /* Print a hex number in LR, R12 used as counter ********************************************/
     CP15_SET_INIT       CRN=C1 OP1=0 CRM=C0 OP2=0 /* SCTLR.AFE,TRE,I,C,M */
     ISB
@@ -1440,16 +1440,16 @@ Output      : None.
 Return      : None.
 ******************************************************************************/
 __RME_User_Enter:
-	PUSH				{R0}
-	PUSH				{R1}
+    PUSH                {R0}
+    PUSH                {R1}
     MOV                 R0,R2
     /* Prepare the SPSR for user-level */
     LDR                 R2,=0x600F0010
     MSR                 SPSR_cxsf,R2
     /* Exception return as well as restoring user-level SP and PC */
-    MOV					R2,SP
+    MOV                 R2,SP
     LDMIA               R2,{SP}^
-    ADD					SP,R2,#0x04
+    ADD                 SP,R2,#0x04
     LDMIA               SP!,{PC}^
 /* End Function:__RME_User_Enter ****************************************/
 
