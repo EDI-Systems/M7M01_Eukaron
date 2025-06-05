@@ -1,14 +1,14 @@
 /******************************************************************************
-Filename    : rme_platform_a7a_conf.h
-Author      : pry
-Date        : 24/06/2017
+Filename    : rme_platform.h
+Author      : hjw
+Date        : 2/06/2025
 Licence     : LGPL v3+; see COPYING for details.
-Description : The configuration file for Cortex-Av7 profile settings.
+Description : The platform specific types for RME.
 ******************************************************************************/
 
-/* Config Includes ***********************************************************/
-#include "Platform/A7A/Chip/XC7Z020/rme_platform_xc7z020.h"
-/* End Config Includes *******************************************************/
+/* Platform Include **********************************************************/
+#include "Platform/A7A/rme_platform_a7a.h"
+/* End Platform Include ******************************************************/
 
 /* End Of File ***************************************************************/
 
