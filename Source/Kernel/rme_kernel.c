@@ -1192,7 +1192,7 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     /* Get our current capability table - could be in an invocation */
     Thd_Cur=RME_CPU_LOCAL()->Thd_Cur;
     Inv_Top=RME_INVSTK_TOP(Thd_Cur);
-    if(RME_LIKELY(Inv_Top==RME_NULL))
+    if(RME_LIKELY(Inv_Top==(void*)RME_NULL))
     {
         RME_COV_MARKER();
         
@@ -4416,7 +4416,7 @@ static void _RME_Run_Ins(struct RME_Thd_Struct* Thd)
     Local=Thd->Sched.Local;
     
     /* It can't be free or there must be an error */
-    RME_ASSERT(Local!=RME_NULL);
+    RME_ASSERT(Local!=(void*)RME_NULL);
     
     /* Insert this thread into the runqueue */
     _RME_List_Ins(&(Thd->Sched.Run),
@@ -4442,7 +4442,7 @@ static void _RME_Run_Del(struct RME_Thd_Struct* Thd)
     Prio=Thd->Sched.Prio;
     Local=Thd->Sched.Local;
     /* It can't be free or there must be an error */
-    RME_ASSERT(Local!=RME_NULL);
+    RME_ASSERT(Local!=(void*)RME_NULL);
     
     /* Delete this thread from the runqueue */
     _RME_List_Del(Thd->Sched.Run.Prev,Thd->Sched.Run.Next);
@@ -4533,7 +4533,7 @@ static void _RME_Run_Notif(struct RME_Thd_Struct* Thd)
     }
 
     /* If this guy have an endpoint, send to it */
-    if(Thd->Sched.Sched_Sig!=0U)
+    if(Thd->Sched.Sched_Sig!=(void*)RME_NULL)
     {
         RME_COV_MARKER();
         _RME_Kern_Snd(Thd->Sched.Sched_Sig,1U);
@@ -4562,7 +4562,7 @@ rme_ptr_t _RME_Thd_Pgt(struct RME_Thd_Struct* Thd)
     
     Inv_Top=RME_INVSTK_TOP(Thd);
     
-    if(Inv_Top==RME_NULL)
+    if(Inv_Top==(void*)RME_NULL)
     {
         RME_COV_MARKER();
 
@@ -5379,7 +5379,7 @@ static rme_ret_t _RME_Thd_Del(struct RME_Cap_Cpt* Cpt,
     Thread=RME_CAP_GETOBJ(Thd_Del,struct RME_Thd_Struct*);
     
     /* See if the thread is free - if still bound, we cannot proceed to deletion */
-    if(RME_UNLIKELY(Thread->Sched.Local!=RME_NULL))
+    if(RME_UNLIKELY(Thread->Sched.Local!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -5512,7 +5512,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     /* Check if the target thread is already bound. If yes, we just quit */
     Thread=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Local_Old=Thread->Sched.Local;
-    if(RME_UNLIKELY(Local_Old!=RME_NULL))
+    if(RME_UNLIKELY(Local_Old!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -5678,7 +5678,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                (Thread->Sched.State==RME_THD_EXCPEND));
 
     /* Tie the signal endpoint to it if not zero */
-    if(Sig_Op==0U)
+    if(Sig_Op==(void*)RME_NULL)
     {
         RME_COV_MARKER();
 
@@ -5788,7 +5788,7 @@ static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Cpt* Cpt,
     }
 
     /* If we have an scheduler event endpoint, release it */
-    if(Thread->Sched.Sched_Sig!=RME_NULL)
+    if(Thread->Sched.Sched_Sig!=(void*)RME_NULL)
     {
         RME_COV_MARKER();
 
@@ -6861,7 +6861,7 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
     RME_CAP_DEL_CHECK(Sig_Del,Type_Stat,RME_CAP_TYPE_SIG);
 
     /* Check if the signal endpoint is currently used and cannot be deleted */
-    if(RME_UNLIKELY(Sig_Del->Thd!=0U))
+    if(RME_UNLIKELY(Sig_Del->Thd!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -6899,7 +6899,7 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg,
     struct RME_Thd_Struct* Thd_Cur;
 
     Thd_New=_RME_Run_High(Local);
-    RME_ASSERT(Thd_New!=RME_NULL);
+    RME_ASSERT(Thd_New!=(void*)RME_NULL);
     Thd_Cur=Local->Thd_Cur;
 
     /* Are these two threads the same? */
@@ -6982,7 +6982,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig,
     Thd_Sig=Cap_Sig->Thd;
     
     /* If and only if we are calling from the same core do we unblock */
-    if(RME_LIKELY(Thd_Sig!=RME_NULL))
+    if(RME_LIKELY(Thd_Sig!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7131,7 +7131,7 @@ static rme_ret_t _RME_Sig_Snd(struct RME_Cap_Cpt* Cpt,
     }
 
     /* If and only if we are calling from the same core do we unblock */
-    if(RME_LIKELY(Thd_Rcv!=RME_NULL))
+    if(RME_LIKELY(Thd_Rcv!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7308,7 +7308,7 @@ static rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Cpt* Cpt,
     
     /* See if we can receive on that endpoint - if someone blocks on it, we 
      * must wait for it to unblock before we can proceed. */
-    if(RME_UNLIKELY(Sig_Root->Thd!=RME_NULL))
+    if(RME_UNLIKELY(Sig_Root->Thd!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7567,7 +7567,7 @@ static rme_ret_t _RME_Inv_Del(struct RME_Cap_Cpt* Cpt,
     Invocation=RME_CAP_GETOBJ(Inv_Del,struct RME_Inv_Struct*);
     
     /* See if the invocation is currently being used - if yes, we cannot delete it */
-    if(RME_UNLIKELY(Invocation->Thd_Act!=RME_NULL))
+    if(RME_UNLIKELY(Invocation->Thd_Act!=(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7682,7 +7682,7 @@ static rme_ret_t _RME_Inv_Act(struct RME_Cap_Cpt* Cpt,
     Invocation=RME_CAP_GETOBJ(Inv_Op,struct RME_Inv_Struct*);
     /* Check if this invocation port is already active */
     Thd_Act=Invocation->Thd_Act;
-    if(RME_UNLIKELY(RME_UNLIKELY(Thd_Act!=RME_NULL)))
+    if(RME_UNLIKELY(RME_UNLIKELY(Thd_Act!=(void*)RME_NULL)))
     {
         RME_COV_MARKER();
 
@@ -7762,7 +7762,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
     /* See if we can return - if we can, get the structure */
     Thread=RME_CPU_LOCAL()->Thd_Cur;
     Invocation=RME_INVSTK_TOP(Thread);
-    if(RME_UNLIKELY(Invocation==RME_NULL))
+    if(RME_UNLIKELY(Invocation==(void*)RME_NULL))
     {
         RME_COV_MARKER();
 
@@ -7817,7 +7817,7 @@ static rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg,
 
     /* Same assumptions as in invocation activation */
     Invocation=RME_INVSTK_TOP(Thread);
-    if(Invocation!=RME_NULL)
+    if(Invocation!=(void*)RME_NULL)
     {
         RME_COV_MARKER();
         
