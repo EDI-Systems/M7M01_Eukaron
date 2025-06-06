@@ -1,3 +1,4 @@
+#!/bin/bash
 objdump -S ./Object/UVM > ./UVM.asm
 objcopy -O binary ./Object/UVM ./UVM.bin
 echo "/******************************************************************************" > UVM.c

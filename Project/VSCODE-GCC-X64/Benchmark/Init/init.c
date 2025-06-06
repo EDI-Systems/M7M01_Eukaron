@@ -355,7 +355,6 @@ int main(ptr_t CPUID)
         /*Invocation stub test begins here*/
       
         UVM_ASSERT(UVM_Inv_Crt(UVM_BOOT_CAPTBL, UVM_CAPID(UVM_BOOT_TBL_KMEM,0), TEST_INV1, TEST_PROCESS, Cur_Addr)>=0);
-        Cur_Addr+=UVM_INV_SIZE;
         UVM_Clear((void*)(15*UVM_POW2(RME_PGT_SIZE_1M)), UVM_POW2(RME_PGT_SIZE_1M));
         UVM_ASSERT(UVM_Inv_Set(TEST_INV1,(ptr_t)TEST_INV1_FUNC,15*UVM_POW2(RME_PGT_SIZE_1M)+0x20000000ULL,0)>=0);
         sum=0;

@@ -253,11 +253,11 @@ while(0)
 #undef __HDR_DEFS__
 /*****************************************************************************/
 /* Doubly-linked list */
-struct UVM_List
-{
-    struct UVM_List* Prev;
-    struct UVM_List* Next;
-};
+// struct UVM_List
+// {
+//     struct UVM_List* Prev;
+//     struct UVM_List* Next;
+// };
 /*****************************************************************************/
 /* __SYSSVC_H_STRUCTS__ */
 #endif
