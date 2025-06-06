@@ -117,8 +117,8 @@ Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t __RME_Putchar(char Char)
 {
-    //if(RME_X64_UART_Exist==0)
-     //   return 0;
+    if(RME_X64_UART_Exist==0)
+       return 0;
     /* Wait until we have transmitted */
 
     while((__RME_X64_In(RME_X64_COM1+5)&0x20)==0);
@@ -403,10 +403,10 @@ rme_ret_t __RME_X64_ACPI_Init(void)
 {
     rme_cnt_t Count;
     rme_cnt_t Table_Num;
-    struct RME_X64_ACPI_RDSP_Desc* RDSP=RME_NULL;
-    struct RME_X64_ACPI_RSDT_Hdr* RSDT=RME_NULL;
-    struct RME_X64_ACPI_MADT_Hdr* MADT=RME_NULL;
-    struct RME_X64_ACPI_Desc_Hdr* Header=RME_NULL;
+    struct RME_X64_ACPI_RDSP_Desc* RDSP;
+    struct RME_X64_ACPI_RSDT_Hdr* RSDT;
+    struct RME_X64_ACPI_Desc_Hdr* Header;
+    struct RME_X64_ACPI_MADT_Hdr* MADT=(void*)RME_NULL;
     /* Try to find RDSP */
     RDSP=__RME_X64_RDSP_Find();
     RME_DBG_S("\r\nRDSP address: ");
@@ -516,7 +516,7 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
         MMap=(struct multiboot_mmap_entry*)(MMap_Addr+MMap_Cnt);
         MMap_Cnt+=MMap->size+4;
 
-        if(MMap->type!=1)
+        if(RME_UNLIKELY(MMap->type!=1))
         {
             RME_DBG_S("\n\rPhysical memory: 0x");
             RME_DBG_H(MMap->addr);
@@ -1147,10 +1147,10 @@ Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
-    volatile rme_cnt_t PML4_Cnt;
-    volatile rme_cnt_t PDP_Cnt;
-    volatile rme_cnt_t PDE_Cnt;
-    volatile rme_cnt_t Addr_Cnt;
+    rme_cnt_t PML4_Cnt;
+    rme_cnt_t PDP_Cnt;
+    rme_cnt_t PDE_Cnt;
+    rme_cnt_t Addr_Cnt;
     volatile struct __RME_X64_Mem* Mem;
 
     /* Now initialize the kernel object allocation table */

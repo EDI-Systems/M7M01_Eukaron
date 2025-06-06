@@ -807,9 +807,34 @@ struct RME_Reg_Struct
     rme_ptr_t SS;
 };
 
+/* Exception context structure
+ * This structure holds the metadata when an exception or interrupt occurs.
+ * It supplements the general-purpose register structure by providing exception-specific info.
+ */
 struct RME_Exc_Struct
 {
+    /* The interrupt vector number that caused the trap, e.g., 14 = page fault */
+    rme_ptr_t INT_NUM;
 
+    /* The error code pushed by the CPU automatically (only for some exceptions). 
+     * For example, page fault, GPF, double fault, etc. 
+     * If not present, this is set to 0. */
+    rme_ptr_t ERROR_CODE;
+
+    /* The faulting instruction address (same as RIP in most cases) */
+    rme_ptr_t RIP;
+
+    /* Code segment selector at the time of the exception */
+    rme_ptr_t CS;
+
+    /* RFLAGS register at the time of exception, including interrupt flag, etc. */
+    rme_ptr_t RFLAGS;
+
+    /* Stack pointer at the time of exception (user/kernel depending on CPL switch) */
+    rme_ptr_t RSP;
+
+    /* Stack segment selector (only pushed if transitioning from user to kernel) */
+    rme_ptr_t SS;
 };
 
 /* The coprocessor register set structure. MMX and SSE */
@@ -958,16 +983,6 @@ struct __RME_X64_Kern_Pgt
 	rme_ptr_t PML4[256];
 	rme_ptr_t PDP[256][512];
 };
-
-static inline unsigned long long RME_X64_RDTSC()
-{
-	unsigned int lo, hi;
-	__asm__ __volatile__ (
-		"rdtsc"
-		: "=a" (lo), "=d" (hi)
-	);
-	return ((unsigned long long)hi << 32) | lo;
-}
 
 /*****************************************************************************/
 /* __RME_PLATFORM_X64_STRUCT__ */
@@ -1220,7 +1235,6 @@ static void __RME_X64_Timer_Init(void);
 #endif
 
 /*****************************************************************************/
-EXTERN rme_ptr_t RME_x64_timestamp;
 EXTERN struct RME_X64_IDT_Entry RME_X64_IDT_Table[256];
 EXTERN struct __RME_X64_Kern_Pgt RME_X64_Kpgt;
 EXTERN rme_ptr_t __RME_X64_Kern_Boot_Stack[0];
