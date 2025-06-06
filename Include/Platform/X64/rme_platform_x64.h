@@ -86,12 +86,18 @@ typedef rme_s64_t rme_ret_t;
 #endif
 /* End Extended Types ********************************************************/
 
+/* Debug macros *************************************************************/
+//#define RME_DBGLOG_ENABLE					 (1U)
+
 /* System macros *************************************************************/
 /* Compiler "extern" keyword setting */
 #define EXTERN                               extern
+#define RME_EXTERN                           extern
 /* Compiler "inline" keyword setting */
 #define INLINE                               inline
 /* Compiler likely & unlikely setting */
+#define likely(X)							 (__builtin_expect(!!(X), 1))
+#define unlikely(X)							 (__builtin_expect(!!(X), 0))
 #ifdef likely
 #define RME_LIKELY(X)                        (likely(X))
 #else
@@ -105,29 +111,51 @@ typedef rme_s64_t rme_ret_t;
 /* Get CPU-local data structure */
 #define RME_CPU_LOCAL()                      __RME_X64_CPU_Local_Get()
 /* The order of bits in one CPU machine word */
-#define RME_WORD_ORDER                       6
+#define RME_WORD_ORDER                       (6U)
 /* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                        (RME_FALSE)
+#define RME_VA_EQU_PA                        (0U)
 /* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
-#define RME_QUIE_TIME                        10
+#define RME_QUIE_TIME                        (10U)
 /* Cpt size limit - not restricted, user-level decides this */
-#define RME_CPT_LIMIT                     0
+#define RME_CPT_LIMIT                         (0U)
 /* Normal page directory size calculation macro */
-#define RME_PGT_SIZE_NOM(NUM_ORDER)        ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
+#define RME_PGT_SIZE_NOM(NUM_ORDER)           ((1<<(NUM_ORDER))*sizeof(rme_ptr_t))
 /* Top-level page directory size calculation macro */
-#define RME_PGT_SIZE_TOP(NUM_ORDER)        RME_PGT_SIZE_NOM(NUM_ORDER)
+#define RME_PGT_SIZE_TOP(NUM_ORDER)           RME_PGT_SIZE_NOM(NUM_ORDER)
 /* Initial stack size and address */
-#define RME_KOM_STACK_ADDR                  ((rme_ptr_t)__RME_X64_Kern_Boot_Stack)
+#define RME_KOM_STACK_ADDR                    ((rme_ptr_t)__RME_X64_Kern_Boot_Stack)
 /* The virtual memory start address for the kernel objects */
-#define RME_KOM_VA_START                    0xFFFF800000000000ULL
+#define RME_KOM_VA_BASE                       0xFFFF800001600000ULL
 /* The size of the kernel object virtual memory - dummy, we will detect the actual values */
-#define RME_KOM_SIZE                        0x1000
+#define RME_KOM_VA_SIZE                       0x1000
 /* The virtual memory start address for the virtual machines - If no virtual machines is used, set to 0 */
-#define RME_HYP_VA_START                     0
-/* The size of the hypervisor reserved virtual memory */
-#define RME_HYP_SIZE                         0
+#define RME_HYP_VA_START                      (0U)
+/*User-mode page table direct management switch */
+#define RME_PGT_RAW_ENABLE                     (0U)
 /* The kernel object allocation table address - relocated */
-#define RME_KOT_VA_BASE                            ((rme_ptr_t*)0xFFFF800001000000)
+#define RME_KOT_VA_BASE						  ((rme_ptr_t*)0xFFFF800001000000)
+/* Hypervisor reserved virtual address base - when no in use ,we set it to zero */
+#define RME_HYP_VA_BASE                 	  (0U)
+/* Hypervisor reserved virtual memory size - when no in use ,we set it to zero */
+#define RME_HYP_VA_SIZE                 	  (0U)
+/* Word bits of this architecture, in x86-64, it's 64bit */
+#define RME_WORD_BITS                   	  (64U)
+/* Upper limit of preemption priority */
+#define RME_PREEMPT_PRIO_NUM         		  (64U)
+/* Timestamp of system , in x86-64 ,we use RDTSC to count time */
+#define RME_TIMESTAMP 						  __RME_Get_timestamp()
+/* Kernel object table round function */
+#define RME_KOT_VA_BASE_ROUND(x)			  RME_ROUND_UP(x,12)
+/* 2-level cap flag*/
+#define RME_CAPID_2L						  (((rme_cid_t)1)<<(sizeof(rme_ptr_t)*2-1))
+/* Get 2-level capid */
+#define RME_CAPID(X,Y)						  (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
+/* VGA text area address - this is a paddr */
+#define RME_X64_VGA_BASE					  ((volatile rme_u16_t*)(RME_X64_PA2VA(0xB8000)))
+/* VGA text area settings , we create a 80*25 area */
+#define RME_X64_VGA_ROW_MAX					  (25U)
+#define RME_X64_VGA_COL_MAX					  (80U)
+
 /* Atomic instructions - The oficial release replaces all these with inline
  * assembly to boost speed. Sometimes this can harm compiler compatibility. If
  * you need normal assembly version, consider uncommenting the macro below. */
@@ -144,7 +172,7 @@ typedef rme_s64_t rme_ret_t;
 #define RME_MSB_GET(VAL)                     __RME_X64_MSB_Get(VAL)
 /* Inline assembly implementation */
 #else
-static INLINE rme_ptr_t _RME_X64_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
+static INLINE rme_ptr_t _RME_X64_Comp_Swap(volatile rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New)
 {
 	rme_u8_t Zero;
 	__asm__ __volatile__("LOCK CMPXCHGQ %[New], %[Ptr]; SETZ %[Zero]"
@@ -153,7 +181,7 @@ static INLINE rme_ptr_t _RME_X64_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_pt
 	                     :"memory", "cc");
 	return (rme_ptr_t)Zero;
 }
-static INLINE rme_ptr_t _RME_X64_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend)
+static INLINE rme_ptr_t _RME_X64_Fetch_Add(volatile rme_ptr_t* Ptr, rme_cnt_t Addend)
 {
 	__asm__ __volatile__("LOCK XADDQ %[Addend], %[Ptr]"
 	                     :[Ptr]"+m"(*Ptr), [Addend]"+r"(Addend)
@@ -179,6 +207,44 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 	                     :"cc");
 	return Ret;
 }
+
+static INLINE void __RME_Int_Disable()
+{
+	__asm__ __volatile__ (
+		"cli\n\t"
+	);
+}
+
+static INLINE void __RME_Int_Enable()
+{
+	__asm__ __volatile__ (
+		"sti\n\t"
+	);
+}
+
+static INLINE rme_ptr_t __RME_User_Enter()
+{
+	rme_ptr_t Ret;
+	asm volatile (
+	"movq %1, %%rcx\n\t"
+	"movq %2, %%rsp\n\t"
+	"movq $0x3200, %%r11\n\t"
+	"movq %3, %%rdi\n\t"
+	"sysretq"
+);
+	return Ret;
+}
+
+static INLINE rme_ptr_t __RME_Get_timestamp()
+{
+    rme_u32_t lo, hi;
+    __asm__ __volatile__ (
+        "rdtsc"
+        : "=a" (lo), "=d" (hi)
+    );
+    return ((rme_ptr_t)hi << 32) | lo;
+}
+
 #define RME_COMP_SWAP(PTR,OLD,NEW)           _RME_X64_Comp_Swap(PTR,OLD,NEW)
 #define RME_FETCH_ADD(PTR,ADDEND)            _RME_X64_Fetch_Add(PTR,ADDEND)
 #define RME_FETCH_AND(PTR,OPERAND)           _RME_X64_Fetch_And(PTR,OPERAND)
@@ -230,7 +296,7 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 #define RME_X64_VA_BASE                      (0xFFFF800000000000ULL)
 #define RME_X64_TEXT_VA_BASE                 (0xFFFFFFFF80000000ULL)
 /* The offset of kernel object table */
-#define RME_X64_KOT_OFFSET                 (0x1000000ULL)
+#define RME_X64_KOT_OFFSET                   (0x1000000ULL)
 /* The offset of device hole */
 #define RME_X64_DEVICE_OFFSET                (0xFE000000ULL)
 /* Convert PA-VA and VA-PA in the first block of memory (16MB - 3.25GB)*/
@@ -741,6 +807,11 @@ struct RME_Reg_Struct
     rme_ptr_t SS;
 };
 
+struct RME_Exc_Struct
+{
+
+};
+
 /* The coprocessor register set structure. MMX and SSE */
 struct RME_Cop_Struct
 {
@@ -887,6 +958,17 @@ struct __RME_X64_Kern_Pgt
 	rme_ptr_t PML4[256];
 	rme_ptr_t PDP[256][512];
 };
+
+static inline unsigned long long RME_X64_RDTSC()
+{
+	unsigned int lo, hi;
+	__asm__ __volatile__ (
+		"rdtsc"
+		: "=a" (lo), "=d" (hi)
+	);
+	return ((unsigned long long)hi << 32) | lo;
+}
+
 /*****************************************************************************/
 /* __RME_PLATFORM_X64_STRUCT__ */
 #endif
@@ -931,6 +1013,12 @@ static volatile rme_ptr_t RME_X64_LAPIC_Addr;
 static volatile struct RME_X64_Features RME_X64_Feature;
 /* The PCID counter */
 static volatile rme_ptr_t RME_X64_PCID_Inc;
+/* The VGA buffer pointer */
+static volatile rme_u16_t* vga_buffer;
+/* The VGA text cursor row */
+static volatile rme_ptr_t vga_row;
+/* The VGA text cursor col */
+static volatile rme_ptr_t vga_col;
 
 /* Translate the flags into X64 specific ones - the STATIC bit will never be
  * set thus no need to consider about it here. The flag bits order is shown below:
@@ -1132,6 +1220,7 @@ static void __RME_X64_Timer_Init(void);
 #endif
 
 /*****************************************************************************/
+EXTERN rme_ptr_t RME_x64_timestamp;
 EXTERN struct RME_X64_IDT_Entry RME_X64_IDT_Table[256];
 EXTERN struct __RME_X64_Kern_Pgt RME_X64_Kpgt;
 EXTERN rme_ptr_t __RME_X64_Kern_Boot_Stack[0];
@@ -1151,6 +1240,13 @@ EXTERN void __RME_X64_IDT_Load(rme_ptr_t* IDTR);
 EXTERN void __RME_X64_TSS_Load(rme_ptr_t TSS);
 EXTERN rme_ptr_t __RME_X64_CPUID_Get(rme_ptr_t EAX, rme_ptr_t* EBX, rme_ptr_t* ECX, rme_ptr_t* EDX);
 EXTERN void __RME_X64_Pgt_Set(rme_ptr_t Pgt);
+EXTERN void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,rme_ptr_t* Svc,rme_ptr_t* Cid,rme_ptr_t* Param);
+EXTERN void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval);
+EXTERN void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval);
+EXTERN rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,struct RME_Reg_Struct* Reg,rme_ptr_t FuncID,rme_ptr_t SubID,rme_ptr_t Param1,rme_ptr_t Param2);
+EXTERN void __RME_List_Crt(struct RME_List* Head);
+EXTERN void __RME_List_Ins(struct RME_List* New,struct RME_List* Prev,struct RME_List* Next);
+EXTERN void __RME_List_Del(struct RME_List* Prev,struct RME_List* Next);
 /* Boot glue */
 EXTERN void __RME_X64_SMP_Boot_32(void);
 /* Vectors */
@@ -1446,7 +1542,7 @@ EXTERN void ___RME_X64_Thd_Cop_Restore(struct RME_Cop_Struct* Cop_Reg);
 /* Booting */
 EXTERN void _RME_Kmain(rme_ptr_t Stack);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
-__EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
+__EXTERN__ rme_ptr_t __RME_Lowlvl_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
 __EXTERN__ void __RME_Reboot(void);
 __EXTERN__ void __RME_Shutdown(void);
@@ -1456,7 +1552,7 @@ __EXTERN__ void __RME_Get_Syscall_Param(struct RME_Reg_Struct* Reg, rme_ptr_t* S
                                         rme_ptr_t* Capid, rme_ptr_t* Param);
 __EXTERN__ void __RME_Set_Syscall_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Thread register sets */
-__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
+__EXTERN__ void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg);
 __EXTERN__ void __RME_Thd_Reg_Copy(struct RME_Reg_Struct* Dst, struct RME_Reg_Struct* Src);
 __EXTERN__ void __RME_Thd_Cop_Init(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
 __EXTERN__ void __RME_Thd_Cop_Save(struct RME_Reg_Struct* Reg, struct RME_Cop_Struct* Cop_Reg);
@@ -1474,7 +1570,7 @@ __EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Re
 /* Generic interrupt handler */
 __EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Int_Num);
 /* Page table operations */
-__EXTERN__ void __RME_Pgt_Set(rme_ptr_t Pgt);
+__EXTERN__ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt);
 __EXTERN__ rme_ptr_t __RME_Pgt_Kom_Init(void);
 __EXTERN__ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
 __EXTERN__ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op);
