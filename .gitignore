@@ -82,6 +82,7 @@ Project/MPLAB-*/RMP.X/.generated_files
 Project/MPLAB-*/RMP.X/disassembly
 Project/MPLAB-*/RMP.X/dist
 
+#VScode specific
 .cproject
 .project
 .vscode/c_cpp_properties.json
@@ -98,3 +99,10 @@ Project/MFGCC-XC7Z020/Object/RME.bin
 Project/MFGCC-XC7Z020/Object/RME.txt
 Project/MFGCC-XC7Z020/Object/start
 Project/MFGCC-XC7Z020/Object/USER.bin
+#VScode specific
+.vscode/
+Project/VSCODE-*/.vscode/c_cpp_properties.json
+
+#MacOS generated files
+.DS_Store
+

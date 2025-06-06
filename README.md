@@ -300,4 +300,5 @@ We ask what fits the situation, rather than what is at hand.
 
 ### Starring Contributors
 - Junwen Huang - ARM v7-A port
+- Kevin  Hua   - X86-64	  port
 

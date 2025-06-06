@@ -30,8 +30,8 @@ Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
 
 /* Include *******************************************************************/
 #define __HDR_DEF__
-#include "Kernel/rme_kernel.h"
 #include "Platform/X64/rme_platform_x64.h"
+#include "Kernel/rme_kernel.h"
 #undef __HDR_DEF__
 
 #define __HDR_STRUCT__
@@ -62,6 +62,52 @@ int main(rme_ptr_t MBInfo)
 }
 /* End Function:main *********************************************************/
 
+
+/* Function: __RME_Kfn_Handler ************************************************
+Description : Temporarily use it as a debug function，
+in this function , we output user-mode data to screen
+******************************************************************************/
+rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt, struct RME_Reg_Struct* Reg,rme_ptr_t FuncID, rme_ptr_t SubID,rme_ptr_t Param1, rme_ptr_t Param2)
+{
+    char Char = (char)Param1;
+    if (Char=='\n')
+    {
+        if (vga_row+1>=RME_X64_VGA_ROW_MAX)
+        {
+            RME_DBG_S("\r\nThe characters output to vga overflowed!");
+            return -1;
+        }
+        vga_col=0;
+        vga_row++;
+        return 0;
+    }
+    else if(Char=='\r')
+    {
+        return 0;
+    }
+    else
+    {
+        vga_buffer[vga_row*80+vga_col] = (0x1F << 8) | Char;
+        if (vga_col+1>=RME_X64_VGA_COL_MAX)
+        {
+            if (vga_row+1>=RME_X64_VGA_ROW_MAX)
+            {
+                RME_DBG_S("\r\nThe characters output to vga overflowed!");
+                return -1;
+            }
+            else
+            {
+                vga_col=0;
+                vga_row++;
+                return 0;
+            }
+        }
+        vga_col++;
+    }
+    return 0;
+}
+/* End Function: __RME_Kfn_Handler ********************************************/
+
 /* Function:__RME_Putchar *****************************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
               we should use the ITM for such outputs.
@@ -72,11 +118,10 @@ Return      : rme_ptr_t - Always 0.
 rme_ptr_t __RME_Putchar(char Char)
 {
     if(RME_X64_UART_Exist==0)
-        return 0;
-
+       return 0;
     /* Wait until we have transmitted */
-    while((__RME_X64_In(RME_X64_COM1+5)&0x20)==0);
 
+    while((__RME_X64_In(RME_X64_COM1+5)&0x20)==0);
     __RME_X64_Out(RME_X64_COM1, Char);
 
     return 0;
@@ -124,24 +169,27 @@ struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(rme_ptr_t Base, rme_ptr_t Len
 {
     rme_u8_t* Pos;
     rme_cnt_t Count;
-    rme_ptr_t Checksum;
     rme_cnt_t Check_Cnt;
-
+    volatile rme_ptr_t Checksum;
     Pos=(rme_u8_t*)RME_X64_PA2VA(Base);
-
     /* Search a word at a time */
-    for(Count=0;Count<=Len-sizeof(struct RME_X64_ACPI_RDSP_Desc);Count+=4)
+    for(Count=0;Count<=Len-sizeof(struct RME_X64_ACPI_RDSP_Desc);Count+=16)
     {
         /* It seemed that we have found one. See if the checksum is good */
         if(_RME_Memcmp(&(Pos[Count]),"RSD PTR ",8)==0)
         {
+            //RME_DBG_H((rme_ptr_t)(Pos[Count+15]));
             Checksum=0;
             /* 20 is the length of the first part of the table */
             for(Check_Cnt=0;Check_Cnt<20;Check_Cnt++)
-                Checksum+=Pos[Count+Check_Cnt];
+            {
+                Checksum+=(rme_ptr_t)Pos[Count+Check_Cnt];
+            }
             /* Is the checksum good? */
             if((Checksum&0xFF)==0)
+            {
                 return (struct RME_X64_ACPI_RDSP_Desc*)&(Pos[Count]);
+            }
         }
     }
     return 0;
@@ -230,9 +278,9 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
                     break;
 
                 RME_DBG_S("\n\rACPI: CPU ");
-                RME_Int_Print(RME_X64_Num_CPU);
+                RME_DBG_I((rme_cnt_t)RME_X64_Num_CPU);
                 RME_DBG_S(", LAPIC ID ");
-                RME_Int_Print(LAPIC->APIC_ID);
+                RME_DBG_I(LAPIC->APIC_ID);
 
                 /* Log this CPU into our per-CPU data structure */
                 RME_X64_CPU_Info[RME_X64_Num_CPU].LAPIC_ID=LAPIC->APIC_ID;
@@ -250,13 +298,13 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
                     break;
 
                 RME_DBG_S("\n\rACPI: IOAPIC ");
-                RME_Int_Print(RME_X64_Num_IOAPIC);
+                RME_DBG_I((rme_cnt_t)RME_X64_Num_IOAPIC);
                 RME_DBG_S(" @ ");
-                RME_Hex_Print(IOAPIC->Addr);
+                RME_DBG_H(IOAPIC->Addr);
                 RME_DBG_S(", ID ");
-                RME_Int_Print(IOAPIC->ID);
+                RME_DBG_I(IOAPIC->ID);
                 RME_DBG_S(", IBASE ");
-                RME_Int_Print(IOAPIC->Interrupt_Base);
+                RME_DBG_I(IOAPIC->Interrupt_Base);
 
                 /* Support multiple APICS */
                 if(RME_X64_Num_IOAPIC!=0)
@@ -279,13 +327,13 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
                 if(Length<sizeof(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record))
                     break;
                 RME_DBG_S("\n\rACPI: OVERRIDE Bus ");
-                RME_Int_Print(OVERRIDE->Bus);
+                RME_DBG_I(OVERRIDE->Bus);
                 RME_DBG_S(", Source ");
-                RME_Hex_Print(OVERRIDE->Source);
+                RME_DBG_H(OVERRIDE->Source);
                 RME_DBG_S(", GSI ");
-                RME_Int_Print(OVERRIDE->GS_Interrupt);
+                RME_DBG_I(OVERRIDE->GS_Interrupt);
                 RME_DBG_S(", Flags ");
-                RME_Int_Print(OVERRIDE->MPS_Int_Flags);
+                RME_DBG_I(OVERRIDE->MPS_Int_Flags);
 
                 break;
             }
@@ -336,11 +384,11 @@ void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header)
     RME_DBG_S(", ");
     RME_DBG_S(Table_ID);
     RME_DBG_S(", ");
-    RME_DBG_S(OEM_Rev);
+    RME_DBG_I(OEM_Rev);
     RME_DBG_S(", ");
     RME_DBG_S(Creator);
     RME_DBG_S(", ");
-    RME_DBG_S(Creator_Rev);
+    RME_DBG_I(Creator_Rev);
     RME_DBG_S(".");
 }
 /* End Function:__RME_X64_ACPI_Debug *****************************************/
@@ -357,19 +405,17 @@ rme_ret_t __RME_X64_ACPI_Init(void)
     rme_cnt_t Table_Num;
     struct RME_X64_ACPI_RDSP_Desc* RDSP;
     struct RME_X64_ACPI_RSDT_Hdr* RSDT;
-    struct RME_X64_ACPI_MADT_Hdr* MADT;
     struct RME_X64_ACPI_Desc_Hdr* Header;
-
+    struct RME_X64_ACPI_MADT_Hdr* MADT=(void*)RME_NULL;
     /* Try to find RDSP */
     RDSP=__RME_X64_RDSP_Find();
     RME_DBG_S("\r\nRDSP address: ");
-    RME_DBG_U((rme_ptr_t)RDSP);
+    RME_DBG_H((rme_ptr_t)RDSP);
     /* Find the RSDT */
     RSDT=(struct RME_X64_ACPI_RSDT_Hdr*)RME_X64_PA2VA(RDSP->RSDT_Addr_Phys);
     RME_DBG_S("\r\nRSDT address: ");
-    RME_DBG_U((rme_ptr_t)RSDT);
+    RME_DBG_H((rme_ptr_t)RSDT);
     Table_Num=(RSDT->Header.Length-sizeof(struct RME_X64_ACPI_RSDT_Hdr))>>2;
-
     for(Count=0;Count<Table_Num;Count++)
     {
         /* See what did we find */
@@ -450,7 +496,7 @@ struct __RME_X64_Mem
     rme_ptr_t Length;
 };
 /* The header of the physical memory linked list */
-struct RME_List RME_X64_Phys_Mem;
+volatile struct RME_List RME_X64_Phys_Mem;
 /* The BIOS wouldn't really report more than 1024 blocks of memory */
 struct __RME_X64_Mem RME_X64_Mem[1024];
 
@@ -460,19 +506,26 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
     volatile struct RME_List* Trav_Ptr;
     rme_ptr_t MMap_Cnt;
     rme_ptr_t Info_Cnt;
-
     MMap_Cnt=0;
     Info_Cnt=0;
 
-    __RME_List_Crt(&RME_X64_Phys_Mem);
+    __RME_List_Crt((struct RME_List*)&RME_X64_Phys_Mem);
 
     while(MMap_Cnt<MMap_Length)
     {
         MMap=(struct multiboot_mmap_entry*)(MMap_Addr+MMap_Cnt);
         MMap_Cnt+=MMap->size+4;
 
-        if(MMap->type!=1)
+        if(RME_UNLIKELY(MMap->type!=1))
+        {
+            RME_DBG_S("\n\rPhysical memory: 0x");
+            RME_DBG_H(MMap->addr);
+            RME_DBG_S(", 0x");
+            RME_DBG_H(MMap->len);
+            RME_DBG_S(", ");
+            RME_DBG_H(MMap->type);
             continue;
+        }
 
         Trav_Ptr=RME_X64_Phys_Mem.Next;
         while(Trav_Ptr!=&RME_X64_Phys_Mem)
@@ -483,15 +536,15 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
         }
         RME_X64_Mem[Info_Cnt].Start_Addr=MMap->addr;
         RME_X64_Mem[Info_Cnt].Length=MMap->len;
-        __RME_List_Ins(&(RME_X64_Mem[Info_Cnt].Head),Trav_Ptr->Prev,Trav_Ptr);
+        __RME_List_Ins(&(RME_X64_Mem[Info_Cnt].Head),Trav_Ptr->Prev,(struct RME_List*)Trav_Ptr);
 
         /* Just print them then */
         RME_DBG_S("\n\rPhysical memory: 0x");
-        RME_Hex_Print(MMap->addr);
+        RME_DBG_H(MMap->addr);
         RME_DBG_S(", 0x");
-        RME_Hex_Print(MMap->len);
+        RME_DBG_H(MMap->len);
         RME_DBG_S(", ");
-        RME_Hex_Print(MMap->type);
+        RME_DBG_H(MMap->type);
 
         Info_Cnt++;
     }
@@ -510,7 +563,7 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
             ((struct __RME_X64_Mem*)(Trav_Ptr->Next))->Start_Addr+
             ((struct __RME_X64_Mem*)(Trav_Ptr->Next))->Length-
             ((struct __RME_X64_Mem*)(Trav_Ptr))->Start_Addr;
-            __RME_List_Del(Trav_Ptr,Trav_Ptr->Next->Next);
+            __RME_List_Del((struct RME_List*)Trav_Ptr,Trav_Ptr->Next->Next);
             continue;
         }
         Trav_Ptr=Trav_Ptr->Next;
@@ -525,7 +578,7 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
         Trav_Ptr=Trav_Ptr->Next;
     }
     RME_DBG_S("\n\rTotal physical memory: 0x");
-    RME_Hex_Print(MMap_Cnt);
+    RME_DBG_H(MMap_Cnt);
 
     /* At least 256MB memory required on x64 architecture */
     RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGT_SIZE_256M));
@@ -568,7 +621,6 @@ void __RME_X64_CPU_Local_Init(void)
     /* Clean up the whole IDT */
     for(Count=0;Count<256;Count++)
         IDT_Table[Count].Type_Attr=0;
-
     /* Install the vectors - only the INT3 is trap (for debugging), all other ones are interrupt */
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_DE, RME_X64_IDT_VECT, __RME_X64_FAULT_DE_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_TRAP_DB, RME_X64_IDT_VECT, __RME_X64_TRAP_DB_Handler);
@@ -590,7 +642,6 @@ void __RME_X64_CPU_Local_Init(void)
     RME_X64_SET_IDT(IDT_Table, RME_X64_ABORT_MC, RME_X64_IDT_VECT, __RME_X64_ABORT_MC_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_XM, RME_X64_IDT_VECT, __RME_X64_FAULT_XM_Handler);
     RME_X64_SET_IDT(IDT_Table, RME_X64_FAULT_VE, RME_X64_IDT_VECT, __RME_X64_FAULT_VE_Handler);
-
     /* Install user handlers */
     RME_X64_USER_IDT(IDT_Table, 32); RME_X64_USER_IDT(IDT_Table, 33);
     RME_X64_USER_IDT(IDT_Table, 34); RME_X64_USER_IDT(IDT_Table, 35);
@@ -743,10 +794,8 @@ void __RME_X64_CPU_Local_Init(void)
     Desc[3]=((rme_ptr_t)IDT_Table)>>32;
     Desc[4]=((rme_ptr_t)IDT_Table)>>48;
     __RME_X64_IDT_Load((rme_ptr_t*)Desc);
-
     GDT_Table=(rme_ptr_t*)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGT_SIZE_4K));
     TSS_Table=(rme_ptr_t)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+RME_POW2(RME_PGT_SIZE_4K)+16*sizeof(rme_ptr_t));
-
     /* Dummy entry */
     GDT_Table[0]=0x0000000000000000ULL;
     /* Kernel code, DPL=0, R/X */
@@ -762,7 +811,6 @@ void __RME_X64_CPU_Local_Init(void)
     /* TSS */
     GDT_Table[6]=(0x0067)|((TSS_Table&0xFFFFFFULL)<<16)|(0x0089ULL<<40)|(((TSS_Table>>24)&0xFFULL)<<56);
     GDT_Table[7]=(TSS_Table>>32);
-
     /* Load the GDT */
     Desc[0]=8*sizeof(rme_ptr_t)-1;
     Desc[1]=(rme_ptr_t)GDT_Table;
@@ -776,7 +824,6 @@ void __RME_X64_CPU_Local_Init(void)
     /* IO Map Base = End of TSS (What's this?) */
     ((rme_u32_t*)TSS_Table)[16]=0x00680000;
     __RME_X64_TSS_Load(6*sizeof(rme_ptr_t));
-
     /* Initialize the RME per-cpu data here */
     CPU_Local=(struct RME_CPU_Local*)(RME_X64_CPU_LOCAL_BASE(RME_X64_CPU_Cnt)+
     		                          RME_POW2(RME_PGT_SIZE_4K)+
@@ -954,7 +1001,7 @@ void __RME_X64_IOAPIC_Init(void)
     /* IOAPIC initialization */
     RME_X64_IOAPIC_READ(RME_X64_IOAPIC_REG_VER,Max_Int);
     Max_Int=((Max_Int>>16)&0xFF);
-    RME_DBG_S("\n\rMax int is: ");
+    RME_DBG_S("\n\rMax interupt number is: ");
     RME_DBG_I(Max_Int);
     RME_X64_IOAPIC_READ(RME_X64_IOAPIC_REG_ID,IOAPIC_ID);
     IOAPIC_ID>>=24;
@@ -1069,13 +1116,13 @@ void __RME_X64_Timer_Init(void)
 }
 /* End Function:__RME_X64_Timer_Init *****************************************/
 
-/* Function:__RME_Low_Level_Init **********************************************
+/* Function:__RME_Lowlvl_Init **********************************************
 Description : Initialize the low-level hardware.
 Input       : None.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
-rme_ptr_t __RME_Low_Level_Init(void)
+rme_ptr_t __RME_Lowlvl_Init(void)
 {
     /* We are here now ! */
     __RME_X64_UART_Init();
@@ -1088,7 +1135,7 @@ rme_ptr_t __RME_Low_Level_Init(void)
 
     return 0;
 }
-/* End Function:__RME_Low_Level_Init *****************************************/
+/* End Function:__RME_Lowlvl_Init *****************************************/
 
 /* Function:__RME_Pgt_Kom_Init *********************************************
 Description : Initialize the kernel mapping tables, so it can be added to all the
@@ -1096,7 +1143,7 @@ Description : Initialize the kernel mapping tables, so it can be added to all th
               RAM, and is not NUMA-aware.
 Input       : None.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Kom_Init(void)
 {
@@ -1104,7 +1151,7 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     rme_cnt_t PDP_Cnt;
     rme_cnt_t PDE_Cnt;
     rme_cnt_t Addr_Cnt;
-    struct __RME_X64_Mem* Mem;
+    volatile struct __RME_X64_Mem* Mem;
 
     /* Now initialize the kernel object allocation table */
     _RME_Kot_Init(RME_X64_Layout.Kot_Size/sizeof(rme_ptr_t));
@@ -1184,9 +1231,9 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
         if(Mem->Length<RME_POW2(RME_PGT_SIZE_4M))
         {
             RME_DBG_S("\n\rAbandoning physical memory below 4G: addr 0x");
-            RME_DBG_U(Mem->Start_Addr);
+            RME_DBG_H(Mem->Start_Addr);
             RME_DBG_S(", length 0x");
-            RME_DBG_U(Mem->Length);
+            RME_DBG_H(Mem->Length);
             continue;
         }
         if(Addr_Cnt>=RME_X64_KOM1_MAXSEGS)
@@ -1219,9 +1266,9 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
         if(Mem->Length<2*RME_POW2(RME_PGT_SIZE_2M))
         {
             RME_DBG_S("\n\rAbandoning physical memory above 4G: addr 0x");
-            RME_DBG_U(Mem->Start_Addr);
+            RME_DBG_H(Mem->Start_Addr);
             RME_DBG_S(", length 0x");
-            RME_DBG_U(Mem->Length);
+            RME_DBG_H(Mem->Length);
             Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
             continue;
         }
@@ -1285,40 +1332,40 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
 
     /* Now report all mapping info */
     RME_DBG_S("\n\r\n\rKot_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Kot_Start);
+    RME_DBG_H(RME_X64_Layout.Kot_Start);
     RME_DBG_S("\n\rKot_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Kot_Size);
+    RME_DBG_H(RME_X64_Layout.Kot_Size);
     RME_DBG_S("\n\rPerCPU_Start:    0x");
-    RME_DBG_U(RME_X64_Layout.PerCPU_Start);
+    RME_DBG_H(RME_X64_Layout.PerCPU_Start);
     RME_DBG_S("\n\rPerCPU_Size:     0x");
-    RME_DBG_U(RME_X64_Layout.PerCPU_Size);
+    RME_DBG_H(RME_X64_Layout.PerCPU_Size);
     RME_DBG_S("\n\rKpgtbl_Start:    0x");
-    RME_DBG_U(RME_X64_Layout.Kpgtbl_Start);
+    RME_DBG_H(RME_X64_Layout.Kpgtbl_Start);
     RME_DBG_S("\n\rKpgtbl_Size:     0x");
-    RME_DBG_U(RME_X64_Layout.Kpgtbl_Size);
+    RME_DBG_H(RME_X64_Layout.Kpgtbl_Size);
     for(Addr_Cnt=0;Addr_Cnt<RME_X64_Layout.Kom1_Trunks;Addr_Cnt++)
     {
         RME_DBG_S("\n\rKom1_Start[");
         RME_DBG_I(Addr_Cnt);
         RME_DBG_S("]:  0x");
-        RME_DBG_U(RME_X64_Layout.Kom1_Start[Addr_Cnt]);
+        RME_DBG_H(RME_X64_Layout.Kom1_Start[Addr_Cnt]);
         RME_DBG_S("\n\rKom1_Size[");
         RME_DBG_I(Addr_Cnt);
         RME_DBG_S("]:   0x");
-        RME_DBG_U(RME_X64_Layout.Kom1_Size[Addr_Cnt]);
+        RME_DBG_H(RME_X64_Layout.Kom1_Size[Addr_Cnt]);
     }
     RME_DBG_S("\n\rHole_Start:      0x");
-    RME_DBG_U(RME_X64_Layout.Hole_Start);
+    RME_DBG_H(RME_X64_Layout.Hole_Start);
     RME_DBG_S("\n\rHole_Size:       0x");
-    RME_DBG_U(RME_X64_Layout.Hole_Size);
+    RME_DBG_H(RME_X64_Layout.Hole_Size);
     RME_DBG_S("\n\rKom2_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Kom2_Start);
+    RME_DBG_H(RME_X64_Layout.Kom2_Start);
     RME_DBG_S("\n\rKom2_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Kom2_Size);
+    RME_DBG_H(RME_X64_Layout.Kom2_Size);
     RME_DBG_S("\n\rStack_Start:     0x");
-    RME_DBG_U(RME_X64_Layout.Stack_Start);
+    RME_DBG_H(RME_X64_Layout.Stack_Start);
     RME_DBG_S("\n\rStack_Size:      0x");
-    RME_DBG_U(RME_X64_Layout.Stack_Size);
+    RME_DBG_H(RME_X64_Layout.Stack_Size);
 
     return 0;
 }
@@ -1350,12 +1397,12 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
 
     /* The booting CPU must have created everything necessary for us. Let's
      * check to see if they are there. */
-    RME_ASSERT(CPU_Local->Cur_Thd!=0);
-    RME_ASSERT(CPU_Local->Tick_Sig!=0);
-    RME_ASSERT(CPU_Local->Vect_Sig!=0);
+    RME_ASSERT(CPU_Local->Thd_Cur!=0);
+    RME_ASSERT(CPU_Local->Sig_Tim!=0);
+    RME_ASSERT(CPU_Local->Sig_Vct!=0);
 
     /* Change page tables */
-    __RME_Pgt_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Prc->Pgt,rme_ptr_t));
+    __RME_Pgt_Set((CPU_Local->Thd_Cur)->Sched.Prc->Pgt);
     /* Boot into the init thread - never returns */
     __RME_Enter_User_Mode(0, RME_X64_USTACK(CPU_Local->CPUID), CPU_Local->CPUID);
 
@@ -1378,9 +1425,8 @@ rme_ptr_t __RME_Boot(void)
     rme_ptr_t Page_Ptr;
     struct RME_Cap_Cpt* Cpt;
     struct RME_CPU_Local* CPU_Local;
-
     /* Initialize our own CPU-local data structures */
-    RME_X64_CPU_Cnt=0;
+    RME_X64_CPU_Cnt = 0;
     RME_DBG_S("\r\nCPU 0 local IDT/GDT init");
     __RME_X64_CPU_Local_Init();
     /* Initialize interrupt controllers (PIC, LAPIC, IOAPIC) */
@@ -1394,37 +1440,36 @@ rme_ptr_t __RME_Boot(void)
      * the booting processor finish all its work. */
     __RME_X64_SMP_Init();
 
-    /* Create all initial tables in Kom1, which is sure to be present. We reserve 16
-     * pages at the start to load the init process */
+    /* Create all initial tables in Kom1, which is sure to be present */
     Cur_Addr=RME_X64_Layout.Kom1_Start[0]+16*RME_POW2(RME_PGT_SIZE_2M);
     RME_DBG_S("\r\nKot registration start offset: 0x");
-    RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
+    RME_DBG_H(((Cur_Addr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER)/8);
 
     /* Create the capability table for the init process - always 16 */
     Cpt=(struct RME_Cap_Cpt*)Cur_Addr;
     RME_ASSERT(_RME_Cpt_Boot_Init(RME_BOOT_INIT_CPT,Cur_Addr,16)==RME_BOOT_INIT_CPT);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(16));
-
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(16));
     /* Create the capability table for initial page tables - now we are only
      * adding 2MB pages. There will be 1 PML4, 16 PDP, and 16*512=8192 PGD.
      * This should provide support for up to 4TB of memory, which will be sufficient
      * for at least a decade. These data structures will eat 32MB of memory, which
      * is fine */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_PGT, Cur_Addr, 1+16+8192)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(1+16+8192));
-
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(1+16+8192));
     /* Align the address to 4096 to prepare for page table creation */
     Cur_Addr=RME_ROUND_UP(Cur_Addr,12);
     /* Create PML4 */
+    RME_DBG_S("\r\nPML4 address:");
+    RME_DBG_H(Cur_Addr);
     RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PML4,
                                    Cur_Addr, 0, RME_PGT_TOP, RME_PGT_SIZE_512G, RME_PGT_NUM_512)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
+    Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
     /* Create all our 16 PDPs, and cons them into the PML4 */
     for(Count=0;Count<16;Count++)
     {
         RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDP(Count),
-                                       Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_1G, RME_PGT_NUM_512)==0);
-        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+                                       Cur_Addr, (rme_ptr_t)RME_POW2(RME_PGT_SIZE_512G)*Count, RME_PGT_NOM, RME_PGT_SIZE_1G, RME_PGT_NUM_512)==0);
+        Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
         RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4), Count,
                                        RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count)), RME_PGT_ALL_PERM)==0);
     }
@@ -1433,8 +1478,8 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<8192;Count++)
     {
         RME_ASSERT(_RME_Pgt_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_PGT, RME_BOOT_PDE(Count),
-                                       Cur_Addr, 0, RME_PGT_NOM, RME_PGT_SIZE_2M, RME_PGT_NUM_512)==0);
-        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
+                                       Cur_Addr, (rme_ptr_t)RME_POW2(RME_PGT_SIZE_1G)*Count, RME_PGT_NOM, RME_PGT_SIZE_2M, RME_PGT_NUM_512)==0);
+        Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_NOM(RME_PGT_NUM_512));
         RME_ASSERT(_RME_Pgt_Boot_Con(RME_X64_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDP(Count>>9)), Count&0x1FF,
                                        RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PDE(Count)), RME_PGT_ALL_PERM)==0);
     }
@@ -1452,16 +1497,16 @@ rme_ptr_t __RME_Boot(void)
         }
     }
     RME_DBG_S("\r\nKom1 pages: 0x");
-    RME_DBG_U(Page_Ptr);
+    RME_DBG_H(Page_Ptr);
     RME_DBG_S(", [0x0, 0x");
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
+    RME_DBG_H(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
     RME_DBG_S("]");
 
     /* Map the Kom2 in - don't want lookups, we know where they are. Offset by 2048 because they are mapped above 4G */
     RME_DBG_S("\r\nKom2 pages: 0x");
-    RME_DBG_U(RME_X64_Layout.Kom2_Size/RME_POW2(RME_PGT_SIZE_2M));
+    RME_DBG_H(RME_X64_Layout.Kom2_Size/RME_POW2(RME_PGT_SIZE_2M));
     RME_DBG_S(", [0x");
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M));
+    RME_DBG_H(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M));
     RME_DBG_S(", 0x");
     for(Count=2048;Count<(RME_X64_Layout.Kom2_Size/RME_POW2(RME_PGT_SIZE_2M)+2048);Count++)
     {
@@ -1471,19 +1516,18 @@ rme_ptr_t __RME_Boot(void)
                                        Phys_Addr, Page_Ptr&0x1FF, RME_PGT_ALL_PERM)==0);
         Page_Ptr++;
     }
-    RME_DBG_U(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
+    RME_DBG_H(Page_Ptr*RME_POW2(RME_PGT_SIZE_2M)+RME_POW2(RME_PGT_SIZE_2M)-1);
     RME_DBG_S("]");
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Prc_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_PRC,
                                   RME_BOOT_INIT_CPT, RME_CAPID(RME_BOOT_TBL_PGT,RME_BOOT_PML4))==0);
-
     /* Create the initial kernel function capability */
-    RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KERN)==0);
+    RME_ASSERT(_RME_Kfn_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_INIT_KERN)==0);
 
     /* Create a capability table for initial kernel memory capabilities. We need a few for Kom1, and another one for Kom2 */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_KOM, Cur_Addr, RME_X64_KOM1_MAXSEGS+1)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_X64_KOM1_MAXSEGS+1));
     /* Create Kom1 capabilities - can create page tables here */
     for(Count=0;Count<RME_X64_Layout.Kom1_Trunks;Count++)
     {
@@ -1502,11 +1546,11 @@ rme_ptr_t __RME_Boot(void)
 
     /* Create the initial kernel endpoints for timer ticks */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Tick_Sig=&(RME_CAP_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_TIMER]), struct RME_Cap_Sig*)[Count]);
+    	CPU_Local->Sig_Tim=&(RME_CAP_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_TIMER]), struct RME_Cap_Sig*)[Count]);
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_TIMER, Count)==0);
     }
 
@@ -1516,24 +1560,24 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Vect_Sig=&(RME_CAP_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_INT]), struct RME_Cap_Sig*)[Count]);
+    	CPU_Local->Sig_Vct=&(RME_CAP_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_INT]), struct RME_Cap_Sig*)[Count]);
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count)==0);
     }
 
     /* Activate the first thread, and set its priority */
     RME_ASSERT(_RME_Cpt_Boot_Crt(RME_X64_CPT, RME_BOOT_INIT_CPT, RME_BOOT_TBL_THD, Cur_Addr, RME_X64_Num_CPU)==0);
-    Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
+    Cur_Addr+=RME_KOM_ROUND(RME_CPT_SIZE(RME_X64_Num_CPU));
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
         RME_ASSERT(_RME_Thd_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_THD, Count, RME_BOOT_INIT_PRC, Cur_Addr, 0, CPU_Local)>=0);
-        Cur_Addr+=RME_KOT_VA_BASE_ROUND(RME_THD_SIZE);
+        Cur_Addr+=RME_KOM_ROUND(RME_THD_SIZE(Count));
     }
 
     RME_DBG_S("\r\nKot registration end offset: 0x");
-    RME_DBG_U(((Cur_Addr-RME_KOM_VA_START)>>RME_KOM_SLOT_ORDER)/8);
+    RME_DBG_H(((Cur_Addr-RME_KOM_VA_BASE)>>RME_KOM_SLOT_ORDER)/8);
     RME_DBG_S("\r\nKom1 frontier: 0x");
-    RME_DBG_U(Cur_Addr);
+    RME_DBG_H(Cur_Addr);
 
     /* Print sizes and halt */
     RME_DBG_S("\r\nThread object size: ");
@@ -1542,22 +1586,26 @@ rme_ptr_t __RME_Boot(void)
     RME_DBG_I(sizeof(struct RME_Inv_Struct)/sizeof(rme_ptr_t));
 
     /* Initialize the timer and start its interrupt routing */
-    RME_DBG_S("\r\nTimer init\r\n");
+    RME_DBG_S("\r\nTimer init");
     __RME_X64_Timer_Init();
-    //__RME_X64_IOAPIC_Int_Enable(2,0);
+    __RME_X64_IOAPIC_Int_Enable(2,0);
     /* Change page tables */
-    __RME_Pgt_Set(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Cur_Thd)->Sched.Prc->Pgt,rme_ptr_t));
+    RME_DBG_S("\r\nInit page table address:");
+    RME_DBG_H(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prc->Pgt,rme_ptr_t));
+    __RME_Pgt_Set((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prc->Pgt);
 
-
-    /* Load the init process to address 0x00 - It should be smaller than 2MB */
+    /* Load the init process to address 0x2000000ULL*/
     extern const unsigned char UVM_Init[];
-    _RME_Memcpy(0,(void*)UVM_Init,RME_POW2(RME_PGT_SIZE_2M));
-
+    _RME_Memcpy((void*)0x20000000ULL,(void*)UVM_Init,RME_POW2(RME_PGT_SIZE_2M));
 
     /* Now other non-booting processors may proceed and go into their threads */
     RME_X64_CPU_Cnt=0;
+    /*Set VGA buffer so we can output on screen*/
+    vga_row=0;
+    vga_col=0;
+    vga_buffer=RME_X64_VGA_BASE;
     /* Boot into the init thread */
-    __RME_Enter_User_Mode(0, RME_X64_USTACK(0), 0);
+    __RME_Enter_User_Mode(0x20000000ULL, RME_X64_USTACK(0)+0x20000000ULL, 0);
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
@@ -1630,7 +1678,7 @@ Input       : rme_ptr_t Entry - The thread entry address.
 Output      : struct RME_Reg_Struct* Reg - The register set content generated.
 Return      : None.
 ******************************************************************************/
-void __RME_Thd_Reg_Init(rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg)
+void __RME_Thd_Reg_Init(rme_ptr_t Attr,rme_ptr_t Entry, rme_ptr_t Stack, rme_ptr_t Param, struct RME_Reg_Struct* Reg)
 {
     /* We use the SYSRET path on creation if possible */
     Reg->INT_NUM=0x10000;
@@ -1761,11 +1809,6 @@ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval)
 }
 /* End Function:__RME_Set_Inv_Retval *****************************************/
 
-void NDBG(void)
-{
-    write_string( 0x07, "Here", 0);
-}
-
 /* Crap for test */
 void write_string( int colour, const char *string, rme_ptr_t pos)
 {
@@ -1775,6 +1818,11 @@ void write_string( int colour, const char *string, rme_ptr_t pos)
         *video++ = *string++;
         *video++ = colour;
     }
+}
+
+void NDBG(void)
+{
+    write_string( 0x07, "Here", 0);
 }
 
 /* Function:__RME_Kern_Func_Handler *******************************************
@@ -1850,28 +1898,28 @@ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Reason)
         default:RME_DBG_S("Unknown exception");break;
     }
     /* Print all registers */
-    RME_DBG_S("\n\rRAX:        0x");RME_DBG_U(Reg->RAX);
-    RME_DBG_S("\n\rRBX:        0x");RME_DBG_U(Reg->RBX);
-    RME_DBG_S("\n\rRCX:        0x");RME_DBG_U(Reg->RCX);
-    RME_DBG_S("\n\rRDX:        0x");RME_DBG_U(Reg->RDX);
-    RME_DBG_S("\n\rRSI:        0x");RME_DBG_U(Reg->RSI);
-    RME_DBG_S("\n\rRDI:        0x");RME_DBG_U(Reg->RDI);
-    RME_DBG_S("\n\rRBP:        0x");RME_DBG_U(Reg->RBP);
-    RME_DBG_S("\n\rR8:         0x");RME_DBG_U(Reg->R8);
-    RME_DBG_S("\n\rR9:         0x");RME_DBG_U(Reg->R9);
-    RME_DBG_S("\n\rR10:        0x");RME_DBG_U(Reg->R10);
-    RME_DBG_S("\n\rR11:        0x");RME_DBG_U(Reg->R11);
-    RME_DBG_S("\n\rR12:        0x");RME_DBG_U(Reg->R12);
-    RME_DBG_S("\n\rR13:        0x");RME_DBG_U(Reg->R13);
-    RME_DBG_S("\n\rR14:        0x");RME_DBG_U(Reg->R14);
-    RME_DBG_S("\n\rR15:        0x");RME_DBG_U(Reg->R15);
-    RME_DBG_S("\n\rINT_NUM:    0x");RME_DBG_U(Reg->INT_NUM);
-    RME_DBG_S("\n\rERROR_CODE: 0x");RME_DBG_U(Reg->ERROR_CODE);
-    RME_DBG_S("\n\rRIP:        0x");RME_DBG_U(Reg->RIP);
-    RME_DBG_S("\n\rCS:         0x");RME_DBG_U(Reg->CS);
-    RME_DBG_S("\n\rRFLAGS:     0x");RME_DBG_U(Reg->RFLAGS);
-    RME_DBG_S("\n\rRSP:        0x");RME_DBG_U(Reg->RSP);
-    RME_DBG_S("\n\rSS:         0x");RME_DBG_U(Reg->SS);
+    RME_DBG_S("\n\rRAX:        0x");RME_DBG_H(Reg->RAX);
+    RME_DBG_S("\n\rRBX:        0x");RME_DBG_H(Reg->RBX);
+    RME_DBG_S("\n\rRCX:        0x");RME_DBG_H(Reg->RCX);
+    RME_DBG_S("\n\rRDX:        0x");RME_DBG_H(Reg->RDX);
+    RME_DBG_S("\n\rRSI:        0x");RME_DBG_H(Reg->RSI);
+    RME_DBG_S("\n\rRDI:        0x");RME_DBG_H(Reg->RDI);
+    RME_DBG_S("\n\rRBP:        0x");RME_DBG_H(Reg->RBP);
+    RME_DBG_S("\n\rR8:         0x");RME_DBG_H(Reg->R8);
+    RME_DBG_S("\n\rR9:         0x");RME_DBG_H(Reg->R9);
+    RME_DBG_S("\n\rR10:        0x");RME_DBG_H(Reg->R10);
+    RME_DBG_S("\n\rR11:        0x");RME_DBG_H(Reg->R11);
+    RME_DBG_S("\n\rR12:        0x");RME_DBG_H(Reg->R12);
+    RME_DBG_S("\n\rR13:        0x");RME_DBG_H(Reg->R13);
+    RME_DBG_S("\n\rR14:        0x");RME_DBG_H(Reg->R14);
+    RME_DBG_S("\n\rR15:        0x");RME_DBG_H(Reg->R15);
+    RME_DBG_S("\n\rINT_NUM:    0x");RME_DBG_H(Reg->INT_NUM);
+    RME_DBG_S("\n\rERROR_CODE: 0x");RME_DBG_H(Reg->ERROR_CODE);
+    RME_DBG_S("\n\rRIP:        0x");RME_DBG_H(Reg->RIP);
+    RME_DBG_S("\n\rCS:         0x");RME_DBG_H(Reg->CS);
+    RME_DBG_S("\n\rRFLAGS:     0x");RME_DBG_H(Reg->RFLAGS);
+    RME_DBG_S("\n\rRSP:        0x");RME_DBG_H(Reg->RSP);
+    RME_DBG_S("\n\rSS:         0x");RME_DBG_H(Reg->SS);
     RME_DBG_S("\n\rHang");
 
     while(1);
@@ -1907,9 +1955,9 @@ Input       : rme_ptr_t Pgt - The virtual address of the page table.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-void __RME_Pgt_Set(rme_ptr_t Pgt)
+void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
-    __RME_X64_Pgt_Set(RME_X64_VA2PA(Pgt));
+    __RME_X64_Pgt_Set(RME_X64_VA2PA(RME_CAP_GETOBJ(Pgt,rme_ptr_t)));
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
@@ -1922,27 +1970,27 @@ Input       : rme_ptr_t Base_Addr - The start mapping address.
               rme_ptr_t Num_Order - The number order of the page directory.
               rme_ptr_t Vaddr - The virtual address of the page directory.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top,
                             rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     /* Is the table address aligned to 4kB? */
     if((Vaddr&0xFFF)!=0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Is the size order allowed? */
     if((Size_Order!=RME_PGT_SIZE_512G)&&(Size_Order!=RME_PGT_SIZE_1G)&&
        (Size_Order!=RME_PGT_SIZE_2M)&&(Size_Order!=RME_PGT_SIZE_4K))
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Is the top-level relationship correct? */
     if(((Size_Order==RME_PGT_SIZE_512G)^(Is_Top!=0))!=0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Is the number order allowed? */
     if(Num_Order!=RME_PGT_NUM_512)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -1952,7 +2000,7 @@ rme_ptr_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top,
 Description : Initialize the page table data structure, according to the capability.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 {
@@ -1967,7 +2015,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
         Ptr[Count]=0;
 
     /* Hopefully the compiler optimize this to rep movs */
-    if((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)
+    if((Pgt_Op->Base&RME_PGT_TOP)!=0)
     {
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
@@ -1986,7 +2034,7 @@ rme_ptr_t __RME_Pgt_Init(struct RME_Cap_Pgt* Pgt_Op)
 Description : Check if the page table can be deleted.
 Input       : struct RME_Cap_Pgt Pgt_Op* - The capability to the page table to operate on.
 Output      : None.
-Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If can be deleted, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Del_Check(struct RME_Cap_Pgt* Pgt_Op)
 {
@@ -2004,7 +2052,7 @@ Input       : struct RME_Cap_Pgt* - The cap ability to the page table to operate
               rme_ptr_t Flags - The RME standard page attributes. Need to translate them into
                                 architecture specific page table's settings.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags)
 {
@@ -2013,24 +2061,24 @@ rme_ptr_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
 
     /* It should at least be readable */
     if((Flags&RME_PGT_READ)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
+    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=256))
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
 
     /* Generate flags */
-    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
+    if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
         X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_US;
     else
         X64_Flags=RME_X64_MMU_ADDR(Paddr)|RME_X64_PGFLG_RME2NAT(Flags)|RME_X64_MMU_PDE_SUP|RME_X64_MMU_US;
 
     /* Try to map it in */
     if(RME_COMP_SWAP(&(Table[Pos]),0,X64_Flags)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -2041,7 +2089,7 @@ Description : Unmap a page from the page table.
 Input       : struct RME_Cap_Pgt* - The capability to the page table to operate on.
               rme_ptr_t Pos - The position in the page table.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 {
@@ -2049,8 +2097,8 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgt_Op->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
+    if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=256))
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
@@ -2058,15 +2106,15 @@ rme_ptr_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
     /* Make sure that there is something */
     Temp=Table[Pos];
     if(Temp==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Is this a page directory? We cannot unmap page directories like this */
-    if((RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_X64_MMU_PDE_SUP)==0))
-        return RME_ERR_PGT_OPFAIL;
+    if((RME_PGT_SZORD(Pgt_Op->Order)!=RME_PGT_SIZE_4K)&&((Temp&RME_X64_MMU_PDE_SUP)==0))
+        return RME_ERR_HAL_FAIL;
 
     /* Try to unmap it. Use CAS just in case */
     if(RME_COMP_SWAP(&(Table[Pos]),Temp,0)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -2079,7 +2127,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table.
               rme_ptr_t Pos - The position in the destination page table.
               rme_ptr_t Flags - The RME standard flags for the child page table.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
                                 struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
@@ -2090,11 +2138,11 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
 
     /* It should at least be readable */
     if((Flags&RME_PGT_READ)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgt_Parent->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
+    if(((Pgt_Parent->Base&RME_PGT_TOP)!=0)&&(Pos>=256))
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Parent_Table=RME_CAP_GETOBJ(Pgt_Parent,rme_ptr_t*);
@@ -2105,7 +2153,7 @@ rme_ptr_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
 
     /* Try to map it in - may need to increase some count */
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,X64_Flags)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -2117,7 +2165,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Parent - The parent page table to unmap fr
               rme_ptr_t Pos - The position in the page table.
               struct RME_Cap_Pgt* Pgt_Child - The child page table to unmap.
 Output      : None.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
                                   struct RME_Cap_Pgt* Pgt_Child)
@@ -2127,8 +2175,8 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgt_Parent->Base_Addr&RME_PGT_TOP)!=0)&&(Pos>=256))
-        return RME_ERR_PGT_OPFAIL;
+    if(((Pgt_Parent->Base&RME_PGT_TOP)!=0)&&(Pos>=256))
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Parent_Table=RME_CAP_GETOBJ(Pgt_Parent,rme_ptr_t*);
@@ -2136,18 +2184,21 @@ rme_ptr_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     /* Make sure that there is something */
     Temp=Parent_Table[Pos];
     if(Temp==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Is this a page? We cannot unmap pages like this */
-    if((RME_PGT_SIZEORD(Pgt_Parent->Size_Num_Order)==RME_PGT_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
-        return RME_ERR_PGT_OPFAIL;
+    if((RME_PGT_SZORD(Pgt_Parent->Order)==RME_PGT_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
+        return RME_ERR_HAL_FAIL;
 
     /* Is this child table mapped here? - check that in the future */
 
     Child_Table=(rme_ptr_t*)Temp;
+    rme_ptr_t* Expected_Child_Table = RME_CAP_GETOBJ(Pgt_Child, rme_ptr_t*);
+    if (Child_Table != Expected_Child_Table)
+        return RME_ERR_HAL_FAIL;
     /* Try to unmap it. Use CAS just in case */
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),Temp,0)==0)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     return 0;
 }
@@ -2159,7 +2210,7 @@ Input       : struct RME_Cap_Pgt* Pgt_Op - The page directory to lookup.
               rme_ptr_t Pos - The position to look up.
 Output      : rme_ptr_t* Paddr - The physical address of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags)
 {
@@ -2167,8 +2218,8 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
     rme_ptr_t Temp;
 
     /* Check if the position is within the range of this page table */
-    if((Pos>>RME_PGT_NUMORD(Pgt_Op->Size_Num_Order))!=0)
-        return RME_ERR_PGT_OPFAIL;
+    if((Pos>>RME_PGT_NMORD(Pgt_Op->Order))!=0)
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table */
     Table=RME_CAP_GETOBJ(Pgt_Op,rme_ptr_t*);
@@ -2176,15 +2227,15 @@ rme_ptr_t __RME_Pgt_Lookup(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos, rme_ptr_t*
     Temp=Table[Pos];
 
     /* Start lookup - is this a terminal page, or? */
-    if(RME_PGT_SIZEORD(Pgt_Op->Size_Num_Order)==RME_PGT_SIZE_4K)
+    if(RME_PGT_SZORD(Pgt_Op->Order)==RME_PGT_SIZE_4K)
     {
         if((Temp&RME_X64_MMU_P)==0)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_HAL_FAIL;
     }
     else
     {
         if(((Temp&RME_X64_MMU_P)==0)||((Temp&RME_X64_MMU_PDE_SUP)==0))
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_HAL_FAIL;
     }
 
     /* This is a page. Return the physical address and flags */
@@ -2212,7 +2263,7 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
               rme_ptr_t* Size_Order - The size order of the page.
               rme_ptr_t* Num_Order - The entry order of the page.
               rme_ptr_t* Flags - The RME standard flags of the page.
-Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
+Return      : rme_ptr_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
                            rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags)
@@ -2227,12 +2278,12 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
     rme_ptr_t No_Execute;
 
     /* Check if this is the top-level page table */
-    if(((Pgt_Op->Base_Addr)&RME_PGT_TOP)==0)
-        return RME_ERR_PGT_OPFAIL;
+    if(((Pgt_Op->Base)&RME_PGT_TOP)==0)
+        return RME_ERR_HAL_FAIL;
 
     /* Are we attempting a kernel or non-canonical lookup? If yes, stop immediately */
     if(Vaddr>=0x7FFFFFFFFFFFULL)
-        return RME_ERR_PGT_OPFAIL;
+        return RME_ERR_HAL_FAIL;
 
     /* Get the table and start lookup */
     Table=RME_CAP_GETOBJ(Pgt_Op, rme_ptr_t*);
@@ -2249,7 +2300,7 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
         Temp=Table[Pos];
         /* Find the position of the entry - Is there a page, a directory, or nothing? */
         if((Temp&RME_X64_MMU_P)==0)
-            return RME_ERR_PGT_OPFAIL;
+            return RME_ERR_HAL_FAIL;
         if(((Temp&RME_X64_MMU_PDE_SUP)!=0)||(Size_Cnt==RME_PGT_SIZE_4K))
         {
             /* This is a page - we found it */
@@ -2282,7 +2333,70 @@ rme_ptr_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t*
 
     return 0;
 }
-/* End Function:__RME_Pgt_Walk *********************************************/
+
+/*Function:__RME_Svc_Param_Get**************************************************
+Description:Get system call Params from Regs.
+********************************************************************************/
+void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,rme_ptr_t* Svc,rme_ptr_t* Cid,rme_ptr_t* Param)
+{
+    *Svc=(Reg->RDI)>>32;
+    *Cid=(Reg->RDI)&0xFFFFFFFF;
+    Param[0]=Reg->RSI;
+    Param[1]=Reg->RDX;
+    Param[2]=Reg->R8;
+}
+
+/*End Function:__RME_Svc_Param_Get***************************************************/
+
+/*Function:__RME_Svc_Retval_Set**************************************************
+Description:Set system call return values.
+********************************************************************************/
+void __RME_Svc_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval)
+{
+    Reg->RAX=(rme_ptr_t)Retval;
+}
+/*End Function:__RME_Svc_Retval_Set********************************************/
+
+/*Function:__RME_Inv_Retval_Set**************************************************
+Description:Set invocation return values.
+********************************************************************************/
+void __RME_Inv_Retval_Set(struct RME_Reg_Struct* Reg,rme_ret_t Retval)
+{
+    Reg->RDI=(rme_ptr_t)Retval;
+}
+/*End Function:__RME_Inv_Retval_Set********************************************/
+
+/*Function:__RME_List_Crt**************************************************
+Description:Create a doubly linked list. 
+********************************************************************************/
+void __RME_List_Crt(struct RME_List* Head)
+{
+    Head->Next=Head;
+    Head->Prev=Head;
+}
+/*End Function:__RME_List_Crt********************************************/
+
+/*Function:__RME_List_Ins**************************************************
+Description:Insert into a doubly linked list.
+********************************************************************************/
+void __RME_List_Ins(struct RME_List* New,struct RME_List* Prev,struct RME_List* Next)
+{
+    New->Prev=Prev;
+    Prev->Next=New;
+    New->Next=Next;
+    Next->Prev=New;
+}
+/*End Function:__RME_List_Ins********************************************/
+
+/*Function:__RME_List_Del**************************************************
+Description:Delete a doubly linked list.
+********************************************************************************/
+void __RME_List_Del(struct RME_List* Prev,struct RME_List* Next)
+{
+    Prev->Next = Next;
+    Next->Prev = Prev;
+}
+/*End Function:__RME_List_Del********************************************/
 
 /* End Of File ***************************************************************/
 

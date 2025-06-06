@@ -300,3 +300,5 @@ Click **[HERE](README.md)** for English version.
 
 ### 杰出贡献者
 - 黄隽文 - ARM v7-A 的移植支持
+- 华楷文 - X86-64 的移植支持
+

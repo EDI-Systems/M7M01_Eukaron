@@ -141,7 +141,7 @@ AVX-512 registers:
     /* The system call handler of RME. This will be defined in C language. */
     .global             _RME_Svc_Handler
     /* The system tick handler of RME. This will be defined in C language. */
-    .global             _RME_Tick_Handler
+    .global             _RME_Tim_Handler
     /* The entry of SMP after they have finished their initialization */
     .global             __RME_SMP_Low_Level_Init
     /* All other processor's timer interrupt handler */
@@ -277,12 +277,10 @@ Boot_High_64:
     /* Pass the physical address of RSI to it */
     MOV                 %RSI,%RDI
     JMP                 main
-    JMP                 .
 Boot_SMP_64:
     MOV                 $0x7000,%RAX
     MOV                 -16(%RAX),%RSP
     JMP                 __RME_SMP_Low_Level_Init
-    JMP                 .
 
     /* The initial gdt. Later we will have one GDT per CPU */
     .align              16
@@ -1049,7 +1047,7 @@ SysTick_Handler:
     SAVE_GP_REGS
     /* Pass the stack pointer to system call handler */
     MOVQ                %RSP,%RDI
-    CALLQ               _RME_Tick_Handler
+    CALLQ               _RME_Tim_Handler
     CALLQ               __RME_X64_SMP_Tick
     CALLQ               __RME_X64_LAPIC_Ack
     RESTORE_GP_REGS
@@ -1113,6 +1111,9 @@ Use_IRET:
     ADDQ                $16,%RSP
     IRETQ
 /* End Function:SVC_Handler **************************************************/
+
+_RME_Tick_SMP_Handler:
+/*Empty for now*/
 
 ;/* End Of File **************************************************************/
 

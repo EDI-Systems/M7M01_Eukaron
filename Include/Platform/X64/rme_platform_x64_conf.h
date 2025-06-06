@@ -7,7 +7,7 @@ Description: The configuration file for x64 profile settings.
 ******************************************************************************/
 
 /* Config Includes ***********************************************************/
-#include "Platform/X64/Profiles/Super/rme_platform_X64_SUPER.h"
+#include "Platform/X64/Profile/Super/rme_platform_x64_super.h"
 /* End Config Includes *******************************************************/
 
 /* End Of File ***************************************************************/
