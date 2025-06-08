@@ -45,8 +45,8 @@ int main(void)
 /* Function:RME_Out32 *****************************************************
 Description : Performs an output operation for a 32-bit memory location by writing the
  specified Value to the the specified address
-Input       : volatile rme_ptr_t Addr - the writed register address
-              rme_ptr_t Value - input value
+Input       : volatile rme_ptr_t Addr - Addr contains the address to perform the output operation
+              rme_ptr_t Value - Value contains the Value to be output at the specified address.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/

@@ -73,7 +73,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 /* global timer base */
 #define RME_A7A_GTWD_BASE                   0xF8F00200
 
-//  Description: Cache sync operation may be faulty ,form xlinx
+/* Description: L2 Cache sync operation may be faulty ,form xlinx */  
 #define CONFIG_PL310_ERRATA_753970 1
 /* Data Synchronization Barrier */
 #define dsb() __asm__ __volatile__ ("dsb" : : : "memory")
@@ -115,7 +115,7 @@ Description : The configuration file for XC7Z020, with 1MB memory.
 #define RME_L2CC_AUX_REG_DEFAULT_MASK       0x72360000U /* Enable all prefetching, */
                                                     /* Cache replacement policy, Parity enable, */
                                                     /* Event monitor bus enable and Way Size (64 KB) */
-#define RME_L2CC_AUX_REG_ZERO_MASK 0xFFF1FFFFU /* */
+#define RME_L2CC_AUX_REG_ZERO_MASK          0xFFF1FFFFU 
 /* Because the system memory map of Cortex-A based systems are not decided by
  * a particular standard (unlike x86-64), and they cannot be probed as well
  * (memory probing is dangerous). Additionally, the layout of embedded systems
