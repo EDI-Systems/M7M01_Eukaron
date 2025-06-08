@@ -42,8 +42,14 @@ int main(void)
 }
 /* End Function:main *********************************************************/
 
-/* Performs an output operation for a 32-bit memory location by writing the
- specified Value to the the specified address. */
+/* Function:RME_Out32 *****************************************************
+Description : Performs an output operation for a 32-bit memory location by writing the
+ specified Value to the the specified address
+Input       : volatile rme_ptr_t Addr - the writed register address
+              rme_ptr_t Value - input value
+Output      : None.
+Return      : rme_ptr_t - Always 0.
+******************************************************************************/
 void RME_Out32(volatile rme_ptr_t Addr, rme_ptr_t Value)
 {
     volatile rme_ptr_t *LocalAddr = (rme_ptr_t *)Addr;
