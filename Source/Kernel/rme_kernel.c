@@ -5682,7 +5682,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
     {
         RME_COV_MARKER();
 
-        Thread->Sched.Sched_Sig=0U;
+        Thread->Sched.Sched_Sig=RME_NULL;
     }
     else
     {
