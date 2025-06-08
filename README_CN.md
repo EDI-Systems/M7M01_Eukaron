@@ -297,3 +297,6 @@ Click **[HERE](README.md)** for English version.
 |RME_SVC_INV_DEL        |32    |删除一个迁移调用                                                   |
 |RME_SVC_INV_SET        |33    |设置迁移调用的执行属性（入口和栈）                                   |
 |...                    |34-63 |保留                                                              |
+
+### 杰出贡献者
+- 黄隽文 - ARM v7-A 的移植支持

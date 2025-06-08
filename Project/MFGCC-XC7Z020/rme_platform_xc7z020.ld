@@ -23,10 +23,10 @@ SECTIONS
    run in this initial setting.*/
   . = 0x80100000;
 
-  .text : AT(__va_offset__) {
-    *platform_cav7_asm.o(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
-    *(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
-  }
+    .text : AT(0x00100000) {
+        *platform_a7a_gcc.o(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
+        *(.text .rela.text .stub .text.* .gnu.linkonce.t.*)        
+    }
 
   PROVIDE(etext = .);	/* Define the 'etext' symbol to this value */
 

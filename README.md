@@ -297,3 +297,7 @@ We ask what fits the situation, rather than what is at hand.
 |RME_SVC_INV_DEL        |32    |Delete a synchronous invocation port                              |
 |RME_SVC_INV_SET        |33    |Set entry and stack of a synchronous invocation port              |
 |...                    |34-63 |Reserved                                                          |
+
+### Starring Contributors
+- Junwen Huang - ARM v7-A port
+
