@@ -4533,7 +4533,7 @@ static void _RME_Run_Notif(struct RME_Thd_Struct* Thd)
     }
 
     /* If this guy have an endpoint, send to it */
-    if(Thd->Sched.Sched_Sig!=0U)
+    if(Thd->Sched.Sched_Sig!=RME_NULL)
     {
         RME_COV_MARKER();
         _RME_Kern_Snd(Thd->Sched.Sched_Sig,1U);
@@ -5678,7 +5678,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                (Thread->Sched.State==RME_THD_EXCPEND));
 
     /* Tie the signal endpoint to it if not zero */
-    if(Sig_Op==0U)
+    if(Sig_Op==RME_NULL)
     {
         RME_COV_MARKER();
 
@@ -6861,7 +6861,7 @@ static rme_ret_t _RME_Sig_Del(struct RME_Cap_Cpt* Cpt,
     RME_CAP_DEL_CHECK(Sig_Del,Type_Stat,RME_CAP_TYPE_SIG);
 
     /* Check if the signal endpoint is currently used and cannot be deleted */
-    if(RME_UNLIKELY(Sig_Del->Thd!=0U))
+    if(RME_UNLIKELY(Sig_Del->Thd!=RME_NULL))
     {
         RME_COV_MARKER();
 

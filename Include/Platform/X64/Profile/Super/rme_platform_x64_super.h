@@ -24,6 +24,8 @@ Description: The configuration file for X64 supercomputer profile.
 #define RME_X64_FPU_TYPE             RME_X64_FPU_AVX512
 /* Timer frequency - about 1000 ticks per second */
 #define RME_X64_TIMER_FREQ           1000
+/*Debug macros*/
+#define RME_DBGLOG_ENABLE            (1U)
 /* End Define ****************************************************************/
 
 /* End Of File ***************************************************************/
