@@ -228,8 +228,15 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_SCB_SCR_SLEEPONEXIT             RME_POW2(1U)
 
 #define RME_A7M_SCB_CCR                         RME_A7M_REG(0xE000ED14U)
+#define RME_A7M_SCB_CCR_BP                      RME_POW2(18U)
 #define RME_A7M_SCB_CCR_IC                      RME_POW2(17U)
 #define RME_A7M_SCB_CCR_DC                      RME_POW2(16U)
+#define RME_A7M_SCB_CCR_STKALIGN                RME_POW2(9U)
+#define RME_A7M_SCB_CCR_BFHFNMIGN               RME_POW2(8U)
+#define RME_A7M_SCB_CCR_DIV_0_TRP               RME_POW2(4U)
+#define RME_A7M_SCB_CCR_UNALIGN_TRP             RME_POW2(3U)
+#define RME_A7M_SCB_CCR_USERSETMPEND            RME_POW2(1U)
+#define RME_A7M_SCB_CCR_NONBASETHRDENA          RME_POW2(0U)
 
 #define RME_A7M_SCB_SHPR(X)                     RME_A7M_REGB(0xE000ED18U+(X))
 

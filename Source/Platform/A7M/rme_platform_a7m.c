@@ -1595,6 +1595,22 @@ void __RME_Lowlvl_Init(void)
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
     RME_A7M_SCB_SHCSR&=~RME_A7M_SCB_SHCSR_MEMFAULTENA;
     
+    /* CCR configurations - ARMv7-M specific, ARMv6-M's CCR is read only */
+    /* Enable branch prediction */
+    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_BP;
+    /* Force 8-byte stack alignment, respecting AAPCS - va_args may require this */
+    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_STKALIGN;
+    /* Trap if division by zero */
+    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DIV_0_TRP;
+    /* Lock up if we have too many faults */
+    RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_BFHFNMIGN;
+    /* Do not trap if we have unaligned access - allow lower efficiency */
+    RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_UNALIGN_TRP;
+    /* Do not allow user mode to trigger software interrupts */
+    RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_USERSETMPEND;
+    /* Do not allow user mode to execute with exception context */
+    RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_NONBASETHRDENA;
+    
     /* Enable all fault handlers */
     RME_A7M_SCB_SHCSR|=RME_A7M_SCB_SHCSR_USGFAULTENA|
                        RME_A7M_SCB_SHCSR_BUSFAULTENA|
