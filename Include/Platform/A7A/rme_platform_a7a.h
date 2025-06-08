@@ -126,8 +126,6 @@ typedef rme_s32_t rme_ret_t;
 /* Read/write barrier both needed on MPCore, because ARM is weakly ordered */
 #define RME_READ_ACQUIRE(X)                     __RME_A7A_Read_Acquire(X)
 #define RME_WRITE_RELEASE(X,V)                  __RME_A7A_Write_Release(X,V)
-//#define RME_READ_ACQUIRE(X)                     (*(X))
-//#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7a_conf.h"
 /* End System macros *********************************************************/
@@ -467,8 +465,6 @@ struct RME_A7A_Mem_Layout
 {
     rme_ptr_t Kot_Start;
     rme_ptr_t Kot_Size;
-    rme_ptr_t Pgreg_Start;
-    rme_ptr_t Pgreg_Size;
 
     rme_ptr_t Kom1_Start;
     rme_ptr_t Kom1_Size;

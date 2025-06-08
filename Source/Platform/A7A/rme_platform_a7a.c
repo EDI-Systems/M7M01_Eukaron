@@ -38,11 +38,6 @@ int main(void)
 {
    RME_Kmain();
 
-
-    //test
-    /* The main function of the kernel - we will start our kernel boot here */
-    //_RME_Kmain(RME_KOM_STACK_ADDR);
-
     return 0;
 }
 /* End Function:main *********************************************************/
