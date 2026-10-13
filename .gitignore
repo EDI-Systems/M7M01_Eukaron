@@ -106,3 +106,4 @@ Project/VSCODE-*/.vscode/c_cpp_properties.json
 #MacOS generated files
 .DS_Store
 
+Project/GCC-RV64V/Object/
