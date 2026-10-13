@@ -26,10 +26,12 @@ ASRCS+=../../Source/Platform/RV64V/rme_platform_rv64v_gcc.s
 # End User ####################################################################
 
 # User init program ############################################################
-INIT_SRC=init/start.S init/init.c
-INIT_HDR=init/rme_syscall.h
-INIT_LD=init/init.ld
-INIT_ELF=$(OBJDIR)/init.elf
+# The init program is written in Rust and lives in M7M03_Anomalocaris. The
+# kernel references that project: this build invokes its build script and
+# copies the emitted init.bin into our Object/ folder.
+RUST_INIT_DIR=../../../M7M03_Anomalocaris
+RUST_INIT_BUILD=$(RUST_INIT_DIR)/build.sh
+RUST_ORIG_INIT_BIN=$(RUST_INIT_DIR)/build/init.bin
 INIT_BIN=$(OBJDIR)/init.bin
 # End User init program ########################################################
 
@@ -67,11 +69,13 @@ $(TARGET).bin: $(TARGET)
 	@$(OBJCOPY) -O binary -S $(OBJDIR)/$(TARGET) $(OBJDIR)/$(TARGET).bin
 
 # User init program ############################################################
-$(INIT_BIN): $(INIT_SRC) $(INIT_HDR) $(INIT_LD)
-	@echo "    CC+LD   $(notdir $(INIT_ELF))"
-	@$(CC) $(CPU) $(CFLAGS) $(WFLAGS) -T $(INIT_LD) -o $(INIT_ELF) $(INIT_SRC)
-	@echo "    BIN     $(notdir $@)"
-	@$(OBJCOPY) -O binary -S $(INIT_ELF) $(INIT_BIN)
+# Built by M7M03_Anomalocaris (Rust). Marked phony so the kernel always pulls
+# the freshly built init.bin from the init project's build script.
+.PHONY: $(INIT_BIN)
+$(INIT_BIN):
+	@echo "    RUST    $(notdir $(INIT_BIN)) via M7M03_Anomalocaris"
+	@$(RUST_INIT_BUILD)
+	@cp $(RUST_ORIG_INIT_BIN) $(INIT_BIN)
 # End User init program ########################################################
 	
 # Clean up
