@@ -79,6 +79,10 @@ Description: The boot stub source file for all WCH QingKe cores. It claims to
               to fail. The workaround is that we will have to declare the chip as
               having 3 MPU regions, and the last region will always be programmed
               to block all accesses.
+              -----------------------------------------------------------------
+              6. Lack of RISC-V standard timer
+              The WCH core uses an ARM-style SysTick instead of the RISC-V
+              standard-issue MTIME. We'll have to cope with whatever it has.
 ******************************************************************************/
 
 /* Import ********************************************************************/
