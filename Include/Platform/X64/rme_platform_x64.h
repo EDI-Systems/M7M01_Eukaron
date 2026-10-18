@@ -109,8 +109,8 @@ typedef rme_s64_t rme_ret_t;
 #define RME_CPU_LOCAL()                      __RME_X64_CPU_Local_Get()
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                       (6U)
-/* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                        (0U)
+/* Enable physical (VA=PA) page-table mapping - 0 = use virtual mapping */
+#define RME_PGT_PHYS_ENABLE                  (0U)
 /* Quiescence timeslice value - always 10 slices, roughly equivalent to 100ms */
 #define RME_QUIE_TIME                        (10U)
 /* Cpt size limit - not restricted, user-level decides this */

@@ -95,8 +95,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_CPU_LOCAL()                 (&(RME_C66X_CPU_Local[__RME_C66X_CPUID_Get()]))
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                  5
-/* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                   (RME_TRUE)
+/* Enable physical (VA=PA) page-table mapping */
+#define RME_PGT_PHYS_ENABLE             (1U)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                   0
 /* Cpt size limit - not restricted */

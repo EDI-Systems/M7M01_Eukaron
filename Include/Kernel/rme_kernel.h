@@ -12,7 +12,7 @@ Description : The RME kernel header.
 #define __RME_KERNEL_DEF__
 /*****************************************************************************/
 /* Generic *******************************************************************/
-#define RME_NULL                                    (0U)
+#define RME_NULL                                    ((rme_ptr_t)0U)
 #define RME_EXIST                                   (1U)
 #define RME_EMPTY                                   (0U)
 #define RME_CASFAIL                                 (0U)

@@ -97,8 +97,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_CPU_LOCAL()                         (&RME_A7A_Local)
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                          (5U)
-/* Forcing VA=PA in user memory segments */
-#define RME_VA_EQU_PA                           (RME_FALSE)
+/* Enable physical (VA=PA) page-table mapping - 0 = use virtual mapping */
+#define RME_PGT_PHYS_ENABLE                     (0U)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                           10
 /* Cpt size limit - not restricted */
