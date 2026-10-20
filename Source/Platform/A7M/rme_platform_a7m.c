@@ -118,7 +118,7 @@ void __RME_A7M_Exc_Handler(struct RME_Reg_Struct* Reg)
     HFSR_Reg=RME_A7M_SCB_HFSR;
     CFSR_Reg=RME_A7M_SCB_CFSR;
     MMFAR_Reg=RME_A7M_SCB_MMFAR;
-    
+
     /* Are we activating the NMI? If yes, we directly soft lockup */
     RME_ASSERT((RME_A7M_SCB_ICSR&RME_A7M_ICSR_NMIPENDSET)==0U);
     /* If this is a hardfault, make sure that it is not the vector table problem, or we lockup */
