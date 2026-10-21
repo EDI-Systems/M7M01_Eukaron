@@ -77,8 +77,15 @@ Description: The configuration file for STM32H743ZI.
 #define RME_A7M_STM32H743ZI_PLLR                        (2U)
 
 /* Register address - power */
+#define RME_A7M_PWR_CSR1                               RME_A7M_REG(0x58024804U)
+#define RME_A7M_PWR_CSR1_ACTVOSRDY                     RME_POW2(13U)
+#define RME_A7M_PWR_CR3                                RME_A7M_REG(0x5802480CU)
+#define RME_A7M_PWR_CR3_BYPASS                         RME_POW2(0U)
+#define RME_A7M_PWR_CR3_LDOEN                          RME_POW2(1U)
+#define RME_A7M_PWR_CR3_SCUEN                          RME_POW2(2U)
 #define RME_A7M_PWR_D3CR                                RME_A7M_REG(0x58024818U)
-#define RME_A7M_PWR_D3CR_VOS_SCALE1                     (0xC000U)
+#define RME_A7M_PWR_D3CR_VOS_SCALE2                     (0x8000U)               /* VOS[15:14]=10b:Scale2 */
+#define RME_A7M_PWR_D3CR_VOS_SCALE1                     (0xC000U)               /* VOS[15:14]=11b:Scale1(H743 encoding 00=S0,01=S3,10=S2,11=S1) */
 #define RME_A7M_PWR_D3CR_VOSRDY                         RME_POW2(13U)
 
 /* Register address - clock control */
@@ -133,6 +140,7 @@ Description: The configuration file for STM32H743ZI.
 #define RME_A7M_RCC_AHB4ENR_GPIODEN                     RME_POW2(3U)
 #define RME_A7M_RCC_APB1LENR                            RME_A7M_REG(0x580244E8U)
 #define RME_A7M_RCC_APB1LENR_USART3EN                   RME_POW2(18U)
+#define RME_A7M_RCC_APB1LENR_PWREN                      RME_POW2(28U)
 
 #define RME_A7M_GPIOD_MODER                             RME_A7M_REG(0x58020C00U)
 #define RME_A7M_GPIOD_OTYPER                            RME_A7M_REG(0x58020C04U)
@@ -204,9 +212,19 @@ while(0)
 do \
 { \
     /* Set the clock tree in the system */ \
-    /* Power supply configuration - use the internal LDO (default), VOS1 */ \
-    /* for 400MHz. The PWR clock is enabled by default on STM32H7. */ \
-    RME_A7M_PWR_D3CR|=RME_A7M_PWR_D3CR_VOS_SCALE1; \
+    /* Power init, register-exact port of the proven RMP/HAL sequence */ \
+    /* (M5P01 rmp_platform_stm32h743zi.h + STM32CubeH7 V1.9.1): first lock */ \
+    /* the supply configuration to the internal LDO, then request VOS1. */ \
+    /* The PWR clock needs no explicit enable (RCC_APB4ENR.PWREN reset=1). */ \
+    RME_A7M_PWR_CR3=(RME_A7M_PWR_CR3&~(RME_A7M_PWR_CR3_SCUEN| \
+                                        RME_A7M_PWR_CR3_LDOEN| \
+                                        RME_A7M_PWR_CR3_BYPASS))| \
+                     RME_A7M_PWR_CR3_LDOEN; \
+    __RME_A7M_Barrier(); \
+    while((RME_A7M_PWR_CSR1&RME_A7M_PWR_CSR1_ACTVOSRDY)==0U); \
+    __RME_A7M_Barrier(); \
+    /* VOS1 for 400MHz. VOS[15:14]: 00=S0,01=S3(reset),10=S2,11=S1. */ \
+    RME_A7M_PWR_D3CR=(RME_A7M_PWR_D3CR&0xFFFF3FFFU)|RME_A7M_PWR_D3CR_VOS_SCALE1; \
     __RME_A7M_Barrier(); \
     while((RME_A7M_PWR_D3CR&RME_A7M_PWR_D3CR_VOSRDY)==0U); \
     /* Initialize the oscillator - HSE bypass 8MHz from ST-LINK MCO */ \
