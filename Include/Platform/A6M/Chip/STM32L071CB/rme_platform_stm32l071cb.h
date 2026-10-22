@@ -222,6 +222,9 @@ do \
     \
     /* Flash ART enabling */ \
     RME_A6M_FLASH_ACR=RME_A6M_FLASH_ACR_LATENCY|RME_A6M_FLASH_ACR_PRFTEN; \
+    /* Confirm the new latency and prefetch are effective before raising
+     * the clock, same as all the other chip headers do */ \
+    RME_ASSERT((RME_A6M_FLASH_ACR&0x03U)==(RME_A6M_FLASH_ACR_LATENCY|RME_A6M_FLASH_ACR_PRFTEN)); \
     __RME_A6M_Barrier(); \
     RME_A6M_RCC_CFGR|=RME_A6M_RCC_CFGR_SW_PLL; \
     __RME_A6M_Barrier(); \

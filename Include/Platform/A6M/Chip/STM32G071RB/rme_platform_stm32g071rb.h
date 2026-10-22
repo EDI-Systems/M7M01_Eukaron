@@ -86,8 +86,11 @@ Description: The configuration file for STM32G071RB.
 #define RME_A6M_RCC_CIER                                RME_A6M_REG(0x40021018U)
 
 #define RME_A6M_FLASH_ACR                               RME_A6M_REG(0x40022000U)
-#define RME_A6M_FLASH_ACR_LATENCY(X)                    RME_A6M_FLASH_ACR=((RME_A6M_FLASH_ACR&~0x07U)|(X))
-#define RME_A6M_FLASH_ACR_PRFTEN                        RME_POW2(8U)
+/* G0 FLASH_ACR only has LATENCY[1:0]; the F1-style 3-bit mask is wrong */
+#define RME_A6M_FLASH_ACR_LATENCY(X)                    RME_A6M_FLASH_ACR=((RME_A6M_FLASH_ACR&~0x03U)|(X))
+/* G0 FLASH_ACR has no prefetch bit (bit 8 was an F4 leftover, reserved here);
+ * defining it as 0U keeps the PRFTH hooks as natural no-ops */
+#define RME_A6M_FLASH_ACR_PRFTEN                        (0U)
 
 #define RME_A6M_PWR_CR1                                 RME_A6M_REG(0x40007000U)
 #define RME_A6M_PWR_CR1_VOS_RANGE1                      RME_POW2(9U)
@@ -189,8 +192,12 @@ do \
     __RME_A6M_Barrier(); \
     while((RME_A6M_RCC_CR&RME_A6M_RCC_CR_PLLRDY)==0U); \
     \
-    /* Flash latency and prefetch enabling */ \
-    RME_A6M_FLASH_ACR=RME_A6M_FLASH_ACR_LATENCY(2U)|RME_A6M_FLASH_ACR_PRFTEN; \
+    /* Flash latency - 2 wait states for 64MHz, same as the upstream HAL's
+     * FLASH_LATENCY_2; G0 has no software prefetch so nothing else to set */ \
+    RME_A6M_FLASH_ACR_LATENCY(2U); \
+    /* Confirm the new latency is effective before raising the clock,
+     * same as all the A7M chip headers do */ \
+    RME_ASSERT((RME_A6M_FLASH_ACR&0x03U)==2U); \
     __RME_A6M_Barrier(); \
     RME_A6M_RCC_CFGR|=RME_A6M_RCC_CFGR_SW_PLL; \
     __RME_A6M_Barrier(); \

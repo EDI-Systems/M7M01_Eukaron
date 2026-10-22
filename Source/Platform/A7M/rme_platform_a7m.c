@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
 Filename    : rme_platform_a7m.c
 Author      : pry
 Date        : 01/04/2017
@@ -1234,7 +1234,7 @@ rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Cpt* Cpt,
         /* Register read/write */
         case RME_A7M_KFN_DEBUG_INV_MOD_SP_GET:      {Reg->R6=Inv_Struct->Ret.SP;break;}
         case RME_A7M_KFN_DEBUG_INV_MOD_SP_SET:      {Inv_Struct->Ret.SP=Value;break;}
-        case RME_A7M_KFN_DEBUG_INV_MOD_LR_GET:      {Reg->R6=Reg->R6=Inv_Struct->Ret.LR;break;}
+        case RME_A7M_KFN_DEBUG_INV_MOD_LR_GET:      {Reg->R6=Inv_Struct->Ret.LR;break;}
         case RME_A7M_KFN_DEBUG_INV_MOD_LR_SET:      {Inv_Struct->Ret.LR=Reg->R6;break;}
         default:                                    {return RME_ERR_KFN_FAIL;}
     }
@@ -2123,12 +2123,16 @@ void __RME_Thd_Cop_Swap(rme_ptr_t Attr_New,
         {
             /* Turn the coprocessor on */
             RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
+            /* Synchronize the pipeline before any coprocessor access */
+            __RME_A7M_Barrier();
         }
         /* The new thread touched the coprocessor */
         else
         {
             /* Turn the coprocessor on */
             RME_A7M_SCB_CPACR|=RME_A7M_SCB_CPACR_FPU_MASK;
+            /* Synchronize the pipeline before any coprocessor access */
+            __RME_A7M_Barrier();
             /* Load the new coprocessor context */
             ___RME_A7M_Thd_Cop_Load(Cop_New);
         }

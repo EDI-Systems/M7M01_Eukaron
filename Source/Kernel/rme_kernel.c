@@ -5599,7 +5599,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
             RME_COV_MARKER();
             
             /* It needs to be safely accessible to the kernel as well */
-#if(RME_HYP_VA_BASE!=0U)
+#if(RME_HYP_VA_SIZE!=0U)
             if(RME_UNLIKELY(Haddr<RME_HYP_VA_BASE))
             {
                 RME_COV_MARKER();
@@ -5621,7 +5621,7 @@ static rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Cpt* Cpt,
                     RME_COV_MARKER();
                     /* No action required */
                 }
-#if(RME_HYP_VA_BASE!=0U)
+#if(RME_HYP_VA_SIZE!=0U)
             }
 #endif
         }
