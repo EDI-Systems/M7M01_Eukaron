@@ -87,7 +87,7 @@ $(INIT_BIN):
 	@cp $(RUST_ORIG_INIT_BIN) $(INIT_BIN)
 
 # Convert init.bin into an ELF object whose .init_image section the linker
-# places at 0x102400000 (see rme_platform_spacemit_k3.ld). NOTE: objcopy
+# places at 0x102600000 (see rme_platform_spacemit_k3.ld). NOTE: objcopy
 # must NOT be given --rename-section flags here - passing alloc/load/etc.
 # zeroes the section content.
 $(INIT_OBJ): $(INIT_BIN)

@@ -11,7 +11,7 @@ Description : The linker script for the RV64V platform on SpacemiT K3
               bootstrap tables and switches to the high VA.
               The user init program (init.bin) is embedded in the kernel
               image as a .init_image section at the fixed physical address
-              0x102400000, which __RME_Boot maps to the user VA 0x20000000.
+              0x102600000, which __RME_Boot maps to the user VA 0x20000000.
 ******************************************************************************/
 
 OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
@@ -23,8 +23,10 @@ __RME_VA_BASE = 0xFFFFFFC000000000;
 __RME_PA_BASE = 0x102200000;
 
 /* Physical address where the user init program is embedded - must match
- * RME_RV64V_INIT_PA in rme_platform_spacemit_k3.h */
-__RME_INIT_PA_BASE = 0x102400000;
+ * RME_RV64V_INIT_PA in rme_platform_spacemit_k3.h. It is kept 4MB above the
+ * kernel load address so the kernel .bss (KOT bitmap and per-CPU stacks) does
+ * not overlap it. */
+__RME_INIT_PA_BASE = 0x102600000;
 
 SECTIONS
 {
@@ -89,7 +91,7 @@ SECTIONS
   /* Embedded user init program - placed at the fixed physical address
    * __RME_INIT_PA_BASE (see chip header). U-Boot loads the whole kernel
    * image including this blob, so no external loader is needed on the
-   * board; __RME_Boot maps PA 0x102400000 to the user VA 0x20000000. */
+   * board; __RME_Boot maps PA 0x102600000 to the user VA 0x20000000. */
   . = __RME_VA_BASE + __RME_INIT_PA_BASE;
   .init_image : AT(ADDR(.init_image) - __RME_VA_BASE) {
     __RME_Init_Image = .;

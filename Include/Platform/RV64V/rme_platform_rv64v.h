@@ -85,6 +85,49 @@ typedef rme_s64_t rme_ret_t;
 #endif
 /* End Extended Type *********************************************************/
 
+/* SMP Atomic Helpers ********************************************************/
+/* These are real SMP atomics (RV64GC includes the A extension). The kernel
+ * calls them through the RME_COMP_SWAP/FETCH_* macros. Note that
+ * __atomic_compare_exchange_n returns nonzero on success, which matches the
+ * RME convention (1 = success, 0 = RME_CASFAIL). */
+static inline rme_ptr_t _RME_RV64V_Comp_Swap(volatile rme_ptr_t* Ptr,
+                                             rme_ptr_t Old,
+                                             rme_ptr_t New)
+{
+    rme_ptr_t Expected=Old;
+
+    if(__atomic_compare_exchange_n((rme_ptr_t*)Ptr,&Expected,New,0,
+                                   __ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE)!=0)
+        return 1U;
+
+    return 0U;
+}
+
+static inline rme_ptr_t _RME_RV64V_Fetch_Add(volatile rme_ptr_t* Ptr,
+                                             rme_cnt_t Addend)
+{
+    return __atomic_fetch_add((rme_ptr_t*)Ptr,(rme_ptr_t)Addend,
+                              __ATOMIC_ACQ_REL);
+}
+
+static inline rme_ptr_t _RME_RV64V_Fetch_And(volatile rme_ptr_t* Ptr,
+                                             rme_ptr_t Operand)
+{
+    return __atomic_fetch_and((rme_ptr_t*)Ptr,Operand,__ATOMIC_ACQ_REL);
+}
+
+/* Read the raw tp value. Before the per-hart CPU data is installed this is
+ * zero, and callers fall back to the boot hart ID. */
+static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
+{
+    rme_ptr_t Data;
+
+    __asm__ __volatile__("mv %0,tp":"=r"(Data));
+
+    return Data;
+}
+/* End SMP Atomic Helpers ****************************************************/
+
 /* System Macro **************************************************************/
 /* Compiler "extern" keyword setting */
 #define RME_EXTERN                              extern
@@ -106,14 +149,17 @@ typedef rme_s64_t rme_ret_t;
 #define RME_UNLIKELY(X)                         (X)
 #endif
 #endif
-/* CPU-local data structure location macro */
-#define RME_CPU_LOCAL()                         (&RME_RV64V_Local)
+/* CPU-local data structure location macro - tp points at the per-hart
+ * RME_RV64V_CPU_Data record while the kernel is running */
+#define RME_CPU_LOCAL()                         (((struct RME_RV64V_CPU_Data*)(__RME_RV64V_CPU_Data_Get_Raw()))->Local)
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                          (6U)
 /* Quiescence timeslice value */
 #define RME_QUIE_TIME                           (0U)
-/* Read timestamp counter */
-#define RME_TIMESTAMP                           (RME_RV64V_Timestamp)
+/* Read timestamp counter - use the global time CSR so all harts observe the
+ * same monotonic clock. A per-hart tick counter would run N times faster on
+ * an N-core system. */
+#define RME_TIMESTAMP                           (___RME_RV64V_Time_Get())
 /* Cpt size limit - not restricted */
 #define RME_CPT_ENTRY_MAX                       (0U)
 /* The kernel runs in the Sv39 high half and user processes in the low half,
@@ -129,16 +175,16 @@ typedef rme_s64_t rme_ret_t;
 /* Invocation stack maximum depth - not restricted */
 #define RME_INV_DEPTH_MAX                       (0U)
 /* Compare-and-Swap(CAS) */
-#define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_Comp_Swap_Single(PTR,OLD,NEW)
+#define RME_COMP_SWAP(PTR,OLD,NEW)              _RME_RV64V_Comp_Swap(PTR,OLD,NEW)
 /* Fetch-and-Add(FAA) */
-#define RME_FETCH_ADD(PTR,ADDEND)               _RME_Fetch_Add_Single(PTR,ADDEND)
+#define RME_FETCH_ADD(PTR,ADDEND)               _RME_RV64V_Fetch_Add(PTR,ADDEND)
 /* Fetch-and-And(FAND) */
-#define RME_FETCH_AND(PTR,OPERAND)              _RME_Fetch_And_Single(PTR,OPERAND)
+#define RME_FETCH_AND(PTR,OPERAND)              _RME_RV64V_Fetch_And(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                        _RME_MSB_Generic(VAL)
-/* Single-core processor */
-#define RME_READ_ACQUIRE(X)                     (*(X))
-#define RME_WRITE_RELEASE(X,V)                  ((*(X))=(V))
+/* Multi-core processor: acquire/release ordering */
+#define RME_READ_ACQUIRE(X)                     __atomic_load_n((X),__ATOMIC_ACQUIRE)
+#define RME_WRITE_RELEASE(X,V)                  __atomic_store_n((X),(V),__ATOMIC_RELEASE)
 /* Reboot the processor if the assert fails in this port */
 #define RME_ASSERT_FAILED(F,L,D,T)              __RME_RV64V_Reboot()
 
@@ -242,32 +288,40 @@ while(0)
 #define RME_RV64V_SCAUSE_SPGFLT                 (0x0000000FU)
 
 /* Initialization ************************************************************/
-/* Size of initial capability table - 64 entries so the init process has room
- * for the benchmark's cross-process objects (new captbl, page tables, process
- * and thread) in slots 9..63. */
+/* Size of initial capability table - 64 entries. Boot consumes 0..9; the
+ * benchmark's cross-process objects start at slot 10. */
 #define RME_RV64V_INIT_CPT_SIZE                 (64U)
 /* The capability table of the init process */
 #define RME_BOOT_INIT_CPT                       (0U)
 /* The top-level (Sv39 root) page table of the init process. One entry covers
  * 1GB, 512 entries cover the whole 512GB low canonical address space. */
 #define RME_BOOT_INIT_PGT                       (1U)
-/* The second-level page table of the init process, attached to top entry 2 to
- * cover [0x80000000, 0xC0000000) with 512 x 2MB large pages. */
-#define RME_BOOT_INIT_PGT_L1                    (7U)
-/* The third-level (4KB granularity) page table, attached to L1 entry 8 to
- * cover [0x81000000, 0x81200000). Kernel and user pages live side by side in
- * this 2MB window, so they cannot share a single large page. */
-#define RME_BOOT_INIT_PGT_L2                    (8U)
 /* The init process */
 #define RME_BOOT_INIT_PRC                       (2U)
-/* The init thread */
-#define RME_BOOT_INIT_THD                       (3U)
+/* The per-CPU initial-thread capability table (one thread per core) */
+#define RME_BOOT_TBL_THD                        (3U)
 /* The initial kernel function capability */
 #define RME_BOOT_INIT_KFN                       (4U)
 /* The initial kernel memory capability */
 #define RME_BOOT_INIT_KOM                       (5U)
-/* The initial timer/interrupt endpoint */
-#define RME_BOOT_INIT_VCT                       (6U)
+/* The per-CPU timer endpoint capability table */
+#define RME_BOOT_TBL_TIMER                      (6U)
+/* The per-CPU general interrupt endpoint capability table */
+#define RME_BOOT_TBL_INT                        (7U)
+/* The second-level page table of the init process, attached to top entry 0 to
+ * cover [0, 1GB) with 512 x 2MB large pages. */
+#define RME_BOOT_INIT_PGT_L1                    (8U)
+/* The third-level (4KB granularity) page table, attached to L1 entry 256 to
+ * cover [0x20000000, 0x20200000). The init image and all per-CPU user stacks
+ * live in this 2MB window. */
+#define RME_BOOT_INIT_PGT_L2                    (9U)
+
+/* Per-CPU kernel and user stack sizes, and the initial user stack layout.
+ * The user stacks grow downwards from RME_RV64V_INIT_STACK_TOP. */
+#define RME_RV64V_KSTACK_SIZE                   (0x10000U)
+#define RME_RV64V_USTACK_SIZE                   (0x10000U)
+#define RME_RV64V_INIT_STACK_TOP                (0x20200000U)
+#define RME_RV64V_INIT_STACK(CPU)               (RME_RV64V_INIT_STACK_TOP-((rme_ptr_t)(CPU))*RME_RV64V_USTACK_SIZE)
 
 /* Booting capability layout */
 #define RME_RV64V_CPT                           ((struct RME_Cap_Cpt*)(RME_KOM_VA_BASE))
@@ -580,6 +634,33 @@ struct RME_Iret_Struct
     rme_ptr_t X2_SP;
 };
 
+/* Per-CPU hardware description */
+struct RME_RV64V_CPU_Info
+{
+    /* The hardware hart ID of this CPU */
+    rme_ptr_t Hart_ID;
+    /* Has this CPU finished its low-level initialization? */
+    volatile rme_ptr_t Boot_Done;
+};
+
+/* Per-CPU software record. The layout of the first five fields is fixed and
+ * used directly by the assembly trap entry/exit:
+ *   offset  0 : Kernel_SP
+ *   offset  8 : Local (pointer to the real RME_CPU_Local)
+ *   offset 16 : User_SP (scratch for trap exit)
+ *   offset 24 : User_TP (scratch for trap exit)
+ *   offset 32 : User_T6 (scratch for trap exit)
+ * Local is a pointer rather than an embedded struct because this header is
+ * parsed before Kernel/rme_kernel.h, where struct RME_CPU_Local is defined. */
+struct RME_RV64V_CPU_Data
+{
+    rme_ptr_t Kernel_SP;
+    struct RME_CPU_Local* Local;
+    rme_ptr_t User_SP;
+    rme_ptr_t User_TP;
+    rme_ptr_t User_T6;
+};
+
 /*****************************************************************************/
 /* __RME_PLATFORM_RV64V_STRUCT__ */
 #endif
@@ -661,10 +742,21 @@ static rme_ret_t __RME_RV64V_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 #endif
 
 /*****************************************************************************/
-/* Timestamp counter */
+/* Timestamp counter (kept for debugging; RME_TIMESTAMP uses the time CSR) */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_Timestamp;
-/* RV64V only supports one core, thus this is its CPU-local data structure */
-__RME_EXTERN__ struct RME_CPU_Local RME_RV64V_Local;
+/* Per-CPU software records, hardware info and CPU-local storage */
+__RME_EXTERN__ struct RME_RV64V_CPU_Data RME_RV64V_CPU_Data[RME_RV64V_CPU_NUM];
+__RME_EXTERN__ struct RME_RV64V_CPU_Info RME_RV64V_CPU_Info[RME_RV64V_CPU_NUM];
+__RME_EXTERN__ struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
+/* CPUID -> &RME_RV64V_CPU_Data[CPUID]; 8-byte entries so assembly can index
+ * it with a simple shift */
+__RME_EXTERN__ rme_ptr_t RME_RV64V_CPU_Data_Ptr[RME_RV64V_CPU_NUM];
+/* AP boot barrier: nonzero while the boot hart is still starting APs */
+__RME_EXTERN__ volatile rme_ptr_t RME_RV64V_CPU_Cnt;
+/* Number of CPUs that were actually brought up */
+__RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Num_CPU;
+/* Hardware hart ID of the boot hart */
+__RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Boot_Hart;
 /* RV64V use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_Kot[RME_KOT_WORD_NUM];
 /* The bootstrap root page table - defined by the assembly startup stub (the
@@ -727,6 +819,12 @@ __RME_EXTERN__ void __RME_Boot(void);
 /* Build the bootstrap root page table and turn the MMU on - called from the
  * assembly startup stub before the kernel proper starts. */
 __RME_EXTERN__ void __RME_RV64V_Pgt_Boot_Init(void);
+/* Low-level initialization for all secondary harts - called from the AP
+ * trampoline in assembly. */
+__RME_EXTERN__ void __RME_SMP_Low_Level_Init(rme_ptr_t CPUID,
+                                             rme_ptr_t Hart_ID);
+/* Physical-entry trampoline for secondary harts - called by SBI HSM. */
+RME_EXTERN void __RME_RV64V_SMP_Boot(void);
 
 __RME_EXTERN__ void __RME_RV64V_Reboot(void);
 __RME_EXTERN__ void __RME_RV64V_NVIC_Set_Exc_Prio(rme_cnt_t Exc,

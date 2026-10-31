@@ -88,13 +88,25 @@ F31    $ft11      temporary (caller-save)
     .extern             __RME_Zero_End
     /* Nonstandard low-level preinit that some platforms require */
     .extern             __RME_RV64V_Lowlvl_Preinit
+    /* SMP data and AP entry */
+    .extern             RME_RV64V_Boot_Hart
+    .extern             RME_RV64V_CPU_Data_Ptr
+    .extern             __RME_Boot_Root
+    .extern             __RME_SMP_Low_Level_Init
     /* Kernel entry */
     .extern             main
 /* End Import ****************************************************************/
 
+/* Constants *****************************************************************/
+    /* Sv39 high-half base - must match RME_RV64V_VA_BASE */
+    .equ                RME_RV64V_VA_BASE_ASM, 0xFFFFFFC000000000
+/* End Constants *************************************************************/
+
 /* Export ********************************************************************/
     /* The kernel entry point - jumped to by OpenSBI at 0x80200000 */
     .global             _start
+    /* Physical entry used by SBI HSM to start secondary harts */
+    .global             __RME_RV64V_SMP_Boot
     /* Disable all interrupts */
     .global             __RME_Int_Disable
     /* Enable all interrupts */
@@ -146,6 +158,10 @@ _start:
     .option             pop
     LA                  sp,__RME_Stack
 
+    /* Keep the boot hart ID in a callee-saved register: the .bss clear below
+     * must not erase it, and a0 is reused as the clear pointer. */
+    MV                  s0,a0
+
     /* Clear the bss section. The data section needs no copy: the high-half
      * mapping points straight at the physical load address. */
     LA                  a0,__RME_Zero_Start
@@ -156,6 +172,10 @@ __RME_Zero_Clear:
     ADDI                a0,a0,8
     J                   __RME_Zero_Clear
 __RME_Zero_Done:
+    /* Remember which hardware hart is running the boot path. */
+    LA                  t0,RME_RV64V_Boot_Hart
+    SD                  s0,0(t0)
+
     /* Build the bootstrap root page table and turn the MMU on. */
     CALL                __RME_RV64V_Pgt_Boot_Init
 
@@ -176,7 +196,6 @@ __RME_RV64V_Boot_High:
     LA                  gp,__RME_Global
     .option             pop
     LA                  sp,__RME_Stack
-    CSRW                sscratch,sp
     LA                  t0,__RME_RV64V_Handler
     CSRW                stvec,t0
 
@@ -184,6 +203,68 @@ __RME_RV64V_Boot_High:
     CALL                __RME_RV64V_Lowlvl_Preinit
     /* Branch to main function */
     J                   main
+
+/* Secondary-hart physical entry **********************************************
+ * SBI HSM starts a hart with satp=0 and a0=hartid, a1=opaque. The opaque
+ * value is the logical CPU index. We only touch physical addresses until the
+ * kernel root page table is installed.
+ * ****************************************************************************/
+    .section            .text.__rme_rv64v_smp_boot
+    .align              3
+
+__RME_RV64V_SMP_Boot:
+    /* Disable interrupts until we enter user mode */
+    CSRCI               sstatus,2
+
+    /* s0 = &RME_RV64V_CPU_Data[CPUID] (high-half VA). We are still running
+     * at the physical load address, so PC-relative LA yields the physical
+     * address of the pointer table here. */
+    LA                  t0,RME_RV64V_CPU_Data_Ptr
+    SLLI                t2,a1,3
+    ADD                 t0,t0,t2
+    LD                  s0,0(t0)
+    MV                  s1,a1                   /* logical CPU index */
+    MV                  s2,a0                   /* hardware hart ID */
+
+    /* Load the per-CPU kernel stack top (high-half VA) */
+    LI                  t1,RME_RV64V_VA_BASE_ASM
+    SUB                 t0,s0,t1
+    LD                  sp,0(t0)
+
+    /* Install the bootstrap root page table: satp = (8<<60)|(root PA>>12).
+     * LA yields the physical address while we are running with the MMU off. */
+    LA                  t1,__RME_Boot_Root
+    SRLI                t1,t1,12
+    LI                  t2,8
+    SLLI                t2,t2,60
+    OR                  t1,t1,t2
+    CSRW                satp,t1
+    SFENCE.VMA
+
+    /* Jump into the high-half alias: LA currently yields the physical
+     * address of the target, so add the high-half base back. */
+    LA                  t2,__RME_RV64V_SMP_Boot_High
+    LI                  t1,RME_RV64V_VA_BASE_ASM
+    ADD                 t2,t2,t1
+    JR                  t2
+
+__RME_RV64V_SMP_Boot_High:
+    .option             push
+    .option             norelax
+    LA                  gp,__RME_Global
+    .option             pop
+    MV                  tp,s0
+    CSRW                sscratch,tp
+    LA                  t0,__RME_RV64V_Handler
+    CSRW                stvec,t0
+
+    MV                  a0,s1
+    MV                  a1,s2
+    CALL                __RME_SMP_Low_Level_Init
+
+    /* __RME_SMP_Low_Level_Init never returns */
+1:
+    J                   1b
 
 /* The absolute virtual address of the high-half entry, resolved by the
  * linker. The assembly cannot materialize a 64-bit high-half address with
@@ -245,7 +326,7 @@ Return      : None.
     .section            .text.__rme_rv64v_barrier
     .align              3
 
-___RME_RV64V_Barrier:
+__RME_RV64V_Barrier:
     FENCE
     FENCE.I
     RET
@@ -412,8 +493,18 @@ Return      : None.
     .align              3
 
 __RME_User_Enter:
-    /* FS clear, previous mode = U, previous M-mode interrupt enabled */
-    LI                  t0,0x00000020
+    /* Load this CPU's RME_RV64V_CPU_Data pointer from the CPUID-indexed
+     * pointer table. a2 = CPUID, a0 = entry, a1 = user stack. */
+    LA                  t0,RME_RV64V_CPU_Data_Ptr
+    SLLI                t1,a2,3
+    ADD                 t0,t0,t1
+    LD                  t0,0(t0)
+    /* Kernel traps use sscratch as the CPU data pointer */
+    CSRW                sscratch,t0
+    /* User mode starts with tp=0 (the init program sets its own gp) */
+    LI                  tp,0
+    /* FS clear, previous mode = U, SPIE=1/SIE=0 */
+    LI                  t0,0x00000000
     CSRW                sstatus,t0
     CSRW                sepc,a0
     MV                  sp,a1
@@ -433,48 +524,60 @@ Return      : None.
     .align              3
 
 __RME_RV64V_Handler:
-    CSRRW               sp,sscratch,sp
-    /* Allocate stack space for context saving */
+    /* Swap in the per-CPU kernel context:
+     *   tp        = RME_RV64V_CPU_Data pointer
+     *   sscratch  = user tp
+     * Stage the user sp in the per-CPU record before touching any GPR. */
+    CSRRW               tp,sscratch,tp
+    SD                  sp,16(tp)
+    /* Switch to this hart's kernel stack, then build the trap frame */
+    LD                  sp,0(tp)
     ADDI                sp,sp,-33*8
-    /* Save all general-purpose registers - RV32G does not have any flag registers */
-    SD                  x31,32*8(sp)
-    SD                  x30,31*8(sp)
-    SD                  x29,30*8(sp)
-    SD                  x28,29*8(sp)
-    SD                  x27,28*8(sp)
-    SD                  x26,27*8(sp)
-    SD                  x25,26*8(sp)
-    SD                  x24,25*8(sp)
-    SD                  x23,24*8(sp)
-    SD                  x22,23*8(sp)
-    SD                  x21,22*8(sp)
-    SD                  x20,21*8(sp)
-    SD                  x19,20*8(sp)
-    SD                  x18,19*8(sp)
-    SD                  x17,18*8(sp)
-    SD                  x16,17*8(sp)
-    SD                  x15,16*8(sp)
-    SD                  x14,15*8(sp)
-    SD                  x13,14*8(sp)
-    SD                  x12,13*8(sp)
-    SD                  x11,12*8(sp)
-    SD                  x10,11*8(sp)
-    SD                  x9,10*8(sp)
-    SD                  x8,9*8(sp)
-    SD                  x7,8*8(sp)
-    SD                  x6,7*8(sp)
-    SD                  x5,6*8(sp)
-    SD                  x4,5*8(sp)
-    SD                  x3,4*8(sp)
-    /* Save sp (x2) */
-    CSRR                a0,sscratch
-    SD                  a0,3*8(sp)
-    /* Save x1 */
+
+    /* Save all general-purpose registers before using any scratch register.
+     * x4 is not saved from the register: the user tp lives in sscratch. */
     SD                  x1,2*8(sp)
-    /* Save pc (sepc) */
+    SD                  x3,4*8(sp)
+    SD                  x5,6*8(sp)
+    SD                  x6,7*8(sp)
+    SD                  x7,8*8(sp)
+    SD                  x8,9*8(sp)
+    SD                  x9,10*8(sp)
+    SD                  x10,11*8(sp)
+    SD                  x11,12*8(sp)
+    SD                  x12,13*8(sp)
+    SD                  x13,14*8(sp)
+    SD                  x14,15*8(sp)
+    SD                  x15,16*8(sp)
+    SD                  x16,17*8(sp)
+    SD                  x17,18*8(sp)
+    SD                  x18,19*8(sp)
+    SD                  x19,20*8(sp)
+    SD                  x20,21*8(sp)
+    SD                  x21,22*8(sp)
+    SD                  x22,23*8(sp)
+    SD                  x23,24*8(sp)
+    SD                  x24,25*8(sp)
+    SD                  x25,26*8(sp)
+    SD                  x26,27*8(sp)
+    SD                  x27,28*8(sp)
+    SD                  x28,29*8(sp)
+    SD                  x29,30*8(sp)
+    SD                  x30,31*8(sp)
+    SD                  x31,32*8(sp)
+
+    /* Fill the user sp/tp slots. x5 is safe to use now that its original
+     * value is in the frame. */
+    LD                  t0,16(tp)
+    SD                  t0,3*8(sp)
+    CSRR                t0,sscratch
+    SD                  t0,5*8(sp)
+    /* From now on sscratch holds the CPU data pointer again */
+    CSRW                sscratch,tp
+
+    /* Save pc (sepc) and sstatus */
     CSRR                a0,sepc
     SD                  a0,1*8(sp)
-    /* Save sstatus */
     CSRR                a0,sstatus
     SD                  a0,0*8(sp)
 
@@ -490,10 +593,9 @@ __RME_RV64V_Handler:
     /* Load sstatus */
     LD                  a0,0*8(sp)
     /* Clear the SIE bit in the value being restored. If a timer interrupt
-     * fires while we are still on the kernel stack (sscratch already holds
-     * the user sp below), the nested trap would save the frame onto the user
-     * stack, faulting because the kernel page table does not map it. SRET
-     * restores SIE from SPIE, so user mode still gets interrupts. */
+     * fires while we are still on the kernel stack, the nested trap would
+     * reuse the same kernel stack and corrupt the frame. SRET restores SIE
+     * from SPIE, so user mode still gets interrupts. */
     LI                  t0,-3
     AND                 a0,a0,t0
     CSRW                sstatus,a0
@@ -502,14 +604,20 @@ __RME_RV64V_Handler:
 1:
     BEQZ                a0,1b
     CSRW                sepc,a0
-    /* Load x1 */
+
+    /* Stage user sp/tp/t6 in the per-CPU record. All GPRs can then be
+     * restored from the frame, including the scratch registers used here. */
+    LD                  t0,3*8(sp)
+    LD                  t1,5*8(sp)
+    LD                  t2,32*8(sp)
+    CSRR                t3,sscratch
+    SD                  t0,16(t3)
+    SD                  t1,24(t3)
+    SD                  t2,32(t3)
+
+    /* Restore x1 and x3..x30 (x31 is restored last from the CPU record) */
     LD                  x1,2*8(sp)
-    /* Load sp (x2, into sscratch) */
-    LD                  a0,3*8(sp)
-    CSRW                sscratch,a0
-    /* Load all general-purpose registers - RV32G does not have any flag registers */
     LD                  x3,4*8(sp)
-    LD                  x4,5*8(sp)
     LD                  x5,6*8(sp)
     LD                  x6,7*8(sp)
     LD                  x7,8*8(sp)
@@ -536,10 +644,13 @@ __RME_RV64V_Handler:
     LD                  x28,29*8(sp)
     LD                  x29,30*8(sp)
     LD                  x30,31*8(sp)
-    LD                  x31,32*8(sp)
-    ADDI                sp,sp,33*8
-    /* Return to user mode */
-    CSRRW               sp,sscratch,sp
+
+    /* Restore user sp, tp and t6. x31 doubles as the CPU data pointer and
+     * is loaded last; the load reads its base before overwriting x31. */
+    CSRR                x31,sscratch
+    LD                  sp,16(x31)
+    LD                  tp,24(x31)
+    LD                  x31,32(x31)
     SRET
 /* End Function:_RME_RV64V_Handler *******************************************/
 

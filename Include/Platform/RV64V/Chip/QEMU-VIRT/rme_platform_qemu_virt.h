@@ -13,6 +13,10 @@ Description : The configuration file for the QEMU virt platform.
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
 /* Kernel ********************************************************************/
+/* Number of harts to bring up. This port is hard-wired for 8 cores; the
+ * boot hart is always CPU0 and the remaining harts are started through the
+ * SBI HSM extension. */
+#define RME_RV64V_CPU_NUM                               (8U)
 /* Kernel object virtual memory base - kernel lives in the Sv39 high half:
  * VA = 0xFFFFFFC000000000 + physical 0x81000000 (see RME_RV64V_VA_BASE) */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC081000000UL)
@@ -38,14 +42,12 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_RV64V_KPGT_PA                               (0x80000000U)
 
 /* Init process's first thread - user virtual addresses, decoupled from the
- * physical pages, matching X64 (first user program at 0x20000000 with its
- * stack about 2MB above it). The code is loaded physically at 0x81030000 and
- * the stack physically occupies [0x81010000,0x81020000). */
+ * physical pages, matching X64 (first user program at 0x20000000). The code
+ * is loaded physically at 0x81030000; each CPU's user stack is a 64KB block
+ * in the kernel .bss mapped below 0x20200000 (see RME_RV64V_INIT_STACK). */
 #define RME_RV64V_INIT_ENTRY                            (0x20000000U)
-#define RME_RV64V_INIT_STACK                            (0x20200000U)
-/* Physical backing of the init image and the init stack (QEMU loader) */
+/* Physical backing of the init image (QEMU loader) */
 #define RME_RV64V_INIT_PA                               (0x81030000U)
-#define RME_RV64V_INIT_STACK_PA                         (0x81010000U)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV64V_OSTIM_VAL                             (100000U)
 /* What is the FPU type? */

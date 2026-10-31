@@ -15,12 +15,15 @@ Description : The configuration file for the SpacemiT K3 platform
 #define RME_PGT_RAW_ENABLE                              (0U)
 
 /* Kernel ********************************************************************/
+/* Number of harts to bring up. The K3 is an 8-core SoC; the boot hart is
+ * always CPU0 and the remaining harts are started through SBI HSM. */
+#define RME_RV64V_CPU_NUM                               (8U)
 /* Kernel object virtual memory base - the kernel lives in the Sv39 high
  * half: VA = RME_RV64V_VA_BASE + physical. K3 DRAM starts at 0x102000000;
  * U-Boot enters the kernel in S-mode at 0x102200000; we keep everything
  * below one 1GB window so a single direct-map leaf suffices.
  *   - KOM      : PA 0x103000000 -> VA 0xFFFFFFC103000000
- *   - init image: PA 0x102400000 -> VA 0xFFFFFFC102400000 (embedded)
+ *   - init image: PA 0x102600000 -> VA 0xFFFFFFC102600000 (embedded)
  *   - init stack: PA 0x102F00000 (user VA [0x201F0000, 0x20200000))
  * NOTE: the kernel .bss holds the KOM bitmap (RME_RV64V_Kot) and ends around
  * PA 0x102302000, so the embedded init image must stay above that. */
@@ -48,15 +51,15 @@ Description : The configuration file for the SpacemiT K3 platform
 #define RME_RV64V_KPGT_PA                               (0x100000000U)
 
 /* Init process's first thread - user virtual addresses, decoupled from the
- * physical pages, matching X64 (first user program at 0x20000000 with its
- * stack about 2MB above it). The code is embedded in the kernel image at
- * physical 0x102400000 and the stack physically occupies
- * [0x102F00000, 0x102F10000). */
+ * physical pages, matching X64 (first user program at 0x20000000). The code
+ * is embedded in the kernel image at physical 0x102600000; each CPU's user
+ * stack is a 64KB block in the kernel .bss mapped below 0x20200000 (see
+ * RME_RV64V_INIT_STACK). */
 #define RME_RV64V_INIT_ENTRY                            (0x20000000U)
-#define RME_RV64V_INIT_STACK                            (0x20200000U)
-/* Physical backing of the embedded init image and the init stack */
-#define RME_RV64V_INIT_PA                               (0x102400000U)
-#define RME_RV64V_INIT_STACK_PA                         (0x102F00000U)
+/* Physical backing of the embedded init image. The image is placed 4MB above
+ * the kernel load address so the kernel .bss (KOT bitmap + per-CPU
+ * kernel/user stacks) has enough room. */
+#define RME_RV64V_INIT_PA                               (0x102600000U)
 
 /* What is the Systick value? The K3 time CSR ticks at 24MHz (DTB
  * timebase-frequency = 0x16e3600); 10ms per tick = 240000. */
