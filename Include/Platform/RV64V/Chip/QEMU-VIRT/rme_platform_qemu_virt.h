@@ -13,9 +13,8 @@ Description : The configuration file for the QEMU virt platform.
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
 /* Kernel ********************************************************************/
-/* Number of harts to bring up. This port is hard-wired for 8 cores; the
- * boot hart is always CPU0 and the remaining harts are started through the
- * SBI HSM extension. */
+/* Number of harts to bring up. The boot hart is always CPU0 and the
+ * remaining harts are started through the SBI HSM extension. */
 #define RME_RV64V_CPU_NUM                               (8U)
 /* Kernel object virtual memory base - kernel lives in the Sv39 high half:
  * VA = 0xFFFFFFC000000000 + physical 0x81000000 (see RME_RV64V_VA_BASE) */
@@ -28,9 +27,6 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_HYP_VA_SIZE                                 (0xFFFFFFFFU)
 /* Kernel memory allocation granularity order */
 #define RME_KOM_SLOT_ORDER                              (6U)
-/* Kernel stack size and address - high half as well */
-#define RME_KSTK_VA_BASE                                (0xFFFFFFC08100E000UL)
-#define RME_KSTK_VA_SIZE                                (0x800U)
 /* The maximum number of preemption priorities */
 #define RME_PREEMPT_PRIO_NUM                            (64U)
 
@@ -50,23 +46,10 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_RV64V_INIT_PA                               (0x81030000U)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV64V_OSTIM_VAL                             (100000U)
-/* What is the FPU type? */
+/* What is the FPU type? QEMU virt is rv64imafdch, so enable F and D. */
 #define RME_COP_NUM                                     (1U)
 #define RME_RV64V_COP_RVF                               (1U)
-#define RME_RV64V_COP_RVD                               (0U)
-
-
-/* Cache mode configuration */
-#define RME_RV64V_CACHE_MOD(CACHE_ID,OPERATION,PARAM)
-/* Cache maintenance */
-#define RME_RV64V_CACHE_MAINT(CACHE_ID,OPERATION,PARAM)
-/* Prefetcher mode ocnfiguration */
-#define RME_RV64V_PRFTH_MOD(PRFTH_ID,OPERATION,PARAM)
-
-/* Performance monitor configuration */
-#define RME_RV64V_PERF_MON_MOD(PERF_ID,OPERATION,PARAM)
-/* Performance monitor cycle counter read or write */
-#define RME_RV64V_PERF_CYCLE_MOD(CYCLE_ID,OPERATION,VALUE)
+#define RME_RV64V_COP_RVD                               (1U)
 
 /* Reboot system - SBI system reset (SRST extension) */
 #define RME_RV64V_REBOOT() \

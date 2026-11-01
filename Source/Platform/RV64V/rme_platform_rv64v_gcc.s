@@ -7,7 +7,8 @@ Description : The GCC assembly stubs for the RV64V platform.
 
 /* The RISC-V RV64V Architecture **********************************************
 R0:Hardwired register containing "0".
-R1-R31:General purpose registers that can only be reached by 32-bit instructions.
+R1-R31:General purpose registers. They are XLEN (64-bit) wide, and each of
+        them holds a 64-bit value.
 PC:Program counter.
 Detailed usage convention for X0-X31:
 No.    Name       Explanation
@@ -88,6 +89,9 @@ F31    $ft11      temporary (caller-save)
     .extern             __RME_Zero_End
     /* Nonstandard low-level preinit that some platforms require */
     .extern             __RME_RV64V_Lowlvl_Preinit
+    /* C trap dispatcher and bootstrap page-table builder */
+    .extern             _RME_RV64V_Handler
+    .extern             __RME_RV64V_Pgt_Boot_Init
     /* SMP data and AP entry */
     .extern             RME_RV64V_Boot_Hart
     .extern             RME_RV64V_CPU_Data_Ptr
@@ -98,7 +102,8 @@ F31    $ft11      temporary (caller-save)
 /* End Import ****************************************************************/
 
 /* Constants *****************************************************************/
-    /* Sv39 high-half base - must match RME_RV64V_VA_BASE */
+    /* Sv39 high-half base - must match RME_RV64V_VA_BASE in the platform
+     * header and __RME_VA_BASE in the linker script. */
     .equ                RME_RV64V_VA_BASE_ASM, 0xFFFFFFC000000000
 /* End Constants *************************************************************/
 
@@ -119,10 +124,8 @@ F31    $ft11      temporary (caller-save)
     .global             __RME_RV64V_Barrier
     /* CSR manipulations */
     .global             ___RME_RV64V_SCAUSE_Get
-    .global             ___RME_RV64V_STVAL_Set
     .global             ___RME_RV64V_STVAL_Get
     .global             ___RME_RV64V_CYCLE_Get
-    .global             ___RME_RV64V_MISA_Get
     .global             ___RME_RV64V_SSTATUS_Get
     .global             ___RME_RV64V_SSTATUS_Set
     .global             ___RME_RV64V_SCOUNTEREN_Set
@@ -180,11 +183,11 @@ __RME_Zero_Done:
     CALL                __RME_RV64V_Pgt_Boot_Init
 
     /* The MMU is on and we are still executing at the physical address.
-     * Jump to the Sv39 high half: the linker resolved the absolute virtual
-     * address of the entry into the image (the RISC-V counterpart of the
-     * X64 port's "movq $Boot_High_64,%RAX"). */
-    LA                  t0,__RME_RV64V_High_Entry
-    LD                  t0,0(t0)
+     * LA yields the physical address of the target, so add the high-half
+     * base to reach the Sv39 VA. */
+    LA                  t0,__RME_RV64V_Boot_High
+    LI                  t1,RME_RV64V_VA_BASE_ASM
+    ADD                 t0,t0,t1
     JR                  t0
 
 __RME_RV64V_Boot_High:
@@ -266,16 +269,6 @@ __RME_RV64V_SMP_Boot_High:
 1:
     J                   1b
 
-/* The absolute virtual address of the high-half entry, resolved by the
- * linker. The assembly cannot materialize a 64-bit high-half address with
- * lui+addi (it does not fit in 32 bits), so the linker puts it into the
- * image and the stub above loads it. */
-    .section            .text.__rme_rv64v_high_entry
-    .align              3
-
-__RME_RV64V_High_Entry:
-    .quad               __RME_RV64V_Boot_High
-
 /* Bootstrap root page table - the loader does not zero it, the preinit
  * programs it explicitly, and it must survive the .bss clear above. */
     .section            .bootpgt, "aw", @nobits
@@ -352,7 +345,7 @@ Input       : None.
 Output      : None.
 Return      : a0 - SCAUSE value.
 ******************************************************************************/
-    .section            .text.___rme_rv64v_mcause_get
+    .section            .text.___rme_rv64v_scause_get
     .align              3
 
 ___RME_RV64V_SCAUSE_Get:
@@ -364,9 +357,9 @@ ___RME_RV64V_SCAUSE_Get:
 Description : Get the STVAL register content.
 Input       : None.
 Output      : None.
-Return      : a0 - SCAUSE value.
+Return      : a0 - STVAL value.
 ******************************************************************************/
-    .section            .text.___rme_rv64v_mtval_get
+    .section            .text.___rme_rv64v_stval_get
     .align              3
 
 ___RME_RV64V_STVAL_Get:
@@ -380,7 +373,7 @@ Input       : None.
 Output      : None.
 Return      : a0 - CYCLE value.
 ******************************************************************************/
-    .section            .text.___rme_rv64v_mcycle_get
+    .section            .text.___rme_rv64v_cycle_get
     .align              3
 
 ___RME_RV64V_CYCLE_Get:
@@ -388,27 +381,13 @@ ___RME_RV64V_CYCLE_Get:
     RET
 /* End Function:___RME_RV64V_CYCLE_Get **************************************/
 
-/* Function:___RME_RV64V_MISA_Get *********************************************
-Description : Get the MISA register content.
-Input       : None.
-Output      : None.
-Return      : a0 - MISA value.
-******************************************************************************/
-    .section            .text.___rme_rv64v_misa_get
-    .align              3
-
-___RME_RV64V_MISA_Get:
-    CSRR                a0, misa
-    RET
-/* End Function:___RME_RV64V_MISA_Get ****************************************/
-
 /* Function:___RME_RV64V_SSTATUS_Get ******************************************
 Description : Get the SSTATUS register content.
 Input       : None.
 Output      : None.
 Return      : $a0 - SSTATUS value.
 ******************************************************************************/
-    .section            .text.___rme_rv64v_mstatus_get
+    .section            .text.___rme_rv64v_sstatus_get
     .align              3
 
 ___RME_RV64V_SSTATUS_Get:
@@ -422,7 +401,7 @@ Input       : $a0 - SSTATUS value.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-    .section            .text.___rme_rv64v_mstatus_set
+    .section            .text.___rme_rv64v_sstatus_set
     .align              3
 
 ___RME_RV64V_SSTATUS_Set:
@@ -450,7 +429,8 @@ ___RME_RV64V_SCOUNTEREN_Set:
 /* Function:___RME_RV64V_SATP_Set *********************************************
 Description : Write the satp register to enable/switch the Sv39 MMU.
               satp layout: [63:60] MODE = 8 (Sv39), [59:44] ASID,
-              [43:0] PPN = root page table physical address >> 12.
+              [43:0] PPN = root page table physical address >> 12. Sv39
+              supports a 56-bit physical address, so the PPN field is 44 bits.
 Input       : a0 - The satp value.
 Output      : None.
 Return      : None.
@@ -465,8 +445,9 @@ ___RME_RV64V_SATP_Set:
 
 /* Function:___RME_RV64V_TLB_Flush ********************************************
 Description : Flush all address-translation cache (TLB) entries.
-              SFENCE.VMA with rs1=rs2=x0 flushes the whole TLB; on a
-              single-core system this is all we ever need.
+              SFENCE.VMA with rs1=rs2=x0 flushes the whole TLB of the
+              calling hart. On a multi-hart system the other harts keep
+              their stale entries - they must be flushed on their own.
 Input       : None.
 Output      : None.
 Return      : None.
@@ -503,8 +484,9 @@ __RME_User_Enter:
     CSRW                sscratch,t0
     /* User mode starts with tp=0 (the init program sets its own gp) */
     LI                  tp,0
-    /* FS clear, previous mode = U, SPIE=1/SIE=0 */
-    LI                  t0,0x00000000
+    /* FS clear, previous mode = U, SPIE=1/SIE=0. SRET copies SPIE into SIE,
+     * so the S-mode interrupts are enabled as soon as we enter user mode. */
+    LI                  t0,0x00000020
     CSRW                sstatus,t0
     CSRW                sepc,a0
     MV                  sp,a1
@@ -592,10 +574,10 @@ __RME_RV64V_Handler:
 
     /* Load sstatus */
     LD                  a0,0*8(sp)
-    /* Clear the SIE bit in the value being restored. If a timer interrupt
-     * fires while we are still on the kernel stack, the nested trap would
-     * reuse the same kernel stack and corrupt the frame. SRET restores SIE
-     * from SPIE, so user mode still gets interrupts. */
+    /* Clear the SIE (and UIE) bits in the value being restored. If a timer
+     * interrupt fires while we are still on the kernel stack, the nested trap
+     * would reuse the same kernel stack and corrupt the frame. SRET restores
+     * SIE from SPIE, so user mode still gets interrupts. */
     LI                  t0,-3
     AND                 a0,a0,t0
     CSRW                sstatus,a0
@@ -652,7 +634,7 @@ __RME_RV64V_Handler:
     LD                  tp,24(x31)
     LD                  x31,32(x31)
     SRET
-/* End Function:_RME_RV64V_Handler *******************************************/
+/* End Function:__RME_RV64V_Handler ******************************************/
 
 /* Function:___RME_RV64V_Thd_Cop_Clear ****************************************
 Description : Clean up the coprocessor state so that the FP information is not
@@ -823,72 +805,73 @@ Return      : None.
 ___RME_RV64V_Thd_Cop_Save_RVF:
     .hword              0x22F3              /* FRCSR   t0 */
     .hword              0x0030
-    SW                  t0,(a0)
-    ADDI                a0,a0,4
-    .hword              0x2027              /* FSW     f0,0*4(a0) */
+    /* FCSR occupies one 8-byte slot, so F0 is naturally aligned */
+    SD                  t0,(a0)
+    ADDI                a0,a0,8
+    .hword              0x2027              /* FSW     f0,0*8(a0) */
     .hword              0x0005
-    .hword              0x2227              /* FSW     f1,1*4(a0) */
+    .hword              0x2427              /* FSW     f1,1*8(a0) */
     .hword              0x0015
-    .hword              0x2427              /* FSW     f2,2*4(a0) */
+    .hword              0x2827              /* FSW     f2,2*8(a0) */
     .hword              0x0025
-    .hword              0x2627              /* FSW     f3,3*4(a0) */
+    .hword              0x2C27              /* FSW     f3,3*8(a0) */
     .hword              0x0035
-    .hword              0x2827              /* FSW     f4,4*4(a0) */
-    .hword              0x0045
-    .hword              0x2A27              /* FSW     f5,5*4(a0) */
-    .hword              0x0055
-    .hword              0x2C27              /* FSW     f6,6*4(a0) */
-    .hword              0x0065
-    .hword              0x2E27              /* FSW     f7,7*4(a0) */
-    .hword              0x0075
-    .hword              0x2027              /* FSW     f8,8*4(a0) */
-    .hword              0x0285
-    .hword              0x2227              /* FSW     f9,9*4(a0) */
-    .hword              0x0295
-    .hword              0x2427              /* FSW     f10,10*4(a0) */
-    .hword              0x02A5
-    .hword              0x2627              /* FSW     f11,11*4(a0) */
-    .hword              0x02B5
-    .hword              0x2827              /* FSW     f12,12*4(a0) */
-    .hword              0x02C5
-    .hword              0x2A27              /* FSW     f13,13*4(a0) */
-    .hword              0x02D5
-    .hword              0x2C27              /* FSW     f14,14*4(a0) */
-    .hword              0x02E5
-    .hword              0x2E27              /* FSW     f15,15*4(a0) */
-    .hword              0x02F5
-    .hword              0x2027              /* FSW     f16,16*4(a0) */
-    .hword              0x0505
-    .hword              0x2227              /* FSW     f17,17*4(a0) */
-    .hword              0x0515
-    .hword              0x2427              /* FSW     f18,18*4(a0) */
-    .hword              0x0525
-    .hword              0x2627              /* FSW     f19,19*4(a0) */
-    .hword              0x0535
-    .hword              0x2827              /* FSW     f20,20*4(a0) */
-    .hword              0x0545
-    .hword              0x2A27              /* FSW     f21,21*4(a0) */
-    .hword              0x0555
-    .hword              0x2C27              /* FSW     f22,22*4(a0) */
-    .hword              0x0565
-    .hword              0x2E27              /* FSW     f23,23*4(a0) */
-    .hword              0x0575
-    .hword              0x2027              /* FSW     f24,24*4(a0) */
-    .hword              0x0785
-    .hword              0x2227              /* FSW     f25,25*4(a0) */
-    .hword              0x0795
-    .hword              0x2427              /* FSW     f26,26*4(a0) */
-    .hword              0x07A5
-    .hword              0x2627              /* FSW     f27,27*4(a0) */
-    .hword              0x07B5
-    .hword              0x2827              /* FSW     f28,28*4(a0) */
-    .hword              0x07C5
-    .hword              0x2A27              /* FSW     f29,29*4(a0) */
-    .hword              0x07D5
-    .hword              0x2C27              /* FSW     f30,30*4(a0) */
-    .hword              0x07E5
-    .hword              0x2E27              /* FSW     f31,31*4(a0) */
-    .hword              0x07F5
+    .hword              0x2027              /* FSW     f4,4*8(a0) */
+    .hword              0x0245
+    .hword              0x2427              /* FSW     f5,5*8(a0) */
+    .hword              0x0255
+    .hword              0x2827              /* FSW     f6,6*8(a0) */
+    .hword              0x0265
+    .hword              0x2C27              /* FSW     f7,7*8(a0) */
+    .hword              0x0275
+    .hword              0x2027              /* FSW     f8,8*8(a0) */
+    .hword              0x0485
+    .hword              0x2427              /* FSW     f9,9*8(a0) */
+    .hword              0x0495
+    .hword              0x2827              /* FSW     f10,10*8(a0) */
+    .hword              0x04A5
+    .hword              0x2C27              /* FSW     f11,11*8(a0) */
+    .hword              0x04B5
+    .hword              0x2027              /* FSW     f12,12*8(a0) */
+    .hword              0x06C5
+    .hword              0x2427              /* FSW     f13,13*8(a0) */
+    .hword              0x06D5
+    .hword              0x2827              /* FSW     f14,14*8(a0) */
+    .hword              0x06E5
+    .hword              0x2C27              /* FSW     f15,15*8(a0) */
+    .hword              0x06F5
+    .hword              0x2027              /* FSW     f16,16*8(a0) */
+    .hword              0x0905
+    .hword              0x2427              /* FSW     f17,17*8(a0) */
+    .hword              0x0915
+    .hword              0x2827              /* FSW     f18,18*8(a0) */
+    .hword              0x0925
+    .hword              0x2C27              /* FSW     f19,19*8(a0) */
+    .hword              0x0935
+    .hword              0x2027              /* FSW     f20,20*8(a0) */
+    .hword              0x0B45
+    .hword              0x2427              /* FSW     f21,21*8(a0) */
+    .hword              0x0B55
+    .hword              0x2827              /* FSW     f22,22*8(a0) */
+    .hword              0x0B65
+    .hword              0x2C27              /* FSW     f23,23*8(a0) */
+    .hword              0x0B75
+    .hword              0x2027              /* FSW     f24,24*8(a0) */
+    .hword              0x0D85
+    .hword              0x2427              /* FSW     f25,25*8(a0) */
+    .hword              0x0D95
+    .hword              0x2827              /* FSW     f26,26*8(a0) */
+    .hword              0x0DA5
+    .hword              0x2C27              /* FSW     f27,27*8(a0) */
+    .hword              0x0DB5
+    .hword              0x2027              /* FSW     f28,28*8(a0) */
+    .hword              0x0FC5
+    .hword              0x2427              /* FSW     f29,29*8(a0) */
+    .hword              0x0FD5
+    .hword              0x2827              /* FSW     f30,30*8(a0) */
+    .hword              0x0FE5
+    .hword              0x2C27              /* FSW     f31,31*8(a0) */
+    .hword              0x0FF5
     RET
 
 /* RVD */
@@ -898,8 +881,9 @@ ___RME_RV64V_Thd_Cop_Save_RVF:
 ___RME_RV64V_Thd_Cop_Save_RVD:
     .hword              0x22F3              /* FRCSR   t0 */
     .hword              0x0030
-    SW                  t0,(a0)
-    ADDI                a0,a0,4
+    /* FCSR occupies one 8-byte slot, so F0 is naturally aligned */
+    SD                  t0,(a0)
+    ADDI                a0,a0,8
     .hword              0x3027              /* FSD     f0,0*8(a0) */
     .hword              0x0005
     .hword              0x3427              /* FSD     f1,1*8(a0) */
@@ -979,74 +963,74 @@ Return      : None.
     .align              3
 
 ___RME_RV64V_Thd_Cop_Load_RVF:
-    LW                  t0,(a0)
+    LD                  t0,(a0)
     .hword              0x9073              /* FSCSR   t0 */
     .hword              0x0032
-    ADDI                a0,a0,4
-    .hword              0x2007              /* FLW     f0,0*4(a0) */
+    ADDI                a0,a0,8
+    .hword              0x2007              /* FLW     f0,0*8(a0) */
     .hword              0x0005
-    .hword              0x2087              /* FLW     f1,1*4(a0) */
-    .hword              0x0045
-    .hword              0x2107              /* FLW     f2,2*4(a0) */
-    .hword              0x0085
-    .hword              0x2187              /* FLW     f3,3*4(a0) */
-    .hword              0x00C5
-    .hword              0x2207              /* FLW     f4,4*4(a0) */
-    .hword              0x0105
-    .hword              0x2287              /* FLW     f5,5*4(a0) */
-    .hword              0x0145
-    .hword              0x2307              /* FLW     f6,6*4(a0) */
-    .hword              0x0185
-    .hword              0x2387              /* FLW     f7,7*4(a0) */
-    .hword              0x01C5
-    .hword              0x2407              /* FLW     f8,8*4(a0) */
-    .hword              0x0205
-    .hword              0x2487              /* FLW     f9,9*4(a0) */
+    .hword              0x2407              /* FLW     f1,1*8(a0) */
+    .hword              0x0015
+    .hword              0x2807              /* FLW     f2,2*8(a0) */
+    .hword              0x0025
+    .hword              0x2C07              /* FLW     f3,3*8(a0) */
+    .hword              0x0035
+    .hword              0x2007              /* FLW     f4,4*8(a0) */
     .hword              0x0245
-    .hword              0x2507              /* FLW     f10,10*4(a0) */
-    .hword              0x0285
-    .hword              0x2587              /* FLW     f11,11*4(a0) */
-    .hword              0x02C5
-    .hword              0x2607              /* FLW     f12,12*4(a0) */
-    .hword              0x0305
-    .hword              0x2687              /* FLW     f13,13*4(a0) */
-    .hword              0x0345
-    .hword              0x2707              /* FLW     f14,14*4(a0) */
-    .hword              0x0385
-    .hword              0x2787              /* FLW     f15,15*4(a0) */
-    .hword              0x03C5
-    .hword              0x2807              /* FLW     f16,16*4(a0) */
-    .hword              0x0405
-    .hword              0x2887              /* FLW     f17,17*4(a0) */
-    .hword              0x0445
-    .hword              0x2907              /* FLW     f18,18*4(a0) */
+    .hword              0x2407              /* FLW     f5,5*8(a0) */
+    .hword              0x0255
+    .hword              0x2807              /* FLW     f6,6*8(a0) */
+    .hword              0x0265
+    .hword              0x2C07              /* FLW     f7,7*8(a0) */
+    .hword              0x0275
+    .hword              0x2007              /* FLW     f8,8*8(a0) */
     .hword              0x0485
-    .hword              0x2987              /* FLW     f19,19*4(a0) */
-    .hword              0x04C5
-    .hword              0x2A07              /* FLW     f20,20*4(a0) */
-    .hword              0x0505
-    .hword              0x2A87              /* FLW     f21,21*4(a0) */
-    .hword              0x0545
-    .hword              0x2B07              /* FLW     f22,22*4(a0) */
-    .hword              0x0585
-    .hword              0x2B87              /* FLW     f23,23*4(a0) */
-    .hword              0x05C5
-    .hword              0x2C07              /* FLW     f24,24*4(a0) */
-    .hword              0x0605
-    .hword              0x2C87              /* FLW     f25,25*4(a0) */
-    .hword              0x0645
-    .hword              0x2D07              /* FLW     f26,26*4(a0) */
-    .hword              0x0685
-    .hword              0x2D87              /* FLW     f27,27*4(a0) */
+    .hword              0x2407              /* FLW     f9,9*8(a0) */
+    .hword              0x0495
+    .hword              0x2807              /* FLW     f10,10*8(a0) */
+    .hword              0x04A5
+    .hword              0x2C07              /* FLW     f11,11*8(a0) */
+    .hword              0x04B5
+    .hword              0x2007              /* FLW     f12,12*8(a0) */
     .hword              0x06C5
-    .hword              0x2E07              /* FLW     f28,28*4(a0) */
-    .hword              0x0705
-    .hword              0x2E87              /* FLW     f29,29*4(a0) */
-    .hword              0x0745
-    .hword              0x2F07              /* FLW     f30,30*4(a0) */
-    .hword              0x0785
-    .hword              0x2F87              /* FLW     f31,31*4(a0) */
-    .hword              0x07C5
+    .hword              0x2407              /* FLW     f13,13*8(a0) */
+    .hword              0x06D5
+    .hword              0x2807              /* FLW     f14,14*8(a0) */
+    .hword              0x06E5
+    .hword              0x2C07              /* FLW     f15,15*8(a0) */
+    .hword              0x06F5
+    .hword              0x2007              /* FLW     f16,16*8(a0) */
+    .hword              0x0905
+    .hword              0x2407              /* FLW     f17,17*8(a0) */
+    .hword              0x0915
+    .hword              0x2807              /* FLW     f18,18*8(a0) */
+    .hword              0x0925
+    .hword              0x2C07              /* FLW     f19,19*8(a0) */
+    .hword              0x0935
+    .hword              0x2007              /* FLW     f20,20*8(a0) */
+    .hword              0x0B45
+    .hword              0x2407              /* FLW     f21,21*8(a0) */
+    .hword              0x0B55
+    .hword              0x2807              /* FLW     f22,22*8(a0) */
+    .hword              0x0B65
+    .hword              0x2C07              /* FLW     f23,23*8(a0) */
+    .hword              0x0B75
+    .hword              0x2007              /* FLW     f24,24*8(a0) */
+    .hword              0x0D85
+    .hword              0x2407              /* FLW     f25,25*8(a0) */
+    .hword              0x0D95
+    .hword              0x2807              /* FLW     f26,26*8(a0) */
+    .hword              0x0DA5
+    .hword              0x2C07              /* FLW     f27,27*8(a0) */
+    .hword              0x0DB5
+    .hword              0x2007              /* FLW     f28,28*8(a0) */
+    .hword              0x0FC5
+    .hword              0x2407              /* FLW     f29,29*8(a0) */
+    .hword              0x0FD5
+    .hword              0x2807              /* FLW     f30,30*8(a0) */
+    .hword              0x0FE5
+    .hword              0x2C07              /* FLW     f31,31*8(a0) */
+    .hword              0x0FF5
     RET
 
 /* RVD */
@@ -1054,10 +1038,10 @@ ___RME_RV64V_Thd_Cop_Load_RVF:
     .align              3
 
 ___RME_RV64V_Thd_Cop_Load_RVD:
-    LW                  t0,(a0)
+    LD                  t0,(a0)
     .hword              0x9073              /* FSCSR   t0 */
     .hword              0x0032
-    ADDI                a0,a0,4
+    ADDI                a0,a0,8
     .hword              0x3007              /* FLD     f0,0*8(a0) */
     .hword              0x0005
     .hword              0x3087              /* FLD     f1,1*8(a0) */

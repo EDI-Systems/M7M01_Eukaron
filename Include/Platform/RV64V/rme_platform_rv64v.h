@@ -151,7 +151,7 @@ static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
 #endif
 /* CPU-local data structure location macro - tp points at the per-hart
  * RME_RV64V_CPU_Data record while the kernel is running */
-#define RME_CPU_LOCAL()                         (((struct RME_RV64V_CPU_Data*)(__RME_RV64V_CPU_Data_Get_Raw()))->Local)
+#define RME_CPU_LOCAL()                         __RME_RV64V_CPU_Local_Get()
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                          (6U)
 /* Quiescence timeslice value */
@@ -195,26 +195,36 @@ static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
 
 /* RV64V Macro ***************************************************************/
 /* Generic *******************************************************************/
+/* The sstatus bits this port manipulates:
+ *   bit 1    (0x002) SIE  - S-mode interrupt enable
+ *   bit 5    (0x020) SPIE - SIE saved by the hardware on trap entry, and
+ *                            restored from it by SRET
+ *   bit 8    (0x100) SPP  - previous privilege mode (1 = S-mode)
+ *   bit 14:13(0x6000) FS   - FPU state
+ */
 /* SSTATUS default initialization (transparent interrupt possible) */
 #define RME_RV64V_SSTATUS_INIT                  (0x00000022U)
+/* The SPP bit - set when the trap was taken from S-mode (kernel level) */
 #define RME_RV64V_SSTATUS_RET_KERNEL            (0x00000100U)
-#define RME_RV64V_SSTATUS_MASK                  (0x00006000U)
-#define RME_RV64V_SSTATUS_FIX(X) \
-do \
-{ \
-    if(RME_THD_ATTR(RME_CPU_LOCAL()->Thd_Cur->Ctx.Hyp_Attr)==RME_RV64V_ATTR_NONE) \
-        (X)->SSTATUS=RME_RV64V_SSTATUS_INIT; \
-    else \
-        (X)->SSTATUS=((X)->SSTATUS&RME_RV64V_SSTATUS_MASK)|RME_RV64V_SSTATUS_INIT; \
-} \
-while(0)
-
 /* SSTATUS FPU states */
 #define RME_RV64V_SSTATUS_FPU_MASK              (0x00006000U)
 #define RME_RV64V_SSTATUS_FPU_OFF               (0x00000000U)
 #define RME_RV64V_SSTATUS_FPU_INIT              (0x00002000U)
 #define RME_RV64V_SSTATUS_FPU_CLEAN             (0x00004000U)
 #define RME_RV64V_SSTATUS_FPU_DIRTY             (0x00006000U)
+/* Never let the saved SSTATUS bypass the checks: the FPU state must match
+ * the thread attribute, and the trap always returns to U-mode (SPP=0).
+ * SPIE is always kept at 1, so that SRET re-enables the S-mode interrupts
+ * in user mode. */
+#define RME_RV64V_SSTATUS_FIX(X) \
+do \
+{ \
+    if(RME_THD_ATTR(RME_CPU_LOCAL()->Thd_Cur->Ctx.Hyp_Attr)==RME_RV64V_ATTR_NONE) \
+        (X)->SSTATUS=RME_RV64V_SSTATUS_INIT; \
+    else \
+        (X)->SSTATUS=((X)->SSTATUS&RME_RV64V_SSTATUS_FPU_MASK)|RME_RV64V_SSTATUS_INIT; \
+} \
+while(0)
 
 /* OpenSBI (SBI) service identifiers - legacy v0.1 function numbers and the
  * v0.2 SRST extension ID */
@@ -237,23 +247,32 @@ while(0)
 
 /* Thread context attribute definitions */
 #define RME_RV64V_ATTR_NONE                     (0U)
+/* The thread owns a single-precision FPU context */
 #define RME_RV64V_ATTR_RVF                      RME_POW2(0U)
+/* The thread owns a double-precision FPU context. A thread with any
+ * non-zero attribute owns an FPU context; this bit only tells the
+ * coprocessor check whether the double-precision extension is wanted. */
 #define RME_RV64V_ATTR_RVD                      RME_POW2(1U)
+
 
 /* Handler *******************************************************************/
 /* Generic interrupt source definitions */
+/* The highest bit of scause - set when the trap was caused by an interrupt */
 #define RME_RV64V_SCAUSE_INT                    (0x8000000000000000U)
-/* Software interrupts from user/supervisor/hypervisor/machine mode */
+/* The interrupt causes of the RISC-V architecture, per privilege level.
+ * Only the supervisor ones can ever appear in scause - the user, hypervisor
+ * and machine causes are reported in their own CSRs and never reach S-mode.
+ * Software interrupts */
 #define RME_RV64V_SCAUSE_U_SWI                  (0x8000000000000000U)
 #define RME_RV64V_SCAUSE_S_SWI                  (0x8000000000000001U)
 #define RME_RV64V_SCAUSE_H_SWI                  (0x8000000000000002U)
 #define RME_RV64V_SCAUSE_M_SWI                  (0x8000000000000003U)
-/* Timer interrupts from user/supervisor/hypervisor/machine mode */
+/* Timer interrupts */
 #define RME_RV64V_SCAUSE_U_TIM                  (0x8000000000000004U)
 #define RME_RV64V_SCAUSE_S_TIM                  (0x8000000000000005U)
 #define RME_RV64V_SCAUSE_H_TIM                  (0x8000000000000006U)
 #define RME_RV64V_SCAUSE_M_TIM                  (0x8000000000000007U)
-/* Timer interrupts from user/supervisor/hypervisor/machine mode */
+/* External interrupts */
 #define RME_RV64V_SCAUSE_U_EXT                  (0x8000000000000008U)
 #define RME_RV64V_SCAUSE_S_EXT                  (0x8000000000000009U)
 #define RME_RV64V_SCAUSE_H_EXT                  (0x800000000000000AU)
@@ -294,7 +313,10 @@ while(0)
 /* The capability table of the init process */
 #define RME_BOOT_INIT_CPT                       (0U)
 /* The top-level (Sv39 root) page table of the init process. One entry covers
- * 1GB, 512 entries cover the whole 512GB low canonical address space. */
+ * 1GB. The table has 512 entries, but only the lower half of it is usable:
+ * in Sv39 the virtual address bits 63:39 must all equal bit 38, so the
+ * low canonical region ends at 2^38 (256GB) and only the root entries
+ * 0..255 can ever be reached. */
 #define RME_BOOT_INIT_PGT                       (1U)
 /* The init process */
 #define RME_BOOT_INIT_PRC                       (2U)
@@ -335,6 +357,8 @@ while(0)
 /* Convert PA->VA and VA->PA */
 #define RME_RV64V_PA2VA(PA)                       (((rme_ptr_t)(PA))+RME_RV64V_VA_BASE)
 #define RME_RV64V_VA2PA(VA)                       (((rme_ptr_t)(VA))-RME_RV64V_VA_BASE)
+/* The satp PPN field - Sv39 uses PPN[43:0], i.e. a 56-bit physical address */
+#define RME_RV64V_SATP_PPN_MASK                   (0xFFFFFFFFFFFUL)
 
 /* Sv39 page table entry layout (64-bit):
  * [63]    PBMT/N  - ignored in base Sv39
@@ -342,7 +366,7 @@ while(0)
  * [9:8]   RSW     - reserved for software, kept zero
  * [7]     D       - dirty (hardware maintained)
  * [6]     A       - accessed (hardware maintained)
- * [5]     G       - global
+ * [5]     G       - global, not used: every mapping is process-private
  * [4]     U       - user accessible
  * [3]     X       - execute
  * [2]     W       - write (W=1 requires R=1)
@@ -394,14 +418,7 @@ while(0)
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_FLAG_GET    (0U)
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_SZORD_GET   (1U)
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_NMORD_GET   (2U)
-/* Prefetcher modification */
-#define RME_RV64V_KFN_PRFTH_MOD_STATE_GET       (0U)
-#define RME_RV64V_KFN_PRFTH_MOD_STATE_SET       (1U)
-/* Prefetcher state */
-#define RME_RV64V_KFN_PRFTH_STATE_DISABLE       (0U)
-#define RME_RV64V_KFN_PRFTH_STATE_ENABLE        (1U)
-
-/* Register read/write */
+/* Register read/write. A read is the same operation without the SET bit. */
 #define RME_RV64V_KFN_DEBUG_REG_MOD_GET         (0U)
 #define RME_RV64V_KFN_DEBUG_REG_MOD_SET         RME_POW2(16U)
 /* General-purpose registers */
@@ -540,8 +557,8 @@ struct RME_Reg_Struct
 };
 
 #if(RME_COP_NUM!=0U)
-#if(RME_RV64V_COP_RVD==0U)
-/* Single-precision register set */
+/* One rme_ptr_t slot per FP register. RVF uses the low 32 bits of each
+ * slot; RVD uses all 64 bits. Only the low 32 bits of FCSR are used. */
 struct RME_RV64V_Cop_Struct
 {
     rme_ptr_t FCSR;
@@ -578,48 +595,9 @@ struct RME_RV64V_Cop_Struct
     rme_ptr_t F30;
     rme_ptr_t F31;
 };
-#else
-/* Double-precision register set */
-struct RME_RV64V_Cop_Struct
-{
-    rme_ptr_t FCSR;
-    rme_ptr_t F0[2];
-    rme_ptr_t F1[2];
-    rme_ptr_t F2[2];
-    rme_ptr_t F3[2];
-    rme_ptr_t F4[2];
-    rme_ptr_t F5[2];
-    rme_ptr_t F6[2];
-    rme_ptr_t F7[2];
-    rme_ptr_t F8[2];
-    rme_ptr_t F9[2];
-    rme_ptr_t F10[2];
-    rme_ptr_t F11[2];
-    rme_ptr_t F12[2];
-    rme_ptr_t F13[2];
-    rme_ptr_t F14[2];
-    rme_ptr_t F15[2];
-    rme_ptr_t F16[2];
-    rme_ptr_t F17[2];
-    rme_ptr_t F18[2];
-    rme_ptr_t F19[2];
-    rme_ptr_t F20[2];
-    rme_ptr_t F21[2];
-    rme_ptr_t F22[2];
-    rme_ptr_t F23[2];
-    rme_ptr_t F24[2];
-    rme_ptr_t F25[2];
-    rme_ptr_t F26[2];
-    rme_ptr_t F27[2];
-    rme_ptr_t F28[2];
-    rme_ptr_t F29[2];
-    rme_ptr_t F30[2];
-    rme_ptr_t F31[2];
-};
-#endif
 #endif
 
-/* Exception registere set */
+/* Exception register set */
 struct RME_Exc_Struct
 {
     rme_ptr_t Cause;
@@ -693,7 +671,7 @@ struct RME_RV64V_CPU_Data
 /* Handler *******************************************************************/
 /* Fault handler */
 static void __RME_RV64V_Exc_Handler(struct RME_Reg_Struct* Reg,
-                                    rme_ptr_t Mcause);
+                                    rme_ptr_t Scause);
 /* Kernel function ***********************************************************/
 #if(RME_PGT_RAW_ENABLE==0U)
 static rme_ret_t __RME_RV64V_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
@@ -701,21 +679,6 @@ static rme_ret_t __RME_RV64V_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
                                            rme_ptr_t Vaddr,
                                            rme_ptr_t Type);
 #endif
-static rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
-                                         rme_ptr_t Operation,
-                                         rme_ptr_t Param);
-static rme_ret_t __RME_RV64V_Prfth_Mod(rme_ptr_t Prfth_ID,
-                                       rme_ptr_t Operation,
-                                       rme_ptr_t Param);
-static rme_ret_t __RME_RV64V_Perf_CPU_Func(struct RME_Reg_Struct* Reg,
-                                           rme_ptr_t Freg_ID);
-static rme_ret_t __RME_RV64V_Perf_Mon_Mod(rme_ptr_t Perf_ID,
-                                          rme_ptr_t Operation,
-                                          rme_ptr_t Param);
-static rme_ret_t __RME_RV64V_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg,
-                                            rme_ptr_t Cycle_ID,
-                                            rme_ptr_t Operation,
-                                            rme_ptr_t Value);
 static rme_ret_t __RME_RV64V_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,
@@ -742,8 +705,6 @@ static rme_ret_t __RME_RV64V_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 #endif
 
 /*****************************************************************************/
-/* Timestamp counter (kept for debugging; RME_TIMESTAMP uses the time CSR) */
-__RME_EXTERN__ rme_ptr_t RME_RV64V_Timestamp;
 /* Per-CPU software records, hardware info and CPU-local storage */
 __RME_EXTERN__ struct RME_RV64V_CPU_Data RME_RV64V_CPU_Data[RME_RV64V_CPU_NUM];
 __RME_EXTERN__ struct RME_RV64V_CPU_Info RME_RV64V_CPU_Info[RME_RV64V_CPU_NUM];
@@ -759,6 +720,16 @@ __RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Num_CPU;
 __RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Boot_Hart;
 /* RV64V use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_Kot[RME_KOT_WORD_NUM];
+/* The per-CPU kernel stacks. Every hart - CPU0 included - traps on its own
+ * entry of this array, so that no entry is wasted. */
+__RME_EXTERN__ rme_u8_t RME_RV64V_KStack[RME_RV64V_CPU_NUM][RME_RV64V_KSTACK_SIZE]
+                                __attribute__((aligned(4096)));
+/* The per-CPU user stacks. They live in the kernel .bss as well, so they are
+ * inside the Sv39 direct-map window and can be mapped into the init process
+ * page table without depending on fixed physical addresses from the
+ * bootloader. */
+__RME_EXTERN__ rme_u8_t RME_RV64V_UStack[RME_RV64V_CPU_NUM][RME_RV64V_USTACK_SIZE]
+                                __attribute__((aligned(4096)));
 /* The bootstrap root page table - defined by the assembly startup stub (the
  * .bootpgt section). It is always declared extern, because its definition
  * lives in the assembly file (the same way the X64 port declares its
@@ -780,7 +751,6 @@ RME_EXTERN void __RME_RV64V_Wait_Int(void);
 RME_EXTERN rme_ptr_t ___RME_RV64V_SCAUSE_Get(void);
 RME_EXTERN rme_ptr_t ___RME_RV64V_STVAL_Get(void);
 RME_EXTERN rme_ptr_t ___RME_RV64V_CYCLE_Get(void);
-RME_EXTERN rme_ptr_t ___RME_RV64V_MISA_Get(void);
 RME_EXTERN rme_ptr_t ___RME_RV64V_SSTATUS_Get(void);
 RME_EXTERN void ___RME_RV64V_SSTATUS_Set(rme_ptr_t Value);
 /* Counter-enable - which counters the user mode may read */
@@ -801,8 +771,9 @@ RME_EXTERN void ___RME_RV64V_Sbi_Reset(void);
 /* Debugging */
 __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 #endif
-/* Getting CPUID */
+/* Getting CPUID and CPU-local data */
 __RME_EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
+__RME_EXTERN__ struct RME_CPU_Local* __RME_RV64V_CPU_Local_Get(void);
 
 /* Kernel function handler */
 __RME_EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
@@ -827,9 +798,6 @@ __RME_EXTERN__ void __RME_SMP_Low_Level_Init(rme_ptr_t CPUID,
 RME_EXTERN void __RME_RV64V_SMP_Boot(void);
 
 __RME_EXTERN__ void __RME_RV64V_Reboot(void);
-__RME_EXTERN__ void __RME_RV64V_NVIC_Set_Exc_Prio(rme_cnt_t Exc,
-                                                  rme_ptr_t Prio);
-__RME_EXTERN__ void __RME_RV64V_Cache_Init(void);
 RME_EXTERN void __RME_User_Enter(rme_ptr_t Entry,
                                  rme_ptr_t Stack,
                                  rme_ptr_t CPUID);

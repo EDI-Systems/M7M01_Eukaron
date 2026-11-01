@@ -24,8 +24,9 @@ Description : The configuration file for the SpacemiT K3 platform
  * below one 1GB window so a single direct-map leaf suffices.
  *   - KOM      : PA 0x103000000 -> VA 0xFFFFFFC103000000
  *   - init image: PA 0x102600000 -> VA 0xFFFFFFC102600000 (embedded)
- *   - init stack: PA 0x102F00000 (user VA [0x201F0000, 0x20200000))
- * NOTE: the kernel .bss holds the KOM bitmap (RME_RV64V_Kot) and ends around
+ * NOTE: the kernel .bss holds the KOM bitmap (RME_RV64V_Kot), the per-CPU
+ * kernel stacks and the per-CPU user stacks (the latter are mapped into
+ * the user window [0x20180000, 0x20200000) below), and ends around
  * PA 0x102302000, so the embedded init image must stay above that. */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC103000000UL)
 /* Kernel object virtual memory size */
@@ -36,9 +37,6 @@ Description : The configuration file for the SpacemiT K3 platform
 #define RME_HYP_VA_SIZE                                 (0xFFFFFFFFU)
 /* Kernel memory allocation granularity order */
 #define RME_KOM_SLOT_ORDER                              (6U)
-/* Kernel stack size and address - high half as well */
-#define RME_KSTK_VA_BASE                                (0xFFFFFFC1022E0000UL)
-#define RME_KSTK_VA_SIZE                                (0x800U)
 /* The maximum number of preemption priorities */
 #define RME_PREEMPT_PRIO_NUM                            (64U)
 
@@ -65,26 +63,11 @@ Description : The configuration file for the SpacemiT K3 platform
  * timebase-frequency = 0x16e3600); 10ms per tick = 240000. */
 #define RME_RV64V_OSTIM_VAL                             (240000U)
 
-/* What is the FPU type? K3 is rv64imafdcvh - it has both F and D. For the
- * initial single-core bring-up the D (double) state is kept disabled
- * (RME_RV64V_COP_RVD = 0), same proven path as QEMU; switch to 1 once a
- * program needs double-precision FP. */
+/* What is the FPU type? K3 is rv64imafdcvh - it has both F and D, so
+ * enable the double-precision context. */
 #define RME_COP_NUM                                     (1U)
 #define RME_RV64V_COP_RVF                               (1U)
-#define RME_RV64V_COP_RVD                               (0U)
-
-
-/* Cache mode configuration */
-#define RME_RV64V_CACHE_MOD(CACHE_ID,OPERATION,PARAM)
-/* Cache maintenance */
-#define RME_RV64V_CACHE_MAINT(CACHE_ID,OPERATION,PARAM)
-/* Prefetcher mode ocnfiguration */
-#define RME_RV64V_PRFTH_MOD(PRFTH_ID,OPERATION,PARAM)
-
-/* Performance monitor configuration */
-#define RME_RV64V_PERF_MON_MOD(PERF_ID,OPERATION,PARAM)
-/* Performance monitor cycle counter read or write */
-#define RME_RV64V_PERF_CYCLE_MOD(CYCLE_ID,OPERATION,VALUE)
+#define RME_RV64V_COP_RVD                               (1U)
 
 /* Reboot system - SBI system reset (SRST extension), the K3 OpenSBI
  * implements it (Linux log: "SBI SRST extension detected"). */
