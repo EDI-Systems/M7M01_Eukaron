@@ -1110,24 +1110,39 @@ ___RME_RV64V_Thd_Cop_Load_RVD:
 /* End Function:___RME_RV64V_Thd_Cop_Load ************************************/
 
 /* Function:___RME_RV64V_Sbi_Call *********************************************
-Description : Generic OpenSBI call. SBI convention: a7 = extension/function ID,
-              a6 = function ID (v0.2, zeroed here), a0-a1 = arguments.
-              C signature: rme_ptr_t ___RME_RV64V_Sbi_Call(A7, A0, A1)
-              On entry (C ABI): a0=A7, a1=A0, a2=A1.
-Input       : a0 - A7 (SBI ID).
-              a1 - A0 (SBI argument 0).
-              a2 - A1 (SBI argument 1).
+Description : The single SBI v0.2+ ecall entry. All platform SBI wrappers go
+              through this function.
+              C signature:
+                struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(
+                    Ext_ID, Func_ID, Param0, Param1,
+                    Param2, Param3, Param4, Param5)
+              On entry (C ABI):
+                a0=Ext_ID, a1=Func_ID, a2=Param0, a3=Param1,
+                a4=Param2, a5=Param3, a6=Param4, a7=Param5.
+Input       : Ext_ID - SBI extension ID, loaded into a7.
+              Func_ID - SBI function ID, loaded into a6.
+              Param0..Param5 - SBI arguments, loaded into a0-a5.
 Output      : None.
-Return      : a0 - SBI return value (ignored by callers).
+Return      : struct RME_RV64V_SBI_Ret - SBI error in a0, value in a1.
 ******************************************************************************/
     .section            .text.___rme_rv64v_sbi_call
     .align              3
 
 ___RME_RV64V_Sbi_Call:
-    MV                  a7,a0        /* a7 = extension/function ID */
-    LI                  a6,0         /* v0.2 function ID (SRST needs 0; legacy ignores) */
-    MV                  a0,a1        /* a0 = argument 0 */
-    MV                  a1,a2        /* a1 = argument 1 */
+    /* Preserve the two arguments that overlap with the SBI result registers */
+    MV                  t0,a7        /* t0 = Param5 */
+    MV                  t1,a6        /* t1 = Param4 */
+
+    /* Build the SBI register image */
+    MV                  a7,a0        /* a7 = Ext_ID */
+    MV                  a6,a1        /* a6 = Func_ID */
+    MV                  a0,a2        /* a0 = Param0 */
+    MV                  a1,a3        /* a1 = Param1 */
+    MV                  a2,a4        /* a2 = Param2 */
+    MV                  a3,a5        /* a3 = Param3 */
+    MV                  a4,t1        /* a4 = Param4 */
+    MV                  a5,t0        /* a5 = Param5 */
+
     ECALL
     RET
 /* End Function:___RME_RV64V_Sbi_Call ****************************************/

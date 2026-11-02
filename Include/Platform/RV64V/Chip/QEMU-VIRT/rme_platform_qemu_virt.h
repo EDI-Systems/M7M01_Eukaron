@@ -55,7 +55,7 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_RV64V_REBOOT() \
 do \
 { \
-    ___RME_RV64V_Sbi_Reset(); \
+    (void)___RME_RV64V_Sbi_Reset(); \
 } \
 while(0)
 
@@ -74,16 +74,16 @@ do \
     ___RME_RV64V_Sie_Timer_Enable(); \
     /* Arm the first timer event via OpenSBI - no auto-reload, re-armed on \
      * every tick inside the timer handler */ \
-    ___RME_RV64V_Sbi_Timer_Set(___RME_RV64V_Time_Get()+RME_RV64V_OSTIM_VAL); \
+    (void)___RME_RV64V_Sbi_Timer_Set(___RME_RV64V_Time_Get()+RME_RV64V_OSTIM_VAL); \
 } \
 while(0)
 
 #if(RME_DBGLOG_ENABLE!=0U)
-/* Debugging output - SBI console putchar */
+/* Debugging output - SBI DBCN console write byte */
 #define RME_RV64V_PUTCHAR(CHAR) \
 do \
 { \
-    ___RME_RV64V_Sbi_Console_Putchar((rme_ptr_t)(CHAR)); \
+    (void)___RME_RV64V_Sbi_Console_Putchar((rme_ptr_t)(CHAR)); \
 } \
 while(0)
 

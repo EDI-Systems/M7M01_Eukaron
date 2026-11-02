@@ -226,11 +226,29 @@ do \
 } \
 while(0)
 
-/* OpenSBI (SBI) service identifiers - legacy v0.1 function numbers and the
- * v0.2 SRST extension ID */
-#define RME_RV64V_SBI_SET_TIMER                 (0U)
-#define RME_RV64V_SBI_CONSOLE_PUTCHAR           (1U)
-#define RME_RV64V_SBI_SYSTEM_RESET              (0x53525354U)
+/* OpenSBI (SBI) extension and function identifiers. The platform firmware is
+ * required to implement these extensions; there is no runtime probing and no
+ * legacy v0.1 fallback. */
+#define RME_RV64V_SBI_EXT_DBCN                  (0x4442434EU)
+#define RME_RV64V_SBI_EXT_TIME                  (0x54494D45U)
+#define RME_RV64V_SBI_EXT_SRST                  (0x53525354U)
+#define RME_RV64V_SBI_EXT_HSM                   (0x48534DU)
+
+#define RME_RV64V_SBI_DBCN_CONSOLE_WRITE_BYTE   (2U)
+#define RME_RV64V_SBI_TIME_SET_TIMER            (0U)
+#define RME_RV64V_SBI_SRST_SYSTEM_RESET         (0U)
+#define RME_RV64V_SBI_SRST_TYPE_COLD_REBOOT     (1U)
+#define RME_RV64V_SBI_HSM_HART_START            (0U)
+
+/* SBI error codes, returned in a0 by the v0.2+ calling convention */
+#define RME_RV64V_SBI_SUCCESS                   (0)
+#define RME_RV64V_SBI_ERR_FAILED                (-1)
+#define RME_RV64V_SBI_ERR_NOT_SUPPORTED         (-2)
+#define RME_RV64V_SBI_ERR_INVALID_PARAM         (-3)
+#define RME_RV64V_SBI_ERR_DENIED                (-4)
+#define RME_RV64V_SBI_ERR_INVALID_ADDRESS       (-5)
+#define RME_RV64V_SBI_ERR_ALREADY_AVAILABLE     (-6)
+#define RME_RV64V_SBI_ERR_NOT_READY              (-7)
 
 /* FPU save/restore veneer choice */
 #if(RME_COP_NUM!=0U)
@@ -621,6 +639,14 @@ struct RME_RV64V_CPU_Info
     volatile rme_ptr_t Boot_Done;
 };
 
+/* SBI v0.2+ return value: a0 = error, a1 = value. The assembly stub returns
+ * this structure in a0/a1, so no extra memory is involved. */
+struct RME_RV64V_SBI_Ret
+{
+    rme_ret_t Error;
+    rme_ptr_t Value;
+};
+
 /* Per-CPU software record. The layout of the first five fields is fixed and
  * used directly by the assembly trap entry/exit:
  *   offset  0 : Kernel_SP
@@ -693,6 +719,12 @@ static rme_ret_t __RME_RV64V_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,
                                            rme_ptr_t Operation);
+/* SMP / SBI helpers **********************************************************/
+static void ___RME_RV64V_CPU_Set(rme_ptr_t CPUID);
+static rme_ret_t ___RME_RV64V_Sbi_Hart_Start(rme_ptr_t Hart_ID,
+                                             rme_ptr_t Start,
+                                             rme_ptr_t Opaque);
+static void __RME_RV64V_SMP_Init(void);
 /*****************************************************************************/
 #define __RME_EXTERN__
 /* End Private Function ******************************************************/
@@ -758,15 +790,17 @@ RME_EXTERN void ___RME_RV64V_SCOUNTEREN_Set(rme_ptr_t Value);
 /* MMU (satp) manipulations */
 RME_EXTERN void ___RME_RV64V_SATP_Set(rme_ptr_t Value);
 RME_EXTERN void ___RME_RV64V_TLB_Flush(void);
-/* OpenSBI (SBI) service helpers */
-RME_EXTERN rme_ptr_t ___RME_RV64V_Sbi_Call(rme_ptr_t A7,
-                                           rme_ptr_t A0,
-                                           rme_ptr_t A1);
+/* OpenSBI (SBI) service helpers. The raw call implements the SBI v0.2+
+ * calling convention: EID in a7, FID in a6, parameters in a0-a5. */
+RME_EXTERN struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(
+    rme_ptr_t Ext_ID, rme_ptr_t Func_ID,
+    rme_ptr_t Param0, rme_ptr_t Param1, rme_ptr_t Param2,
+    rme_ptr_t Param3, rme_ptr_t Param4, rme_ptr_t Param5);
 RME_EXTERN rme_ptr_t ___RME_RV64V_Time_Get(void);
 RME_EXTERN void ___RME_RV64V_Sie_Timer_Enable(void);
-RME_EXTERN void ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char);
-RME_EXTERN void ___RME_RV64V_Sbi_Timer_Set(rme_ptr_t Next_Time);
-RME_EXTERN void ___RME_RV64V_Sbi_Reset(void);
+__RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char);
+__RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Timer_Set(rme_ptr_t Next_Time);
+__RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Reset(void);
 #if(RME_DBGLOG_ENABLE!=0U)
 /* Debugging */
 __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);

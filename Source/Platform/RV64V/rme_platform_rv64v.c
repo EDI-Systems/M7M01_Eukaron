@@ -76,42 +76,51 @@ rme_ptr_t __RME_Putchar(char Char)
 /* End Function:__RME_Putchar ************************************************/
 
 /* Function:___RME_RV64V_Sbi_Console_Putchar **********************************
-Description : Output one character via OpenSBI (SBI console putchar).
+Description : Output one character via the OpenSBI DBCN extension. The byte is
+              passed through unchanged; newline translation is the caller's
+              responsibility.
 Input       : rme_ptr_t Char - The character to output.
 Output      : None.
-Return      : None.
+Return      : rme_ret_t - SBI error code, RME_RV64V_SBI_SUCCESS on success.
 ******************************************************************************/
-void ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char)
+rme_ret_t ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char)
 {
-    (void)___RME_RV64V_Sbi_Call(RME_RV64V_SBI_CONSOLE_PUTCHAR,Char,0U);
+    return ___RME_RV64V_Sbi_Call(RME_RV64V_SBI_EXT_DBCN,
+                                 RME_RV64V_SBI_DBCN_CONSOLE_WRITE_BYTE,
+                                 Char,0U,0U,0U,0U,0U).Error;
 }
 /* End Function:___RME_RV64V_Sbi_Console_Putchar *****************************/
 
 /* Function:___RME_RV64V_Sbi_Timer_Set ****************************************
-Description : Set the next S-mode timer event via OpenSBI (SBI set timer).
+Description : Set the next S-mode timer event via the OpenSBI TIME extension.
               The timer does not auto-reload, so it must be re-armed on every
               timer interrupt.
 Input       : rme_ptr_t Next_Time - The absolute time (in time CSR ticks) of
                                     the next event.
 Output      : None.
-Return      : None.
+Return      : rme_ret_t - SBI error code, RME_RV64V_SBI_SUCCESS on success.
 ******************************************************************************/
-void ___RME_RV64V_Sbi_Timer_Set(rme_ptr_t Next_Time)
+rme_ret_t ___RME_RV64V_Sbi_Timer_Set(rme_ptr_t Next_Time)
 {
-    (void)___RME_RV64V_Sbi_Call(RME_RV64V_SBI_SET_TIMER,Next_Time,0U);
+    return ___RME_RV64V_Sbi_Call(RME_RV64V_SBI_EXT_TIME,
+                                 RME_RV64V_SBI_TIME_SET_TIMER,
+                                 Next_Time,0U,0U,0U,0U,0U).Error;
 }
 /* End Function:___RME_RV64V_Sbi_Timer_Set ***********************************/
 
 /* Function:___RME_RV64V_Sbi_Reset ********************************************
-Description : Reset the system via OpenSBI (SBI SRST extension). Should never
-              return.
+Description : Reset the system via the OpenSBI SRST extension. A cold reboot is
+              requested, so this function should never return.
 Input       : None.
 Output      : None.
-Return      : None.
+Return      : rme_ret_t - SBI error code if the reset request fails.
 ******************************************************************************/
-void ___RME_RV64V_Sbi_Reset(void)
+rme_ret_t ___RME_RV64V_Sbi_Reset(void)
 {
-    (void)___RME_RV64V_Sbi_Call(RME_RV64V_SBI_SYSTEM_RESET,0U,0U);
+    return ___RME_RV64V_Sbi_Call(RME_RV64V_SBI_EXT_SRST,
+                                 RME_RV64V_SBI_SRST_SYSTEM_RESET,
+                                 RME_RV64V_SBI_SRST_TYPE_COLD_REBOOT,
+                                 0U,0U,0U,0U,0U).Error;
 }
 /* End Function:___RME_RV64V_Sbi_Reset ***************************************/
 
@@ -157,7 +166,7 @@ Input       : rme_ptr_t CPUID - The logical CPU index.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-static void ___RME_RV64V_CPU_Set(rme_ptr_t CPUID)
+void ___RME_RV64V_CPU_Set(rme_ptr_t CPUID)
 {
     rme_ptr_t Data;
 
@@ -169,29 +178,28 @@ static void ___RME_RV64V_CPU_Set(rme_ptr_t CPUID)
 /* End Function:___RME_RV64V_CPU_Set *****************************************/
 
 /* Function:___RME_RV64V_Sbi_Hart_Start ***************************************
-Description : Start one hart through the SBI HSM extension.
+Description : Start one hart through the SBI HSM extension. A hart that is
+              already started is treated as success.
 Input       : rme_ptr_t Hart_ID - The hardware hart ID.
               rme_ptr_t Start - The physical start address.
-              rme_ptr_t Opaque - The value passed to the hart in a1.
+              rme_ptr_t Opaque - The value passed to the hart in a2.
 Output      : None.
-Return      : rme_ptr_t - SBI return code (0 on success).
+Return      : rme_ret_t - RME_RV64V_SBI_SUCCESS on success, or an SBI error.
 ******************************************************************************/
-static rme_ptr_t ___RME_RV64V_Sbi_Hart_Start(rme_ptr_t Hart_ID,
-                                             rme_ptr_t Start,
-                                             rme_ptr_t Opaque)
+rme_ret_t ___RME_RV64V_Sbi_Hart_Start(rme_ptr_t Hart_ID,
+                                      rme_ptr_t Start,
+                                      rme_ptr_t Opaque)
 {
-    register rme_ptr_t A0 __asm__("a0")=Hart_ID;
-    register rme_ptr_t A1 __asm__("a1")=Start;
-    register rme_ptr_t A2 __asm__("a2")=Opaque;
-    register rme_ptr_t A6 __asm__("a6")=0U;
-    register rme_ptr_t A7 __asm__("a7")=0x48534DUL;
+    struct RME_RV64V_SBI_Ret Ret;
 
-    __asm__ __volatile__("ecall"
-                         :"+r"(A0)
-                         :"r"(A1),"r"(A2),"r"(A6),"r"(A7)
-                         :"memory");
+    Ret=___RME_RV64V_Sbi_Call(RME_RV64V_SBI_EXT_HSM,
+                              RME_RV64V_SBI_HSM_HART_START,
+                              Hart_ID,Start,Opaque,0U,0U,0U);
 
-    return A0;
+    if(Ret.Error==RME_RV64V_SBI_ERR_ALREADY_AVAILABLE)
+        return RME_RV64V_SBI_SUCCESS;
+
+    return Ret.Error;
 }
 /* End Function:___RME_RV64V_Sbi_Hart_Start **********************************/
 
@@ -842,11 +850,11 @@ Input       : None.
 Output      : None.
 Return      : None.
 ******************************************************************************/
-static void __RME_RV64V_SMP_Init(void)
+void __RME_RV64V_SMP_Init(void)
 {
     rme_ptr_t Hart;
     rme_ptr_t CPUID;
-    rme_ptr_t Ret;
+    rme_ret_t Ret;
     rme_ptr_t Start_Addr;
     rme_ptr_t Start_Time;
 
@@ -882,7 +890,7 @@ static void __RME_RV64V_SMP_Init(void)
         RME_DBG_I((rme_cnt_t)Hart);
 
         Ret=___RME_RV64V_Sbi_Hart_Start(Hart,Start_Addr,CPUID);
-        if(Ret!=0U)
+        if(Ret!=RME_RV64V_SBI_SUCCESS)
         {
             RME_DBG_S(" SBI HSM failed: ");
             RME_DBG_I((rme_cnt_t)Ret);
