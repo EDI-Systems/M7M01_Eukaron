@@ -1,0 +1,16 @@
+# This manifest only exists so that ostool can resolve the project
+# (see run_k3.sh and ostool-build.toml). The kernel itself is NOT built by
+# cargo - it is built by this directory's Makefile (make RME.bin), and
+# ostool just consumes the resulting Object/RME ELF.
+#
+# See README.md for the details.
+
+[package]
+name = "rme-rv64v-k3"
+version = "0.1.0"
+edition = "2021"
+description = "RME kernel for the SpacemiT K3 (Banana Pi BPI-SM10) - manifest placeholder for ostool"
+publish = false
+
+# [lib]
+# path = "src/lib.rs"

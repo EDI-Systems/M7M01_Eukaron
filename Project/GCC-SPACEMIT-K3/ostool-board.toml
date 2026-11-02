@@ -1,0 +1,14 @@
+board_type = "BananaPi"
+kernel_load_addr = "0x102200000"
+fit_load_addr = "0x140000000"
+bootm_addr = "0x140000000"
+timeout = 60
+
+
+uboot_cmd = [
+    'setenv netretry no && setenv autoload no && dhcp && setenv autoload yes',
+]
+
+[[shell_check_steps]]
+success_regex = ["RME BENCH REPORT OK"]
+fail_regex = ["(?i)panic", "(?i)not syncing"]

@@ -3,7 +3,7 @@ Filename   : rme_platform_rv64v_conf.h
 Author     : yhy
 Date       : 29/09/2026
 Licence    : The Unlicense; see LICENSE for details.
-Description: The configuration file for RV64V platform settings.
+Description: The configuration file for the RV64V platform - QEMU virt chip.
 ******************************************************************************/
 
 /* Config Includes ***********************************************************/

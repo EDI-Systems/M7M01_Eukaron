@@ -1,0 +1,7 @@
+# ostool build config (Custom system): does not rebuild; the kernel is built
+# by `make` (see run_k3.sh) and ostool consumes the resulting ELF. All paths
+# are relative to this project directory (where the Cargo.toml lives).
+[system.Custom]
+build_cmd = "true"        # skip building; kernel is built by `make`
+elf_path = "Object/RME"   # kernel ELF produced by `make`
+to_bin = true             # also prepare the flat BIN for FIT packaging

@@ -107,3 +107,5 @@ Project/VSCODE-*/.vscode/c_cpp_properties.json
 .DS_Store
 
 Project/GCC-RV64V/Object/
+Project/GCC-SPACEMIT-K3/Object/
+Project/GCC-SPACEMIT-K3/target/
