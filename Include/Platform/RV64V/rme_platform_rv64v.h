@@ -744,7 +744,9 @@ __RME_EXTERN__ struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
 /* CPUID -> &RME_RV64V_CPU_Data[CPUID]; 8-byte entries so assembly can index
  * it with a simple shift */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_CPU_Data_Ptr[RME_RV64V_CPU_NUM];
-/* AP boot barrier: nonzero while the boot hart is still starting APs */
+/* Next logical CPUID while secondary harts are being started, and the AP boot
+ * gate: nonzero holds the APs, zero in __RME_Boot() releases them. At the end
+ * of __RME_RV64V_SMP_Init() it equals RME_RV64V_Num_CPU. */
 __RME_EXTERN__ volatile rme_ptr_t RME_RV64V_CPU_Cnt;
 /* Number of CPUs that were actually brought up */
 __RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Num_CPU;

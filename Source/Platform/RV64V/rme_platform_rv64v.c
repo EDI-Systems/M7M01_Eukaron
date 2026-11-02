@@ -842,10 +842,11 @@ void __RME_Lowlvl_Init(void)
 /* End Function:__RME_Lowlvl_Init ********************************************/
 
 /* Function:__RME_RV64V_SMP_Init **********************************************
-Description : Start all secondary harts through SBI HSM, one by one. Each AP
-              initializes its CPU-local data, sets Boot_Done, and then spins
-              on RME_RV64V_CPU_Cnt until the boot hart has created all kernel
-              objects (the same barrier used by the X64 port).
+Description : Start all secondary harts through SBI HSM, one by one. The global
+              RME_RV64V_CPU_Cnt is both the next logical CPUID and the AP boot
+              gate, like RME_X64_CPU_Cnt. Each AP initializes its CPU-local
+              data, sets Boot_Done, and then spins on RME_RV64V_CPU_Cnt until
+              the boot hart has created all kernel objects.
 Input       : None.
 Output      : None.
 Return      : None.
@@ -859,8 +860,11 @@ void __RME_RV64V_SMP_Init(void)
     rme_ptr_t Start_Time;
 
     Start_Addr=RME_RV64V_VA2PA((rme_ptr_t)__RME_RV64V_SMP_Boot);
-    CPUID=1U;
-    RME_RV64V_CPU_Cnt=1U;
+
+    /* Nonzero keeps every AP waiting. During the loop the value is also the
+     * logical CPUID of the AP being started. __RME_Boot() clears it to zero
+     * once all per-CPU objects exist. */
+    RME_WRITE_RELEASE(&RME_RV64V_CPU_Cnt,1U);
 
     for(Hart=0U;Hart<RME_RV64V_CPU_NUM;Hart++)
     {
@@ -868,6 +872,8 @@ void __RME_RV64V_SMP_Init(void)
         if(Hart==RME_RV64V_Boot_Hart)
             continue;
 
+        /* The counter is the logical CPUID for this AP */
+        CPUID=RME_READ_ACQUIRE(&RME_RV64V_CPU_Cnt);
         if(CPUID>=RME_RV64V_CPU_NUM)
             break;
 
@@ -882,16 +888,20 @@ void __RME_RV64V_SMP_Init(void)
         RME_RV64V_CPU_Info[CPUID].Hart_ID=Hart;
         RME_RV64V_CPU_Info[CPUID].Boot_Done=0U;
 
-        RME_RV64V_CPU_Cnt=CPUID;
-
         RME_DBG_S("\r\nBooting CPU ");
         RME_DBG_I((rme_cnt_t)CPUID);
         RME_DBG_S(" hart ");
         RME_DBG_I((rme_cnt_t)Hart);
 
+        /* The AP starts with the MMU off and reads these records through
+         * physical addresses. Order the stores before the SBI call. */
+        __RME_RV64V_Barrier();
+
         Ret=___RME_RV64V_Sbi_Hart_Start(Hart,Start_Addr,CPUID);
         if(Ret!=RME_RV64V_SBI_SUCCESS)
         {
+            /* SBI reports failure only when the hart was not started, so the
+             * same CPUID slot can be reused by the next hart. */
             RME_DBG_S(" SBI HSM failed: ");
             RME_DBG_I((rme_cnt_t)Ret);
             continue;
@@ -908,14 +918,22 @@ void __RME_RV64V_SMP_Init(void)
 
         if(RME_READ_ACQUIRE(&(RME_RV64V_CPU_Info[CPUID].Boot_Done))==0U)
         {
-            RME_DBG_S(" boot timeout");
-            continue;
+            /* The timed-out hart may still be alive. Reusing its CPUID would
+             * make two harts share one CPU-local record and kernel stack, so
+             * stop the boot instead of continuing with a broken slot. */
+            RME_DBG_S(" boot timeout\r\n");
+            RME_ASSERT(0);
+            while(1);
         }
 
-        CPUID++;
+        /* Advance to the next logical CPUID. The value stays nonzero, so the
+         * APs keep waiting until __RME_Boot() releases them. */
+        RME_WRITE_RELEASE(&RME_RV64V_CPU_Cnt,CPUID+1U);
     }
 
-    RME_RV64V_Num_CPU=CPUID;
+    /* CPU_Cnt is still nonzero here; __RME_Boot() clears it after creating
+     * every per-CPU object. */
+    RME_RV64V_Num_CPU=RME_READ_ACQUIRE(&RME_RV64V_CPU_Cnt);
     RME_DBG_S("\r\nOnline CPUs: ");
     RME_DBG_I((rme_cnt_t)RME_RV64V_Num_CPU);
     RME_DBG_S("\r\n");
