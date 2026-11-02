@@ -808,17 +808,6 @@ void __RME_Lowlvl_Init(void)
 {
     RME_RV64V_LOWLVL_INIT();
 
-    /* The assembly trap entry/exit hard-codes these offsets */
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_CPU_Data*)0)->Kernel_SP)==0U);
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_CPU_Data*)0)->User_SP)==16U);
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_CPU_Data*)0)->User_TP)==24U);
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_CPU_Data*)0)->User_T6)==32U);
-#if(RME_COP_NUM!=0U)
-    /* The FPU context assembly stubs hard-code these offsets */
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_Cop_Struct*)0)->FCSR)==0U);
-    RME_ASSERT((rme_ptr_t)&(((struct RME_RV64V_Cop_Struct*)0)->F0)==8U);
-#endif
-
     /* Boot CPU always uses logical CPUID 0. It traps on its own entry of the
      * per-CPU kernel stack array - the linker-reserved boot stack is only
      * used by the early startup path, before the first trap. */

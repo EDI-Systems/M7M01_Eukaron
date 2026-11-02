@@ -689,7 +689,19 @@ struct RME_RV64V_CPU_Data
 /* If the header is not used in the public mode */
 #ifndef __HDR_PUBLIC__
 /*****************************************************************************/
-
+/* Per-CPU records/stacks used only by the platform .c */
+static struct RME_RV64V_CPU_Info RME_RV64V_CPU_Info[RME_RV64V_CPU_NUM];
+static struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
+/* Next logical CPUID while APs are starting; also the AP boot gate */
+static volatile rme_ptr_t RME_RV64V_CPU_Cnt;
+/* Number of CPUs that were actually brought up */
+static volatile rme_ptr_t RME_RV64V_Num_CPU;
+/* Per-CPU kernel stacks - every hart traps on its own */
+static rme_u8_t RME_RV64V_KStack[RME_RV64V_CPU_NUM][RME_RV64V_KSTACK_SIZE]
+                                __attribute__((aligned(4096)));
+/* Per-CPU user stacks, mapped into the init process page table */
+static rme_u8_t RME_RV64V_UStack[RME_RV64V_CPU_NUM][RME_RV64V_USTACK_SIZE]
+                                __attribute__((aligned(4096)));
 /*****************************************************************************/
 /* End Private Variable ******************************************************/
 
@@ -737,33 +749,15 @@ static void __RME_RV64V_SMP_Init(void);
 #endif
 
 /*****************************************************************************/
-/* Per-CPU software records, hardware info and CPU-local storage */
+/* Per-CPU records shared with assembly or the common kernel */
 __RME_EXTERN__ struct RME_RV64V_CPU_Data RME_RV64V_CPU_Data[RME_RV64V_CPU_NUM];
-__RME_EXTERN__ struct RME_RV64V_CPU_Info RME_RV64V_CPU_Info[RME_RV64V_CPU_NUM];
-__RME_EXTERN__ struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
 /* CPUID -> &RME_RV64V_CPU_Data[CPUID]; 8-byte entries so assembly can index
  * it with a simple shift */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_CPU_Data_Ptr[RME_RV64V_CPU_NUM];
-/* Next logical CPUID while secondary harts are being started, and the AP boot
- * gate: nonzero holds the APs, zero in __RME_Boot() releases them. At the end
- * of __RME_RV64V_SMP_Init() it equals RME_RV64V_Num_CPU. */
-__RME_EXTERN__ volatile rme_ptr_t RME_RV64V_CPU_Cnt;
-/* Number of CPUs that were actually brought up */
-__RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Num_CPU;
 /* Hardware hart ID of the boot hart */
 __RME_EXTERN__ volatile rme_ptr_t RME_RV64V_Boot_Hart;
 /* RV64V use simple kernel object table */
 __RME_EXTERN__ rme_ptr_t RME_RV64V_Kot[RME_KOT_WORD_NUM];
-/* The per-CPU kernel stacks. Every hart - CPU0 included - traps on its own
- * entry of this array, so that no entry is wasted. */
-__RME_EXTERN__ rme_u8_t RME_RV64V_KStack[RME_RV64V_CPU_NUM][RME_RV64V_KSTACK_SIZE]
-                                __attribute__((aligned(4096)));
-/* The per-CPU user stacks. They live in the kernel .bss as well, so they are
- * inside the Sv39 direct-map window and can be mapped into the init process
- * page table without depending on fixed physical addresses from the
- * bootloader. */
-__RME_EXTERN__ rme_u8_t RME_RV64V_UStack[RME_RV64V_CPU_NUM][RME_RV64V_USTACK_SIZE]
-                                __attribute__((aligned(4096)));
 /* The bootstrap root page table - defined by the assembly startup stub (the
  * .bootpgt section). It is always declared extern, because its definition
  * lives in the assembly file (the same way the X64 port declares its
@@ -810,6 +804,9 @@ __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Getting CPUID and CPU-local data */
 __RME_EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
 __RME_EXTERN__ struct RME_CPU_Local* __RME_RV64V_CPU_Local_Get(void);
+
+/* Trap dispatcher called from the assembly trap entry */
+__RME_EXTERN__ void _RME_RV64V_Handler(struct RME_Reg_Struct* Reg);
 
 /* Kernel function handler */
 __RME_EXTERN__ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
