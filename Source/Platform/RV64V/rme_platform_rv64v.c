@@ -1204,14 +1204,27 @@ Output      : rme_ptr_t* Svc - The system service number.
               rme_ptr_t* Cid - The capability ID number.
               rme_ptr_t* Param - The parameters.
 Return      : None.
+Notes       : The register layout is the same as the X64 port, so that the
+              64-bit capability ID encoding (which needs 31 bits) is fully
+              available in the top-level capability ID field:
+                [63:48] Extended parameter (PC)  - PGT_CRT's Num_Order
+                [47:39] Thread attribute (Attr)  - THD_CRT's Attr
+                [ 38  ] Hypervisor flag         - THD_CRT's Is_Hyp
+                [37:32] Service number          - Svc_Num
+                [31: 0] Capability ID            - Cid (1-level or 2-level)
+              The kernel derives Svc_Num from the low 6 bits of Svc, Is_Hyp
+              from bit 6, Attr from bits 7 and above, and the extended
+              parameter from bits 16 and above. Therefore the extended
+              parameter and the thread attribute must never be used by the
+              same system call - they share the same bits.
 ******************************************************************************/
 void __RME_Svc_Param_Get(struct RME_Reg_Struct* Reg,
                          rme_ptr_t* Svc,
                          rme_ptr_t* Cid,
                          rme_ptr_t* Param)
 {
-    *Svc=(Reg->X10_A0)>>16;
-    *Cid=(Reg->X10_A0)&0xFFFFU;
+    *Svc=(Reg->X10_A0)>>32;
+    *Cid=(Reg->X10_A0)&0xFFFFFFFFU;
     Param[0]=Reg->X11_A1;
     Param[1]=Reg->X12_A2;
     Param[2]=Reg->X13_A3;
