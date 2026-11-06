@@ -13,9 +13,9 @@ Description : The configuration file for the QEMU virt platform.
 /* Are we using raw memory mappings? */
 #define RME_PGT_RAW_ENABLE                              (0U)
 /* Kernel ********************************************************************/
-/* Number of harts to bring up. The boot hart is always CPU0 and the
- * remaining harts are started through the SBI HSM extension. */
-#define RME_RV64V_CPU_NUM                               (8U)
+/* Number of harts to bring up. This configuration is single-core: the boot
+ * hart is the only CPU and no secondary hart is started. */
+#define RME_RV64V_CPU_NUM                               (1U)
 /* Kernel object virtual memory base - kernel lives in the Sv39 high half:
  * VA = 0xFFFFFFC000000000 + physical 0x81000000 (see RME_RV64V_VA_BASE) */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC081000000UL)

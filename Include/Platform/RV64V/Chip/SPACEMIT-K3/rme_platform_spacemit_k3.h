@@ -15,9 +15,9 @@ Description : The configuration file for the SpacemiT K3 platform
 #define RME_PGT_RAW_ENABLE                              (0U)
 
 /* Kernel ********************************************************************/
-/* Number of harts to bring up. The K3 is an 8-core SoC; the boot hart is
- * always CPU0 and the remaining harts are started through SBI HSM. */
-#define RME_RV64V_CPU_NUM                               (8U)
+/* Number of harts to bring up. This configuration is single-core: the boot
+ * hart is the only CPU and no secondary hart is started. */
+#define RME_RV64V_CPU_NUM                               (1U)
 /* Kernel object virtual memory base - the kernel lives in the Sv39 high
  * half: VA = RME_RV64V_VA_BASE + physical. K3 DRAM starts at 0x102000000;
  * U-Boot enters the kernel in S-mode at 0x102200000; we keep everything

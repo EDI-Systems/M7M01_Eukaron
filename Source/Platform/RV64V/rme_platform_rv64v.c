@@ -833,9 +833,13 @@ void __RME_Lowlvl_Init(void)
 /* Function:__RME_RV64V_SMP_Init **********************************************
 Description : Start all secondary harts through SBI HSM, one by one. The global
               RME_RV64V_CPU_Cnt is both the next logical CPUID and the AP boot
-              gate, like RME_X64_CPU_Cnt. Each AP initializes its CPU-local
-              data, sets Boot_Done, and then spins on RME_RV64V_CPU_Cnt until
-              the boot hart has created all kernel objects.
+              gate. Each AP initializes its CPU-local data, sets Boot_Done, and
+              then spins on RME_RV64V_CPU_Cnt until the boot hart has created
+              all kernel objects.
+              The number of harts is a build time configuration
+              (RME_RV64V_CPU_NUM). A single core configuration has no secondary
+              hart, so the loop below starts nothing and the boot hart remains
+              the only CPU.
 Input       : None.
 Output      : None.
 Return      : None.
@@ -876,11 +880,6 @@ void __RME_RV64V_SMP_Init(void)
         RME_RV64V_CPU_Data_Ptr[CPUID]=(rme_ptr_t)&RME_RV64V_CPU_Data[CPUID];
         RME_RV64V_CPU_Info[CPUID].Hart_ID=Hart;
         RME_RV64V_CPU_Info[CPUID].Boot_Done=0U;
-
-        RME_DBG_S("\r\nBooting CPU ");
-        RME_DBG_I((rme_cnt_t)CPUID);
-        RME_DBG_S(" hart ");
-        RME_DBG_I((rme_cnt_t)Hart);
 
         /* The AP starts with the MMU off and reads these records through
          * physical addresses. Order the stores before the SBI call. */
@@ -923,9 +922,6 @@ void __RME_RV64V_SMP_Init(void)
     /* CPU_Cnt is still nonzero here; __RME_Boot() clears it after creating
      * every per-CPU object. */
     RME_RV64V_Num_CPU=RME_READ_ACQUIRE(&RME_RV64V_CPU_Cnt);
-    RME_DBG_S("\r\nOnline CPUs: ");
-    RME_DBG_I((rme_cnt_t)RME_RV64V_Num_CPU);
-    RME_DBG_S("\r\n");
 }
 /* End Function:__RME_RV64V_SMP_Init *****************************************/
 
