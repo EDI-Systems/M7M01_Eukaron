@@ -1,0 +1,2932 @@
+\chapter{内核调用实现规范}\label{ch:kernel-call-implementation-specification}
+
+\section{内核调用实现规范概述}\label{sec:8-kernel-call-implementation-overview}
+
+处理器的底层功能在 RME 中是使用内核调用实现的。这些底层功能往往五花八门，而 RME 的内核调用必须支持这些底层功能。如果每种架构都采用自己的实现方案，那么必然会造成各个移植的接口语义互不兼容，极大地增加维护工作量，并且导致生态环境碎片化。为了避免这种现象，RME 规定了一系列常用内核调用的实现方法。凡是在本章所述范围内的内核调用，其实现接口必须与本章所述一致。对于那些本章未作规定而处理器或系统提供了的额外功能，其实现是自由的，但是推荐与本章保持一致的风格。在下面的各个小节中，我们将分别介绍各个内核调用类别以及它们的实现规范。
+
+RME 的内核调用可以携带一个半字长的主功能号，一个半字长的子功能号和两个单字长的参数。但是，RME 并不禁止实现者使用处理器的寄存器组传递额外的参数。在某些扩展标准中，允许传递额外的参数，并且也允许输出额外的参数。这些允许的例外情况会在具体章节进行说明。如果不加特殊说明，所有内核调用的系统调用号 N 都是 RME\_SVC\_KFN，都要求传入一个有效的\footnote{允许操作范围包括所传入的主功能号}内核调用权能作为其 C 位置上的参数，并且返回的参数类型都是 ret\_t。在后面的章节中，我们把第六章已经列出的与内核调用权能相关的那些错误返回值返回值略去而不加介绍。
+
+有些内核调用需要传入某些额外的权能\footnote{比如页目录权能和线程权能等等}。此时，我们不对这些权能进行操作标志属性检查而默认可以进行操作。
+
+\section{页表内核调用实现规范（``P''标准扩展）}\label{sec:8-page-table-kernel-calls}
+
+页表是操作系统进行内存管理的唯一参照，也是内核移植中最重要的数据结构之一。RME 被设计为支持几乎所有的内存访问控制方法，包括了内存保护单元、软件填充的内存管理单元和硬件填充的内存管理单元三类。此外，页表管理还要支持多核操作，以及对快表或寄存器缓存的刷新。因此，页表相关功能的实现是内核移植中的一个重点，也是一个难点。RME 规定的页表相关内核调用一共有如下5个：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6594\hsize\raggedright\arraybackslash}X>{\hsize=1.0310\hsize\raggedright\arraybackslash}X>{\hsize=1.3096\hsize\raggedright\arraybackslash}X@{}}
+\caption{页表内核调用一览}\label{tab:8-1-page-table-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF000 & RME\_KFN\_PGT\_CACHE\_CLR &
+清除当前CPU上某页表的全部缓存。\tabularnewline
+0xF001 & RME\_KFN\_PGT\_LINE\_CLR &
+清除当前CPU上某页表的缓存的某一行。\tabularnewline
+0xF002 & RME\_KFN\_PGT\_ASID\_SET & 设置某个页表的ASID。\tabularnewline
+0xF003 & RME\_KFN\_PGT\_TLB\_LOCK & 锁定TLB内的某页。\tabularnewline
+0xF004 & RME\_KFN\_PGT\_ENTRY\_MOD & 查询或修改某页属性。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\subsection{页表的四种推荐形式}\label{subsec:8-four-recommended-page-table-forms}
+\nopagebreak[4]
+
+在 RME 中，随着底层硬件的不同，所采取的页表设计策略也可以不同。我们把所有的内存管理硬件分成四类，如下表所述：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.2760\hsize\raggedright\arraybackslash}X>{\hsize=0.8070\hsize\raggedright\arraybackslash}X>{\hsize=0.8922\hsize\raggedright\arraybackslash}X>{\hsize=0.8070\hsize\raggedright\arraybackslash}X>{\hsize=1.2179\hsize\raggedright\arraybackslash}X@{}}
+\caption{页表的四种推荐形式一览}\label{tab:8-2-four-recommended-page-table-forms}\\
+\toprule
+分类 & 路径压缩 & 缓存更新 & 缓存 & 构造/析构限制\tabularnewline
+\endfirsthead
+\toprule
+分类 & 路径压缩 & 缓存更新 & 缓存 & 构造/析构限制\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+单核下的内存保护单元 & 是 & 变动时更新 & 元数据 &
+无子页目录，甚至无页\tabularnewline
+多核下的内存保护单元 & 是 & 缺页时更新 & 元数据 & 无限制\tabularnewline
+软件填充的内存管理单元 & 否 & 缺页时更新 & 元数据 &
+无限制\tabularnewline
+硬件填充的内存管理单元 & 否 & 硬件更新 & 快表 & 无限制\tabularnewline
+\end{xltabular}
+
+\subsubsection{单核下的内存保护单元}\label{subsubsec:8-single-core-mpu}
+
+此类页表的实现表现为支持路径压缩\footnote{因此在构造时需要检查起始地址的合法性}，缓存由储存在顶层页目录处的元数据组成。每一级页目录都包含一个指向顶层页目录的指针，并在映射、解除映射、构造和析构时都会直接将改动同步到顶层页目录内部包含的元数据，因此内存保护单元寄存器内部的数据总是与页表的实际内涵一致，无需进行任何额外的缓存维护工作。由于每一级页目录仅能记载一个指向顶层页目录的指针，此种实现不允许页表之间共享页目录。由于在构造和析构时要维护缓存元数据，此种实现在构造和析构时都要求子页目录中没有二级子页目录\footnote{当一个子页目录对应一个区域时，比如 ARMv7-M}，或者甚至也不能含有页\footnote{当一个子页目录可能对应多个区域时，比如 ARMv8-M}。由于不允许多个页表共享页目录，因此此种页表也没有必要支持页目录属性。
+
+此种实现允许映射的静态页的数量不超过``内存保护单元可用区域的数量-1''\footnote{因为要预留至少一个区域出来给动态页替换用}，对于动态页的数量则不做限制。在静态页上不会发生任何的缺页中断，在动态页上仅会在替换时发生中断。动态页的替换算法实现是由移植者自行决定的；RME推荐使用伪随机替换算法。
+
+ARMv7-M 的页表是此类实现的一个典型例子。此类实现不需要任何的页表内核调用，因为改动总是和缓存元数据状态一致。这使得该实现能够获得非常好的实时性。在那些仅有部分内存访问能够产生精确的访存错误地址的场合，也必须采取这种实现方式，因为并非所有页都可以在发生页错误时进行填充\footnote{如 ARMv7-M 的硬件自动压栈产生的异常，这些异常发生时处理器不填充 MMFAR，因而难以定位到具体的访问地址；即便可以定位，原线程相应的寄存器内容如 LR 等也已宣告消失，无法在错误处理后原程序执行流了}。
+
+\subsubsection{多核下的内存保护单元}\label{subsubsec:8-multi-core-mpu}
+
+此类页表的实现表现为支持路径压缩\footnote{因此在构造时需要检查起始地址的合法性}，缓存由储存在顶层页目录处的元数据组成。每一个CPU的缓存都是独立的，并且它们会在缺页中断发生时独立更新。这种实现允许不同CPU的缓存包含不同的条目，有利于在各个CPU之间分担工作，而且也不会造成各个CPU之间互相干扰。在映射、解除映射、构造和析构时，不会将改动同步到缓存元数据中。缓存元数据的条目添加和替换是在缺页中断发生时进行的；对于缓存元数据的清除操作，则需要使用内核调用进行。一旦进行了解除映射或者析构，所有核上都必须调用相应操作来重置与该页目录有关的缓存。如果有几个页表共享该页目录，那么在所有核上这些页表的缓存都必须被重置。
+
+和\ref{subsubsec:8-single-core-mpu}
+节所述的结构相比，此种设计虽然在实时性上有所损失，但是页表之间可以共享页目录，而且在构造和析构时也没有任何限制。对于实时性的损失也可以用如下方法进行弥补：静态页一经更新到缓存元数据中就不会消失，直到静态页的数量达到上限，而又有新的静态页需要被映射为止；而动态页则只能替换动态页而永远不会替换静态页。这样，只要一个CPU同时访问的静态页的数量不超过静态页的上限\footnote{这个上限也是``内存保护单元可用区域的数量-1''}，除去第一次访问以外，对静态页的后续访问都是实时的。页的替换算法也是由移植者决定的。
+
+此种实现是否支持页目录属性是由移植者的实现决定的。如果用户决定实现页目录属性，那么在 \_\_RME\_Pgt\_Walk 函数中返回的属性值（Flags）必须是各级页目录的属性值的共同子集，并且 \_\_RME\_Pgt\_Pgdir\_Map 函数中也要支持页目录属性。EDI 不推荐实现页目录属性支持，因为通常而言很少用到而无必要。
+
+TriCore 的页表是此类实现的一个典型例子。此类实现的实时性也较好，仅次于\ref{subsubsec:8-single-core-mpu}
+所述的实现。在此类页表实现中，可以实现的内核功能调用如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.2789\hsize\raggedright\arraybackslash}X>{\hsize=0.8274\hsize\raggedright\arraybackslash}X>{\hsize=0.8937\hsize\raggedright\arraybackslash}X@{}}
+\caption{多核下内存保护单元需要实现的内核调用}\label{tab:8-3-kernel-calls-required-by-multi-core-mpu}\\
+\toprule
+名称 & 功能类别 & 实现必要性\tabularnewline
+\endfirsthead
+\toprule
+名称 & 功能类别 & 实现必要性\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_KFN\_PGT\_CACHE\_CLR & 清除缓存 & 必要\tabularnewline
+RME\_KFN\_PGT\_LINE\_CLR & 清除缓存 & 可选\tabularnewline
+\end{xltabular}
+
+\subsubsection{软件填充的内存管理单元}\label{subsubsec:8-software-filled-mmu}
+
+此类页表的实现和\ref{subsubsec:8-multi-core-mpu}
+所描述的实现是完全一样的，唯一的区别是此时路径压缩不被支持，创建页目录时起始地址一项也可以留空。关于具体的描述请参见\ref{subsubsec:8-multi-core-mpu}
+。
+
+TMS320C66X 的页表是此类实现的一个典型例子。此类实现的实时性和\ref{subsubsec:8-multi-core-mpu}
+描述的实现是完全一致的。在此实现中要求实现的内核功能调用也请参见\ref{subsubsec:8-multi-core-mpu}
+所述。
+
+\subsubsection{硬件填充的内存管理单元}\label{subsubsec:8-hardware-filled-mmu}
+
+此类页表的实现表现为不支持路径压缩，缓存是硬件实现的快表（Trans
+Look-aside
+Buffer，TLB），而且缓存更新是由硬件进行的。在映射和构造时，无需特别考量，在解除映射和析构时则要强制刷新所有CPU的TLB\footnote{如果这些CPU的TLB可能含有过期条目的话}。页表之间可以任意共享页目录。
+
+在实时性方面，由于TLB的更新完全由硬件控制，因此需要更多的内核功能调用来辅助进行TLB的锁定和地址空间标识符（Address
+Space IDentifier，ASID）的相关操作来确保实时性。
+
+此种实现一般要支持页目录属性，因为相关的硬件支持往往存在，而且此类架构一般都用于相当复杂的系统，具有对页目录属性的现实需求。
+
+x86-64 的页表是此类实现的一个典型例子。此类实现的实时性的不确定程度比较大。如果实现了ASID支持和TLB锁定，那么可以获得非常好的实时性；如果没有实现任何形式的TLB锁定，或者处理器不支持ASID，那么实时性就较差。在此类页表实现中，可以实现的内核功能调用如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.1838\hsize\raggedright\arraybackslash}X>{\hsize=0.9888\hsize\raggedright\arraybackslash}X>{\hsize=0.8273\hsize\raggedright\arraybackslash}X@{}}
+\caption{硬件填充的内存管理单元需要实现的内核调用}\label{tab:8-4-kernel-calls-required-by-hardware-filled-mmu}\\
+\toprule
+名称 & 功能类别 & 实现必要性\tabularnewline
+\endfirsthead
+\toprule
+名称 & 功能类别 & 实现必要性\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_KFN\_PGT\_CACHE\_CLR & 清除缓存 & 必要\tabularnewline
+RME\_KFN\_PGT\_LINE\_CLR & 清除缓存 & 可选\tabularnewline
+RME\_KFN\_PGT\_ASID\_SET & 设置属性 & 可选\tabularnewline
+RME\_KFN\_PGT\_TLB\_LOCK & 锁定快表 & 可选\tabularnewline
+RME\_KFN\_PGT\_ENTRY\_MOD & 查询或修改属性 & 可选\tabularnewline
+\end{xltabular}
+
+如果架构支持更多形式的页表相关操作，那么增加额外的内核调用实现它们也是允许的。
+
+\subsection{清除当前CPU上某页表的全部缓存}\label{subsec:8-clear-all-page-table-cache}
+
+该操作应当被实现为清除某页表在当前CPU上的全部缓存。在\ref{subsubsec:8-single-core-mpu}
+所述的情况下，该操作不需要实现；在\ref{subsubsec:8-multi-core-mpu}
+和\ref{subsubsec:8-software-filled-mmu}
+所述的情况下，该操作必须实现，而且应当清空当前CPU上的该页表的顶层的缓存元数据；在\ref{subsubsec:8-hardware-filled-mmu}
+所述的情况下，该操作也必须实现。如果处理器支持ASID，那么应该清除TLB中该页表对应的ASID的所有条目\footnote{包括锁定的TLB条目}；如果该处理器不支持ASID而且当前使用的是本页表，那么直接刷新TLB即可；如果该处理器不支持ASID而且当前使用的不是本页表，那么无需进行任何操作直接返回成功即可。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{清除当前CPU上某页表全部缓存的所需参数}\label{tab:8-5-clear-all-page-table-cache-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PGT\_CACHE\_CLR。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+一个对应于要清除缓存的顶层页目录权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{清除当前CPU上某页表全部缓存的建议返回值实现}\label{tab:8-6-clear-all-page-table-cache-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+\end{xltabular}
+
+\subsection{清除当前CPU上某页表的缓存的某一行}\label{subsec:8-clear-page-table-cache-line}
+
+该操作应当被实现为清除某页表在当前CPU上的一个特定条目。在\ref{subsubsec:8-single-core-mpu}
+所述的情况下，该操作不需要实现；在\ref{subsubsec:8-multi-core-mpu}
+和\ref{subsubsec:8-software-filled-mmu}
+所述的情况下，该操作可选实现，如果实现则应当清除当前CPU上的该页表的顶层的缓存元数据中的某一条；在\ref{subsubsec:8-hardware-filled-mmu}
+所述的情况下，该操作也可选实现。如果处理器支持ASID，那么应该清除TLB中该页表对应的ASID的某一条\footnote{包括锁定的TLB条目，如果它被选中的话}；如果该处理器不支持ASID而且当前使用的是本页表，那么清除TLB中的某一条即可；如果该处理器不支持ASID而且当前使用的不是本页表，那么无需进行任何操作，那么无需进行任何操作直接返回成功即可。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{清除当前CPU上某页表缓存的某一行的所需参数}\label{tab:8-7-clear-page-table-cache-line-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PGT\_CACHE\_CLR。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+一个对应于要清除缓存中某一行的顶层页目录权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Vaddr & ptr\_t & Param1 & 要清理TLB的虚拟地址。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{清除当前CPU上某页表缓存的建议返回值实现}\label{tab:8-8-clear-page-table-cache-line-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+\end{xltabular}
+
+\subsection{设置某页表的ASID}\label{subsec:8-set-page-table-asid}
+
+该操作应当被实现为设置某个页表的ASID。页表的ASID的存储位置问题由实现者自行解决。在\ref{subsubsec:8-single-core-mpu}
+，\ref{subsubsec:8-multi-core-mpu}
+和\ref{subsubsec:8-software-filled-mmu}
+所述的情况下，该操作不需要实现；在\ref{subsubsec:8-hardware-filled-mmu}
+所述的情况下，如果处理器支持ASID，那么该操作可选实现，并应该设定该页表的ASID；如果该处理器不支持ASID，那么该操作不需要实现。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{设置某页表ASID的所需参数}\label{tab:8-9-set-page-table-asid-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PGT\_ASID\_SET。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+一个对应于要设置ASID的顶层页目录权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+ASID & ptr\_t & Param1 & 要设置为该页表ASID的值。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{设置某页表ASID的建议返回值实现}\label{tab:8-10-set-page-table-asid-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+\end{xltabular}
+
+\subsection{锁定TLB内的某页}\label{subsec:8-lock-page-in-tlb}
+
+该操作应当被实现为锁定某一页到TLB中。在\ref{subsubsec:8-single-core-mpu}
+，\ref{subsubsec:8-multi-core-mpu}
+和\ref{subsubsec:8-software-filled-mmu}
+所述的情况下，该操作不需要实现；在\ref{subsubsec:8-hardware-filled-mmu}
+所述的情况下，该操作可选实现，并应该将指定的虚拟地址锁定到TLB中。如果处理器不支持ASID，那么此锁定页面在切换地址空间时是否被清除是由架构和实现者决定的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{锁定TLB内某页的所需参数}\label{tab:8-11-lock-page-in-tlb-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PGT\_TLB\_LOCK。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+一个对应于要设置ASID的顶层页目录权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Vaddr & ptr\_t & Param1 & 要锁定到TLB的虚拟地址。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7588\hsize\raggedright\arraybackslash}X>{\hsize=1.2412\hsize\raggedright\arraybackslash}X@{}}
+\caption{锁定TLB内某页的建议返回值实现}\label{tab:8-12-lock-page-in-tlb-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & 指定的地址在所给页表中查询不到，无法进行TLB锁定。\tabularnewline
+    RME\_ERR\_PGT\_MAP & TLB容量已满，无法继续锁定新页面。\tabularnewline
+\end{xltabular}
+
+\subsection{查询或修改某页的属性}\label{subsec:8-query-or-modify-page-attributes}
+
+该操作应该被实现为对某页面属性的查找或修改。最常见的页面属性是``脏''（Dirty）\footnote{又称``被修改''（Modified）}属性，这一属性用来判断该页是否被写过；某些处理器可能具备其他可查询或者修改的页面属性。需要注意的是，本函数不能被用来修改 RME 在页表操作接口中规定的任何标准页属性，而只能用来读取它们；对其他架构特有属性的读写则是都被允许的。在\ref{subsubsec:8-single-core-mpu}
+，\ref{subsubsec:8-multi-core-mpu}
+和\ref{subsubsec:8-software-filled-mmu}
+所述的情况下，该操作可选实现，如果实现则不需要具备修改属性的功能；在\ref{subsubsec:8-hardware-filled-mmu}
+所述的情况下，那么该操作可选实现，如果实现则应该实现读写功能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{查询或修改某页属性的所需参数}\label{tab:8-13-query-or-modify-page-attributes-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PGT\_ENTRY\_MOD。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+一个对应于要查找页面属性的顶层页目录权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Vaddr & ptr\_t & Param1 & 要查询或修改属性的虚拟地址。\tabularnewline
+Operation & ptr\_t & Param2 &
+要查询或修改的属性。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7279\hsize\raggedright\arraybackslash}X>{\hsize=1.2721\hsize\raggedright\arraybackslash}X@{}}
+\caption{查询或修改某页属性的建议返回值实现}\label{tab:8-14-query-or-modify-page-attributes-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & 指定的地址在所给页表中查询不到，无法进行属性修改或查询。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{中断控制器内核调用实现规范（``I''标准扩展）}\label{sec:8-interrupt-controller-kernel-calls}
+\nopagebreak[4]
+
+中断是系统响应外部事件的重要方法，它负责接收外部异步信号并且将该信号传递给系统的其他部分，是实时系统的重要组成部分。RME 采用内核信号端点的办法来管理各个中断，每个中断都会被表征成向某个内核信号端点的发送。因此，我们需要知道哪个中断应当被发送到哪个内核端点；如果系统中有多个CPU，我们还要知道硬件的中断要发送给哪个CPU。RME 规定的中断控制器相关内核调用一共有如下3个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6758\hsize\raggedright\arraybackslash}X>{\hsize=1.0803\hsize\raggedright\arraybackslash}X>{\hsize=1.2440\hsize\raggedright\arraybackslash}X@{}}
+\caption{中断控制器内核调用一览}\label{tab:8-15-interrupt-controller-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF100 & RME\_KFN\_INT\_LOCAL\_MOD &
+获取或设置某本地中断源的状态。\tabularnewline
+0xF101 & RME\_KFN\_INT\_GLOBAL\_MOD &
+获取或设置某全局中断源的状态。\tabularnewline
+0xF102 & RME\_KFN\_INT\_LOCAL\_TRIG &
+触发某个CPU的某个本地中断源。\tabularnewline
+0xF103 & RME\_KFN\_EVT\_LOCAL\_TRIG &
+触发某个CPU的某个本地事件源。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置某本地中断源的状态}\label{subsec:8-get-or-set-local-interrupt-source-state}
+
+该操作应该被设计为获取或者设置当前CPU的某个本地中断源状态。常见的本地中断源状态包括本地中断源的开关，抢占和非抢占优先级以及其对应的内核信号端点。该内核调用一般会修改CPU的本地中断控制器\footnote{如 x86-64 的 LAPIC}的设置。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7982\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=1.6480\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某本地中断源状态的所需参数}\label{tab:8-16-get-or-set-local-interrupt-source-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_INT\_LOCAL\_MOD。\tabularnewline
+Int\_Num & ptr\_t & Sub\_ID &
+要查询或修改的本地中断源的编号。\tabularnewline
+Operation & ptr\_t & Param1 &
+要执行的操作。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某本地中断源状态的建议返回值实现}\label{tab:8-17-get-or-set-local-interrupt-source-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置全局中断源的状态}\label{subsec:8-get-or-set-global-interrupt-source-state}
+
+该操作应该被设计为获取或者设置全局中断源的状态。常见的全局中断源状态包括全局中断源的开关，要连接到的CPU，以及要对应的该CPU本地中断源。该内核调用一般会修改系统的全局中断控制器\footnote{如 x86-64 的 IOAPIC}的设置。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7982\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=1.6480\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某全局中断源状态的所需参数}\label{tab:8-18-get-or-set-global-interrupt-source-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_INT\_LOCAL\_MOD。\tabularnewline
+Int\_Num & ptr\_t & Sub\_ID &
+要查询或修改的全局中断源的编号。\tabularnewline
+Operation & ptr\_t & Param1 &
+要执行的操作。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某全局中断源状态的建议返回值实现}\label{tab:8-19-get-or-set-global-interrupt-source-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{触发某个CPU的某个本地中断源}\label{subsec:8-trigger-local-interrupt-source}
+
+该操作应该被设计为触发某个CPU的某个本地中断源。常见的用途包括触发本地软中断或是向其他处理器发送处理器间中断（Inter-Processor
+Interrupt，IPI）。该内核调用一般会通过CPU的本地中断控制器\footnote{如 x86-64 的 LAPIC}触发该中断，有时也有可能通过全局中断控制器\footnote{如 x86-64 的 IOAPIC}触发该中断。该操作可以实现的功能包括触发一个CPU的一个中断，触发一个CPU的几个中断，触发一组CPU的一个中断和触发一组CPU的几个中断；具体要实现何种功能组合由使用者决定。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=1.6803\hsize\raggedright\arraybackslash}X@{}}
+\caption{触发某个CPU的某个本地中断源的所需参数}\label{tab:8-20-trigger-local-interrupt-source-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_INT\_LOCAL\_TRIG。\tabularnewline
+CPUID & ptr\_t & Sub\_ID & 要触发的CPU的编号。\tabularnewline
+Int\_Num & ptr\_t & Param1 &
+要触发的中断号。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{触发某个CPU的某个本地中断源的建议返回值实现}\label{tab:8-21-trigger-local-interrupt-source-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{触发某个CPU的某个本地事件源}\label{subsec:8-trigger-local-event-source}
+
+该操作应该被设计为触发某个CPU的某个本地事件源。和本地中断源不同，本地事件源一般对应于软件定义的一些操作，这些操作会向某些系统启动时创建的特殊的端点发送信号或者修改某些内存区域，完成某些平台的用户态库定义的操作或功能。对于每种架构，此操作的意义和用途可能都各不相同。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=1.6803\hsize\raggedright\arraybackslash}X@{}}
+\caption{触发某个CPU的某个本地事件源的所需参数}\label{tab:8-22-trigger-local-event-source-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_EVT\_LOCAL\_TRIG。\tabularnewline
+CPUID & ptr\_t & Sub\_ID & 要触发的CPU的编号。\tabularnewline
+Evt\_Num & ptr\_t & Param1 &
+要触发的事件号。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{触发某个CPU的某个本地事件源的建议返回值实现}\label{tab:8-23-trigger-local-event-source-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\section{缓存与预取内核调用实现规范（``C''标准扩展）}\label{sec:8-cache-and-prefetch-kernel-calls}
+
+缓存和预取子系统是系统性能的重要保障。缓存可以利用程序的局部性加速执行，而预取则能通过提前发起内存操作来掩盖内存延迟。基于如下的理由，我们有必要实现缓存和预取相关的内核调用：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  DMA等硬件往往和CPU没有缓存一致性，要手动进行缓存一致性操作。
+\item
+  自修改代码会使指令预取和指令缓存发生失效，在某些架构上要手动清空预取和缓存。
+\item
+  某些架构的地址空间可缓存性不由页表控制，而是由特殊的寄存器控制，需要额外配置。
+\item
+  某些架构的缓存大小可变，并且允许将一部分缓存用作\href{https://blog.csdn.net/dark5669/article/details/56013548}{便笺存储器}（Scratchpad
+  Memory）\footnote{又称紧耦合存储器（Tightly Coupled Memory，TCM）}，需要额外配置。
+\item
+  某些架构的缓存的组织可变\footnote{路、组或者缓存行大小}，需要额外配置。
+\item
+  某些多核架构允许某些内存区域上各处理器的缓存不一致，需要额外配置。
+\end{enumerate}
+
+\needspace{20\baselineskip}
+RME 规定的缓存与预取相关内核调用一共有如下5个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7432\hsize\raggedright\arraybackslash}X>{\hsize=1.1352\hsize\raggedright\arraybackslash}X>{\hsize=1.1216\hsize\raggedright\arraybackslash}X@{}}
+\caption{缓存与预取内核调用一览}\label{tab:8-24-cache-and-prefetch-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF200 & RME\_KFN\_CACHE\_MOD & 获取或设置缓存状态。\tabularnewline
+0xF201 & RME\_KFN\_CACHE\_CONFIG & 获取或设置缓存配置。\tabularnewline
+0xF202 & RME\_KFN\_CACHE\_MAINT & 缓存维护。\tabularnewline
+0xF203 & RME\_KFN\_CACHE\_LOCK & 锁定缓存。\tabularnewline
+0xF204 & RME\_KFN\_PRFTH\_MOD & 获取或设置预取状态。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置缓存状态}\label{subsec:8-get-or-set-cache-state}
+
+该调用获取或设置CPU的某个缓存的使能和除能状态。通常而言，这仅仅需要操作缓存控制器的一个寄存器来使能和除能缓存。被操作的缓存可能是一级缓存（L1），二级缓存（L2），以此类推。缓存又可以进一步细分成指令缓存和数据缓存。在某些可缓存性不受页表控制的处理器上，地址空间的可缓存性也可以由此内核调用配置。
+
+在使能缓存之前，是否清除缓存的内容是由实现者决定的；推荐的做法是清除缓存内容。在除能缓存之前，是否把被修改缓存行的内容全部刷新到内存也是由实现者决定的；推荐的做法是将缓存内容刷新到内存。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7551\hsize\raggedright\arraybackslash}X>{\hsize=0.7349\hsize\raggedright\arraybackslash}X>{\hsize=0.7349\hsize\raggedright\arraybackslash}X>{\hsize=1.7750\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置缓存状态的所需参数}\label{tab:8-25-get-or-set-cache-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_CACHE\_MOD。\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+要获取或设置的缓存的代号。此参数的意义由实现者决定。\tabularnewline
+Operation & ptr\_t & Param1 &
+要进行的操作。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置缓存状态的建议返回值实现}\label{tab:8-26-get-or-set-cache-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置缓存配置}\label{subsec:8-get-or-set-cache-configuration}
+
+某些处理器支持缓存组织的动态配置。这可能包括允许将一部分缓存用作紧耦合内存\footnote{也叫便笺存储器（Scratchpad memory）}（Tightly
+Coupled Memory,
+TCM），或者允许修改缓存的组织结构，或者允许将通用缓存配置成专门的指令缓存或数据缓存，或者允许各个CPU之间的缓存不一致，或者将某些缓存行预留给某个CPU。这些操作是由本内核调用负责的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=1.7243\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置缓存配置的所需参数}\label{tab:8-27-get-or-set-cache-configuration-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_CACHE\_CONFIG。\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+要配置的缓存的代号。此参数的意义由实现者决定。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置缓存配置的建议返回值实现}\label{tab:8-28-get-or-set-cache-configuration-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{缓存维护}\label{subsec:8-cache-maintenance}
+
+在很多场合如DMA或外设更新内存时，我们需要使得一条特定的缓存行或者缓存的一部分失效。或者，将缓存中的数据及时刷新到内存中，共某些外设使用。典型的此类外设包括DMA，网卡或者显卡等等。此类操作是由本内核调用负责的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7616\hsize\raggedright\arraybackslash}X>{\hsize=0.7413\hsize\raggedright\arraybackslash}X>{\hsize=0.7413\hsize\raggedright\arraybackslash}X>{\hsize=1.7559\hsize\raggedright\arraybackslash}X@{}}
+\caption{缓存维护的所需参数}\label{tab:8-29-cache-maintenance-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_CACHE\_MAINT。\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+要强制失效的缓存的代号。此参数的意义由实现者决定。\tabularnewline
+Operation & ptr\_t & Param1 &
+要进行的维护类别。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{缓存维护的建议返回值实现}\label{tab:8-30-cache-maintenance-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{锁定缓存}\label{subsec:8-lock-cache}
+
+在某些场合，我们希望某些数据永远存留在缓存之内，永远不会被替换，此时就需要锁定缓存。锁定缓存有很多种可能的实现方案：锁定缓存的某一行，锁定缓存的某一组，锁定缓存的某一路，或者锁定缓存的某一区域等等。此类操作是由本内核调用负责的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=1.7243\hsize\raggedright\arraybackslash}X@{}}
+\caption{锁定缓存的所需参数}\label{tab:8-31-lock-cache-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_CACHE\_LOCK。\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+要锁定的缓存的代号。此参数的意义由实现者决定。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{锁定缓存的建议返回值实现}\label{tab:8-32-lock-cache-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置预取状态}\label{subsec:8-get-or-set-prefetch-state}
+
+该操作使能或除能CPU的预取功能及分支预测器，也负责查询其状态。通常而言，这只需要配置预取引擎控制器的一个寄存器。在某些处理器上，地址空间的可预取性也可以由此内核调用配置。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8222\hsize\raggedright\arraybackslash}X>{\hsize=0.7274\hsize\raggedright\arraybackslash}X>{\hsize=0.7274\hsize\raggedright\arraybackslash}X>{\hsize=1.7230\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置预取状态的所需参数}\label{tab:8-33-get-or-set-prefetch-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PRFTH\_MOD。\tabularnewline
+Prefetch\_ID & ptr\_t & Sub\_ID &
+要使能的预取引擎的代号。此参数的意义由实现者决定。\tabularnewline
+Operation & ptr\_t & Param1 &
+要进行的操作。此参数的意义由实现者决定。\tabularnewline
+Param & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置预取状态的建议返回值实现}\label{tab:8-34-get-or-set-prefetch-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{硬件热插拔内核调用实现规范（``H''标准扩展）}\label{sec:8-hardware-hotplug-kernel-calls}
+\nopagebreak[4]
+
+硬件热插拔是系统可用性和可扩展性很重要的一部分。热插拔允许系统在连续运转的前提下动态地增加或减少计算资源\footnote{主要指CPU和内存}，这使服务器级系统和大型机的规模灵活性大大提高；在较为复杂的嵌入式应用中，也可以动态增加板卡来增前运算能力，或者动态减少板卡来进行维修和系统维护。RME 规定的硬件热插拔相关内核调用一共有如下3个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6635\hsize\raggedright\arraybackslash}X>{\hsize=1.0374\hsize\raggedright\arraybackslash}X>{\hsize=1.2991\hsize\raggedright\arraybackslash}X@{}}
+\caption{硬件热插拔内核调用一览}\label{tab:8-35-hardware-hotplug-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF300 & RME\_KFN\_HPNP\_PCPU\_MOD &
+获取或设置某物理处理器封装的状态。\tabularnewline
+0xF301 & RME\_KFN\_HPNP\_LCPU\_MOD &
+获取或设置某逻辑处理器的状态。\tabularnewline
+0xF302 & RME\_KFN\_HPNP\_PMEM\_MOD &
+获取或设置某物理内存封装的状态。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置某物理处理器封装的状态}\label{subsec:8-get-or-set-physical-processor-package-state}
+
+该操作获取或设置某个物理处理器封装的状态。``物理处理器''指一个处理器芯片封装，或者一块含有多个处理器芯片封装的处理器板卡。常见的需要获取或设置的状态包括电源通断、插入检测等等。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=1.6066\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某物理处理器封装状态的所需参数}\label{tab:8-36-get-or-set-physical-processor-package-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_HPNP\_PCPU\_MOD。\tabularnewline
+PCPUID & ptr\_t & Sub\_ID &
+要获取或设置状态的物理处理器的代号。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某物理处理器封装状态的建议返回值实现}\label{tab:8-37-get-or-set-physical-processor-package-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置某逻辑处理器的状态}\label{subsec:8-get-or-set-logical-processor-state}
+
+该操作获取或设置某个逻辑处理器的状态。``逻辑处理器''指软件能识别的相互独立的CPU核，每个核在任何时间仅可运行一个线程。需要注意的是，一个逻辑处理器未必总是对应于一个物理核心或者封装。多核处理器可能会在一个封装之内整合多个物理处理器，而超线程技术则会将一个物理处理器模拟成多个逻辑处理器使用。常见的需要获取或设置的状态包括处理器初始化、关闭等等。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=1.6066\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某逻辑处理器状态的所需参数}\label{tab:8-38-get-or-set-logical-processor-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_HPNP\_LCPU\_MOD。\tabularnewline
+LCPUID & ptr\_t & Sub\_ID &
+要获取或设置状态的逻辑处理器的代号。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某逻辑处理器状态的建议返回值实现}\label{tab:8-39-get-or-set-logical-processor-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置某物理内存封装的状态}\label{subsec:8-get-or-set-physical-memory-package-state}
+
+该操作获取或设置某个物理内存封装的状态。``物理内存封装''指一个物理内存颗粒，或者一个包含多个物理内存颗粒的内存模组。常见的需要获取或设置的状态包括电源通断、插入检测等等。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=1.6323\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某物理内存封装状态的所需参数}\label{tab:8-40-get-or-set-physical-memory-package-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_HPNP\_PMEM\_MOD。\tabularnewline
+PMEMID & ptr\_t & Sub\_ID &
+要获取或设置状态的物理内存封装的代号。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某物理内存封装状态的建议返回值实现}\label{tab:8-41-get-or-set-physical-memory-package-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{时钟与电压内核调用实现规范（``F''标准扩展）}\label{sec:8-clock-and-voltage-kernel-calls}
+\nopagebreak[4]
+
+系统的时钟频率和电压直接决定了系统的性能和功耗，并且对电池寿命和散热余量等方面都有重要影响。RME规定的时钟与电压相关内核调用一共有如下7个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7312\hsize\raggedright\arraybackslash}X>{\hsize=1.0624\hsize\raggedright\arraybackslash}X>{\hsize=1.2064\hsize\raggedright\arraybackslash}X@{}}
+\caption{时钟与电压内核调用一览}\label{tab:8-42-clock-and-voltage-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF400 & RME\_KFN\_IDLE\_SLEEP & 使处理器暂时休眠。\tabularnewline
+0xF401 & RME\_KFN\_SYS\_REBOOT & 重启整个系统。\tabularnewline
+0xF402 & RME\_KFN\_SYS\_SHDN & 关闭整个系统的电源。\tabularnewline
+0xF403 & RME\_KFN\_VOLT\_MOD & 获取或设置电压参数。\tabularnewline
+0xF404 & RME\_KFN\_FREQ\_MOD & 获取或设置频率参数。\tabularnewline
+0xF405 & RME\_KFN\_PMOD\_MOD & 获取或设置电源状态。\tabularnewline
+0xF406 & RME\_KFN\_SAFETY\_MOD & 获取或设置安全保护状态。\tabularnewline
+\end{xltabular}
+
+\subsection{使处理器暂时休眠}\label{subsec:8-put-processor-to-sleep}
+
+本操作令处理器执行休眠指令\footnote{如 x86-64 的 HLT 和 ARM 的 WFE}进入休眠状态。各种架构往往都提供一种指令使得处理器暂时停止运作，直到下一个中断到来时再继续执行。某些架构还提供多种指令，不同的指令会使CPU进入不同深度的休眠，以在功耗和中断延迟之间取得平衡；睡眠状态的功耗越低，中断延迟往往就越高。有关正确休眠的实现请参见\ref{subsec:9-processor-sleep}
+。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{使处理器暂时休眠}\label{tab:8-43-put-processor-to-sleep}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_IDLE\_SLEEP。\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{使处理器暂时休眠的建议返回值实现}\label{tab:8-44-put-processor-to-sleep-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{重启整个系统}\label{subsec:8-reboot-system}
+
+本操作在任何处理器上调用都会令整个系统的硬件完全复位并重启。某些系统提供多种重启模式，此时该重启模式通过额外参数传入。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{重启整个系统}\label{tab:8-45-reboot-system}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_SYS\_REBOOT。\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{重启整个系统的建议返回值实现}\label{tab:8-46-reboot-system-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{关闭整个系统的电源}\label{subsec:8-power-off-system}
+
+本操作在任何处理器上调用都会关闭整个系统的电源。本操作在某些架构上\footnote{常用于微控制器的架构，如 ARMv7-M}不支持，因为这些架构不会关机。某些系统提供多种关机式，此时该关机通过额外参数传入。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{关闭整个系统的电源}\label{tab:8-47-power-off-system}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_SYS\_SHDN。\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{关闭整个系统的电源的建议返回值实现}\label{tab:8-48-power-off-system-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置电压参数}\label{subsec:8-get-or-set-voltage}
+
+本操作获取或者设置CPU、内存和其他外设的各路供电电压值。电压的单位可以是毫伏（mV）也可以是微伏（uV）。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7902\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=1.6714\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置电压参数的所需参数}\label{tab:8-49-get-or-set-voltage-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_VOLT\_MOD。\tabularnewline
+Dom\_ID & ptr\_t & Sub\_ID &
+要获取或设置电压的电源域的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Voltage & ptr\_t & Param2 &
+要设置的电压值。此参数的单位由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置电压参数的建议返回值实现}\label{tab:8-50-get-or-set-voltage-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置频率参数}\label{subsec:8-get-or-set-frequency}
+
+本操作获取或者设置CPU、内存和其他外设的各个时钟域的工作频率。频率的单位可以是毫赫兹（mHz），赫兹（Hz），千赫兹（kHz），兆赫兹（MHz）或者吉赫兹（GHz）。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7902\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=1.6714\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置频率参数的所需参数}\label{tab:8-51-get-or-set-frequency-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_FREQ\_MOD。\tabularnewline
+Fdom\_ID & ptr\_t & Sub\_ID &
+要获取或设置时钟频率的时钟域的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Frequency & ptr\_t & Param2 &
+要设置的频率值。此参数的单位由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置频率参数的建议返回值实现}\label{tab:8-52-get-or-set-frequency-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置电源状态}\label{subsec:8-get-or-set-power-state}
+
+本操作获取或者设置CPU、内存和其他外设的电源状态。电源状态通常包括电源域的开关和时钟域的开关。在支持动态电压频率调整（Dynamic
+Voltage Frequency
+Scaling，DVFS）的处理器上，本操作也负责设置该功能的状态。该操作也可以用以实现重启和关机，但这是不推荐的，因为重启和关机已经被分配了专用的功能调用号。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8152\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=1.5979\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置电源状态的所需参数}\label{tab:8-53-get-or-set-power-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PMOD\_MOD。\tabularnewline
+Pdom\_ID & ptr\_t & Sub\_ID &
+要获取或设置电源状态的电源域的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置电源状态的建议返回值实现}\label{tab:8-54-get-or-set-power-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置安全保护状态}\label{subsec:8-get-or-set-safety-protection-state}
+
+本操作获取或者设置电源和频率安全锁的状态。当安全锁未被打开时，某些电压和频率是不允许被设置的，因为这有可能会造成系统崩溃，甚至会对硬件造成永久损坏\footnote{尤其是电压调整}。当安全锁打开时，这些限制会被解除，允许设置系统到更极端的状态。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7683\hsize\raggedright\arraybackslash}X>{\hsize=0.7478\hsize\raggedright\arraybackslash}X>{\hsize=0.7478\hsize\raggedright\arraybackslash}X>{\hsize=1.7360\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全保护状态的所需参数}\label{tab:8-55-get-or-set-safety-protection-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_SAFETY\_MOD。\tabularnewline
+Dom\_ID & ptr\_t & Sub\_ID &
+要获取或设置安全保护状态的电源域或时钟域的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全保护状态的建议返回值实现}\label{tab:8-56-get-or-set-safety-protection-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{系统监视内核调用实现规范（``M''标准扩展）}\label{sec:8-system-monitor-kernel-calls}
+\nopagebreak[4]
+
+系统监视器是识别系统功能、确认系统状态和调校系统性能必不可少的。RME 规定的系统监视内核调用一共有如下6个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6668\hsize\raggedright\arraybackslash}X>{\hsize=1.0660\hsize\raggedright\arraybackslash}X>{\hsize=1.2672\hsize\raggedright\arraybackslash}X@{}}
+\caption{系统监视内核调用一览}\label{tab:8-57-system-monitor-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF500 & RME\_KFN\_PERF\_CPU\_FUNC & 获取CPU功能特性。\tabularnewline
+0xF501 & RME\_KFN\_PERF\_MON\_MOD &
+获取或设置性能监视器配置。\tabularnewline
+0xF502 & RME\_KFN\_PERF\_CNT\_MOD &
+获取或设置计次性能计数器的数值。\tabularnewline
+0xF503 & RME\_KFN\_PERF\_CYCLE\_MOD &
+获取或设置周期性能计数器的数值。\tabularnewline
+0xF504 & RME\_KFN\_PERF\_DATA\_MOD &
+获取或设置数据性能计数器的数值。\tabularnewline
+0xF505 & RME\_KFN\_PERF\_PHYS\_MOD &
+获取或设置物理性能计数器的数值。\tabularnewline
+0xF506 & RME\_KFN\_PERF\_CUMUL\_MOD &
+获取或设置累积性能计数器的数值。\tabularnewline
+\end{xltabular}
+
+在实现某些性能计数器的读操作时，由于这些计数器的长度可能超出 RME 系统调用返回值的允许长度\footnote{一个机器字长}，因此需要实现者自行使用其他寄存器来返回计数器的其余部分。
+
+\subsection{获取CPU功能特性}\label{subsec:8-get-cpu-features}
+
+同一个架构的CPU可能因为种种原因而支持不同的功能子集。本调用可以允许用户查询CPU的功能以确认其对软件的兼容性。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=1.4554\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取CPU功能特性的所需参数}\label{tab:8-58-get-cpu-features-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_CPU\_FUNC。\tabularnewline
+Freg\_ID & ptr\_t & Sub\_ID & 要获取的功能寄存器的代号。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取CPU功能特性的建议返回值实现}\label{tab:8-59-get-cpu-features-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置性能监视器配置}\label{subsec:8-get-or-set-performance-monitor-configuration}
+
+通常而言，每个CPU都有一些性能计数器来记录系统中的各种事件。系统中的事件数量往往是非常多的，而CPU的性能计数器数量有限，因此只能选择一部分事件记录下来。本调用允许配置性能计数器的状态并且指定各个计数器的事件来源。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置性能监视器配置的所需参数}\label{tab:8-60-get-or-set-performance-monitor-configuration-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_MON\_MOD。\tabularnewline
+Perf\_ID & ptr\_t & Sub\_ID &
+要获取或设置配置的性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Param & ptr\_t & Param2 &
+要设置给该计数器的事件代号，或者其他信息，也有可能未使用。具体的用途由用户决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置性能监视器配置的建议返回值实现}\label{tab:8-61-get-or-set-performance-monitor-configuration-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置计次性能计数器的数值}\label{subsec:8-get-or-set-count-performance-counter}
+
+本操作获取或者设置计次性能计数器的数值。计次性能计数器负责记录系统中某些事件发生的次数。常见的计次事件有：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  缓存替换的次数
+\item
+  缓存命中或不命中的次数
+\item
+  上级缓存不命中并在下级缓存中命中或未命中的次数
+\item
+  上级缓存不命中并在下级缓存中命中时，该命中涉及或不涉及缓存一致性操作的次数
+\item
+  NUMA结构中，本地或异地内存访问次数
+\item
+  处理器收到的总中断\footnote{或某一类中断}的次数
+\item
+  处理器正确预测或不正确预测的分支指令数量
+\item
+  处理器成功执行或不成功执行的原子操作数量，以及被串行化的原子操作数量
+\item
+  处理器获取或者执行完毕的总指令\footnote{或某一类，比如分支，访存，I/O，乘除法等}的数量
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置计次性能计数器数值的所需参数}\label{tab:8-62-get-or-set-count-performance-counter-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_CNT\_MOD。\tabularnewline
+Cnt\_ID & ptr\_t & Sub\_ID &
+要获取或设置数值的计次性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置给计数器的值。某些计数器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置计次性能计数器数值的建议返回值实现}\label{tab:8-63-get-or-set-count-performance-counter-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置周期性能计数器的数值}\label{subsec:8-get-or-set-cycle-performance-counter}
+
+本操作获取或者设置周期性能计数器的数值。周期性能计数器负责记录系统中某些事件产生的影响持续的时钟周期数。常见的周期计量事件有：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  处理器上电以来经过的周期数
+\item
+  由于缓存不命中导致流水线停滞的周期数
+\item
+  由于快表不命中导致流水线停滞的周期数
+\item
+  由于分支预测失败，指令延时槽或其他原因导致的处理器不分发新指令的周期数
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置周期性能计数器数值的所需参数}\label{tab:8-64-get-or-set-cycle-performance-counter-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_CYCLE\_MOD。\tabularnewline
+Cycle\_ID & ptr\_t & Sub\_ID &
+要获取或设置配置的周期性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置给计数器的值。某些计数器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置周期性能计数器数值的建议返回值实现}\label{tab:8-65-get-or-set-cycle-performance-counter-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\subsection{获取或设置数据性能计数器的数值}\label{subsec:8-get-or-set-data-performance-counter}
+\nopagebreak[4]
+
+本操作获取或者设置数据性能计数器的数值。数据性能计数器负责记录系统中某些事件带来的累计数据交换量。常见的数据计量事件有：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  系统中某条总线上流过的总数据量\footnote{或符合某个条件，如大小，传输方向，数据性质等的数据量}
+\item
+  系统中由某些操作或者某些指令造成的总数据量
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置数据性能计数器数值的所需参数}\label{tab:8-66-get-or-set-data-performance-counter-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_DATA\_MOD。\tabularnewline
+Data\_ID & ptr\_t & Sub\_ID &
+要获取或设置配置的数据性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置给计数器的值。某些计数器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置数据性能计数器数值的建议返回值实现}\label{tab:8-67-get-or-set-data-performance-counter-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置物理性能计数器的数值}\label{subsec:8-get-or-set-physical-performance-counter}
+
+本操作获取或者设置物理性能计数器的数值。物理性能计数器负责记录系统中某些物理量的值，或者其相关信息。常见的物理量有：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  电路某部分的温度或环境温度
+\item
+  散热系统的风扇转速
+\item
+  某个时钟域的电流大小
+\item
+  某个时钟域或者电源域消耗的总电量
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置物理性能计数器数值的所需参数}\label{tab:8-68-get-or-set-physical-performance-counter-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_PHYS\_MOD。\tabularnewline
+Phys\_ID & ptr\_t & Sub\_ID &
+要获取或设置配置的物理性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置给计数器的值。某些计数器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置物理性能计数器数值的建议返回值实现}\label{tab:8-69-get-or-set-physical-performance-counter-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置累积性能计数器的数值}\label{subsec:8-get-or-set-cumulative-performance-counter}
+
+本操作获取或者设置累积性能计数器的数值。累计性能计数器负责记录系统中某些累积性时间量的值，或者其相关信息。常见的累积量有：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  系统总上电时间或总上电次数
+\item
+  系统本次上电的连续工作时间
+\item
+  系统剩余的使用年限或使用寿命
+\item
+  系统的健康状态和损伤管理状态
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置累积性能计数器数值的所需参数}\label{tab:8-70-get-or-set-cumulative-performance-counter-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_PERF\_CUMUL\_MOD。\tabularnewline
+Cumul\_ID & ptr\_t & Sub\_ID &
+要获取或设置配置的累积性能计数器的代号。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置给计数器的值。某些计数器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置累积性能计数器数值的建议返回值实现}\label{tab:8-71-get-or-set-cumulative-performance-counter-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{完全虚拟化内核调用实现规范（``V''标准扩展）}\label{sec:8-full-virtualization-kernel-calls}
+\nopagebreak[4]
+
+完全虚拟化（Full
+Virtualization）是继承已有软件栈及相关功能所必不可少的，也是新操作系统设计的必备功能。在这里，``完全虚拟化''特指硬件提供的虚拟化扩展，它们大大增加了虚拟化的效率和安全性。RME 规定的完全虚拟化内核调用都是可选实现的，但只要决定实现该功能，那么就必须全部实现。这些调用一共有如下10个：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7208\hsize\raggedright\arraybackslash}X>{\hsize=1.0193\hsize\raggedright\arraybackslash}X>{\hsize=1.2599\hsize\raggedright\arraybackslash}X@{}}
+\caption{完全虚拟化内核调用一览}\label{tab:8-72-full-virtualization-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF600 & RME\_KFN\_VM\_CRT & 创建虚拟机。\tabularnewline
+0xF601 & RME\_KFN\_VM\_DEL & 删除虚拟机。\tabularnewline
+0xF602 & RME\_KFN\_VM\_PGT & 设置虚拟机所用页表。\tabularnewline
+0xF603 & RME\_KFN\_VM\_MOD & 获取或设置虚拟机的属性。\tabularnewline
+0xF604 & RME\_KFN\_VCPU\_CRT & 创建虚拟CPU。\tabularnewline
+0xF605 & RME\_KFN\_VCPU\_BIND & 绑定虚拟CPU到虚拟机。\tabularnewline
+0xF606 & RME\_KFN\_VCPU\_FREE &
+解除虚拟CPU对虚拟机的绑定。\tabularnewline
+0xF607 & RME\_KFN\_VCPU\_DEL & 删除虚拟CPU。\tabularnewline
+0xF608 & RME\_KFN\_VCPU\_MOD &
+获取或设置虚拟CPU的寄存器。\tabularnewline
+0xF609 & RME\_KFN\_VCPU\_RUN & 运行虚拟CPU。\tabularnewline
+\end{xltabular}
+
+在实现某些寄存器的读操作时，由于这些寄存器的长度可能超出RME系统调用返回值的允许长度\footnote{一个机器字长}，因此需要实现者自行使用其他寄存器来返回寄存器的其余部分。
+
+由于硬件虚拟化扩展往往需要一些特殊的、硬件定义的数据结构，因此需要移植者自行分配虚拟机和虚拟CPU（Virtual
+CPU，VCPU）内核对象。这些内核对象的底层逻辑和权能具体结构的定义也需要移植者自行完成。由于 RME 的内核中并不会给内核扩展留下任何操作标志位，因此除权能表和页表外这些操作都不进行任何操作标志权限检查而默认可以直接执行。
+
+\subsection{创建虚拟机}\label{subsec:8-create-virtual-machine}
+
+在使用虚拟化扩展之前，首先要使用本调用创建虚拟机。在 RME 中，任何的虚拟CPU都必须在创建虚拟机之后才能创建。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建虚拟机的所需参数}\label{tab:8-73-create-virtual-machine-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为RME\_KFN\_VM\_CRT。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_CRT属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的虚拟机权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+一个内核内存权能号，其标识的内核内存范围必须能够放下整个虚拟机内核对象。该权能号可以是一级或二级查找编码。本内核功能不检查内核内存权能的操作标志位，默认此操作可以进行。\tabularnewline
+Cap\_VM & cid\_t & Param1.D0 &
+一个对应于接受该新创建的虚拟机权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Raddr & ptr\_t & Param2 &
+新创建的虚拟机要使用的内核起始相对虚拟地址。这个地址是相对于Cap\_Kom对应的内核权能的起始虚拟地址的。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建虚拟机的建议返回值实现}\label{tab:8-74-create-virtual-machine-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kom的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VM的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Kom的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom不是内核内存权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_CRT属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Kom范围错误。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_VM不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_PGT\_HW & 底层硬件制约，无法在该内存地址上创建虚拟机内核对象。\tabularnewline
+\end{xltabular}
+
+\subsection{删除虚拟机}\label{subsec:8-delete-virtual-machine}
+
+本操作删除一个虚拟机。该虚拟机必须是由RME\_KFN\_VM\_CRT创建的，并且当前内部没有VCPU。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除虚拟机的所需参数}\label{tab:8-75-delete-virtual-machine-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为RME\_KFN\_VM\_DEL。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_DEL属性的权能表权能的权能号，该权能号对应的权能指向含有正被删除的虚拟机权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_VM & cid\_t & Param1 &
+一个对应于将被删除的虚拟机权能的权能号。该权能号对应的必须是一个虚拟机权能。该权能号只能是一级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除虚拟机的建议返回值实现}\label{tab:8-76-delete-virtual-machine-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VM的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM未被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM不是虚拟机权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VM 为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & 两个核同时试图删除该虚拟机，此时未成功的核返回该值。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_DEL属性。\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_VM不安定。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & Cap\_VM 的引用计数不为 0，或者不为根权能。\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & 该虚拟机内仍然有虚拟CPU存在，无法删除。\tabularnewline
+\end{xltabular}
+
+\subsection{设置虚拟机所用页表}\label{subsec:8-set-virtual-machine-page-table}
+
+虚拟机在运行时需要一个页表，负责将本机的实地址映射到虚拟机的实地址。在运行虚拟机时，这个页表将会被加载。本操作负责设置该虚拟机的页表。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{设置虚拟机所用页表的所需参数}\label{tab:8-77-set-virtual-machine-page-table-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为RME\_KFN\_VM\_PGT。\tabularnewline
+Cap\_VM & cid\_t & Sub\_ID &
+一个对应于虚拟机的权能号，该权能号对应的权能指向要修改页表\footnote{顶层页目录}的虚拟机。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Pgt & cid\_t & Param1 &
+一个对应于必须拥有RME\_PGT\_FLAG\_PRC\_PGT属性的页目录权能的权能号，该权能号对应的权能指向要给虚拟机使用的页表\footnote{顶层页目录}。该权能号可以是一级或者二级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7880\hsize\raggedright\arraybackslash}X>{\hsize=1.2120\hsize\raggedright\arraybackslash}X@{}}
+\caption{设置虚拟机所用页表的建议返回值实现}\label{tab:8-78-set-virtual-machine-page-table-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VM的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM不是虚拟机权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是页表权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VM 或 Cap\_Pgt 为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Pgt无RME\_PGT\_FLAG\_PRC\_PGT属性。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & Cap\_Pgt 的引用计数超过了系统允许的最大范围。\tabularnewline
+    RME\_ERR\_PTH\_CONFLICT & 两个核同时试图设置页表，此时未成功的核返回该值。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置虚拟机的属性}\label{subsec:8-get-or-set-virtual-machine-attributes}
+
+在某些架构上，虚拟机有一些作用于整体环境的状态寄存器需要设置。本操作负责设置这些可能存在的寄存器。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置虚拟机的属性的所需参数}\label{tab:8-79-get-or-set-virtual-machine-attributes-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为RME\_KFN\_VM\_MOD。\tabularnewline
+Cap\_VM & cid\_t & Sub\_ID &
+一个对应于虚拟机的权能号，该权能号对应的权能指向要获取或修改寄存器的虚拟机。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置的值。某些寄存器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置虚拟机的属性的建议返回值实现}\label{tab:8-80-get-or-set-virtual-machine-attributes-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VM的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM 不是虚拟机权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_PGT\_HW & 由于硬件制约，无法完成该操作，或该操作不合法\footnote{顶层页目录}。\tabularnewline
+\end{xltabular}
+
+\subsection{创建虚拟CPU}\label{subsec:8-create-virtual-cpu}
+
+在虚拟机上，虚拟CPU是运行虚拟机本身程序的载体。本操作负责创建这些运行必备的虚拟CPU。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建虚拟CPU的所需参数}\label{tab:8-81-create-virtual-cpu-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_CRT。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_CRT属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的虚拟CPU权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+一个内核内存权能号，其标识的内核内存范围必须能够放下整个虚拟CPU内核对象。该权能号可以是一级或二级查找编码。本内核功能不检查内核内存权能的操作标志位，默认此操作可以进行。\tabularnewline
+Cap\_VCPU & cid\_t & Param1.D0 &
+一个对应于接受该新创建的虚拟CPU权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Raddr & ptr\_t & Param2 &
+新创建的虚拟CPU要使用的内核起始相对虚拟地址。这个地址是相对于Cap\_Kom对应的内核权能的起始虚拟地址的。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7406\hsize\raggedright\arraybackslash}X>{\hsize=1.2594\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建虚拟CPU的建议返回值实现}\label{tab:8-82-create-virtual-cpu-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kom的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Kom的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom不是内核内存权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_CRT属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Kom范围错误。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_VCPU不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_PGT\_HW & 底层硬件制约，无法在该内存地址上创建虚拟CPU内核对象。\tabularnewline
+\end{xltabular}
+
+\subsection{绑定虚拟CPU到虚拟机}\label{subsec:8-bind-virtual-cpu-to-virtual-machine}
+
+虚拟CPU必须被绑定到某个虚拟机内部才能参与虚拟机的运行。虚拟机必须先绑定一个页表，才能在绑定虚拟CPU到它。本操作绑定虚拟CPU到虚拟机。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{绑定虚拟CPU到虚拟机的所需参数}\label{tab:8-83-bind-virtual-cpu-to-virtual-machine-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_BIND。\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+一个对应于虚拟CPU权能的权能号，该权能号对应的权能指向被绑定的虚拟CPU。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_VM & cid\_t & Param1 &
+一个对应于虚拟机权能的权能号，该权能号对应的权能指向目标虚拟机。该权能号可以是一级或者二级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7831\hsize\raggedright\arraybackslash}X>{\hsize=1.2169\hsize\raggedright\arraybackslash}X@{}}
+\caption{绑定虚拟CPU到虚拟机的建议返回值实现}\label{tab:8-84-bind-virtual-cpu-to-virtual-machine-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU或Cap\_VM的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU或Cap\_VM的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU 不是虚拟 CPU 权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU 不是虚拟机权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU处于被绑定状态。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 该虚拟CPU对应的虚拟机没有页表，无法绑定。\tabularnewline
+    RME\_ERR\_PTH\_CONFLICT & 如果两个CPU同时尝试绑定，在失败的CPU上返回该值。\tabularnewline
+\end{xltabular}
+
+\subsection{解除虚拟CPU对虚拟机的绑定}\label{subsec:8-unbind-virtual-cpu-from-virtual-machine}
+
+虚拟CPU可以和某个虚拟机解除绑定。当绑定被解除时，该虚拟CPU必须不正在运行。本操作负责解除虚拟CPU的绑定。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{解除虚拟CPU对虚拟机的绑定的所需参数}\label{tab:8-85-unbind-virtual-cpu-from-virtual-machine-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_FREE。\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+一个对应于虚拟CPU权能的权能号，该权能号对应的权能指向要解除绑定的虚拟CPU。该权能号可以是一级或者二级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8255\hsize\raggedright\arraybackslash}X>{\hsize=1.1745\hsize\raggedright\arraybackslash}X@{}}
+\caption{解除虚拟CPU对虚拟机的绑定的建议返回值实现}\label{tab:8-86-unbind-virtual-cpu-from-virtual-machine-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU 不是虚拟 CPU 权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_VCPU仍然在运行，无法解除绑定。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU处于未被绑定状态。\tabularnewline
+\end{xltabular}
+
+\subsection{删除虚拟CPU}\label{subsec:8-delete-virtual-cpu}
+
+本操作删除虚拟CPU，这些虚拟CPU必须是被 RME\_KFN\_VCPU\_CRT 创建的，并且当前没有被绑定到任何虚拟机。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除虚拟CPU的所需参数}\label{tab:8-87-delete-virtual-cpu-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_DEL。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_DEL属性的权能表权能的权能号，该权能号对应的权能指向含有正被删除的虚拟CPU权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_VCPU & cid\_t & Param1 &
+一个对应于将被删除的虚拟CPU权能的权能号。该权能号对应的权能必须是一个虚拟CPU权能。该权能号只能是一级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7784\hsize\raggedright\arraybackslash}X>{\hsize=1.2216\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除虚拟CPU的建议返回值实现}\label{tab:8-88-delete-virtual-cpu-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU未被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU不是虚拟CPU权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VCPU 为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & 两个核同时试图删除该线程，此时未成功的核返回该值。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_DEL属性。\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_VCPU不安定。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & Cap\_VCPU 的引用计数不为 0，或者不为根权能。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 该虚拟CPU仍然处于被绑定状态。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置虚拟CPU的寄存器}\label{subsec:8-get-or-set-virtual-cpu-registers}
+
+虚拟CPU一般都有一些寄存器。这些寄存器可以是处理器本身的工作寄存器、协处理器寄存器或者是其他工作模式寄存器等等。本操作负责获取和设置这些寄存器。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置虚拟CPU的寄存器的所需参数}\label{tab:8-89-get-or-set-virtual-cpu-registers-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_MOD。\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+一个对应于虚拟CPU的权能号，该权能号对应的权能指向要获取或修改寄存器的虚拟CPU。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置的值。某些寄存器是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置虚拟CPU的寄存器的建议返回值实现}\label{tab:8-90-get-or-set-virtual-cpu-registers-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU 不是虚拟机权能，或者为空白权能。\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & 由于硬件制约，无法完成该操作，或该操作不合法。\tabularnewline
+\end{xltabular}
+
+\subsection{运行虚拟CPU}\label{subsec:8-run-virtual-cpu}
+
+本操作负责运行一个虚拟CPU。当一个线程调用了该功能后，它就会执行该虚拟CPU的功能。在运行时，每一个虚拟CPU都对应于一个活动线程。此外，该线程并不会使用其原来所在的进程的页表运行该虚拟CPU，而是会使用虚拟机的页表运行该虚拟CPU。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{运行虚拟CPU的所需参数}\label{tab:8-91-run-virtual-cpu-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_VCPU\_RUN。\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+一个对应于虚拟CPU权能的权能号，该权能号对应的权能指向要运行的虚拟CPU。该权能号可以是一级或者二级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8255\hsize\raggedright\arraybackslash}X>{\hsize=1.1745\hsize\raggedright\arraybackslash}X@{}}
+\caption{运行虚拟CPU的建议返回值实现}\label{tab:8-92-run-virtual-cpu-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值意义由用户决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_VCPU的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU不是虚拟CPU权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_VCPU已经在另一个CPU上运行。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU处于未被绑定状态。\tabularnewline
+\end{xltabular}
+
+\section{安全监视器内核调用实现规范（``S''标准扩展）}\label{sec:8-security-monitor-kernel-calls}
+
+安全监视器（Security
+monitor）在现代信息安全中扮演了重要角色。它们往往能将一小部分应用程序代码放在安全区（Enclave）内，从而和绝大部分代码------甚至是操作系统和虚拟机监视器这类特权代码------隔离开来，大大缩小软件的攻击面（Attack
+surface）。虽然它不能保证应用程序的完整性（Integrity）和可用性（Availability），但是却能够在相当程度上保障机密性（Confidentiality）。
+
+安全监视器的安全-非安全内存划分均是在系统制造或启动时一次性决定的：一部分物理内存地址空间被确定为安全空间，另一部分物理内存地址空间被确定为非安全空间。在系统运行的整个过程中，安全空间都绝对不会被非安全空间任意访问。部分安全监视器实现允许在运行时动态划分这些内存，但是这是非常危险的行为，目前的 RME 规范不支持这一功能。
+
+常见的安全监视器有 Intel 的软件保护扩展（Software Guard Extension，SGX）、AMD 的安全加密虚拟化（Secure Encrypted Virtualization，SEV）、ARM 的可信域（TrustZone）\footnote{可以分为两个子类别，分别用于 Cortex-A 和 Cortex-M}以及 RISC-V 的 Sanctum 和 Keystone。这些安全监视器均能创建出一个小的安全区，保障该安全区的安全性。
+
+本规范的目标是使用同样的或类似的接口来统一这些安全监视器的操作。由于大部分安全监视器都要求创建一些额外的数据结构，因此需要移植者自行分配这些内核对象。这些内核对象的底层逻辑和权能具体结构的定义也需要移植者自行完成。这些内核对象和权能本身位于非安全区内核态，因此安全区逻辑仍需要在内核被攻破时负责安全区自身的机密性\footnote{此时完整性和可用性不可能被保证，因为内核可能已经被破坏}。
+
+RME 规定的7个安全监视器内核调用都是可选实现的，它们的列表如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7222\hsize\raggedright\arraybackslash}X>{\hsize=0.9926\hsize\raggedright\arraybackslash}X>{\hsize=1.2852\hsize\raggedright\arraybackslash}X@{}}
+\caption{安全监视器内核调用一览}\label{tab:8-93-security-monitor-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF700 & RME\_KFN\_ECLV\_CRT & 创建安全区。\tabularnewline
+0xF701 & RME\_KFN\_ECLV\_DEL & 删除安全区。\tabularnewline
+0xF702 & RME\_KFN\_ECLV\_MOD & 获取或设置安全区的属性。\tabularnewline
+0xF703 & RME\_KFN\_ETHD\_CRT & 创建安全区线程。\tabularnewline
+0xF704 & RME\_KFN\_ETHD\_DEL & 删除安全区线程。\tabularnewline
+0xF705 & RME\_KFN\_ETHD\_MOD &
+获取或设置安全区线程的属性。\tabularnewline
+0xF706 & RME\_KFN\_ETHD\_ACT & 运行安全区线程。\tabularnewline
+\end{xltabular}
+
+\subsection{安全监视器的两种典型实现}\label{subsec:8-two-typical-security-monitor-implementations}
+
+安全监视器可以分为两种类型：第一种为区域型，也即系统划定一块内存区域为安全态，要访问这块安全态内存必须通过一个特定的接口\footnote{例如 Intel SGX 和 ARMv8-M 的 TrustZone}；第二种为分界型，也即系统存在一个安全模式，要访问安全模式下的资源，必须通过一个软中断切换到安全态\footnote{例如 AMD SEV 和 ARMv8-A 的 TrustZone}。第二种安全监视器有时会和虚拟化扩展共用一套底层硬件机制。接下来，我们叙述这两种不同硬件实现下的安全监视器内核调用接口适配方法。
+
+\subsubsection{区域型}\label{subsubsec:8-region-type}
+
+区域型监视器的适配往往是相对容易的，因为它们会直接在进程中创建出安全区域来。此时，只需要将 RME 的接口和硬件提供的功能做一一对应即可。在此种监视器下，跨越保护域往往有专用的硬件指令\footnote{如 Intel SGX 的 EENTER 和 EEXIT 以及 ARMv8-M 的 SG 和 BXNS（BLXNS）}，因此不需要实现 RME\_KFN\_ECLV\_ACT。此类安全监视器通常允许安全区内的代码直接访问非安全区域，虽然这些访问在某个具体的 RME 实现下不保证能够进行。
+
+RME\_KFN\_ECLV\_CRT、RME\_KFN\_ECLV\_DEL 和 RME\_KFN\_ECLV\_MOD 在此类型的安全监视器上必须实现，RME\_KFN\_ETHD\_CRT、RME\_KFN\_ETHD\_DEL 和 RME\_KFN\_ETHD\_MOD 有时有必要实现，RME\_KFN\_ETHD\_ACT 在绝大多数情况下都不必实现。
+
+\subsubsection{分界型}\label{subsubsec:8-partition-type}
+
+分界型监视器的适配往往比较复杂，而且涉及到很多状态转换。此种监视器的使用开销往往也比较大，安全态也有一些代码逻辑负责额外的权限检查。创建、删除和修改安全区的操作都将先跳转到内核非安全态，完成基本检查，再通过专用的切换指令切换到内核安全态，并受到内核安全态的进一步权限检查，然后才会执行。进入和退出安全区的操作往往也较为复杂，所以要实现RME\_KFN\_ECLV\_ACT和RME\_KFN\_ECLV\_RET来实现显式跳转。此类安全监视器通常不允许安全区内的代码直接访问非安全区域。
+
+在此类型的安全监视器上，所有7个调用都是必须实现的。
+
+\subsection{创建安全区}\label{subsec:8-create-enclave}
+
+在使用安全监视器扩展之前，首先要使用本调用创建一个安全区。任何其他操作都必须在安全区创建之后才允许执行。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建安全区的所需参数}\label{tab:8-94-create-enclave-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ECLV\_CRT。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_CRT属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的安全区权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+一个内核内存权能号，其标识的内核内存范围必须能够放下整个安全区内核对象。该权能号可以是一级或二级查找编码。本内核功能不检查内核内存权能的操作标志位，默认此操作可以进行。\tabularnewline
+Cap\_ECLV & cid\_t & Param1.D0 &
+一个对应于接受该新创建的安全区权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Raddr & ptr\_t & Param2 &
+新创建的安全区要使用的内核起始相对虚拟地址。这个地址是相对于Cap\_Kom对应的内核权能的起始虚拟地址的。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7840\hsize\raggedright\arraybackslash}X>{\hsize=1.2160\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建安全区的建议返回值实现}\label{tab:8-95-create-enclave-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kom的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ECLV的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Kom的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom不是内核内存权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_CRT属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Kom范围错误。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_ECLV不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_PGT\_HW & 底层硬件制约，无法创建安全区内核对象。\tabularnewline
+\end{xltabular}
+
+\subsection{删除安全区}\label{subsec:8-delete-enclave}
+
+本操作删除一个安全区。该安全区必须是由RME\_KFN\_ECLV\_CRT创建的，并且当前处于未被使用的状态。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除安全区的所需参数}\label{tab:8-96-delete-enclave-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ECLV\_DEL。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_DEL属性的权能表权能的权能号，该权能号对应的权能指向含有正被删除的安全区权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_ECLV & cid\_t & Param1 &
+一个对应于将被删除的安全区权能的权能号。该权能号对应的必须是一个安全区权能。该权能号只能是一级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除安全区的建议返回值实现}\label{tab:8-97-delete-enclave-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ECLV的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV未被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV不是安全区权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_ECLV 为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & 两个核同时试图删除该安全区，此时未成功的核返回该值。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_DEL属性。\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_ECLV不安定。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & Cap\_ECLV 的引用计数不为 0，或者不为根权能。\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & 该安全区因为某些原因无法删除。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置安全区的属性}\label{subsec:8-get-or-set-enclave-attributes}
+
+安全区通常有一些属性需要在创建后被设置。这些属性通常包括安全区的内存分配、初始内容、线程数量、最后密封等等。本操作负责设置这些可能存在的属性。由于部分安全区属性可能较长，因此本操作可能需要使用额外寄存器传入额外参数。这些参数传递的方法对于每种架构都是可以自定义的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全区的属性的所需参数}\label{tab:8-98-get-or-set-enclave-attributes-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ECLV\_MOD。\tabularnewline
+Cap\_ECLV & cid\_t & Sub\_ID &
+一个对应于安全区的权能号，该权能号对应的权能指向要获取或修改属性的安全区。该权能号可以是一级或者二级查找编码。\tabularnewline
+Value1 & ptr\_t & Param1 & 由实现者决定含义。\tabularnewline
+Value2 & ptr\_t & Param2 & 由实现者决定含义。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全区的属性的建议返回值实现}\label{tab:8-99-get-or-set-enclave-attributes-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ECLV的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV 不是安全区权能，或者为空白权能。\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & 由于硬件制约，无法完成该操作，或该操作不合法。\tabularnewline
+\end{xltabular}
+
+\subsection{创建安全区线程}\label{subsec:8-create-enclave-thread}
+
+在部分安全监视器实现中，安全区线程必须事先创建才能得到执行。本操作即用于创建这些安全区线程。安全区线程由于整体位于安全区中，因此不占用 RME 的内核内存。需要注意的是，部分安全监视器可能允许在安全区进入使用状态后在安全区内创建新线程。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建安全区线程的所需参数}\label{tab:8-100-create-enclave-thread-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ETHD\_CRT。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_CRT属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的虚拟CPU权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_ECLV & cid\_t & Param1.D1 &
+一个对应于安全区权能的权能号，该权能号对应的权能指向要容纳该线程的安全区。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_ETHD & cid\_t & Param1.D0 &
+一个对应于接受该新创建的安全区线程权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Param & ptr\_t & Param2 & 由实现者决定含义。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7840\hsize\raggedright\arraybackslash}X>{\hsize=1.2160\hsize\raggedright\arraybackslash}X@{}}
+\caption{创建安全区线程的建议返回值实现}\label{tab:8-101-create-enclave-thread-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ECLV的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ETHD的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV不是安全区权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_CRT属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Kom范围错误。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_ETHD不是空白权能。\tabularnewline
+    RME\_ERR\_PGT\_HW & 底层硬件制约，无法创建安全区线程对象。\tabularnewline
+\end{xltabular}
+
+\subsection{删除安全区线程}\label{subsec:8-delete-enclave-thread}
+
+本操作删除安全区线程，这些安全区线程必须是被RME\_KFN\_ETHD\_CRT创建的，并且当前并不被使用。需要注意的是，部分安全监视器可能不允许在解除安全区使用状态之前删除安全区内部的线程。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除安全区线程的所需参数}\label{tab:8-102-delete-enclave-thread-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ETHD\_DEL。\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+一个对应于必须拥有RME\_CPT\_FLAG\_DEL属性的权能表权能的权能号，该权能号对应的权能指向含有正被删除的安全区线程权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_ETHD & cid\_t & Param1 &
+一个对应于将被删除的安全区线程权能的权能号。该权能号对应的权能必须是一个安全区线程权能。该权能号只能是一级查找编码。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7784\hsize\raggedright\arraybackslash}X>{\hsize=1.2216\hsize\raggedright\arraybackslash}X@{}}
+\caption{删除安全区线程的建议返回值实现}\label{tab:8-103-delete-enclave-thread-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ETHD的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD未被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD不是安全区线程权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_ETHD 为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_NULL & 两个核同时试图删除该线程，此时未成功的核返回该值。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt无RME\_CPT\_FLAG\_DEL属性。\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_ETHD不安定。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & Cap\_ETHD 的引用计数不为 0，或者不为根权能。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 该安全区线程因为某些硬件制约无法删除。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置安全区线程的属性}\label{subsec:8-get-or-set-enclave-thread-attributes}
+
+安全区线程一般都有一些属性需要配置，也即它们的栈地址、入口等等。本操作负责获取或设置这些属性。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全区线程的属性的所需参数}\label{tab:8-104-get-or-set-enclave-thread-attributes-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ETHD\_MOD。\tabularnewline
+Cap\_ETHD & cid\_t & Sub\_ID &
+一个对应于安全区线程的权能号，该权能号对应的权能指向要获取或修改属性的安全区线程。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 &
+要设置的值。某些属性是只读的，此时不允许设置操作而只允许读取操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置安全区线程的属性的建议返回值实现}\label{tab:8-105-get-or-set-enclave-thread-attributes-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ETHD的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD 不是安全区线程权能，或者为空白权能。\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & 由于硬件制约，无法完成该操作，或该操作不合法。\tabularnewline
+\end{xltabular}
+
+\subsection{运行安全区线程}\label{subsec:8-run-enclave-thread}
+
+本操作负责跳转到安全区的某线程继续运行。本调用仅需要在分界型安全监视器上实现。如果用户希望向安全区传递额外的参数或从安全区返回额外的参数，那么其传递方式由用户决定。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{运行安全区线程的所需参数}\label{tab:8-106-run-enclave-thread-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_ETHD\_RUN。\tabularnewline
+Cap\_ETHD & cid\_t & Sub\_ID &
+一个对应于虚拟CPU权能的权能号，该权能号对应的权能指向要运行的虚拟CPU。该权能号可以是一级或者二级查找编码。\tabularnewline
+Param1 & ptr\_t & Param1 & 由实现者决定含义。\tabularnewline
+Param2 & ptr\_t & Param2 & 由实现者决定含义。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8086\hsize\raggedright\arraybackslash}X>{\hsize=1.1914\hsize\raggedright\arraybackslash}X@{}}
+\caption{运行安全区线程的建议返回值实现}\label{tab:8-107-run-enclave-thread-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值意义由用户决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_ETHD的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD不是安全区线程权能，或者为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_ETHD已经在另一个线程上运行。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_ETHD所在的安全区还没有准备好执行。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\section{调试与跟踪内核调用实现规范（``D''标准扩展）}\label{sec:8-debug-and-trace-kernel-calls}
+\nopagebreak[4]
+
+调试与跟踪是程序除错和分析的基本手段。RME 规定的调试与跟踪内核调用一共有如下5个，它们都是可选实现的：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6584\hsize\raggedright\arraybackslash}X>{\hsize=1.0525\hsize\raggedright\arraybackslash}X>{\hsize=1.2891\hsize\raggedright\arraybackslash}X@{}}
+\caption{调试与跟踪内核调用一览}\label{tab:8-108-debug-and-trace-kernel-calls}\\
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\endfirsthead
+\toprule
+主功能号 & 调用名称 & 功能\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF800 & RME\_KFN\_DEBUG\_PRINT & 调试打印。\tabularnewline
+0xF801 & RME\_KFN\_DEBUG\_REG\_MOD &
+获取或设置线程的寄存器组。\tabularnewline
+0xF802 & RME\_KFN\_DEBUG\_INV\_MOD &
+获取或设置线程的迁移调用寄存器组。\tabularnewline
+0xF803 & RME\_KFN\_DEBUG\_MODE\_MOD &
+获取或设置调试引擎模式。\tabularnewline
+0xF804 & RME\_KFN\_DEBUG\_IBP\_MOD &
+获取或设置指令调试断点状态。\tabularnewline
+0xF805 & RME\_KFN\_DEBUG\_DBP\_MOD &
+获取或设置数据调试断点状态。\tabularnewline
+\end{xltabular}
+
+\subsection{调试打印}\label{subsec:8-debug-print}
+
+调试打印是最基本的程序分析工具。为此，RME 提供了一个专门的内核调用来实现控制台字符打印。通常而言，这个调用会打印一个字符到串口，并且在打印完成之前不会返回。此调用也可以被实现为打印多个字符；在这种状况下，多余的字符参数需要实现者自行使用空闲的寄存器传入。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=1.1892\hsize\raggedright\arraybackslash}X@{}}
+\caption{调试打印的所需参数}\label{tab:8-109-debug-print-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_PRINT。\tabularnewline
+Char & char & Sub\_ID & 要打印的字符。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{调试打印的建议返回值实现}\label{tab:8-110-debug-print-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置线程的寄存器组}\label{subsec:8-get-or-set-thread-register-set}
+
+读取和修改某个线程的寄存器组对于分析程序的执行状况是至关重要的，因此 RME 提供了一个内核调用来负责此类操作。本调用也可以用来改变程序的执行流，或者修改其协处理器状态。本内核调用负责获取或者设置线程的当前寄存器组。需要注意的是，RME 的内核调用只默认实现了两个参数和一个返回值，而线程的寄存器组往往非常庞大。为了提高读写效率，用户应当使用其他寄存器自行实现更多的参数和返回值传递。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某个线程寄存器组的所需参数}\label{tab:8-111-get-or-set-thread-register-set-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_REG\_MOD。\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+一个对应于要获取或设置寄存器组内容的线程权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Value & ptr\_t & Param2 & 要设置给该寄存器的值。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7518\hsize\raggedright\arraybackslash}X>{\hsize=1.2482\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置某个线程寄存器组的建议返回值实现}\label{tab:8-112-get-or-set-thread-register-set-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Thd 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Thd 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd 不是线程权能，或为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 指定的寄存器不存在或者不允许读写，或者试图写入的值非法。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置线程的迁移调用寄存器组}\label{subsec:8-get-or-set-thread-migration-call-register-set}
+
+读取和修改迁移调用中保存的寄存器组可以使线程在从迁移调用返回时不返回到原来迁移调用发起的地方，而是返回到其他地址继续执行。这在实现某些功能如准虚拟化时是很有用处的，因此 RME 为此功能专门保留了一个内核调用。虽然迁移调用保存的寄存器组仅仅是线程寄存器组的一个小子集，但为了提高读写效率，用户应当使用其他寄存器自行实现更多的参数和返回值传递。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置线程的迁移调用寄存器组的所需参数}\label{tab:8-113-get-or-set-thread-migration-call-register-set-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_INV\_MOD。\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+一个对应于要获取或设置寄存器组内容的线程权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Reg & ptr\_t & Param2 & 要设置给该寄存器的值。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7518\hsize\raggedright\arraybackslash}X>{\hsize=1.2482\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置线程的迁移调用寄存器组的建议返回值实现}\label{tab:8-114-get-or-set-thread-migration-call-register-set-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Thd 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Thd 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd 不是线程权能，或为空白权能。\tabularnewline
+    RME\_ERR\_SIV\_EMPTY & 指定的线程不在迁移调用中，无法读写其迁移调用寄存器组。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 指定的寄存器不存在或者不允许读写，或者试图写入的值非法。\tabularnewline
+\end{xltabular}
+
+\subsection{获取线程的异常寄存器组}\label{subsec:8-get-thread-exception-register-set}
+
+在线程发生异常时，往往要读取线程发生异常的原因、异常发生的地址等信息，以完成异常处理。本内核调用负责获取这些异常信息。每种架构的异常处理所需的信息的数量和类别都可能不同，因此用户可能需要使用其他寄存器自行实现更多的参数和返回值传递。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取某个线程的异常寄存器组的所需参数}\label{tab:8-115-get-thread-exception-register-set-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+必须为RME\_KFN\_DEBUG\_EXC\_GET。\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+一个对应于要获取寄存器组内容的线程权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8314\hsize\raggedright\arraybackslash}X>{\hsize=1.1686\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取某个线程的异常寄存器组的建议返回值实现}\label{tab:8-116-get-thread-exception-register-set-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Thd的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Thd的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd 不是线程权能，或为空白权能。\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & 指定的寄存器不存在或者不允许读。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置调试模式}\label{subsec:8-get-or-set-debug-mode}
+
+处理器的调试引擎模组往往包括一些寄存器，通过它们可以设置处理器的调试模式以及状态。本内核调用负责获取或设置这些寄存器。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8152\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=1.5979\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置调试模式的所需参数}\label{tab:8-117-get-or-set-debug-mode-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_MODE\_MOD。\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+操作选项，决定了要进行的操作。\tabularnewline
+Param1 & ptr\_t & Param1 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+Param2 & ptr\_t & Param2 &
+额外参数。此参数的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置调试模式的建议返回值实现}\label{tab:8-118-get-or-set-debug-mode-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置指令调试断点状态}\label{subsec:8-get-or-set-instruction-breakpoint-state}
+
+某些处理器可能支持硬件指令断点。当处理器执行到硬件指令断点对应的指令地址时，会产生一个调试中断，调试器可以通过截获这个中断来得知程序已经运行至此。本内核调用负责驱动相关硬件来获取和设置硬件指令断点及其状态。某些处理器的断点功能可能支持ASID，此时需要额外传入顶级页目录权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置指令调试断点状态的所需参数}\label{tab:8-119-get-or-set-instruction-breakpoint-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_IBP\_MOD。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID & 该指令断点的ASID。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Address & ptr\_t & Param2 & 要打指令断点的地址。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置指令调试断点状态的建议返回值实现}\label{tab:8-120-get-or-set-instruction-breakpoint-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+    其他负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\subsection{获取或设置数据调试断点状态}\label{subsec:8-get-or-set-data-breakpoint-state}
+
+某些处理器可能支持硬件数据断点。当处理器对某个数据地址写入或读取时，会产生一个调试中断，调试器可以通过截获这个中断来得知程序正在访问该内存中的某个变量。本内核调用负责驱动相关硬件来获取和设置硬件数据断点及其状态。某些处理器的断点功能可能支持ASID，此时需要额外传入顶级页目录权能。某些处理器的断点功能可能支持ASID，此时需要额外传入顶级页目录权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置数据调试断点状态的所需参数}\label{tab:8-121-get-or-set-data-breakpoint-state-parameters}\\
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 位置 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & 必须为 RME\_KFN\_DEBUG\_DBP\_MOD。\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID & 该数据断点的ASID。\tabularnewline
+Operation & ptr\_t & Param1 &
+操作选项，决定了要进行的操作。\tabularnewline
+Address & ptr\_t & Param2 & 要打数据断点的地址。\tabularnewline
+\end{xltabular}
+
+\needspace{10\baselineskip}
+该操作的返回值建议实现为如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取或设置数据调试断点状态的建议返回值实现}\label{tab:8-122-get-or-set-data-breakpoint-state-suggested-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回值的意义由实现者决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是顶层页目录权能，或为空白权能。\tabularnewline
+    其他负值 & 该操作因硬件原因无法完成，返回值的意义由实现者决定。\tabularnewline
+\end{xltabular}
+
+\section{本章参考文献}\label{sec:8-chapter-bibliography}
+
+无
+

@@ -107,3 +107,26 @@ Project/VSCODE-*/.vscode/c_cpp_properties.json
 .DS_Store
 
 Project/GCC-RV64V/Object/
+
+# LaTeX build products (manuals)
+Document/Public/Manual/Build/
+Document/Public/Manual_CN/Build/
+*.aux
+*.bcf
+*.bbl
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.nav
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv

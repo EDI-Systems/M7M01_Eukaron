@@ -1,0 +1,134 @@
+\chapter{内核功能调用机制和内核异步信号}\label{ch:kernel-call-and-async-signal}
+
+\section{内核调用机制概述}\label{sec:6-kernel-call-overview}
+
+由于 RME 微内核的架构无关部分本身仅实现了对于多种处理器的通用功能，如果某种微处理器具备某种功能，而且该种功能只能在内核态进行操作的话，要利用这种功能就必须使用 RME 的内核调用机制。很多其他系统，例如 Composite\hyperref[cite:6-1]{{[}1{]}}和 seL4\hyperref[cite:6-2]{{[}2{]}}等，也有类似的机制。
+
+内核功能调用（Kernel
+Function）机制引入了内核调用权能，它允许调用一个用户定义好的、处理器架构相关的内核函数，并且使其运行于内核态。该权能必须在启动序列\footnote{见\ref{subsubsec:7-create-kernel-function-capability-at-boot}}中创建，而且无法删除。处理器的高精度定时器、处理器间中断和低功耗运行模式的调整等等都可以通过内核调用机制进行利用，而对于没有这些功能的处理器，内核也不强迫使用者实现这些功能，以实现最大的灵活性。
+
+每一个具体的内核功能都对应着一个内核功能号，在进行内核功能调用时需要传入。关于具体的内核调用机制的实现，请参看下个章节的描述。
+
+\section{内核异步信号概述}\label{sec:6-async-signal-overview}
+
+在 RME 中，由于中断处理函数是在用户态注册的，因此需要某种机制将这些信号传导出来。RME 使用内核异步信号端点（Kernel
+Asynchronous Signal
+Endpoint）的方式将这些中断函数导出。内核异步信号端点和普通的信号端点是一样的，其唯一的区别是创建在系统启动时完成，并且在系统运行的整个过程中不可被删除。如果需要接收内核异步信号端点上的信号，那么只要使用与普通端点同样的接收函数到该端点上接收即可。基于同样的原因，RME 没有在内核中实现定时器，而是将时钟中断传递到用户态进行处理。
+
+\section{内核调用机制功能列表}\label{sec:6-kernel-call-function-list}
+
+与内核调用机制有关的内核功能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0249\hsize\raggedright\arraybackslash}X>{\hsize=0.9066\hsize\raggedright\arraybackslash}X>{\hsize=1.0685\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核调用相关内核功能}\label{tab:6-1-kernel-call-related-kernel-functions}\\
+\toprule
+调用号 & 类型 & 用途\tabularnewline
+\endfirsthead
+\toprule
+调用号 & 类型 & 用途\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_SVC\_KFN & 系统调用 & 调用内核功能\tabularnewline
+\end{xltabular}
+
+\needspace{20\baselineskip}
+内核调用权能的操作标志如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6265\hsize\raggedright\arraybackslash}X>{\hsize=0.6265\hsize\raggedright\arraybackslash}X>{\hsize=1.7471\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核调用操作标志}\label{tab:6-2-kernel-call-operation-flags}\\
+\toprule
+标志 & 类型 & 用途\tabularnewline
+\endfirsthead
+\toprule
+标志 & 类型 & 用途\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+所有位 & 位段 &
+允许的内核功能范围号的范围。注意不要把内核功能号和系统调用号相混淆。在传递内核调用权能时需要使用宏 RME\_KFN\_FLAG(HIGH,LOW) 来填充新的内核调用权能的标志位，HIGH 为功能号的上限，LOW 为功能号的下限，[HIGH, LOW] 组成的闭区间即为允许内核功能号的范围。\tabularnewline
+\end{xltabular}
+
+\subsection{内核调用机制初始创建}\label{subsec:6-kernel-call-initial-creation}
+
+关于内核调用机制的初始创建，请参见\ref{subsubsec:7-create-kernel-function-capability-at-boot}
+。
+
+\subsection{内核调用激活}\label{subsec:6-activate-kernel-call}
+
+该操作会执行一个内核调用函数。该操作可以携带一个子功能号，还可以带两个额外参数。激活一个内核调用需要如下几个参数：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=1.9162\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核调用激活的所需参数}\label{tab:6-3-kernel-call-activation-parameters}\\
+\toprule
+参数名称 & 类型 & 域 & 描述\tabularnewline
+\endfirsthead
+\toprule
+参数名称 & 类型 & 域 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Svc\_Num & ptr\_t & N & 必须为 RME\_SVC\_KFN。\tabularnewline
+Cap\_Kfn & cid\_t & C &
+一个对应于内核调用权能的权能号。该权能号可以是一级或者二级查找编码。\tabularnewline
+Func\_ID & ptr\_t & P1.D0 & 内核功能号。\tabularnewline
+Sub\_ID & ptr\_t & P1.D1 & 子功能号。\tabularnewline
+Param1 & ptr\_t & P2 & 传入的第一个参数。\tabularnewline
+Param2 & ptr\_t & P3 & 传入的第二个参数。\tabularnewline
+\end{xltabular}
+
+该操作的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6791\hsize\raggedright\arraybackslash}X>{\hsize=1.3209\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核调用激活的可能返回值}\label{tab:6-4-kernel-call-activation-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功。返回值的意义由具体的底层实现决定。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kfn 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Kfn 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kfn 不是内核调用权能，或为空白权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Kfn 的功能号范围不允许功能号为 Func\_ID 的调用。\tabularnewline
+    RME\_ERR\_CPT\_NULL & 内核调用因为底层硬件不支持所传入参数而失败。该值一般不会返回，通常被返回的是用户自定义的错误码。\tabularnewline
+\end{xltabular}
+
+\section{内核异步信号功能列表}\label{sec:6-async-signal-function-list}
+
+\subsection{内核信号端点初始创建}\label{subsec:6-kernel-signal-endpoint-initial-creation}
+
+关于内核信号端点的初始创建，请参见\ref{subsubsec:7-create-kernel-signal-endpoint-at-boot}
+。
+
+\subsection{向内核信号端点发送信号}\label{subsec:6-send-signal-to-kernel-signal-endpoint}
+
+关于向内核信号端点的信号发送，请参见\ref{subsubsec:7-send-signal-to-kernel-endpoint}
+。
+
+\subsection{从内核信号端点接收信号}\label{subsec:6-receive-signal-from-kernel-signal-endpoint}
+
+从内核端点接收信号的方法和调用和普通信号端点是一样的，请参见\ref{subsec:5-receive-signal-from-signal-endpoint}
+。
+
+\section{本章参考文献}\label{sec:6-chapter-bibliography}
+
+\protect\phantomsection\label{cite:6-1}
+{[}1{]}
+Q. Wang, Y. Ren, M. Scaperoth, and G. Parmer, "Speck: A kernel for
+scalable predictability," in Real-Time and Embedded Technology and
+Applications Symposium (RTAS), 2015 IEEE, 2015, pp. 121-132.
+
+\protect\phantomsection\label{cite:6-2}
+{[}2{]} G. Klein, K. Elphinstone, G. Heiser, J. Andronick, D. Cock, P.
+Derrin, et al., "seL4: formal verification of an OS kernel," presented
+at the Proceedings of the ACM SIGOPS 22nd symposium on Operating systems
+principles, Big Sky, Montana, USA, 2009.
+

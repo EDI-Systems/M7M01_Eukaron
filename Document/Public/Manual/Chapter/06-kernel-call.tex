@@ -1,0 +1,136 @@
+\chapter{Kernel Function Call Mechanism and Kernel Asynchronous Signal}\label{ch:kernel-call-and-async-signal}
+
+\section{Overview of the Kernel Call Mechanism}\label{sec:6-kernel-call-overview}
+
+Since the architecture-independent part of the RME microkernel itself implements only the generic functionality common to multiple processors, if a certain microprocessor possesses a certain feature and that feature can be operated only in kernel mode, then to make use of that feature one must use RME's kernel call mechanism. Many other systems, such as Composite\hyperref[cite:6-1]{{[}1{]}} and seL4\hyperref[cite:6-2]{{[}2{]}}, also have similar mechanisms.
+
+The kernel function call (Kernel Function) mechanism introduces the kernel call capability, which allows invoking a user-defined, processor-architecture-dependent kernel function and causing it to run in kernel mode. This capability must be created during the boot sequence\footnote{See \ref{subsubsec:7-create-kernel-function-capability-at-boot}} and cannot be deleted. High-precision timers of the processor, inter-processor interrupts, and adjustment of low-power operating modes, among others, can all be exploited through the kernel call mechanism; and for processors that do not have these features, the kernel does not force users to implement them, so as to achieve maximum flexibility.
+
+Each specific kernel function corresponds to a kernel function number, which must be passed in when making a kernel function call. For the implementation of the specific kernel call mechanism, please refer to the description in the next chapter.
+
+\section{Overview of Kernel Asynchronous Signal}\label{sec:6-async-signal-overview}
+
+In RME, since interrupt handling functions are registered in user mode, some mechanism is needed to convey these signals out. RME exports these interrupt functions by means of the kernel asynchronous signal endpoint (Kernel
+Asynchronous Signal
+Endpoint). A kernel asynchronous signal endpoint is the same as an ordinary signal endpoint; the only difference is that it is created at system boot and cannot be deleted throughout the entire course of system operation. If signals on a kernel asynchronous signal endpoint need to be received, one need only use the same receive function as for an ordinary endpoint to receive on that endpoint. For the same reason, RME does not implement timers in the kernel, but instead passes the clock interrupt to user mode for processing.
+
+\section{Kernel Call Mechanism Function List}\label{sec:6-kernel-call-function-list}
+
+The kernel functions related to the kernel call mechanism are as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0249\hsize\raggedright\arraybackslash}X>{\hsize=0.9066\hsize\raggedright\arraybackslash}X>{\hsize=1.0685\hsize\raggedright\arraybackslash}X@{}}
+\caption{Kernel Call Related Kernel Functions}\label{tab:6-1-kernel-call-related-kernel-functions}\\
+\toprule
+Call number & Type & Purpose\tabularnewline
+\endfirsthead
+\toprule
+Call number & Type & Purpose\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_SVC\_KFN & System call & Invoke a kernel function\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{20\baselineskip}
+The operation flags of the kernel call capability are as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6265\hsize\raggedright\arraybackslash}X>{\hsize=0.6265\hsize\raggedright\arraybackslash}X>{\hsize=1.7471\hsize\raggedright\arraybackslash}X@{}}
+\caption{Kernel Call Operation Flags}\label{tab:6-2-kernel-call-operation-flags}\\
+\toprule
+Flag & Type & Purpose\tabularnewline
+\endfirsthead
+\toprule
+Flag & Type & Purpose\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+All bits & Bit field &
+The range of allowed kernel function numbers. Note that the kernel function number must not be confused with the system call number. When transferring a kernel call capability, the macro RME\_KFN\_FLAG(HIGH,LOW) must be used to fill in the flag bits of the new kernel call capability, where HIGH is the upper limit of the function number and LOW is the lower limit of the function number; the closed interval formed by [HIGH, LOW] is the allowed range of kernel function numbers.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Initial Creation of the Kernel Call Mechanism}\label{subsec:6-kernel-call-initial-creation}
+
+For the initial creation of the kernel call mechanism, please see \ref{subsubsec:7-create-kernel-function-capability-at-boot}
+.
+
+\subsection{Kernel Call Activation}\label{subsec:6-activate-kernel-call}
+
+This operation executes a kernel call function. This operation may carry a sub-function number and may also carry two additional parameters. Activating a kernel call requires the following parameters:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=0.6946\hsize\raggedright\arraybackslash}X>{\hsize=1.9162\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Kernel Call Activation}\label{tab:6-3-kernel-call-activation-parameters}\\
+\toprule
+Parameter name & Type & Field & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Field & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Svc\_Num & ptr\_t & N & Must be RME\_SVC\_KFN.\tabularnewline
+Cap\_Kfn & cid\_t & C &
+A capability number corresponding to a kernel call capability. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+Func\_ID & ptr\_t & P1.D0 & Kernel function number.\tabularnewline
+Sub\_ID & ptr\_t & P1.D1 & Sub-function number.\tabularnewline
+Param1 & ptr\_t & P2 & The first parameter passed in.\tabularnewline
+Param2 & ptr\_t & P3 & The second parameter passed in.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+The possible return values of this operation are as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6791\hsize\raggedright\arraybackslash}X>{\hsize=1.3209\hsize\raggedright\arraybackslash}X@{}}
+\caption{Possible Return Values for Kernel Call Activation}\label{tab:6-4-kernel-call-activation-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded. The meaning of the return value is determined by the specific underlying implementation.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Kfn is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Kfn has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kfn is not a kernel call capability, or is an empty capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & The function number range of Cap\_Kfn does not allow an invocation whose function number is Func\_ID.\tabularnewline
+    RME\_ERR\_CPT\_NULL & The kernel call failed because the underlying hardware does not support the passed parameters. This value is generally not returned; what is usually returned is a user-defined error code.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\section{Kernel Asynchronous Signal Function List}\label{sec:6-async-signal-function-list}
+
+\subsection{Initial Creation of Kernel Signal Endpoint}\label{subsec:6-kernel-signal-endpoint-initial-creation}
+
+For the initial creation of the kernel signal endpoint, please see \ref{subsubsec:7-create-kernel-signal-endpoint-at-boot}
+.
+
+\subsection{Sending a Signal to a Kernel Signal Endpoint}\label{subsec:6-send-signal-to-kernel-signal-endpoint}
+
+For sending a signal to a kernel signal endpoint, please see \ref{subsubsec:7-send-signal-to-kernel-endpoint}
+.
+
+\subsection{Receiving a Signal from a Kernel Signal Endpoint}\label{subsec:6-receive-signal-from-kernel-signal-endpoint}
+
+The method and call for receiving signals from a kernel endpoint are the same as those for an ordinary signal endpoint; please see \ref{subsec:5-receive-signal-from-signal-endpoint}
+.
+
+\section{Bibliography of This Chapter}\label{sec:6-chapter-bibliography}
+
+\protect\phantomsection\label{cite:6-1}
+{[}1{]}
+Q. Wang, Y. Ren, M. Scaperoth, and G. Parmer, "Speck: A kernel for
+scalable predictability," in Real-Time and Embedded Technology and
+Applications Symposium (RTAS), 2015 IEEE, 2015, pp. 121-132.
+
+\protect\phantomsection\label{cite:6-2}
+{[}2{]} G. Klein, K. Elphinstone, G. Heiser, J. Andronick, D. Cock, P.
+Derrin, et al., "seL4: formal verification of an OS kernel," presented
+at the Proceedings of the ACM SIGOPS 22nd symposium on Operating systems
+principles, Big Sky, Montana, USA, 2009.

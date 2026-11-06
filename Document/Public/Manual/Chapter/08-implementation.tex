@@ -1,0 +1,3036 @@
+\chapter{Kernel Call Implementation Specifications}\label{ch:kernel-call-implementation-specification}
+
+\section{Overview of Kernel Call Implementation Specifications}\label{sec:8-kernel-call-implementation-overview}
+
+The low-level functions of the processor are implemented in RME using kernel calls. These low-level functions are often highly diverse, and RME's kernel calls must support them all. If each architecture adopted its own implementation scheme, the interface semantics of the various ports would inevitably become mutually incompatible, which would greatly increase the maintenance workload and lead to fragmentation of the ecosystem. To avoid this phenomenon, RME specifies implementation methods for a series of commonly used kernel calls. For any kernel call within the scope described in this chapter, its implementation interface must be consistent with what is described in this chapter. For those additional functions that are not specified in this chapter but are provided by the processor or the system, their implementation is free, but it is recommended to maintain a style consistent with this chapter. In the following subsections, we will introduce each category of kernel calls and their implementation specifications respectively.
+
+An RME kernel call can carry a half-word-length main function number, a half-word-length sub-function number, and two word-length parameters. However, RME does not prohibit the implementer from using the processor's register set to pass additional parameters. In some extension standards, passing additional parameters is allowed, and outputting additional parameters is also allowed. These permitted exceptions will be described in the specific chapters. Unless otherwise specified, the system call number N of all kernel calls is RME\_SVC\_KFN, all of them require passing in a valid\footnote{The permitted operation range includes the passed-in main function number} kernel call capability as the parameter at their C position, and the type of the returned parameter is always ret\_t. In the following chapters, we omit the error return values related to the kernel call capability that have already been listed in Chapter 6, and do not describe them.
+
+Some kernel calls require certain additional capabilities to be passed in\footnote{Such as the page directory capability and the thread capability, etc.}. In this case, we do not perform operation flag attribute checks on these capabilities and assume by default that operations can be performed.
+
+\needspace{16\baselineskip}
+\section{Page Table Kernel Call Implementation Specifications (``P'' Standard Extension)}\label{sec:8-page-table-kernel-calls}
+
+\needspace{16\baselineskip}
+The page table is the only reference for an operating system's memory management, and is also one of the most important data structures in kernel porting. RME is designed to support almost all memory access control methods, including three categories: memory protection units, software-filled memory management units, and hardware-filled memory management units. In addition, page table management must also support multi-core operation, as well as the flushing of translation look-aside buffers or register caches. Therefore, the implementation of page-table-related functions is a key point and also a difficult point in kernel porting. RME specifies the following five page-table-related kernel calls in total:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6594\hsize\raggedright\arraybackslash}X>{\hsize=1.0310\hsize\raggedright\arraybackslash}X>{\hsize=1.3096\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Page Table Kernel Calls}\label{tab:8-1-page-table-kernel-calls}\\
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF000 & RME\_KFN\_PGT\_CACHE\_CLR &
+Clear all cache of a certain page table on the current CPU.\tabularnewline
+0xF001 & RME\_KFN\_PGT\_LINE\_CLR &
+Clear a certain line of the cache of a certain page table on the current CPU.\tabularnewline
+0xF002 & RME\_KFN\_PGT\_ASID\_SET & Set the ASID of a certain page table.\tabularnewline
+0xF003 & RME\_KFN\_PGT\_TLB\_LOCK & Lock a certain page in the TLB.\tabularnewline
+0xF004 & RME\_KFN\_PGT\_ENTRY\_MOD & Query or modify the attributes of a certain page.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\subsection{Four Recommended Forms of Page Tables}\label{subsec:8-four-recommended-page-table-forms}
+\nopagebreak[4]
+
+In RME, depending on the underlying hardware, the page table design strategy adopted may also differ. We divide all memory management hardware into four categories, as described in the table below:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.2760\hsize\raggedright\arraybackslash}X>{\hsize=0.8070\hsize\raggedright\arraybackslash}X>{\hsize=0.8922\hsize\raggedright\arraybackslash}X>{\hsize=0.8070\hsize\raggedright\arraybackslash}X>{\hsize=1.2179\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of the Four Recommended Forms of Page Tables}\label{tab:8-2-four-recommended-page-table-forms}\\
+\toprule
+Category & Path compression & Cache update & Cache & Construction/\allowbreak destruction restriction\tabularnewline
+\endfirsthead
+\toprule
+Category & Path compression & Cache update & Cache & Construction/\allowbreak destruction restriction\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Memory protection unit in a single-core system & Yes & Updated on change & Metadata &
+No sub-page-directories, or even no pages\tabularnewline
+Memory protection unit in a multi-core system & Yes & Updated on page fault & Metadata & No restriction\tabularnewline
+Software-filled memory management unit & No & Updated on page fault & Metadata &
+No restriction\tabularnewline
+Hardware-filled memory management unit & No & Updated by hardware & TLB & No restriction\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsubsection{Memory Protection Unit in a Single-Core System}\label{subsubsec:8-single-core-mpu}
+
+The implementation of this type of page table is characterized by supporting path compression\footnote{Therefore, the validity of the start address needs to be checked at construction time}, and the cache consists of metadata stored at the top-level page directory. Each level of page directory contains a pointer to the top-level page directory, and when mapping, unmapping, constructing, and destructing, changes are directly synchronized to the metadata contained inside the top-level page directory; therefore, the data inside the memory protection unit registers is always consistent with the actual content of the page table, and no additional cache maintenance work is required. Because each level of page directory can record only one pointer to the top-level page directory, this implementation does not allow page directories to be shared between page tables. Because cache metadata must be maintained during construction and destruction, this implementation requires, at both construction and destruction time, that there be no second-level sub-page-directories in the sub-page-directories\footnote{When a sub-page-directory corresponds to one region, such as ARMv7-M}, or even that they contain no pages\footnote{When a sub-page-directory may correspond to multiple regions, such as ARMv8-M}. Because multiple page tables are not allowed to share a page directory, there is also no need for this type of page table to support page directory attributes.
+
+This implementation allows the number of static pages that can be mapped to be no more than ``the number of regions available to the memory protection unit minus 1''\footnote{Because at least one region must be reserved for dynamic page replacement}, while no limit is imposed on the number of dynamic pages. No page fault interrupts occur on static pages, and on dynamic pages interrupts occur only during replacement. The implementation of the dynamic page replacement algorithm is decided by the porter; RME recommends using a pseudo-random replacement algorithm.
+
+The page table of ARMv7-M is a typical example of this type of implementation. This type of implementation requires no page table kernel calls at all, because changes are always consistent with the cache metadata state. This enables this implementation to achieve very good real-time performance. In those situations where only some memory accesses can produce a precise faulting access address, this implementation approach must also be adopted, because not all pages can be filled in when a page fault occurs\footnote{For example, the exceptions generated by the hardware automatic stacking of ARMv7-M; when these exceptions occur, the processor does not fill in MMFAR, so it is difficult to locate the specific access address; even if it can be located, the corresponding register contents of the original thread, such as LR, have already been declared lost, and it is impossible to resume the original program execution flow after handling the error}.
+
+\subsubsection{Memory Protection Unit in a Multi-Core System}\label{subsubsec:8-multi-core-mpu}
+
+The implementation of this type of page table is characterized by supporting path compression\footnote{Therefore, the validity of the start address needs to be checked at construction time}, and the cache consists of metadata stored at the top-level page directory. The cache of each CPU is independent, and they are updated independently when a page fault interrupt occurs. This implementation allows the caches of different CPUs to contain different entries, which is conducive to sharing the work among the CPUs, and also does not cause mutual interference among the CPUs. When mapping, unmapping, constructing, and destructing, changes are not synchronized into the cache metadata. The addition and replacement of cache metadata entries are performed when a page fault interrupt occurs; the clearing of cache metadata, however, needs to be performed using kernel calls. Once unmapping or destruction has been performed, the corresponding operation must be invoked on all cores to reset the cache related to that page directory. If several page tables share that page directory, then the caches of these page tables must be reset on all cores.
+
+Compared with the structure described in Section~\ref{subsubsec:8-single-core-mpu}, although this design suffers a certain loss in real-time performance, page directories can be shared between page tables, and there is no restriction at all during construction and destruction. The loss in real-time performance can also be compensated for by the following method: once a static page has been updated into the cache metadata, it will not disappear until the number of static pages reaches the upper limit and there is a new static page that needs to be mapped; dynamic pages, however, can only replace dynamic pages and will never replace static pages. Thus, as long as the number of static pages accessed simultaneously by one CPU does not exceed the upper limit on static pages\footnote{This upper limit is also ``the number of regions available to the memory protection unit minus 1''}, subsequent accesses to static pages are all real-time except for the first access. The page replacement algorithm is also decided by the porter.
+
+Whether this type of implementation supports page directory attributes is decided by the porter's implementation. If the user decides to implement page directory attributes, then the attribute value (Flags) returned by the \_\_RME\_Pgt\_Walk function must be a common subset of the attribute values of the page directories at all levels, and the \_\_RME\_Pgt\_Pgdir\_Map function must also support page directory attributes. EDI does not recommend implementing page directory attribute support, because generally it is rarely used and is unnecessary.
+
+The page table of TriCore is a typical example of this type of implementation. The real-time performance of this type of implementation is also relatively good, second only to the implementation described in Section~\ref{subsubsec:8-single-core-mpu}. In this type of page table implementation, the kernel function calls that can be implemented are as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.2789\hsize\raggedright\arraybackslash}X>{\hsize=0.8274\hsize\raggedright\arraybackslash}X>{\hsize=0.8937\hsize\raggedright\arraybackslash}X@{}}
+\caption{Kernel Calls That a Multi-Core Memory Protection Unit Needs to Implement}\label{tab:8-3-kernel-calls-required-by-multi-core-mpu}\\
+\toprule
+Name & Function category & Necessity of implementation\tabularnewline
+\endfirsthead
+\toprule
+Name & Function category & Necessity of implementation\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_KFN\_PGT\_CACHE\_CLR & Clear cache & Necessary\tabularnewline
+RME\_KFN\_PGT\_LINE\_CLR & Clear cache & Optional\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsubsection{Software-Filled Memory Management Unit}\label{subsubsec:8-software-filled-mmu}
+
+The implementation of this type of page table is exactly the same as the implementation described in Section~\ref{subsubsec:8-multi-core-mpu}; the only difference is that path compression is not supported at this time, and the start address item may also be left blank when creating a page directory. For a specific description, please refer to Section~\ref{subsubsec:8-multi-core-mpu}
+.
+
+The page table of TMS320C66X is a typical example of this type of implementation. The real-time performance of this type of implementation is exactly the same as that of the implementation described in Section~\ref{subsubsec:8-multi-core-mpu}. For the kernel function calls required to be implemented in this implementation, please also refer to the description in Section~\ref{subsubsec:8-multi-core-mpu}
+.
+
+\subsubsection{Hardware-Filled Memory Management Unit}\label{subsubsec:8-hardware-filled-mmu}
+
+The implementation of this type of page table is characterized by not supporting path compression; the cache is a hardware-implemented translation look-aside buffer (Trans
+Look-aside
+Buffer, TLB), and cache updates are performed by hardware. During mapping and construction, no special consideration is needed, while during unmapping and destruction, the TLBs of all CPUs must be forcibly flushed\footnote{If the TLBs of these CPUs may contain stale entries}. Page directories may be shared arbitrarily between page tables.
+
+In terms of real-time performance, because TLB updates are completely controlled by hardware, more kernel function calls are needed to assist with TLB locking and address space identifier (Address
+Space IDentifier, ASID) related operations to ensure real-time performance.
+
+This type of implementation generally needs to support page directory attributes, because the relevant hardware support often exists, and such architectures are generally used in fairly complex systems that have a realistic demand for page directory attributes.
+
+The page table of x86-64 is a typical example of this type of implementation. The degree of uncertainty in the real-time performance of this type of implementation is relatively large. If ASID support and TLB locking are implemented, then very good real-time performance can be obtained; if no form of TLB locking is implemented, or the processor does not support ASID, then the real-time performance is relatively poor. In this type of page table implementation, the kernel function calls that can be implemented are as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.1838\hsize\raggedright\arraybackslash}X>{\hsize=0.9888\hsize\raggedright\arraybackslash}X>{\hsize=0.8273\hsize\raggedright\arraybackslash}X@{}}
+\caption{Kernel Calls That a Hardware-Filled Memory Management Unit Needs to Implement}\label{tab:8-4-kernel-calls-required-by-hardware-filled-mmu}\\
+\toprule
+Name & Function category & Necessity of implementation\tabularnewline
+\endfirsthead
+\toprule
+Name & Function category & Necessity of implementation\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_KFN\_PGT\_CACHE\_CLR & Clear cache & Necessary\tabularnewline
+RME\_KFN\_PGT\_LINE\_CLR & Clear cache & Optional\tabularnewline
+RME\_KFN\_PGT\_ASID\_SET & Set attributes & Optional\tabularnewline
+RME\_KFN\_PGT\_TLB\_LOCK & Lock the TLB & Optional\tabularnewline
+RME\_KFN\_PGT\_ENTRY\_MOD & Query or modify attributes & Optional\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+If the architecture supports more forms of page-table-related operations, then adding additional kernel calls to implement them is also permitted.
+
+\subsection{Clearing All Cache of a Page Table on the Current CPU}\label{subsec:8-clear-all-page-table-cache}
+
+This operation should be implemented as clearing all cache of a certain page table on the current CPU. In the case described in Section~\ref{subsubsec:8-single-core-mpu}, this operation does not need to be implemented; in the cases described in Sections~\ref{subsubsec:8-multi-core-mpu} and~\ref{subsubsec:8-software-filled-mmu}, this operation must be implemented, and the top-level cache metadata of that page table on the current CPU should be emptied; in the case described in Section~\ref{subsubsec:8-hardware-filled-mmu}, this operation must also be implemented. If the processor supports ASID, then all entries in the TLB of the ASID corresponding to that page table should be cleared\footnote{Including locked TLB entries}; if the processor does not support ASID and the current page table is this page table, then it suffices to flush the TLB directly; if the processor does not support ASID and the current page table is not this page table, then no operation is needed and it suffices to return success directly.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Clear All Cache of a Page Table on the Current CPU}\label{tab:8-5-clear-all-page-table-cache-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PGT\_CACHE\_CLR.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+A capability number corresponding to the top-level page directory capability whose cache is to be cleared. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are recommended to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested Return Value Implementation for Clearing All Cache of a Page Table on the Current CPU}\label{tab:8-6-clear-all-page-table-cache-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Clearing a Certain Line of the Cache of a Page Table on the Current CPU}\label{subsec:8-clear-page-table-cache-line}
+
+This operation should be implemented as clearing a specific entry of a certain page table on the current CPU. In the case described in Section~\ref{subsubsec:8-single-core-mpu}, this operation does not need to be implemented; in the cases described in Sections~\ref{subsubsec:8-multi-core-mpu} and~\ref{subsubsec:8-software-filled-mmu}, this operation is optional to implement, and if implemented, one entry in the top-level cache metadata of that page table on the current CPU should be cleared; in the case described in Section~\ref{subsubsec:8-hardware-filled-mmu}, this operation is also optional to implement. If the processor supports ASID, then one entry of the ASID corresponding to that page table in the TLB should be cleared\footnote{Including a locked TLB entry, if it is selected}; if the processor does not support ASID and the current page table is this page table, then it suffices to clear one entry in the TLB; if the processor does not support ASID and the current page table is not this page table, then no operation is needed and it suffices to return success directly.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Clear a Certain Line of the Cache of a Page Table on the Current CPU}\label{tab:8-7-clear-page-table-cache-line-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PGT\_CACHE\_CLR.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+A capability number corresponding to the top-level page directory capability whose cache line is to be cleared. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+Vaddr & ptr\_t & Param1 & The virtual address whose TLB entry is to be cleared.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are recommended to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested Return Value Implementation for Clearing a Certain Line of the Cache of a Page Table on the Current CPU}\label{tab:8-8-clear-page-table-cache-line-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Setting the ASID of a Page Table}\label{subsec:8-set-page-table-asid}
+
+This operation should be implemented as setting the ASID of a certain page table. The issue of where the ASID of a page table is stored is resolved by the implementer. In the cases described in Sections~\ref{subsubsec:8-single-core-mpu}, \ref{subsubsec:8-multi-core-mpu} and~\ref{subsubsec:8-software-filled-mmu}, this operation does not need to be implemented; in the case described in Section~\ref{subsubsec:8-hardware-filled-mmu}, if the processor supports ASID, then this operation is optional to implement, and should set the ASID of that page table; if the processor does not support ASID, then this operation does not need to be implemented.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Set the ASID of a Page Table}\label{tab:8-9-set-page-table-asid-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PGT\_ASID\_SET.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+A capability number corresponding to the top-level page directory capability whose ASID is to be set. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+ASID & ptr\_t & Param1 & The value to be set as the ASID of this page table.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are recommended to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8455\hsize\raggedright\arraybackslash}X>{\hsize=1.1545\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested Return Value Implementation for Setting the ASID of a Page Table}\label{tab:8-10-set-page-table-asid-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Locking a Certain Page in the TLB}\label{subsec:8-lock-page-in-tlb}
+
+This operation should be implemented as locking a certain page into the TLB. In the cases described in Sections~\ref{subsubsec:8-single-core-mpu}, \ref{subsubsec:8-multi-core-mpu} and~\ref{subsubsec:8-software-filled-mmu}, this operation does not need to be implemented; in the case described in Section~\ref{subsubsec:8-hardware-filled-mmu}, this operation is optional to implement, and the specified virtual address should be locked into the TLB. If the processor does not support ASID, then whether this locked page is cleared when switching address spaces is decided by the architecture and the implementer.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Lock a Certain Page in the TLB}\label{tab:8-11-lock-page-in-tlb-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PGT\_TLB\_LOCK.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+A capability number corresponding to the top-level page directory capability whose ASID is to be set. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+Vaddr & ptr\_t & Param1 & The virtual address to be locked into the TLB.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are recommended to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7588\hsize\raggedright\arraybackslash}X>{\hsize=1.2412\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested Return Value Implementation for Locking a Certain Page in the TLB}\label{tab:8-12-lock-page-in-tlb-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+    RME\_ERR\_PGT\_ADDR & The specified address cannot be found in the given page table, so TLB locking cannot be performed.\tabularnewline
+    RME\_ERR\_PGT\_MAP & The TLB capacity is full, so no new pages can be locked.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Querying or Modifying the Attributes of a Certain Page}\label{subsec:8-query-or-modify-page-attributes}
+
+This operation should be implemented as querying or modifying the attributes of a certain page. The most common page attribute is the ``Dirty''\footnote{Also called ``Modified''} attribute, which is used to determine whether the page has been written; some processors may have other page attributes that can be queried or modified. Note that this function cannot be used to modify any standard page attribute specified by RME in the page table operation interface, but can only be used to read them; reading and writing other architecture-specific attributes are both allowed. In the cases described in Sections~\ref{subsubsec:8-single-core-mpu}, \ref{subsubsec:8-multi-core-mpu} and~\ref{subsubsec:8-software-filled-mmu}, this operation is optional to implement, and if implemented, it does not need to have the function of modifying attributes; in the case described in Section~\ref{subsubsec:8-hardware-filled-mmu}, this operation is optional to implement, and if implemented, both read and write functions should be implemented.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Query or Modify the Attributes of a Certain Page}\label{tab:8-13-query-or-modify-page-attributes-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PGT\_ENTRY\_MOD.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID &
+A capability number corresponding to the top-level page directory capability whose page attributes are to be queried. This capability number may be a one-level or two-level lookup encoding.\tabularnewline
+Vaddr & ptr\_t & Param1 & The virtual address whose attributes are to be queried or modified.\tabularnewline
+Operation & ptr\_t & Param2 &
+The attribute to be queried or modified. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are recommended to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7279\hsize\raggedright\arraybackslash}X>{\hsize=1.2721\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested Return Value Implementation for Querying or Modifying the Attributes of a Certain Page}\label{tab:8-14-query-or-modify-page-attributes-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded, and the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+    RME\_ERR\_PGT\_ADDR & The specified address cannot be found in the given page table, so the attribute modification or query cannot be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{Interrupt Controller Kernel Call Implementation Specifications (``I'' Standard Extension)}\label{sec:8-interrupt-controller-kernel-calls}
+\nopagebreak[4]
+
+Interrupts are an important means by which a system responds to external events; they are responsible for receiving external asynchronous signals and passing those signals to other parts of the system, and are an important component of real-time systems. RME manages each interrupt by means of kernel signal endpoints, and each interrupt is represented as a send to a certain kernel signal endpoint. Therefore, we need to know which interrupt should be sent to which kernel endpoint; if there are multiple CPUs in the system, we also need to know which CPU the hardware interrupt is to be sent to. RME specifies the following three interrupt-controller-related kernel calls in total, all of which are optional to implement:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6758\hsize\raggedright\arraybackslash}X>{\hsize=1.0803\hsize\raggedright\arraybackslash}X>{\hsize=1.2440\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Interrupt Controller Kernel Calls}\label{tab:8-15-interrupt-controller-kernel-calls}\\
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF100 & RME\_KFN\_INT\_LOCAL\_MOD &
+Get or set the state of a certain local interrupt source.\tabularnewline
+0xF101 & RME\_KFN\_INT\_GLOBAL\_MOD &
+Get or set the state of a certain global interrupt source.\tabularnewline
+0xF102 & RME\_KFN\_INT\_LOCAL\_TRIG &
+Trigger a certain local interrupt source of a certain CPU.\tabularnewline
+0xF103 & RME\_KFN\_EVT\_LOCAL\_TRIG &
+Trigger a certain local event source of a certain CPU.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the State of a Certain Local Interrupt Source}\label{subsec:8-get-or-set-local-interrupt-source-state}
+
+This operation should be designed to get or set the state of a certain local interrupt source of the current CPU. Common local interrupt source states include the on/off switch of the local interrupt source, the preemptive and non-preemptive priorities, and their corresponding kernel signal endpoint. This kernel call generally modifies the settings of the CPU's local interrupt controller\footnote{Such as the LAPIC of x86-64}.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7982\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=1.6480\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed to Get or Set the State of a Certain Local Interrupt Source}\label{tab:8-16-get-or-set-local-interrupt-source-state-parameters}\\
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Position & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_INT\_LOCAL\_MOD.\tabularnewline
+Int\_Num & ptr\_t & Sub\_ID &
+The number of the local interrupt source to be queried or modified.\tabularnewline
+Operation & ptr\_t & Param1 &
+The operation to be performed. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameter. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the State of a Local Interrupt Source}\label{tab:8-17-get-or-set-local-interrupt-source-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the State of a Global Interrupt Source}\label{subsec:8-get-or-set-global-interrupt-source-state}
+
+This operation should be designed to get or set the state of a global interrupt source. Common global interrupt source states include the on/off state of the global interrupt source, the CPU to which it is to be connected, and the local interrupt source of that CPU to which it is to correspond. This kernel call generally modifies the settings of the system's global interrupt controller\footnote{such as the IOAPIC of x86-64}.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7982\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=0.7769\hsize\raggedright\arraybackslash}X>{\hsize=1.6480\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the State of a Global Interrupt Source}\label{tab:8-18-get-or-set-global-interrupt-source-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_INT\_LOCAL\_MOD.\tabularnewline
+Int\_Num & ptr\_t & Sub\_ID &
+The number of the global interrupt source to be queried or modified.\tabularnewline
+Operation & ptr\_t & Param1 &
+The operation to be performed. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the State of a Global Interrupt Source}\label{tab:8-19-get-or-set-global-interrupt-source-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Triggering the Local Interrupt Source of a CPU}\label{subsec:8-trigger-local-interrupt-source}
+
+This operation should be designed to trigger a local interrupt source of a certain CPU. Common uses include triggering a local software interrupt or sending an inter-processor interrupt (Inter-Processor
+Interrupt, IPI) to other processors. This kernel call generally triggers the interrupt through the CPU's local interrupt controller\footnote{such as the LAPIC of x86-64}, and sometimes may also trigger the interrupt through the global interrupt controller\footnote{such as the IOAPIC of x86-64}. The functions that this operation can implement include triggering one interrupt of one CPU, triggering several interrupts of one CPU, triggering one interrupt of a group of CPUs, and triggering several interrupts of a group of CPUs; the specific combination of functions to be implemented is decided by the user.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=1.6803\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Triggering the Local Interrupt Source of a CPU}\label{tab:8-20-trigger-local-interrupt-source-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_INT\_LOCAL\_TRIG.\tabularnewline
+CPUID & ptr\_t & Sub\_ID & The number of the CPU to be triggered.\tabularnewline
+Int\_Num & ptr\_t & Param1 &
+The number of the interrupt to be triggered. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Triggering the Local Interrupt Source of a CPU}\label{tab:8-21-trigger-local-interrupt-source-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Triggering the Local Event Source of a CPU}\label{subsec:8-trigger-local-event-source}
+
+This operation should be designed to trigger a local event source of a certain CPU. Unlike local interrupt sources, a local event source generally corresponds to some software-defined operations; these operations send signals to certain special endpoints created at system boot or modify certain memory regions, thereby accomplishing operations or functions defined by the user-mode library of some platforms. For each architecture, the meaning and purpose of this operation may all be different.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=0.7732\hsize\raggedright\arraybackslash}X>{\hsize=1.6803\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Triggering the Local Event Source of a CPU}\label{tab:8-22-trigger-local-event-source-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_EVT\_LOCAL\_TRIG.\tabularnewline
+CPUID & ptr\_t & Sub\_ID & The number of the CPU to be triggered.\tabularnewline
+Evt\_Num & ptr\_t & Param1 &
+The number of the event to be triggered. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Triggering the Local Event Source of a CPU}\label{tab:8-23-trigger-local-event-source-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\section{Cache and Prefetching Kernel Call Implementation Specifications (``C'' Standard Extension)}\label{sec:8-cache-and-prefetch-kernel-calls}
+
+The cache and prefetch subsystem is an important guarantee of system performance. Caches can exploit the locality of programs to accelerate execution, while prefetching can hide memory latency by initiating memory operations in advance. For the following reasons, it is necessary for us to implement the cache- and prefetch-related kernel calls:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  Hardware such as DMA often has no cache coherence with the CPU, so cache coherence operations must be performed manually.
+\item
+  Self-modifying code invalidates instruction prefetching and the instruction cache, so on some architectures the prefetch buffers and caches must be cleared manually.
+\item
+  On some architectures the cacheability of the address space is not controlled by the page table but by special registers, and requires additional configuration.
+\item
+  On some architectures the cache size is variable, and part of the cache may be used as \href{https://blog.csdn.net/dark5669/article/details/56013548}{scratchpad memory} (Scratchpad
+  Memory)\footnote{also called tightly coupled memory (Tightly Coupled Memory, TCM)}, which requires additional configuration.
+\item
+  On some architectures the organization of the cache is variable\footnote{ways, sets, or cache line size}, which requires additional configuration.
+\item
+  Some multi-core architectures allow the caches of the various processors to be incoherent over certain memory regions, which requires additional configuration.
+\end{enumerate}
+
+\needspace{20\baselineskip}
+RME specifies the following 5 cache- and prefetch-related kernel calls in total, all of which are optional to implement:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7432\hsize\raggedright\arraybackslash}X>{\hsize=1.1352\hsize\raggedright\arraybackslash}X>{\hsize=1.1216\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Cache and Prefetching Kernel Calls}\label{tab:8-24-cache-and-prefetch-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF200 & RME\_KFN\_CACHE\_MOD & Get or set the cache state.\tabularnewline
+0xF201 & RME\_KFN\_CACHE\_CONFIG & Get or set the cache configuration.\tabularnewline
+0xF202 & RME\_KFN\_CACHE\_MAINT & Cache maintenance.\tabularnewline
+0xF203 & RME\_KFN\_CACHE\_LOCK & Lock the cache.\tabularnewline
+0xF204 & RME\_KFN\_PRFTH\_MOD & Get or set the prefetch state.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Cache State}\label{subsec:8-get-or-set-cache-state}
+
+This call gets or sets the enable and disable state of a certain cache of the CPU. Generally speaking, this merely requires operating one register of the cache controller to enable and disable the cache. The cache being operated on may be the level-1 cache (L1), the level-2 cache (L2), and so on. Caches can be further subdivided into instruction caches and data caches. On some processors whose cacheability is not controlled by the page table, the cacheability of the address space can also be configured by this kernel call.
+
+Before enabling a cache, whether to clear the contents of the cache is decided by the implementer; the recommended practice is to clear the cache contents. Before disabling a cache, whether to flush the contents of all modified cache lines to memory is likewise decided by the implementer; the recommended practice is to flush the cache contents to memory.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7551\hsize\raggedright\arraybackslash}X>{\hsize=0.7349\hsize\raggedright\arraybackslash}X>{\hsize=0.7349\hsize\raggedright\arraybackslash}X>{\hsize=1.7750\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Cache State}\label{tab:8-25-get-or-set-cache-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_CACHE\_MOD.\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+The identifier of the cache to be obtained or set. The meaning of this parameter is determined by the implementer.\tabularnewline
+Operation & ptr\_t & Param1 &
+The operation to be performed. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Cache State}\label{tab:8-26-get-or-set-cache-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Cache Configuration}\label{subsec:8-get-or-set-cache-configuration}
+
+Some processors support dynamic configuration of the cache organization. This may include allowing part of the cache to be used as tightly coupled memory\footnote{also called scratchpad memory (Scratchpad memory)} (Tightly
+Coupled Memory,
+TCM), or allowing the organizational structure of the cache to be modified, or allowing a general-purpose cache to be configured as a dedicated instruction cache or data cache, or allowing cache incoherence among the various CPUs, or reserving certain cache lines for a certain CPU. These operations are handled by this kernel call.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=1.7243\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Cache Configuration}\label{tab:8-27-get-or-set-cache-configuration-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_CACHE\_CONFIG.\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+The identifier of the cache to be configured. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Cache Configuration}\label{tab:8-28-get-or-set-cache-configuration-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Cache Maintenance}\label{subsec:8-cache-maintenance}
+
+In many situations, such as when DMA or a peripheral updates memory, we need to invalidate a specific cache line or a part of the cache. Or, we need to flush the data in the cache to memory in a timely manner for use by certain peripherals. Typical such peripherals include DMA, network cards, graphics cards, and so on. Such operations are handled by this kernel call.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7616\hsize\raggedright\arraybackslash}X>{\hsize=0.7413\hsize\raggedright\arraybackslash}X>{\hsize=0.7413\hsize\raggedright\arraybackslash}X>{\hsize=1.7559\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Cache Maintenance}\label{tab:8-29-cache-maintenance-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_CACHE\_MAINT.\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+The identifier of the cache to be forcibly invalidated. The meaning of this parameter is determined by the implementer.\tabularnewline
+Operation & ptr\_t & Param1 &
+The category of maintenance to be performed. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Cache Maintenance}\label{tab:8-30-cache-maintenance-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Locking the Cache}\label{subsec:8-lock-cache}
+
+In some situations, we want certain data to remain in the cache forever and never be replaced; at such times the cache needs to be locked. There are many possible implementation schemes for locking a cache: locking a certain line of the cache, locking a certain set of the cache, locking a certain way of the cache, or locking a certain region of the cache, and so on. Such operations are handled by this kernel call.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=0.7586\hsize\raggedright\arraybackslash}X>{\hsize=1.7243\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Locking the Cache}\label{tab:8-31-lock-cache-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_CACHE\_LOCK.\tabularnewline
+Cache\_ID & ptr\_t & Sub\_ID &
+The identifier of the cache to be locked. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Locking the Cache}\label{tab:8-32-lock-cache-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Prefetch State}\label{subsec:8-get-or-set-prefetch-state}
+
+This operation enables or disables the CPU's prefetching function and branch predictor, and is also responsible for querying their state. Generally speaking, this only requires configuring one register of the prefetch engine controller. On some processors, the prefetchability of the address space can also be configured by this kernel call.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8222\hsize\raggedright\arraybackslash}X>{\hsize=0.7274\hsize\raggedright\arraybackslash}X>{\hsize=0.7274\hsize\raggedright\arraybackslash}X>{\hsize=1.7230\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Prefetch State}\label{tab:8-33-get-or-set-prefetch-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PRFTH\_MOD.\tabularnewline
+Prefetch\_ID & ptr\_t & Sub\_ID &
+The identifier of the prefetch engine to be enabled. The meaning of this parameter is determined by the implementer.\tabularnewline
+Operation & ptr\_t & Param1 &
+The operation to be performed. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Prefetch State}\label{tab:8-34-get-or-set-prefetch-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{Hardware Hotplug Kernel Call Implementation Specifications (``H'' Standard Extension)}\label{sec:8-hardware-hotplug-kernel-calls}
+\nopagebreak[4]
+
+Hardware hotplug is a very important part of system availability and scalability. Hotplug allows the system to dynamically add or reduce computing resources\footnote{mainly CPU and memory} on the premise of continuous operation, which greatly increases the scale flexibility of server-class systems and mainframes; in more complex embedded applications, boards can also be dynamically added to increase computing power, or dynamically removed for repair and system maintenance. RME specifies the following 3 hardware hotplug-related kernel calls in total, all of which are optional to implement:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6635\hsize\raggedright\arraybackslash}X>{\hsize=1.0374\hsize\raggedright\arraybackslash}X>{\hsize=1.2991\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Hardware Hotplug Kernel Calls}\label{tab:8-35-hardware-hotplug-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF300 & RME\_KFN\_HPNP\_PCPU\_MOD &
+Get or set the state of a physical processor package.\tabularnewline
+0xF301 & RME\_KFN\_HPNP\_LCPU\_MOD &
+Get or set the state of a logical processor.\tabularnewline
+0xF302 & RME\_KFN\_HPNP\_PMEM\_MOD &
+Get or set the state of a physical memory package.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the State of a Physical Processor Package}\label{subsec:8-get-or-set-physical-processor-package-state}
+
+This operation gets or sets the state of a physical processor package. A ``physical processor'' refers to one processor chip package, or a processor board containing multiple processor chip packages. Common states that need to be obtained or set include power on/off, insertion detection, and so on.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=1.6066\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the State of a Physical Processor Package}\label{tab:8-36-get-or-set-physical-processor-package-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_HPNP\_PCPU\_MOD.\tabularnewline
+PCPUID & ptr\_t & Sub\_ID &
+The identifier of the physical processor whose state is to be obtained or set.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return value of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the State of a Physical Processor Package}\label{tab:8-37-get-or-set-physical-processor-package-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the State of a Logical Processor}\label{subsec:8-get-or-set-logical-processor-state}
+
+This operation gets or sets the state of a logical processor. A ``logical processor'' refers to the mutually independent CPU cores that software can recognize; each core can run only one thread at any time. Note that a logical processor does not necessarily always correspond to a physical core or package. A multi-core processor may integrate multiple physical processors within one package, while hyper-threading technology simulates one physical processor as multiple logical processors. Common states that need to be obtained or set include processor initialization, shutdown, and so on.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=0.7978\hsize\raggedright\arraybackslash}X>{\hsize=1.6066\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the State of a Logical Processor}\label{tab:8-38-get-or-set-logical-processor-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_HPNP\_LCPU\_MOD.\tabularnewline
+LCPUID & ptr\_t & Sub\_ID &
+The identifier of the logical processor whose state is to be obtained or set.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the State of a Logical Processor}\label{tab:8-39-get-or-set-logical-processor-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the State of a Physical Memory Package}\label{subsec:8-get-or-set-physical-memory-package-state}
+
+This operation gets or sets the state of a physical memory package. A ``physical memory package'' refers to a physical memory chip, or a memory module containing multiple physical memory chips. Common states that need to be read or set include power on/off, insertion detection, and so on.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=0.7892\hsize\raggedright\arraybackslash}X>{\hsize=1.6323\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the State of a Physical Memory Package}\label{tab:8-40-get-or-set-physical-memory-package-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_HPNP\_PMEM\_MOD.\tabularnewline
+PMEMID & ptr\_t & Sub\_ID &
+The identifier of the physical memory package whose state is to be read or set.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Additional parameters. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the State of a Physical Memory Package}\label{tab:8-41-get-or-set-physical-memory-package-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{Clock and Voltage Kernel Call Implementation Specifications (``F'' Standard Extension)}\label{sec:8-clock-and-voltage-kernel-calls}
+\nopagebreak[4]
+
+The clock frequency and voltage of a system directly determine the performance and power consumption of the system, and also have an important impact on aspects such as battery life and thermal headroom. RME specifies a total of 7 clock- and voltage-related kernel calls as follows; they are all optionally implemented:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7312\hsize\raggedright\arraybackslash}X>{\hsize=1.0624\hsize\raggedright\arraybackslash}X>{\hsize=1.2064\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Clock and Voltage Kernel Calls}\label{tab:8-42-clock-and-voltage-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF400 & RME\_KFN\_IDLE\_SLEEP & Putting the processor to sleep temporarily.\tabularnewline
+0xF401 & RME\_KFN\_SYS\_REBOOT & Restarting the entire system.\tabularnewline
+0xF402 & RME\_KFN\_SYS\_SHDN & Powering off the entire system.\tabularnewline
+0xF403 & RME\_KFN\_VOLT\_MOD & Getting or setting voltage parameters.\tabularnewline
+0xF404 & RME\_KFN\_FREQ\_MOD & Getting or setting frequency parameters.\tabularnewline
+0xF405 & RME\_KFN\_PMOD\_MOD & Getting or setting power states.\tabularnewline
+0xF406 & RME\_KFN\_SAFETY\_MOD & Getting or setting safety protection states.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Putting the Processor to Sleep}\label{subsec:8-put-processor-to-sleep}
+
+This operation causes the processor to execute a sleep instruction\footnote{such as HLT on x86-64 and WFE on ARM} to enter the sleep state. Various architectures usually provide an instruction that causes the processor to temporarily stop operating until the next interrupt arrives, at which point it continues executing. Some architectures also provide multiple instructions; different instructions cause the CPU to enter sleep states of different depths, in order to strike a balance between power consumption and interrupt latency; the lower the power consumption of the sleep state, the higher the interrupt latency tends to be. For the implementation of correct sleep, please refer to \ref{subsec:9-processor-sleep}.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{Putting the Processor to Sleep}\label{tab:8-43-put-processor-to-sleep}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_IDLE\_SLEEP.\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Putting the Processor to Sleep}\label{tab:8-44-put-processor-to-sleep-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Restarting the Entire System}\label{subsec:8-reboot-system}
+
+This operation, when called on any processor, causes the hardware of the entire system to be completely reset and restarted. Some systems provide multiple restart modes; in this case the restart mode is passed in through an additional parameter.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{Restarting the Entire System}\label{tab:8-45-reboot-system}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_SYS\_REBOOT.\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Restarting the Entire System}\label{tab:8-46-reboot-system-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Powering Off the Entire System}\label{subsec:8-power-off-system}
+
+This operation, when called on any processor, powers off the entire system. This operation is not supported on some architectures\footnote{architectures commonly used for microcontrollers, such as ARMv7-M}, because these architectures do not power off. Some systems provide multiple shutdown modes; in this case the shutdown mode is passed in through an additional parameter.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{Powering Off the Entire System}\label{tab:8-47-power-off-system}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_SYS\_SHDN.\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Powering Off the Entire System}\label{tab:8-48-power-off-system-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting Voltage Parameters}\label{subsec:8-get-or-set-voltage}
+
+This operation gets or sets the supply voltage values of the various power rails of the CPU, memory, and other peripherals. The unit of voltage may be millivolts (mV) or microvolts (uV).
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7902\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=1.6714\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting Voltage Parameters}\label{tab:8-49-get-or-set-voltage-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_VOLT\_MOD.\tabularnewline
+Dom\_ID & ptr\_t & Sub\_ID &
+The identifier of the power domain whose voltage is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Voltage & ptr\_t & Param2 &
+The voltage value to be set. The unit of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting Voltage Parameters}\label{tab:8-50-get-or-set-voltage-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting Frequency Parameters}\label{subsec:8-get-or-set-frequency}
+
+This operation gets or sets the operating frequency of each clock domain of the CPU, memory, and other peripherals. The unit of frequency may be millihertz (mHz), hertz (Hz), kilohertz (kHz), megahertz (MHz), or gigahertz (GHz).
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7902\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=0.7692\hsize\raggedright\arraybackslash}X>{\hsize=1.6714\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting Frequency Parameters}\label{tab:8-51-get-or-set-frequency-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_FREQ\_MOD.\tabularnewline
+Fdom\_ID & ptr\_t & Sub\_ID &
+The identifier of the clock domain whose clock frequency is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Frequency & ptr\_t & Param2 &
+The frequency value to be set. The unit of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting Frequency Parameters}\label{tab:8-52-get-or-set-frequency-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting Power States}\label{subsec:8-get-or-set-power-state}
+
+This operation gets or sets the power states of the CPU, memory, and other peripherals. A power state typically includes the on/off state of power domains and the on/off state of clock domains. On processors that support Dynamic
+Voltage Frequency
+Scaling (DVFS), this operation is also responsible for setting the state of this feature. This operation can also be used to implement restart and shutdown, but this is not recommended, because restart and shutdown have already been assigned dedicated function call numbers.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8152\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=1.5979\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting Power States}\label{tab:8-53-get-or-set-power-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PMOD\_MOD.\tabularnewline
+Pdom\_ID & ptr\_t & Sub\_ID &
+The identifier of the power domain whose power state is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting Power States}\label{tab:8-54-get-or-set-power-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting Safety Protection States}\label{subsec:8-get-or-set-safety-protection-state}
+
+This operation gets or sets the state of the power and frequency safety lock. When the safety lock has not been opened, certain voltages and frequencies are not allowed to be set, because this may cause a system crash and may even cause permanent damage to the hardware\footnote{especially voltage adjustment}. When the safety lock is opened, these restrictions are lifted, allowing the system to be set to more extreme states.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7683\hsize\raggedright\arraybackslash}X>{\hsize=0.7478\hsize\raggedright\arraybackslash}X>{\hsize=0.7478\hsize\raggedright\arraybackslash}X>{\hsize=1.7360\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting Safety Protection States}\label{tab:8-55-get-or-set-safety-protection-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_SAFETY\_MOD.\tabularnewline
+Dom\_ID & ptr\_t & Sub\_ID &
+The identifier of the power domain or clock domain whose safety protection state is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting Safety Protection States}\label{tab:8-56-get-or-set-safety-protection-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{System Monitoring Kernel Call Implementation Specifications (``M'' Standard Extension)}\label{sec:8-system-monitor-kernel-calls}
+\nopagebreak[4]
+
+The system monitor is indispensable for identifying system functionality, confirming system status, and tuning system performance. RME specifies a total of 6 system monitoring kernel calls as follows; they are all optionally implemented:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6668\hsize\raggedright\arraybackslash}X>{\hsize=1.0660\hsize\raggedright\arraybackslash}X>{\hsize=1.2672\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of System Monitoring Kernel Calls}\label{tab:8-57-system-monitor-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF500 & RME\_KFN\_PERF\_CPU\_FUNC & Getting CPU functionality support statuses.\tabularnewline
+0xF501 & RME\_KFN\_PERF\_MON\_MOD &
+Getting or setting performance monitor configurations.\tabularnewline
+0xF502 & RME\_KFN\_PERF\_CNT\_MOD &
+Getting or setting the value of a counting performance counter.\tabularnewline
+0xF503 & RME\_KFN\_PERF\_CYCLE\_MOD &
+Getting or setting the value of a cycle performance counter.\tabularnewline
+0xF504 & RME\_KFN\_PERF\_DATA\_MOD &
+Getting or setting the value of a data performance counter.\tabularnewline
+0xF505 & RME\_KFN\_PERF\_PHYS\_MOD &
+Getting or setting the value of a physical performance counter.\tabularnewline
+0xF506 & RME\_KFN\_PERF\_CUMUL\_MOD &
+Getting or setting the value of a cumulative performance counter.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+When implementing the read operation of some performance counters, because the length of these counters may exceed the allowed length of the return value of an RME system call\footnote{one machine word}, the implementer needs to use other registers themselves to return the remaining part of the counter.
+
+\subsection{Getting CPU Functionality Support Statuses}\label{subsec:8-get-cpu-features}
+
+CPUs of the same architecture may support different subsets of functionality for various reasons. This call allows the user to query the functionality of the CPU to confirm its compatibility with the software.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=0.8482\hsize\raggedright\arraybackslash}X>{\hsize=1.4554\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting CPU Functionality Support Statuses}\label{tab:8-58-get-cpu-features-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_CPU\_FUNC.\tabularnewline
+Freg\_ID & ptr\_t & Sub\_ID & The identifier of the function register to be obtained.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting CPU Functionality Support Statuses}\label{tab:8-59-get-cpu-features-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting Performance Monitor Configurations}\label{subsec:8-get-or-set-performance-monitor-configuration}
+
+Generally speaking, each CPU has some performance counters to record various events in the system. The number of events in a system is often very large, while the number of performance counters in a CPU is limited, so only a subset of events can be selected for recording. This call allows the state of the performance counters to be configured and the event source of each counter to be specified.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting Performance Monitor Configurations}\label{tab:8-60-get-or-set-performance-monitor-configuration-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_MON\_MOD.\tabularnewline
+Perf\_ID & ptr\_t & Sub\_ID &
+The identifier of the performance counter whose configuration is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Param & ptr\_t & Param2 &
+The event identifier to be set for this counter, or other information, which may also be unused. The specific use is determined by the user.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting Performance Monitor Configurations}\label{tab:8-61-get-or-set-performance-monitor-configuration-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Value of a Counting Performance Counter}\label{subsec:8-get-or-set-count-performance-counter}
+
+This operation gets or sets the value of a counting performance counter. A counting performance counter is responsible for recording the number of occurrences of certain events in the system. Common counting events include:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The number of cache replacements
+\item
+  The number of cache hits or misses
+\item
+  The number of times an upper-level cache misses and a lower-level cache hits or misses
+\item
+  The number of times an upper-level cache misses and a lower-level cache hits, where the hit does or does not involve a cache coherence operation
+\item
+  In a NUMA structure, the number of local or remote memory accesses
+\item
+  The number of total interrupts\footnote{or a certain class of interrupts} received by the processor
+\item
+  The number of branch instructions correctly predicted or incorrectly predicted by the processor
+\item
+  The number of atomic operations successfully executed or unsuccessfully executed by the processor, and the number of serialized atomic operations
+\item
+  The number of total instructions\footnote{or a certain class, such as branches, memory accesses, I/O, multiplication and division, etc.} fetched or completed by the processor
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Value of a Counting Performance Counter}\label{tab:8-62-get-or-set-count-performance-counter-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_CNT\_MOD.\tabularnewline
+Cnt\_ID & ptr\_t & Sub\_ID &
+The identifier of the counting performance counter whose value is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set for the counter. Some counters are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Value of a Counting Performance Counter}\label{tab:8-63-get-or-set-count-performance-counter-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Value of a Cycle Performance Counter}\label{subsec:8-get-or-set-cycle-performance-counter}
+
+This operation gets or sets the value of a cycle performance counter. A cycle performance counter is responsible for recording the number of clock cycles during which the effects produced by certain events in the system last. Common cycle measurement events include:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The number of cycles elapsed since the processor was powered on
+\item
+  The number of cycles for which the pipeline is stalled due to cache misses
+\item
+  The number of cycles for which the pipeline is stalled due to TLB misses
+\item
+  The number of cycles in which the processor does not dispatch new instructions due to branch misprediction, instruction delay slots, or other reasons
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Value of a Cycle Performance Counter}\label{tab:8-64-get-or-set-cycle-performance-counter-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_CYCLE\_MOD.\tabularnewline
+Cycle\_ID & ptr\_t & Sub\_ID &
+The identifier of the cycle performance counter whose configuration is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set for the counter. Some counters are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Value of a Cycle Performance Counter}\label{tab:8-65-get-or-set-cycle-performance-counter-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\subsection{Getting or Setting the Value of a Data Performance Counter}\label{subsec:8-get-or-set-data-performance-counter}
+\nopagebreak[4]
+
+This operation gets or sets the value of a data performance counter. A data performance counter is responsible for recording the cumulative amount of data exchanged brought about by certain events in the system. Common data measurement events include:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The total amount of data flowing over a certain bus in the system\footnote{or the amount of data that meets a certain condition, such as size, transfer direction, nature of the data, etc.}
+\item
+  The total amount of data caused by certain operations or certain instructions in the system
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Value of a Data Performance Counter}\label{tab:8-66-get-or-set-data-performance-counter-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_DATA\_MOD.\tabularnewline
+Data\_ID & ptr\_t & Sub\_ID &
+The identifier of the data performance counter whose configuration is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set for the counter. Some counters are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Value of a Data Performance Counter}\label{tab:8-67-get-or-set-data-performance-counter-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Value of a Physical Performance Counter}\label{subsec:8-get-or-set-physical-performance-counter}
+
+This operation gets or sets the value of a physical performance counter. A physical performance counter is responsible for recording the values of certain physical quantities in the system, or related information about them. Common physical quantities include:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The temperature of a certain part of the circuit or the ambient temperature
+\item
+  The fan speed of the cooling system
+\item
+  The current magnitude of a certain clock domain
+\item
+  The total amount of power consumed by a certain clock domain or power domain
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Value of a Physical Performance Counter}\label{tab:8-68-get-or-set-physical-performance-counter-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_PHYS\_MOD.\tabularnewline
+Phys\_ID & ptr\_t & Sub\_ID &
+The identifier of the physical performance counter whose configuration is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set for the counter. Some counters are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Value of a Physical Performance Counter}\label{tab:8-69-get-or-set-physical-performance-counter-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Value of a Cumulative Performance Counter}\label{subsec:8-get-or-set-cumulative-performance-counter}
+
+This operation gets or sets the value of a cumulative performance counter. A cumulative performance counter is responsible for recording the values of certain cumulative time quantities in the system, or related information about them. Common cumulative quantities include:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The total power-on time or the total number of power-ons of the system
+\item
+  The continuous working time of the system since this power-on
+\item
+  The remaining service life or useful life of the system
+\item
+  The health status and damage management status of the system
+\end{enumerate}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Value of a Cumulative Performance Counter}\label{tab:8-70-get-or-set-cumulative-performance-counter-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_PERF\_CUMUL\_MOD.\tabularnewline
+Cumul\_ID & ptr\_t & Sub\_ID &
+The identifier of the cumulative performance counter whose configuration is to be read or set.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set for the counter. Some counters are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Value of a Cumulative Performance Counter}\label{tab:8-71-get-or-set-cumulative-performance-counter-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{Full Virtualization Kernel Call Implementation Specifications (``V'' Standard Extension)}\label{sec:8-full-virtualization-kernel-calls}
+\nopagebreak[4]
+
+Full virtualization (Full
+Virtualization) is indispensable for inheriting existing software stacks and related functionality, and is also an essential feature of new operating system designs. Here, ``full virtualization'' specifically refers to the virtualization extensions provided by the hardware; they greatly increase the efficiency and security of virtualization. The full virtualization kernel calls specified by RME are all optionally implemented, but as long as one decides to implement this feature, then all of them must be implemented. There are 10 such calls in total as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7208\hsize\raggedright\arraybackslash}X>{\hsize=1.0193\hsize\raggedright\arraybackslash}X>{\hsize=1.2599\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Full Virtualization Kernel Calls}\label{tab:8-72-full-virtualization-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF600 & RME\_KFN\_VM\_CRT & Creating a virtual machine.\tabularnewline
+0xF601 & RME\_KFN\_VM\_DEL & Deleting a virtual machine.\tabularnewline
+0xF602 & RME\_KFN\_VM\_PGT & Setting the page table used by a virtual machine.\tabularnewline
+0xF603 & RME\_KFN\_VM\_MOD & Getting or setting the attributes of a virtual machine.\tabularnewline
+0xF604 & RME\_KFN\_VCPU\_CRT & Creating a virtual CPU.\tabularnewline
+0xF605 & RME\_KFN\_VCPU\_BIND & Binding a virtual CPU to a virtual machine.\tabularnewline
+0xF606 & RME\_KFN\_VCPU\_FREE &
+Unbinding a virtual CPU from a virtual machine.\tabularnewline
+0xF607 & RME\_KFN\_VCPU\_DEL & Deleting a virtual CPU.\tabularnewline
+0xF608 & RME\_KFN\_VCPU\_MOD &
+Getting or setting the registers of a virtual CPU.\tabularnewline
+0xF609 & RME\_KFN\_VCPU\_RUN & Running a virtual CPU.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+When implementing the read operation of some registers, because the length of these registers may exceed the allowed length of the return value of an RME system call\footnote{one machine word}, the implementer needs to use other registers themselves to return the remaining part of the register.
+
+Because hardware virtualization extensions often require some special, hardware-defined data structures, the porter needs to allocate the virtual machine and virtual CPU (Virtual
+CPU, VCPU) kernel objects themselves. The underlying logic of these kernel objects and the definitions of the concrete capability structures also need to be completed by the porter. Because the RME kernel does not leave any operation flag bits for kernel extensions, apart from the capability table and page table, these operations do not undergo any operation flag permission checks and may be directly executed by default.
+
+\subsection{Creating a Virtual Machine}\label{subsec:8-create-virtual-machine}
+
+Before using the virtualization extensions, a virtual machine must first be created using this call. In RME, any virtual CPU can only be created after the virtual machine has been created.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Creating a Virtual Machine}\label{tab:8-73-create-virtual-machine-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_VM\_CRT.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_CRT attribute; the capability corresponding to this capability number points to the capability table that is to receive this newly created virtual machine capability. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+A kernel memory capability number whose identified kernel memory range must be able to hold the entire virtual machine kernel object. This capability number can be a one-level or two-level lookup encoding. This kernel function does not check the operation flag bits of the kernel memory capability, and this operation is permitted by default.\tabularnewline
+Cap\_VM & cid\_t & Param1.D0 &
+A capability number corresponding to a position in the capability table that is to receive this newly created virtual machine capability. The capability corresponding to this capability number must be blank. This capability number can only be a one-level lookup encoding.\tabularnewline
+Raddr & ptr\_t & Param2 &
+The starting relative virtual address in kernel space to be used by the newly created virtual machine. This address is relative to the starting virtual address of the kernel capability corresponding to Cap\_Kom.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Creating a Virtual Machine}\label{tab:8-74-create-virtual-machine-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Kom is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_VM is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Kom has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM is frozen, or another core is creating a capability at that location.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom is not a kernel memory capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_CRT attribute.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & The range of Cap\_Kom is incorrect.\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_VM is not a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_KOT & Failed to allocate kernel memory.\tabularnewline
+    RME\_ERR\_PGT\_HW & Due to underlying hardware constraints, the virtual machine kernel object cannot be created at this memory address.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Deleting a Virtual Machine}\label{subsec:8-delete-virtual-machine}
+
+This operation deletes a virtual machine. The virtual machine must have been created by RME\_KFN\_VM\_CRT, and there are currently no VCPUs inside it.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Deleting a Virtual Machine}\label{tab:8-75-delete-virtual-machine-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_VM\_DEL.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_DEL attribute; the capability corresponding to this capability number points to the capability table that contains the virtual machine capability being deleted. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_VM & cid\_t & Param1 &
+A capability number corresponding to the virtual machine capability to be deleted. The capability corresponding to this capability number must be a virtual machine capability. This capability number can only be a one-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\newpage
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Deleting a Virtual Machine}\label{tab:8-76-delete-virtual-machine-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_VM is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VM has not been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM is not a virtual machine capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VM is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Two cores simultaneously attempt to delete this virtual machine; in this case, the core that did not succeed returns this value.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_DEL attribute.\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_VM is not quiescent.\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & The reference count of Cap\_VM is not 0, or it is not a root capability.\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Virtual CPUs still exist in this virtual machine, so it cannot be deleted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Setting the Page Table Used by a Virtual Machine}\label{subsec:8-set-virtual-machine-page-table}
+
+A virtual machine requires a page table when running, which is responsible for mapping the real addresses of this machine to the real addresses of the virtual machine. When the virtual machine is running, this page table will be loaded. This operation is responsible for setting the page table of the virtual machine.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Setting the Page Table Used by a Virtual Machine}\label{tab:8-77-set-virtual-machine-page-table-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_VM\_PGT.\tabularnewline
+Cap\_VM & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual machine; the capability corresponding to this capability number points to the virtual machine whose page table\footnote{top-level page directory} is to be modified. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_Pgt & cid\_t & Param1 &
+A capability number corresponding to a page directory capability that must have the RME\_PGT\_FLAG\_PRC\_PGT attribute; the capability corresponding to this capability number points to the page table\footnote{top-level page directory} to be used by the virtual machine. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7880\hsize\raggedright\arraybackslash}X>{\hsize=1.2120\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Setting the Page Table Used by a Virtual Machine}\label{tab:8-78-set-virtual-machine-page-table-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VM is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VM has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM is not a virtual machine capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a page table capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VM or Cap\_Pgt is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Pgt does not have the RME\_PGT\_FLAG\_PRC\_PGT attribute.\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & The reference count of Cap\_Pgt exceeds the maximum range allowed by the system.\tabularnewline
+    RME\_ERR\_PTH\_CONFLICT & Two cores simultaneously attempt to set the page table; in this case, the core that did not succeed returns this value.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Attributes of a Virtual Machine}\label{subsec:8-get-or-set-virtual-machine-attributes}
+
+On some architectures, a virtual machine has some state registers that act on the overall environment and need to be set. This operation is responsible for setting these registers that may exist.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Attributes of a Virtual Machine}\label{tab:8-79-get-or-set-virtual-machine-attributes-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_VM\_MOD.\tabularnewline
+Cap\_VM & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual machine; the capability corresponding to this capability number points to the virtual machine whose registers are to be read or modified. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set. Some registers are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Attributes of a Virtual Machine}\label{tab:8-80-get-or-set-virtual-machine-attributes-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VM is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VM has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VM is not a virtual machine capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PGT\_HW & Due to hardware constraints, the operation cannot be completed, or the operation is invalid\footnote{top-level page directory}.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Creating a Virtual CPU}\label{subsec:8-create-virtual-cpu}
+
+On a virtual machine, virtual CPUs are the carriers for running the programs of the virtual machine itself. This operation is responsible for creating these virtual CPUs that are essential for running.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Creating a Virtual CPU}\label{tab:8-81-create-virtual-cpu-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_CRT.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_CRT attribute; the capability corresponding to this capability number points to the capability table that is to receive this newly created virtual CPU capability. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+A kernel memory capability number whose identified kernel memory range must be able to hold the entire virtual CPU kernel object. This capability number can be a one-level or two-level lookup encoding. This kernel function does not check the operation flag bits of the kernel memory capability, and this operation is permitted by default.\tabularnewline
+Cap\_VCPU & cid\_t & Param1.D0 &
+A capability number corresponding to a position in the capability table that is to receive this newly created virtual CPU capability. The capability corresponding to this capability number must be blank. This capability number can only be a one-level lookup encoding.\tabularnewline
+Raddr & ptr\_t & Param2 &
+The starting relative virtual address in kernel space to be used by the newly created virtual CPU. This address is relative to the starting virtual address of the kernel capability corresponding to Cap\_Kom.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7406\hsize\raggedright\arraybackslash}X>{\hsize=1.2594\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Creating a Virtual CPU}\label{tab:8-82-create-virtual-cpu-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Kom is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_VCPU is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Kom has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU has been frozen, or another core is creating a capability there.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom is not a kernel memory capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_CRT attribute.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & The range of Cap\_Kom is incorrect.\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_VCPU is not a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_KOT & Failed to allocate kernel memory.\tabularnewline
+    RME\_ERR\_PGT\_HW & Due to underlying hardware constraints, the virtual CPU kernel object cannot be created at this memory address.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Binding a Virtual CPU to a Virtual Machine}\label{subsec:8-bind-virtual-cpu-to-virtual-machine}
+
+A virtual CPU must be bound into a virtual machine before it can participate in the operation of the virtual machine. A virtual machine must first have a page table bound before a virtual CPU can be bound to it. This operation binds a virtual CPU to a virtual machine.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Binding a Virtual CPU to a Virtual Machine}\label{tab:8-83-bind-virtual-cpu-to-virtual-machine-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_BIND.\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual CPU capability; the capability corresponding to this capability number points to the virtual CPU to be bound. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_VM & cid\_t & Param1 &
+A capability number corresponding to a virtual machine capability; the capability corresponding to this capability number points to the target virtual machine. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7831\hsize\raggedright\arraybackslash}X>{\hsize=1.2169\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Binding a Virtual CPU to a Virtual Machine}\label{tab:8-84-bind-virtual-cpu-to-virtual-machine-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VCPU or Cap\_VM is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VCPU or Cap\_VM has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual CPU capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual machine capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU is in the bound state.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The virtual machine corresponding to this virtual CPU has no page table, so binding cannot be performed.\tabularnewline
+    RME\_ERR\_PTH\_CONFLICT & If two CPUs attempt to bind at the same time, this value is returned on the CPU that failed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Unbinding a Virtual CPU from a Virtual Machine}\label{subsec:8-unbind-virtual-cpu-from-virtual-machine}
+
+A virtual CPU can be unbound from a virtual machine. When the binding is released, the virtual CPU must not be running. This operation is responsible for unbinding the virtual CPU.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Unbinding a Virtual CPU from a Virtual Machine}\label{tab:8-85-unbind-virtual-cpu-from-virtual-machine-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_FREE.\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual CPU capability; the capability corresponding to this capability number points to the virtual CPU to be unbound. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8255\hsize\raggedright\arraybackslash}X>{\hsize=1.1745\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Unbinding a Virtual CPU from a Virtual Machine}\label{tab:8-86-unbind-virtual-cpu-from-virtual-machine-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VCPU is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VCPU has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual CPU capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_VCPU is still running, so it cannot be unbound.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU is in the unbound state.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Deleting a Virtual CPU}\label{subsec:8-delete-virtual-cpu}
+
+This operation deletes virtual CPUs. These virtual CPUs must have been created by RME\_KFN\_VCPU\_CRT and must not currently be bound to any virtual machine.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Deleting a Virtual CPU}\label{tab:8-87-delete-virtual-cpu-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_DEL.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_DEL attribute; the capability corresponding to this capability number points to the capability table that contains the virtual CPU capability being deleted. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_VCPU & cid\_t & Param1 &
+A capability number corresponding to the virtual CPU capability to be deleted. The capability corresponding to this capability number must be a virtual CPU capability. This capability number can only be a one-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7784\hsize\raggedright\arraybackslash}X>{\hsize=1.2216\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Deleting a Virtual CPU}\label{tab:8-88-delete-virtual-cpu-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_VCPU is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_VCPU has not been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual CPU capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_VCPU is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Two cores simultaneously attempt to delete this thread; in this case, the core that did not succeed returns this value.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_DEL attribute.\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_VCPU is not quiescent.\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & The reference count of Cap\_VCPU is not 0, or it is not a root capability.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The virtual CPU is still in the bound state.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Registers of a Virtual CPU}\label{subsec:8-get-or-set-virtual-cpu-registers}
+
+A virtual CPU generally has some registers. These registers may be the processor's own working registers, coprocessor registers, or registers of other working modes, and so on. This operation is responsible for getting and setting these registers.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Registers of a Virtual CPU}\label{tab:8-89-get-or-set-virtual-cpu-registers-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_MOD.\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual CPU; the capability corresponding to this capability number points to the virtual CPU whose registers are to be read or modified. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set. Some registers are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Registers of a Virtual CPU}\label{tab:8-90-get-or-set-virtual-cpu-registers-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VCPU is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VCPU has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual machine capability, or is a blank capability.\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & Due to hardware constraints, the operation cannot be completed, or the operation is invalid.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Running a Virtual CPU}\label{subsec:8-run-virtual-cpu}
+
+This operation is responsible for running a virtual CPU. After a thread calls this function, it executes the functionality of this virtual CPU. During runtime, each virtual CPU corresponds to an active thread. In addition, this thread does not use the page table of the process it originally belongs to in order to run this virtual CPU; instead, it uses the page table of the virtual machine to run this virtual CPU.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Running a Virtual CPU}\label{tab:8-91-run-virtual-cpu-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_VCPU\_RUN.\tabularnewline
+Cap\_VCPU & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual CPU capability; the capability corresponding to this capability number points to the virtual CPU to be run. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\newpage
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8255\hsize\raggedright\arraybackslash}X>{\hsize=1.1745\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Running a Virtual CPU}\label{tab:8-92-run-virtual-cpu-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the user.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_VCPU is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_VCPU has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_VCPU is not a virtual CPU capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_VCPU is already running on another CPU.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & Cap\_VCPU is in the unbound state.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\section{Security Monitor Kernel Call Implementation Specifications (``S'' Standard Extension)}\label{sec:8-security-monitor-kernel-calls}
+
+Security monitors (Security
+monitor) play an important role in modern information security. They can often place a small part of the application code inside a secure zone (Enclave), thereby isolating it from the vast majority of code---even privileged code such as the operating system and the virtual machine monitor---greatly reducing the software's attack surface (Attack
+surface). Although it cannot guarantee the integrity (Integrity) and availability (Availability) of an application, it can ensure confidentiality (Confidentiality) to a considerable extent.
+
+The secure/non-secure memory partitioning of a security monitor is always determined once and for all at system manufacturing or boot time: one part of the physical memory address space is designated as secure space, and another part of the physical memory address space is designated as non-secure space. Throughout the entire operation of the system, the secure space is absolutely never accessed at will by the non-secure space. Some security monitor implementations allow these memories to be partitioned dynamically at runtime, but this is a very dangerous behavior, and the current RME specification does not support this feature.
+
+Common security monitors include Intel's Software Guard Extension (SGX), AMD's Secure Encrypted Virtualization (SEV), ARM's TrustZone\footnote{which can be divided into two subcategories, used for Cortex-A and Cortex-M respectively}, and RISC-V's Sanctum and Keystone. All these security monitors can create a small secure zone and guarantee the security of that secure zone.
+
+The goal of this specification is to unify the operations of these security monitors using the same or similar interfaces. Because most security monitors require the creation of some additional data structures, the porter needs to allocate these kernel objects themselves. The underlying logic of these kernel objects and the definitions of the concrete capability structures also need to be completed by the porter. These kernel objects and capabilities themselves reside in the kernel mode of the non-secure zone, so the secure zone logic still needs to be responsible for the confidentiality of the secure zone itself when the kernel is compromised\footnote{At this point, integrity and availability cannot possibly be guaranteed, because the kernel may already have been compromised}.
+
+\needspace{20\baselineskip}
+\needspace{20\baselineskip}
+The 7 security monitor kernel calls specified by RME are all optional to implement, and their list is as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7222\hsize\raggedright\arraybackslash}X>{\hsize=0.9926\hsize\raggedright\arraybackslash}X>{\hsize=1.2852\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Security Monitor Kernel Calls}\label{tab:8-93-security-monitor-kernel-calls}\\
+\toprule
+Main function number & Call name & Function\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Function\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF700 & RME\_KFN\_ECLV\_CRT & Creating a secure zone.\tabularnewline
+0xF701 & RME\_KFN\_ECLV\_DEL & Deleting a secure zone.\tabularnewline
+0xF702 & RME\_KFN\_ECLV\_MOD & Getting or setting the attributes of a secure zone.\tabularnewline
+0xF703 & RME\_KFN\_ETHD\_CRT & Creating a secure zone thread.\tabularnewline
+0xF704 & RME\_KFN\_ETHD\_DEL & Deleting a secure zone thread.\tabularnewline
+0xF705 & RME\_KFN\_ETHD\_MOD &
+Getting or setting the attributes of a secure zone thread.\tabularnewline
+0xF706 & RME\_KFN\_ETHD\_ACT & Running a secure zone thread.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Two Typical Security Monitor Implementations}\label{subsec:8-two-typical-security-monitor-implementations}
+
+Security monitors can be divided into two types: the first is the region type, that is, the system designates a memory region as the secure state, and accessing this secure-state memory must go through a specific interface\footnote{such as Intel SGX and ARMv8-M TrustZone}; the second is the partition type, that is, the system has a secure mode, and accessing resources in the secure mode must go through a software interrupt to switch to the secure state\footnote{such as AMD SEV and ARMv8-A TrustZone}. The second type of security monitor sometimes shares a set of underlying hardware mechanisms with virtualization extensions. Next, we describe the methods for adapting the security monitor kernel call interface under these two different hardware implementations.
+
+\subsubsection{Region Type}\label{subsubsec:8-region-type}
+
+The adaptation of region-type monitors is often relatively easy, because they directly create secure regions within a process. In this case, it is only necessary to make a one-to-one correspondence between the RME interface and the functions provided by the hardware. Under this type of monitor, crossing protection domains often involves dedicated hardware instructions\footnote{such as EENTER and EEXIT of Intel SGX and SG and BXNS (BLXNS) of ARMv8-M}, so RME\_KFN\_ECLV\_ACT does not need to be implemented. This type of security monitor usually allows code inside the secure zone to directly access the non-secure region, although these accesses are not guaranteed to be possible under a specific RME implementation.
+
+RME\_KFN\_ECLV\_CRT, RME\_KFN\_ECLV\_DEL, and RME\_KFN\_ECLV\_MOD must be implemented on this type of security monitor; RME\_KFN\_ETHD\_CRT, RME\_KFN\_ETHD\_DEL, and RME\_KFN\_ETHD\_MOD sometimes need to be implemented; and RME\_KFN\_ETHD\_ACT need not be implemented in the vast majority of cases.
+
+\subsubsection{Partition Type}\label{subsubsec:8-partition-type}
+
+The adaptation of partition-type monitors is often more complicated and involves many state transitions. The usage overhead of this type of monitor is often also relatively large, and the secure state also has some code logic responsible for additional privilege checks. The operations of creating, deleting, and modifying a secure zone will first jump to the kernel non-secure state and complete basic checks, then switch to the kernel secure state through a dedicated switching instruction and be subject to further privilege checks by the kernel secure state, and only then will they be executed. The operations of entering and exiting the secure zone are often also relatively complex, so RME\_KFN\_ECLV\_ACT and RME\_KFN\_ECLV\_RET need to be implemented to achieve explicit jumps. This type of security monitor usually does not allow code inside the secure zone to directly access the non-secure region.
+
+On this type of security monitor, all 7 calls must be implemented.
+
+\subsection{Creating a Secure Zone}\label{subsec:8-create-enclave}
+
+Before using the security monitor extension, a secure zone must first be created using this call. Any other operation is allowed to be executed only after the secure zone has been created.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Creating a Secure Zone}\label{tab:8-94-create-enclave-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ECLV\_CRT.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_CRT attribute; the capability corresponding to this capability number points to the capability table that is to receive this newly created secure zone capability. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_Kom & cid\_t & Param1.D1 &
+A kernel memory capability number whose identified kernel memory range must be able to hold the entire secure zone kernel object. This capability number can be a one-level or two-level lookup encoding. This kernel function does not check the operation flag bits of the kernel memory capability, and this operation is permitted by default.\tabularnewline
+Cap\_ECLV & cid\_t & Param1.D0 &
+A capability number corresponding to a position in the capability table that is to receive this newly created secure zone capability. The capability corresponding to this capability number must be blank. This capability number can only be a one-level lookup encoding.\tabularnewline
+Raddr & ptr\_t & Param2 &
+The starting relative virtual address in kernel space to be used by the newly created secure zone. This address is relative to the starting virtual address of the kernel capability corresponding to Cap\_Kom.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7840\hsize\raggedright\arraybackslash}X>{\hsize=1.2160\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Creating a Secure Zone}\label{tab:8-95-create-enclave-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Kom is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_ECLV is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Kom has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV has been frozen, or another core is creating a capability there.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Kom is not a kernel memory capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_CRT attribute.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & The range of Cap\_Kom is incorrect.\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_ECLV is not a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_KOT & Failed to allocate kernel memory.\tabularnewline
+    RME\_ERR\_PGT\_HW & Due to underlying hardware constraints, the secure zone kernel object cannot be created.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Deleting a Secure Zone}\label{subsec:8-delete-enclave}
+
+This operation deletes a secure zone. The secure zone must have been created by RME\_KFN\_ECLV\_CRT and must currently be in an unused state.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Deleting a Secure Zone}\label{tab:8-96-delete-enclave-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ECLV\_DEL.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_DEL attribute; the capability corresponding to this capability number points to the capability table that contains the secure zone capability being deleted. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_ECLV & cid\_t & Param1 &
+A capability number corresponding to the secure zone capability to be deleted. The capability corresponding to this capability number must be a secure zone capability. This capability number can only be a one-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Deleting a Secure Zone}\label{tab:8-97-delete-enclave-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_ECLV is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ECLV has not been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV is not a secure zone capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_ECLV is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Two cores simultaneously attempt to delete this secure zone; in this case, the core that did not succeed returns this value.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_DEL attribute.\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_ECLV is not quiescent.\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & The reference count of Cap\_ECLV is not 0, or it is not a root capability.\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & The secure zone cannot be deleted for some reason.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Attributes of a Secure Zone}\label{subsec:8-get-or-set-enclave-attributes}
+
+A secure zone usually has some attributes that need to be set after it is created. These attributes usually include the secure zone's memory allocation, initial contents, number of threads, final sealing, and so on. This operation is responsible for setting these attributes where they are present. Because some secure zone attributes may be long, this operation may need to use additional registers to pass in extra parameters. The method of passing these parameters can be customized for each architecture.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Attributes of a Secure Zone}\label{tab:8-98-get-or-set-enclave-attributes-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ECLV\_MOD.\tabularnewline
+Cap\_ECLV & cid\_t & Sub\_ID &
+A capability number corresponding to the secure zone; the capability corresponding to this capability number points to the secure zone whose attributes are to be read or modified. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Value1 & ptr\_t & Param1 & The meaning is determined by the implementer.\tabularnewline
+Value2 & ptr\_t & Param2 & The meaning is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Attributes of a Secure Zone}\label{tab:8-99-get-or-set-enclave-attributes-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_ECLV is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_ECLV has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV is not a secure zone capability, or is a blank capability.\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & The operation cannot be completed due to hardware constraints, or the operation is invalid.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Creating a Secure Zone Thread}\label{subsec:8-create-enclave-thread}
+
+In some security monitor implementations, secure zone threads must be created in advance before they can be executed. This operation is used to create these secure zone threads. Because secure zone threads are located entirely within the secure zone, they do not occupy RME's kernel memory. Note that some security monitors may allow new threads to be created within a secure zone after the secure zone has entered the in-use state.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.6846\hsize\raggedright\arraybackslash}X>{\hsize=0.7216\hsize\raggedright\arraybackslash}X>{\hsize=1.9092\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Creating a Secure Zone Thread}\label{tab:8-100-create-enclave-thread-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ETHD\_CRT.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_CRT attribute; the capability corresponding to this capability number points to the capability table that is to receive this newly created virtual CPU capability. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_ECLV & cid\_t & Param1.D1 &
+A capability number corresponding to a secure zone capability; the capability corresponding to this capability number points to the secure zone that is to contain this thread. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_ETHD & cid\_t & Param1.D0 &
+A capability number corresponding to a position in the capability table that is to receive the newly created secure zone thread capability. The capability corresponding to this capability number must be blank. This capability number can only be a one-level lookup encoding.\tabularnewline
+Param & ptr\_t & Param2 & The meaning is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7840\hsize\raggedright\arraybackslash}X>{\hsize=1.2160\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Creating a Secure Zone Thread}\label{tab:8-101-create-enclave-thread-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_ECLV is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_ETHD is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_ECLV has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD has been frozen, or another core is creating a capability there.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ECLV is not a secure zone capability.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_CRT attribute.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & The range of Cap\_Kom is incorrect.\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_ETHD is not a blank capability.\tabularnewline
+    RME\_ERR\_PGT\_HW & Due to underlying hardware constraints, the secure zone thread object cannot be created.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Deleting a Secure Zone Thread}\label{subsec:8-delete-enclave-thread}
+
+This operation deletes secure zone threads. These secure zone threads must have been created by RME\_KFN\_ETHD\_CRT and must not currently be in use. Note that some security monitors may not allow threads inside a secure zone to be deleted before the secure zone's in-use state is released.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Deleting a Secure Zone Thread}\label{tab:8-102-delete-enclave-thread-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ETHD\_DEL.\tabularnewline
+Cap\_Cpt & cid\_t & Sub\_ID &
+A capability number corresponding to a capability table capability that must have the RME\_CPT\_FLAG\_DEL attribute; the capability corresponding to this capability number points to the capability table containing the secure zone thread capability that is being deleted. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Cap\_ETHD & cid\_t & Param1 &
+A capability number corresponding to the secure zone thread capability to be deleted. The capability corresponding to this capability number must be a secure zone thread capability. This capability number can only be a one-level lookup encoding.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7784\hsize\raggedright\arraybackslash}X>{\hsize=1.2216\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Deleting a Secure Zone Thread}\label{tab:8-103-delete-enclave-thread-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Cpt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level lookup of Cap\_ETHD is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Cpt has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_ETHD has not been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt is not a capability table capability.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD is not a secure zone thread capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Cap\_ETHD is a blank capability.\tabularnewline
+    RME\_ERR\_CPT\_NULL & Two cores simultaneously attempt to delete this thread; in this case, the core that did not succeed returns this value.\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt does not have the RME\_CPT\_FLAG\_DEL attribute.\tabularnewline
+    RME\_ERR\_CPT\_QUIE & Cap\_ETHD is not quiescent.\tabularnewline
+    RME\_ERR\_CPT\_REFCNT & The reference count of Cap\_ETHD is not 0, or it is not a root capability.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The secure zone thread cannot be deleted due to certain hardware constraints.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Attributes of a Secure Zone Thread}\label{subsec:8-get-or-set-enclave-thread-attributes}
+
+Secure zone threads generally have some attributes that need to be configured, namely their stack addresses, entry points, and so on. This operation is responsible for getting or setting these attributes.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Attributes of a Secure Zone Thread}\label{tab:8-104-get-or-set-enclave-thread-attributes-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ETHD\_MOD.\tabularnewline
+Cap\_ETHD & cid\_t & Sub\_ID &
+A capability number corresponding to a secure zone thread; the capability corresponding to this capability number points to the secure zone thread whose attributes are to be read or modified. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 &
+The value to be set. Some attributes are read-only; in this case, set operations are not allowed and only read operations are permitted.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7736\hsize\raggedright\arraybackslash}X>{\hsize=1.2264\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Attributes of a Secure Zone Thread}\label{tab:8-105-get-or-set-enclave-thread-attributes-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & The operation succeeded.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_ETHD is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_ETHD has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD is not a secure zone thread capability, or is a blank capability.\tabularnewline
+    
+    RME\_ERR\_PGT\_HW & The operation cannot be completed due to hardware constraints, or the operation is invalid.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Running a Secure Zone Thread}\label{subsec:8-run-enclave-thread}
+
+This operation is responsible for jumping to a thread in the secure zone to continue its execution. This call only needs to be implemented on partition-type security monitors. If the user wishes to pass extra parameters to the secure zone or return extra parameters from the secure zone, the method of passing them is determined by the user.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=0.6910\hsize\raggedright\arraybackslash}X>{\hsize=1.9271\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Running a Secure Zone Thread}\label{tab:8-106-run-enclave-thread-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_ETHD\_RUN.\tabularnewline
+Cap\_ETHD & cid\_t & Sub\_ID &
+A capability number corresponding to a virtual CPU capability; the capability corresponding to this capability number points to the virtual CPU to be run. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Param1 & ptr\_t & Param1 & The meaning is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 & The meaning is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8086\hsize\raggedright\arraybackslash}X>{\hsize=1.1914\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Running a Secure Zone Thread}\label{tab:8-107-run-enclave-thread-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the user.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_ETHD is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_ETHD has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_ETHD is not a secure zone thread capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_REFCNT & Cap\_ETHD is already running on another thread.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The secure zone containing Cap\_ETHD is not yet ready for execution.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{30\baselineskip}
+\section{Debug and Trace Kernel Call Implementation Specifications (``D'' Standard Extension)}\label{sec:8-debug-and-trace-kernel-calls}
+\nopagebreak[4]
+
+Debugging and tracing are the basic means of program debugging and analysis. RME specifies the following 5 debug and trace kernel calls in total, all of which are optional to implement:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6584\hsize\raggedright\arraybackslash}X>{\hsize=1.0525\hsize\raggedright\arraybackslash}X>{\hsize=1.2891\hsize\raggedright\arraybackslash}X@{}}
+\caption{Overview of Debug and Trace Kernel Calls}\label{tab:8-108-debug-and-trace-kernel-calls}\\
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\endfirsthead
+\toprule
+Main function number & Call name & Purpose\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+0xF800 & RME\_KFN\_DEBUG\_PRINT & Debug printing.\tabularnewline
+0xF801 & RME\_KFN\_DEBUG\_REG\_MOD &
+Get or set the register set of a thread.\tabularnewline
+0xF802 & RME\_KFN\_DEBUG\_INV\_MOD &
+Get or set the invocation register set of a thread.\tabularnewline
+0xF803 & RME\_KFN\_DEBUG\_MODE\_MOD &
+Get or set the debug engine mode.\tabularnewline
+0xF804 & RME\_KFN\_DEBUG\_IBP\_MOD &
+Get or set the instruction debug breakpoint state.\tabularnewline
+0xF805 & RME\_KFN\_DEBUG\_DBP\_MOD &
+Get or set the data debug breakpoint state.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Debug Printing}\label{subsec:8-debug-print}
+
+Debug printing is the most basic program analysis tool. For this purpose, RME provides a dedicated kernel call to implement console character printing. Generally speaking, this call prints one character to the serial port and does not return until printing is complete. This call can also be implemented to print multiple characters; in this case, the extra character parameters need to be passed in by the implementer using free registers.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=0.9369\hsize\raggedright\arraybackslash}X>{\hsize=1.1892\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Debug Printing}\label{tab:8-109-debug-print-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_PRINT.\tabularnewline
+Char & char & Sub\_ID & The character to be printed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Debug Printing}\label{tab:8-110-debug-print-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Register Set of a Thread}\label{subsec:8-get-or-set-thread-register-set}
+
+Reading and modifying the register set of a thread is essential for analyzing the execution status of a program, so RME provides a kernel call to handle such operations. This call can also be used to change the execution flow of a program or to modify its coprocessor state. This kernel call is responsible for getting or setting the current register set of a thread. Note that RME kernel calls implement only two parameters and one return value by default, while the register set of a thread is often very large. To improve read/write efficiency, the user should use other registers to implement the passing of more parameters and return values themselves.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Register Set of a Thread}\label{tab:8-111-get-or-set-thread-register-set-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_REG\_MOD.\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+A capability number corresponding to the thread capability whose register set contents are to be read or set. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Value & ptr\_t & Param2 & The value to be set to this register.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\newpage
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7518\hsize\raggedright\arraybackslash}X>{\hsize=1.2482\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Register Set of a Thread}\label{tab:8-112-get-or-set-thread-register-set-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Thd is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Thd has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd is not a thread capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The specified register does not exist or is not allowed to be read or written, or the value attempted to be written is invalid.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting or Setting the Invocation Register Set of a Thread}\label{subsec:8-get-or-set-thread-migration-call-register-set}
+
+Reading and modifying the register set saved in an invocation can cause a thread, when returning from the invocation, to return not to the place where the invocation was originally initiated, but to another address to continue execution. This is very useful when implementing certain functions such as para-virtualization, so RME has reserved a dedicated kernel call for this function. Although the register set saved by an invocation is only a small subset of the register set of a thread, to improve read/write efficiency, the user should use other registers to implement the passing of more parameters and return values themselves.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting or Setting the Invocation Register Set of a Thread}\label{tab:8-113-get-or-set-thread-migration-call-register-set-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_INV\_MOD.\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+A capability number corresponding to the thread capability whose register set contents are to be read or set. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Reg & ptr\_t & Param2 & The value to be set to this register.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7518\hsize\raggedright\arraybackslash}X>{\hsize=1.2482\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting or Setting the Invocation Register Set of a Thread}\label{tab:8-114-get-or-set-thread-migration-call-register-set-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Thd is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Thd has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd is not a thread capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_SIV\_EMPTY & The specified thread is not in an invocation, so its invocation register set cannot be read or written.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The specified register does not exist or is not allowed to be read or written, or the value attempted to be written is invalid.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Getting the Exception Register Set of a Thread}\label{subsec:8-get-thread-exception-register-set}
+
+When an exception occurs in a thread, it is often necessary to read information such as the cause of the exception and the address at which the exception occurred, so as to complete exception handling. This kernel call is responsible for getting this exception information. The amount and type of information required for exception handling may differ for each architecture, so the user may need to use other registers to implement the passing of more parameters and return values themselves.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7066\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=0.6877\hsize\raggedright\arraybackslash}X>{\hsize=1.9180\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters Needed for Getting the Exception Register Set of a Thread}\label{tab:8-115-get-thread-exception-register-set-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID &
+Must be RME\_KFN\_DEBUG\_EXC\_GET.\tabularnewline
+Cap\_Thd & cid\_t & Sub\_ID &
+A capability number corresponding to the thread capability whose register set contents are to be read. This capability number can be a one-level or two-level lookup encoding.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+It is recommended to implement the return values of this operation as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8314\hsize\raggedright\arraybackslash}X>{\hsize=1.1686\hsize\raggedright\arraybackslash}X@{}}
+\caption{Recommended Return Value Implementation for Getting the Exception Register Set of a Thread}\label{tab:8-116-get-thread-exception-register-set-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Thd is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Thd has already been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Thd is not a thread capability, or is a blank capability.\tabularnewline
+    RME\_ERR\_PTH\_INVSTATE & The specified register does not exist or is not allowed to be read.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Get or Set Debug Mode}\label{subsec:8-get-or-set-debug-mode}
+
+The debug engine module of a processor often includes some registers, through which the debug mode and state of the processor can be set. This kernel call is responsible for getting or setting these registers.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8152\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=0.7935\hsize\raggedright\arraybackslash}X>{\hsize=1.5979\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters needed for getting or setting the debug mode}\label{tab:8-117-get-or-set-debug-mode-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_MODE\_MOD.\tabularnewline
+Operation & ptr\_t & Sub\_ID &
+Operation option, which determines the operation to be performed.\tabularnewline
+Param1 & ptr\_t & Param1 &
+Extra parameter. The meaning of this parameter is determined by the implementer.\tabularnewline
+Param2 & ptr\_t & Param2 &
+Extra parameter. The meaning of this parameter is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are suggested to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5856\hsize\raggedright\arraybackslash}X>{\hsize=1.4144\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested return value implementation for getting or setting the debug mode}\label{tab:8-118-get-or-set-debug-mode-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    Negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Get or Set Instruction Debug Breakpoint State}\label{subsec:8-get-or-set-instruction-breakpoint-state}
+
+Some processors may support hardware instruction breakpoints. When the processor executes to the instruction address corresponding to a hardware instruction breakpoint, a debug interrupt is generated, and the debugger can learn that the program has run to this point by intercepting this interrupt. This kernel call is responsible for driving the relevant hardware to get and set hardware instruction breakpoints and their states. The breakpoint functionality of some processors may support ASID, in which case a top-level page directory capability needs to be passed in additionally.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters needed for getting or setting the instruction debug breakpoint state}\label{tab:8-119-get-or-set-instruction-breakpoint-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_IBP\_MOD.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID & The ASID of this instruction breakpoint.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Address & ptr\_t & Param2 & The address at which the instruction breakpoint is to be set.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\needspace{10\baselineskip}
+The return values of this operation are suggested to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested return value implementation for getting or setting the instruction debug breakpoint state}\label{tab:8-120-get-or-set-instruction-breakpoint-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+    Other negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\subsection{Get or Set Data Debug Breakpoint State}\label{subsec:8-get-or-set-data-breakpoint-state}
+
+Some processors may support hardware data breakpoints. When the processor writes to or reads from a data address, a debug interrupt is generated, and the debugger can learn that the program is accessing a certain variable in that memory by intercepting this interrupt. This kernel call is responsible for driving the relevant hardware to get and set hardware data breakpoints and their states. The breakpoint functionality of some processors may support ASID, in which case a top-level page directory capability needs to be passed in additionally. The breakpoint functionality of some processors may support ASID, in which case a top-level page directory capability needs to be passed in additionally.
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8442\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=0.8216\hsize\raggedright\arraybackslash}X>{\hsize=1.5126\hsize\raggedright\arraybackslash}X@{}}
+\caption{Parameters needed for getting or setting the data debug breakpoint state}\label{tab:8-121-get-or-set-data-breakpoint-state-parameters}\\
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\endfirsthead
+\toprule
+Parameter name & Type & Location & Description\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Func\_Num & ptr\_t & Func\_ID & Must be RME\_KFN\_DEBUG\_DBP\_MOD.\tabularnewline
+Cap\_Pgt & cid\_t & Sub\_ID & The ASID of this data breakpoint.\tabularnewline
+Operation & ptr\_t & Param1 &
+Operation option, which determines the operation to be performed.\tabularnewline
+Address & ptr\_t & Param2 & The address at which the data breakpoint is to be set.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\newpage
+\needspace{10\baselineskip}
+The return values of this operation are suggested to be implemented as follows:
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7450\hsize\raggedright\arraybackslash}X>{\hsize=1.2550\hsize\raggedright\arraybackslash}X@{}}
+\caption{Suggested return value implementation for getting or setting the data debug breakpoint state}\label{tab:8-122-get-or-set-data-breakpoint-state-suggested-return-values}\\
+\toprule
+Return value & Meaning\tabularnewline
+\endfirsthead
+\toprule
+Return value & Meaning\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    Non-negative value & The operation succeeded; the meaning of the return value is determined by the implementer.\tabularnewline
+    RME\_ERR\_CPT\_RANGE & The one-level/two-level lookup of Cap\_Pgt is out of range.\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & The capability of the one-level/two-level lookup of Cap\_Pgt has been frozen.\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt is not a top-level page directory capability, or is an empty capability.\tabularnewline
+    Other negative value & The operation cannot be completed for hardware reasons; the meaning of the return value is determined by the implementer.\tabularnewline
+\end{xltabular}
+\nopagebreak[4]
+
+\section{Chapter Bibliography}\label{sec:8-chapter-bibliography}
+
+None

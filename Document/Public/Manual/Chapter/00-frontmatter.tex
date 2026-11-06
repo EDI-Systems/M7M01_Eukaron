@@ -1,0 +1,96 @@
+\begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+
+    \vspace*{1.6cm}
+
+    \includegraphics[width=2.9cm]{Figure/logo.png}
+
+    \vspace{0.55cm}
+    {\sffamily\small\color{rmemid}EUKARON\par}
+
+    \vfill
+
+    {\sffamily\fontsize{28}{34}\selectfont\color{rmepurple}
+        M7M01 (Eukaron) R4T1\\[6pt]
+        Microkernel General-Purpose\\[2pt]
+        Real-Time Operating System\par}
+
+    \vspace{1.1em}
+    {\sffamily\fontsize{21}{25}\selectfont\color{rmegray}Technical Reference Manual\par}
+
+    \vspace{1.4em}
+    {\rmfamily\large\color{rmemid}
+    Version R4T1\quad$\cdot$\quad September 10, 2024\par}
+
+    \vfill
+
+    {\sffamily\small\color{rmemid}
+    EDI-Systems\quad$\cdot$\quad \texttt{www.rtospro.com}\par}
+    \vspace*{1.4cm}
+
+\end{titlepage}
+
+\chapter*{System Features}
+\addcontentsline{toc}{chapter}{System Features}
+\markboth{System Features}{}
+
+\begin{center}
+{\sffamily\large\color{rmegray}Mutatus $\cdot$ Mesozoa $\cdot$ Eukaron (R.VII)}\\[10pt]
+{\sffamily\large\color{rmegray}M7M01 (Eukaron) R4T1}\\[4pt]
+{\sffamily\Large\bfseries\color{rmegray}Microkernel General-Purpose Real-Time Operating System (Rev. 4 Typ. 1)}\\[8pt]
+{\rmfamily\color{rmemid}Technical Reference Manual}\\[12pt]
+\end{center}
+
+\begin{description}[leftmargin=0pt,labelindent=0pt,style=nextline,itemsep=8pt]
+    \item[\textsf{\color{rmepurple}Minimal Yet Efficient Kernel}]
+    The smallest possible kernel.
+    The scheduler runs at user level.
+
+    \item[\textsf{\color{rmepurple}Broad Architectural Support}]
+    Supports symmetric or asymmetric multi-processor architectures.
+    Supports uniform or non-uniform memory access architectures.
+    All common hardware features are covered by kernel function calls.
+
+    \item[\textsf{\color{rmepurple}Mature Capability Management}]
+    A capability-based third-generation lockless microkernel.
+    Genuine separation of kernel mode and user mode.
+
+    \item[\textsf{\color{rmepurple}Flexible Memory Management}]
+    Memory access is controlled through normal or path-compressed page tables.
+    All memory mappings are managed at user level.
+
+    \item[\textsf{\color{rmepurple}Advanced Thread and Process Model}]
+    Threads can be transferred between multiple processors.
+    Threads can migrate between multiple processes.
+    Other operating systems can be hosted with full or para-virtualization.
+
+    \item[\textsf{\color{rmepurple}Advanced Synchronous and Asynchronous Communication Mechanism}]
+    Synchronous invocations are used for inter-process communication.
+    Asynchronous signals are used to synchronize threads or handle interrupts.
+\end{description}
+
+\newcommand{\RMERevisionHistory}{%
+\chapter*{Revision History}
+\addcontentsline{toc}{chapter}{Revision History}
+\markboth{Revision History}{}
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.25}
+    \small
+    \begin{tabularx}{\textwidth}{@{}>{\sffamily\bfseries\color{rmepurple}}m{1.8cm}
+                                  >{\raggedright\arraybackslash}m{3.2cm}X@{}}
+    \toprule
+    Revision & Date (Year-Month-Day) & Description \\
+    \midrule
+    R1T1 & 2017-07-12 & Initial release. \\
+    R2T1 & 2017-12-02 & Added porting directions. \\
+    R3T1 & 2018-06-04 & Added the appendix. \\
+    R3T2 & 2018-08-17 & Added the kernel function call section and updated the manual to reflect kernel changes. \\
+    R3T3 & 2019-09-17 & Fixed several places and slightly modified the handling of thread scheduler events. \\
+    R4T1 & 2024-09-10 & Released the R4T1 technical reference manual. \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+}

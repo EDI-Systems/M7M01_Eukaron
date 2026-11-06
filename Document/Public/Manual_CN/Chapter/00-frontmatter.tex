@@ -1,0 +1,97 @@
+\begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+
+    \vspace*{1.6cm}
+
+    \includegraphics[width=2.9cm]{Figure/logo.png}
+
+    \vspace{0.55cm}
+    {\sffamily\small\color{rmemid}EUKARON\par}
+
+    \vfill
+
+    {\sffamily\fontsize{28}{34}\selectfont\color{rmepurple}
+        M7M01（Eukaron）R4T1\\[6pt]
+        微内核通用实时操作系统\\[2pt]
+        （四版一型）\par}
+
+    \vspace{1.1em}
+    {\sffamily\fontsize{21}{25}\selectfont\color{rmegray}技术参考手册\par}
+
+    \vspace{1.4em}
+    {\rmfamily\large\color{rmemid}
+    版本 R4T1\quad$\cdot$\quad 二〇二四年九月十日\par}
+
+    \vfill
+
+    {\sffamily\small\color{rmemid}
+    EDI-Systems\quad$\cdot$\quad \texttt{www.rtospro.com}\par}
+    \vspace*{1.4cm}
+
+\end{titlepage}
+
+\chapter*{系统特性}
+\addcontentsline{toc}{chapter}{系统特性}
+\markboth{系统特性}{}
+
+\begin{center}
+{\sffamily\large\color{rmegray}突越·中生·真核（七阶）}\\[4pt]
+{\sffamily\large\color{rmegray}Mutatus · Mesozoa · Eukaron（R.VII）}\\[10pt]
+{\sffamily\large\color{rmegray}M7M01（Eukaron）R4T1}\\[4pt]
+{\sffamily\Large\bfseries\color{rmegray}微内核通用实时操作系统（四版一型）}\\[8pt]
+{\rmfamily\color{rmemid}技术参考手册}\\[12pt]
+\end{center}
+
+\begin{description}[leftmargin=0pt,labelindent=0pt,style=nextline,itemsep=8pt]
+    \item[\textsf{\color{rmepurple}最小化的高效内核}]
+    可能的最小内核。
+    调度器位于用户态。
+
+    \item[\textsf{\color{rmepurple}全面的体系架构支持}]
+    支持多核对称或不对称微处理器。
+    支持对称或不对称内存访问架构。
+    常见硬件功能均有标准内核调用支持。
+
+    \item[\textsf{\color{rmepurple}完善的权限管理}]
+    基于权能的第三代无锁微内核。
+    真正的内核态和用户态相区分。
+
+    \item[\textsf{\color{rmepurple}灵活的内存管理}]
+    通过通常页表或路径压缩页表来控制内存访问权限。
+    所有内存映射在用户态进行管理。
+
+    \item[\textsf{\color{rmepurple}完善的线程模型和进程模型}]
+    线程可以在多个处理器之间转移。
+    线程可以在多个进程之间迁移。
+    可全虚拟化或准虚拟化其他操作系统。
+
+    \item[\textsf{\color{rmepurple}完善的同步和异步通信机制}]
+    使用同步迁移调用完成进程间通信。
+    使用异步信号机制完成线程间同步或处理中断。
+\end{description}
+
+\newcommand{\RMERevisionHistory}{%
+\chapter*{版本历史}
+\addcontentsline{toc}{chapter}{版本历史}
+\markboth{版本历史}{}
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.25}
+    \small
+    \begin{tabularx}{\textwidth}{@{}>{\sffamily\bfseries\color{rmepurple}}m{1.8cm}
+                                  >{\raggedright\arraybackslash}m{3.2cm}X@{}}
+    \toprule
+    版本 & 日期（年-月-日） & 说明 \\
+    \midrule
+    R1T1 & 2017-07-12 & 初始发布。 \\
+    R2T1 & 2017-12-02 & 增加了移植说明。 \\
+    R3T1 & 2018-06-04 & 增加了附录。 \\
+    R3T2 & 2018-08-17 & 增加了内核调用说明，并更新手册以反映内核的更改。 \\
+    R3T3 & 2019-09-17 & 修正若干位置，并对接收线程的调度器事件略作修改。 \\
+    R4T1 & 2024-09-10 & 发布 R4T1 技术参考手册。 \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+}

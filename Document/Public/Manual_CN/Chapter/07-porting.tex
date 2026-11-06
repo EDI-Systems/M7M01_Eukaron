@@ -1,0 +1,3494 @@
+\chapter{移植RME到新架构}\label{ch:porting-rme-to-new-architecture}
+
+\section{移植概述}\label{sec:7-porting-overview}
+
+操作系统的移植是指将一个操作系统加以修改从而使其能运行在一个新的体系架构上的工作。有时，我们也把使得能用一款新编译器编译该操作系统的工作叫做移植工作。相比较于 Linux 等系统的移植，RME 的移植是非常简单的。RME 的所有代码都用绝大程度上符合 MISRA C 规范\footnote{为了维护工程规整性，RME 对此规范有一些必要的背离，见\ref{subsec:9-type-punning-aliasing}}的 ANSI/ISO C89 代码写成，并包含有最小量的汇编，因此其移植工作仅仅需要几步。
+
+在移植之前，我们要先做一些准备工作，以确定移植可以进行；然后，分别针对各个部分，编写相应的移植代码即可。最后，还可以用一些测试用例来测试系统是否正确移植成功。
+
+\section{移植前的检查工作}\label{sec:7-pre-porting-checks}
+
+\subsection{处理器}\label{subsec:7-processor}
+
+RME 要求所选择的处理器能够容纳一个完整的全功能操作系统。处理器必须具备较好的性能，以克服进行系统调用的开销，使全功能操作系统具有实际意义；处理器还必须具备一定的内存访问控制能力，这可以由内存管理单元（MMU）或内存保护单元（MPU）实现。
+
+理想地，这种系统一般都是主频达到GHz级别，有百MB以上级别RAM的32位以上单核或多核微处理器平台。但是，RME 也可以支持仅有16kB
+RAM和64kB ROM的32位单片机。
+
+RME 不能在少于32kB存储器的平台上运行，也不能在低于32位的处理器上运行。此外，如果所选择的处理器没有内存保护功能，那么运行 RME 是没有意义的；在这种状况下，RMP 是一个更好的选择。最后，由于 RME 不支持硬件堆栈机制\footnote{这是 PIC 单片机等少数架构的典型实现方式}，堆栈必须是由软件实现的\footnote{也即堆栈指针可以由用户修改，堆栈实现在内存中}。
+
+\subsection{编译器}\label{subsec:7-compiler}
+
+RME 要求编译器是 C89 标准的，并能够根据一定的函数调用约定生成代码。由于 RME 的代码非常标准，也不使用C运行时库中的库函数，因此只要编译器符合 ANSI C89 标准即可。通常的GCC、CLANG/LLVM、MSVC、ARMCC、ICC、IAR、TASKING等编译器都是满足这个需求的。RME 没有使用位段、enum 和结构体对齐等各编译器实现差别较大的编译器扩展，也没有使用 C 语言中的未定义操作\footnote{除了某一小部分因别无他法造成的未定义行为，见\ref{subsec:9-type-punning-aliasing}}，因此保证了最大限度的兼容性。
+
+在使用低质量编译器时，要注意关闭死代码消除功能和链接时优化功能，最好也要关闭编译器的循环不变量外提优化。某些激进的优化有可能导致中断处理向量被整个优化掉\footnote{因为在函数调用图中它们不会被任何函数调用，某些低质量链接器又不将中断向量纳入函数调用图进行分析}，引起内核无法工作，也有可能导致内核的其他功能故障。不要使用任何激进的编译优化选项，在一般的编译器上，推荐的优化选项是（如 GCC）-O2 或相当的优化水平。
+
+\subsection{汇编器}\label{subsec:7-assembler}
+
+RME 要求汇编器能够引入 C 中的符号，并根据函数调用约定进行调用；此外，也要求汇编器产生的代码能够导出并根据函数调用约定被 C 调用。这通常是非常好满足的要求。如果编译器可以内联汇编，那么不需要汇编器也是可以的。
+
+\subsection{链接器}\label{subsec:7-linker}
+
+RME 要求链接器必须具备链接多个对象\footnote{一般是 .o、.obj 或 .elf 文件}文件到一个中间对象文件的能力，而且要求能够接受定制的链接器脚本。通常的 ld、cl、armlink、ilink/xlink 等链接器都足以满足这种需求。每种链接器的链接器脚本往往都不相同，这往往需要根据每种链接器的语法决定。
+
+\subsection{调试器}\label{subsec:7-debugger}
+
+RME 对调试器没有特别的要求。如果有调试器可用的话，当然是最好的，但是没有调试器也是可以进行移植的。在有调试器的情况下可以直接用调试器查看内核变量；在没有调试器的情况下，要先实现内核最底层的\_\_RME\_Putchar 函数，实现单个字符的打印输出，然后就可以用该打印输出来输出日志了。关于该函数的实现请看下节所述。
+
+\section{RME架构相关部分介绍}\label{sec:7-architecture-dependent-parts-overview}
+
+RME 的架构相关部分代码的源文件全部都放在 Platform 文件夹的对应架构名称下。如 ARMv7-M 架构的文件夹名称为 Platform/A7M。其头文件在 Include/Platform/A7M，其他架构依此类推。
+
+每个架构都包含一个或多个源文件和一个或多个头文件。内核包含架构相关头文件时，总是会包含 rme\_platform.h，而这是一个包含了对应架构顶层头文件的头文件。在更改 RME 的编译目标平台时，通过修改这个头文件来达成对不同目标的相应头文件的包含。比如，要针对ARMv7-M架构进行编译，那么该头文件就应该包含对应ARMv7-M的底层函数实现的全部头文件。
+
+在移植之前，可以先浏览已有的移植，并寻找一个与目标架构的逻辑组织最相近的架构的移植。然后，可以将这个移植拷贝一份，并将其当做模板进行修改。
+
+\subsection{类型定义}\label{subsec:7-type-definitions}
+
+对于每个架构/编译器，首先需要移植的部分就是 RME 的类型定义。RME 的类型定义一共有下表中所示的五个，它们都以rme\_为前缀开始；为了简洁起见，在本手册中rme\_前缀均省去不写。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{类型定义一览}\label{tab:7-1-type-definitions-overview}\\
+\toprule
+类型 & 作用\tabularnewline
+\endfirsthead
+\toprule
+类型 & 作用\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    tid\_t & 线程号的类型。这个类型应该被 typedef 为与处理器字长相等的有符号整数。\newline 例子：\texttt{typedef long tid\_t;}\tabularnewline
+    ptr\_t & 指针整数的类型。这个类型应该被 typedef 为与处理器字长相等的无符号整数。\newline 例子：\texttt{typedef unsigned long ptr\_t;}\tabularnewline
+    cnt\_t & 计数变量的类型。这个类型应该被 typedef 为最长为一个处理器字长但至少为 32 位的有符号整数。\newline 例子：\texttt{typedef long cnt\_t;}\tabularnewline
+    cid\_t & 权能号的类型。这个类型应该被 typedef 为与处理器字长相等的有符号整数。\newline 例子：\texttt{typedef long cid\_t;}\tabularnewline
+    ret\_t & 函数返回值的类型。这个类型应该被 typedef 为与处理器字长相等的有符号整数。\newline 例子：\texttt{typedef long ret\_t;}\tabularnewline
+\end{xltabular}
+
+\subsection{一般宏定义}\label{subsec:7-general-macro-definitions}
+
+其次，需要移植的是 RME 的一般宏定义。RME 的一般宏定义一共有如下几个：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7706\hsize\raggedright\arraybackslash}X>{\hsize=1.2294\hsize\raggedright\arraybackslash}X@{}}
+\caption{一般宏定义一览}\label{tab:7-2-general-macro-definitions-overview}\\
+\toprule
+宏名称 & 作用\tabularnewline
+\endfirsthead
+\toprule
+宏名称 & 作用\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_EXTERN\strut
+ & 编译器的 extern 关键字。某些编译器可能具有不标准的 extern 关键字\footnote{或者需要将一些 C++代码和内核链接起来}，此时用这个宏定义来处理它。
+
+例子：
+
+\#define RME\_EXTERN extern
+
+\#define RME\_EXTERN extern "C"\strut
+\tabularnewline
+RME\_INLINE\strut
+ & 编译器的 inline 关键字。某些编译器可能具有不标准的 inline 关键字\footnote{或者需要强迫内联某些函数}，此时用这个宏定义来处理它。
+
+例子：
+
+\#define RME\_INLINE inline
+
+\#define RME\_INLINE \_\_forceinline\strut
+\tabularnewline
+RME\_LIKELY(X)\strut
+ & 编译器的 likely 关键字，用于指导分支预测，表示此分支很有可能被执行。如果编译器有该功能，就定义此关键字；如果没有，将它定义为(X)即可。
+
+例子：
+
+\#define RME\_LIKELY(X) likely(X)
+
+\#define RME\_LIKELY(X) \_\_builtin\_expect(!!(X),1)
+
+\#define RME\_LIKELY(X) (X)\strut
+\tabularnewline
+RME\_UNLIKELY(X)\strut
+ & 编译器的 unlikely 关键字，用于指导分支预测，表示此分支很有可能不被执行。如果编译器有该功能，就定义此关键字；如果没有，将它定义为(X)即可。
+
+例子：
+
+\#define RME\_UNLIKELY(X) unlikely(X)
+
+\#define RME\_UNLIKELY(X) \_\_builtin\_expect(!!(X),0)
+
+\#define RME\_UNLIKELY(X) (X)\strut
+\tabularnewline
+RME\_CPU\_LOCAL()\strut
+ & 该宏返回一个指向CPU本地存储的，struct RME\_CPU\_Local*类型的指针。对于单核处理器而言，CPU本地存储可以在架构相关层中直接声明为一个变量，此宏只需要返回该变量的地址即可；对于多核处理器而言，CPU本地存储结构体需要在初始化系统时按照系统中处理器的个数动态创建。
+
+例子：
+
+\#define RME\_CPU\_LOCAL() \&RME\_XXX\_CPU\_Local
+
+（某单核架构，静态分配）
+
+\#define RME\_CPU\_LOCAL() asm("mov some\_reg, r0")
+
+（某多核架构，动态分配，地址存储在专用段寄存器中）\strut
+\tabularnewline
+RME\_WORD\_ORDER\strut
+ & 处理器字长（按Bit计算）对应的2的方次。比如，32位处理器对应5，64位处理器对应6，依此类推。
+
+例子：
+
+\#define RME\_WORD\_ORDER (5U)\strut
+\tabularnewline
+RME\_PGT\_PHYS\_ENABLE\strut
+ & 处理器是否要求虚拟地址总是等于物理地址。通常而言，对于基于MMU的系统，这一项总是填写0，此时使用常规页表；对于微控制器等基于MPU的系统，这一项总是填写1，此时使用路径压缩页表。
+
+例子：
+
+\#define RME\_PGT\_PHYS\_ENABLE (1U)\strut
+\tabularnewline
+RME\_QUIE\_TIME\strut
+ & 安定时间的长度，单位是时间片。对于单处理器，由于没有真正的并行性，各个权能总是立即安定的，此项填写``0''；对于多处理器系统，理论上此项填写的值应当超过内核最坏执行时间（WCET）的两倍大小，工程中则推荐十倍大小。通常而言，一个时间片的时长（最小100us量级）远超过内核的WCET（10us量级），因此这里填写1即可。
+
+例子：
+
+\#define RME\_QUIE\_TIME (1U)\strut
+\tabularnewline
+RME\_TIMESTAMP\strut
+ & 用来判断安定时间的系统时间戳。它可以被定义为一个被时钟中断周期性递增的变量或一个自由递增计数器。
+
+例子：
+
+\#define RME\_TIMESTAMP RME\_Timestamp
+
+（定义为某个变量的场合）
+
+\#define RME\_TIMESTAMP RME\_X64\_RDTSC
+
+（定义为读取自由递增计数器的场合）\strut
+\tabularnewline
+RME\_CPT\_ENTRY\_MAX\strut
+ & 权能表的最大长度，单位是权能数量。由于权能表在创建和删除时都需要遍历整个表，因此此宏可通过控制权能表的大小来控制此种遍历的执行时间上限。对于那些对实时性没有过高要求或由受信任的用户态权能管理器控制权能表大小上限的场合，该值可以设置为0；否则可将该值设置为权能表大小的上限。如果该值不是0，最终的权能表大小上限由该值和处理器字长所允许的上限中较小的那一个值确定。
+
+例子：
+
+\#define RME\_CPT\_ENTRY\_MAX (0U)
+
+（无限制的场合）
+
+\#define RME\_CPT\_ENTRY\_MAX (128U)
+
+（限制权能表大小的场合）\strut
+\tabularnewline
+RME\_PGT\_RAW\_ENABLE\strut
+ & 用户态页表直管开关。一旦用户打开这个开关宏，则内核将不再负责页表，并将页表相关事项全权交由用户态的可信进程管理。在创建进程时，可直接指定页表的物理地址，内核将直接信任该物理地址并使用之；这为物理地址管理提供了额外的灵活性，在高并发系统或者微控制器嵌入式系统均可使用。具体地，页表系统调用和内核功能调用将消失，RME\_SVC\_PRC\_CRT 和 RME\_SVC\_PRC\_PGT 系统调用的参数将发生变化，且内核将不再调用除 \_\_RME\_Pgt\_Set 和 \_\_RME\_Pgt\_Kom\_Init 之外的页表底层函数；\_\_RME\_Pgt\_Set的参数亦有变化。具体细节请参见相关章节。
+
+例子：
+
+\#define RME\_PGT\_RAW\_ENABLE (0U)
+
+（内核管理页表的场合）
+
+\#define RME\_PGT\_RAW\_ENABLE (1U)
+
+（用户态可信进程直接管理页表的场合）\strut
+\tabularnewline
+RME\_KOM\_VA\_BASE\strut
+ & 用户可分配的内核虚拟内存的起始地址。填写内核虚拟内存的起始地址即可。创建内核对象时，将从这里开始分配内核内存，并且将这些分配记录在内核内存登记表中。
+
+例子：
+
+\#define RME\_KOM\_VA\_BASE (0xC0000000U)\strut
+\tabularnewline
+RME\_KOM\_VA\_SIZE\strut
+ & 用户可分配的内核虚拟内存的地址空间的大小。填写内核虚拟内存的地址空间大小即可。对于那些需要动态探测内核虚拟内存空间大小的场合\footnote{比如 x86-64 等}，这里填写内核允许的最小大小\footnote{如果探测到比这个大小还小的可用内核内存虚拟地址空间，内核可以拒绝启动}。该宏主要用于在那些内核虚拟内存大小固定的场合间接指定内核内存分配表的大小（如决定RME\_KOT\_WORD\_NUM的值等）；对于那些动态探测内核虚拟内存空间大小的场合并无实际意义。
+
+例子：
+
+\#define RME\_KOM\_VA\_SIZE (0x30000000U)\strut
+\tabularnewline
+RME\_KOM\_SLOT\_ORDER\strut
+ & 内核虚拟内存分配粒度对应的2的方次。比如如果内核内存分配的最小粒度为16Byte，那么这个位置要填写的数字就是log\textsubscript{2}(16)
+= 4。需要注意的是，内存分配的最小粒度不能小于一个处理器字长。
+
+例子：
+
+\#define RME\_KOM\_SLOT\_ORDER (4U)\strut
+\tabularnewline
+RME\_HYP\_VA\_BASE\strut
+ & 虚拟机监视器专用虚拟内存的起始地址。这段内存是给虚拟机监视器使用的，可以设置线程的虚拟化属性到这段地址，以使其寄存器在线程切换时被保存至此。
+
+例子：
+
+\#define RME\_HYP\_VA\_BASE (0x01000000U)\strut
+\tabularnewline
+RME\_HYP\_VA\_SIZE\strut
+ & 虚拟机监视器专用虚拟内存的大小。填写虚拟机专用虚拟内存的实际大小即可。如果不使用这个功能，那么该宏的大小需要设置为0，此时宏 RME\_HYP\_VA\_BASE 也无效。
+
+例子：
+
+\#define RME\_HYP\_VA\_SIZE (0x00010000U)\strut
+\tabularnewline
+RME\_KSTK\_VA\_BASE\strut
+ & 内核堆栈段初始虚拟地址。这是内核启动时使用的堆栈，并不总是代表运行时堆栈；在多核系统上，每个CPU运行的内核代码可能会被安排新的堆栈。
+
+例子：
+
+\#define RME\_KSTK\_VA\_BASE (0xF0000000U)\strut
+\tabularnewline
+RME\_KSTK\_VA\_SIZE\strut
+ & 内核堆栈段初始长度。
+
+例子：
+
+\#define RME\_KSTK\_VA\_SIZE (0x1000U)\strut
+\tabularnewline
+RME\_PREEMPT\_PRIO\_NUM\strut
+ & 内核支持的抢占优先级的最大数量。这个数量必须是处理器字长（按Bit计算）的整数倍，而且不超过处理器字长四分之一对应的2的方次，如32位处理器不超过2\textsuperscript{8}，64位处理器不超过2\textsuperscript{16}。通常而言，把这个值定义为处理器字长就够用了。
+
+例子：
+
+\#define RME\_PREEMPT\_PRIO\_NUM (32U)\strut
+\tabularnewline
+RME\_PGT\_SIZE\_NOM(X) &
+处理器非顶层页目录的大小。这个宏会接受一个参数，该参数的意义是该页目录的表项数目对应的2的方次。如果该页目录中含有1024个表项，那么X的值即为10，此时该宏为 RME\_PGT\_SIZE\_NOM(10)，它会返回该页表的大小，单位为字节。如果每个页表表项的大小是4字节，附加在页表上的附加前置数据\footnote{仅在使用MPU时存在}的大小为4096字节，那么该宏应当返回8192。\tabularnewline
+RME\_PGT\_SIZE\_TOP(X) &
+处理器顶层页目录的大小。这个宏会接受一个参数，该参数的意义是该页目录的表项数目对应的2的方次。这个宏实际上等于 RME\_PGT\_SIZE\_NOM(X) 加上顶层额外的附加数据\footnote{仅在使用MPU时存在}的大小。\tabularnewline
+RME\_KOT\_VA\_BASE\strut
+ & 内核内存登记表所在的内核虚拟内存地址。对于大部分架构，直接将该宏定义为一个大小为 RME\_KOT\_WORD\_NUM 的数组的首地址即可；对于小部分拥有极高内存量的架构\footnote{如最新的 x86-64 可以有上百TB内存}，因为 GCC 等编译器最多默认放置内核到高2GB，内核内存登记表的大小会被限制在2GB，此时最多支持1TB内核内存。因此此时需要重定位该登记表，将其指向不受限制的地址，该地址可以由链接器脚本指定。
+
+例子：
+
+\#define RME\_KOT\_VA\_BASE RME\_XXX\_Kot
+
+（小内核内存分配表）
+
+\#define RME\_KOT\_VA\_BASE ((ptr\_t*)0xFFFF800001000000U)
+
+（大内核内存分配表）\strut
+\tabularnewline
+RME\_INV\_DEPTH\_MAX\strut
+ & 线程迁移调用的最深深度限制。这一限制是为了确保线程删除操作的最坏执行时间可控，因为它需要逐层脱去线程当前正在进行的迁移调用。对于那些对实时性没有过高要求或从不删除线程的场合，该值可以设置为0；否则可将该值设置为迁移调用深度的上限。
+
+例子：
+
+\#define RME\_INV\_DEPTH\_MAX (0U)
+
+（无限制的场合）
+
+\#define RME\_INV\_DEPTH\_MAX (32U)
+
+（限制迁移调用深度的场合）\strut
+\tabularnewline
+RME\_ASSERT\_FAILED(F,L,D,T)\strut
+ & 断言失败处理。在内核中一旦发生断言失败，就意味着内核彻底崩溃，必须完全复位重启，具体的处理方法与架构有关。该宏的四个参数分别是 C 预处理器提供的 \_\_FILE\_\_、\_\_LINE\_\_、\_\_DATE\_\_ 和 \_\_TIME\_\_，如果用户希望使用这四个参数，那么可以从这里读取。
+
+例子：
+
+\#define RME\_ASSERT\_FAILED(F,L,D,T) \_\_reboot\_processor()\strut
+\tabularnewline
+RME\_COP\_NUM\strut
+ & 系统中协处理器的数量。如果内核支持协处理器，将它设置为大于0的数值即可。内核代码会根据该值是否为0来判断是否需要链接协处理器相关函数，但内核运行时并不关心这个数字的具体数值。
+
+\#define RME\_COP\_NUM (1U)\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{特殊宏定义}\label{subsec:7-special-macro-definitions}
+
+这些宏定义仅在微控制器平台上出现，对于微处理器平台是无意义的。它们是配合 RVM 虚拟机监视器使用的，且这些宏定义可以由RVM配套的工程生成器来填充。有关RVM的相关信息，请查阅RVM的手册。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7337\hsize\raggedright\arraybackslash}X>{\hsize=1.2663\hsize\raggedright\arraybackslash}X@{}}
+\caption{特殊宏定义一览}\label{tab:7-3-special-macro-definitions-overview}\\
+\toprule
+宏名称 & 作用\tabularnewline
+\endfirsthead
+\toprule
+宏名称 & 作用\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_RVM\_INIT\_CPT\_SIZE\strut
+ & 内核启动时创建的初始权能表的大小。
+
+例子：
+
+\#define RME\_RVM\_INIT\_CPT\_SIZE (54U)\strut
+\tabularnewline
+RME\_RVM\_CPT\_BOOT\_FRONT\strut
+ & 在内核启动后的初始权能表水位。在该水位以后，所有的权能都是空的，RVM将使用它们来创建内核对象。内核本身并不使用这个宏；用户可以在内核启动后检查占用的权能是否超过该水位，若超过该水位则报错。
+
+例子：
+
+\#define RME\_RVM\_CPT\_BOOT\_FRONT RVM\_CAP\_NUM\strut
+\tabularnewline
+RME\_RVM\_KOM\_BOOT\_FRONT\strut
+ & 在内核启动后的内核内存水位，是一个相对于RME\_KOM\_VA\_BASE的值。内核本身并不使用这个宏；用户可以在内核启动后检查占用的内核内存是否超过该水位，若超过该水位则报错。
+
+\#define RME\_RVM\_KOM\_BOOT\_FRONT RVM\_KOM\_ADDR\strut
+\tabularnewline
+RME\_RVM\_CPT\_DONE\_FRONT\strut
+ & 在RVM完成一切内核对象创建后的初始权能表水位。在该水位以后，所有的权能都是空的，用户可以使用它们来创建内核对象。内核本身并不使用这个宏；这个宏是为了用户编写启动代码方便而提供的。
+
+例子：
+
+\#define RME\_RVM\_CPT\_DONE\_FRONT USER\_CAP\_NUM\strut
+\tabularnewline
+RME\_RVM\_KOM\_DONE\_FRONT\strut
+ & 在内核启动后的内核内存水位，是一个相对于RME\_KOM\_VA\_BASE的值。内核本身并不使用这个宏；这个宏是为了用户编写启动代码方便而提供的。用户可以在启动后检查占用的内核内存是否超过该水位，若超过该水位则报错。
+
+\#define RME\_RVM\_KOM\_DONE\_FRONT USER\_KOM\_ADDR\strut
+\tabularnewline
+RME\_RVM\_PHYS\_VCT\_NUM &
+物理中断的数量。该宏将由工程生成器根据芯片实况填充。\tabularnewline
+RME\_RVM\_PHYS\_VCTF\_BASE &
+物理中断标志位占存区的起始位置以及大小。用以通知虚拟机监视器物理中断的发生。该宏将由工程生成器负责填充。\tabularnewline
+RME\_RVM\_PHYS\_VCTF\_SIZE &\tabularnewline
+RME\_RVM\_VIRT\_EVT\_NUM &
+事件源的数量。该宏将由工程生成器根据工程配置填充。\tabularnewline
+RME\_RVM\_VIRT\_EVTF\_BASE &
+事件源标志位占存区的起始位置以及大小。用以通知虚拟机监视器事件源刺激的发生。该宏将由工程生成器负责填充。\tabularnewline
+RME\_RVM\_VIRT\_EVTF\_SIZE &\tabularnewline
+\end{xltabular}
+
+\subsection{调试开关宏定义}\label{subsec:7-debug-switch-macro-definitions}
+
+这些宏定义与内核调试打印有关。它们的值可以决定内核调试功能的开启与否。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6791\hsize\raggedright\arraybackslash}X>{\hsize=1.3209\hsize\raggedright\arraybackslash}X@{}}
+\caption{调试开关宏定义一览}\label{tab:7-4-debug-switch-macro-definitions-overview}\\
+\toprule
+宏名称 & 作用\tabularnewline
+\endfirsthead
+\toprule
+宏名称 & 作用\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_ASSERT\_ENABLE\strut
+ & 控制断言宏是否开启。如果需要启用RME\_ASSERT宏以检测错误，请将其定义为1，否则可将其定义为0，此时断言将不被检查。
+
+例子：
+
+\#define RME\_ASSERT\_ENABLE (1U)\strut
+\tabularnewline
+RME\_DBGLOG\_ENABLE\strut
+ & 控制以RME\_DBG\_为前缀的各个调试打印宏是否开启。如果需要在内核中调试打印，请将其定义为1。
+
+例子：
+
+\#define RME\_DBGLOG\_ENABLE (1U)\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{架构相关结构体}\label{subsec:7-architecture-dependent-structs}
+
+RME 的架构相关结构体一共有三个，分别如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6447\hsize\raggedright\arraybackslash}X>{\hsize=1.3553\hsize\raggedright\arraybackslash}X@{}}
+\caption{架构相关结构体一览}\label{tab:7-5-architecture-dependent-structs-overview}\\
+\toprule
+结构体 & 意义\tabularnewline
+\endfirsthead
+\toprule
+结构体 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_Reg\_Struct &
+进入中断函数时寄存器压栈的结构体，包含了CPU的各个寄存器。\tabularnewline
+RME\_Exc\_Struct &
+与异常处理相关（包含异常原因和地址等）的结构体，包含了其各个寄存器。\tabularnewline
+RME\_Iret\_Struct &
+与程序执行流相关的，在同步迁移调用中要保存和恢复的寄存器的结构体。\tabularnewline
+\end{xltabular}
+
+这三个结构体的实现和系统中断向量进入段汇编函数的实现有关。
+
+\subsection{汇编底层函数}\label{subsec:7-assembly-low-level-functions}
+
+RME 仅要求用汇编或内联汇编实现4个短小的底层汇编函数。这些函数的名称和意义如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0701\hsize\raggedright\arraybackslash}X>{\hsize=0.9299\hsize\raggedright\arraybackslash}X@{}}
+\caption{汇编底层函数一览}\label{tab:7-6-assembly-low-level-functions-overview}\\
+\toprule
+函数名 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数名 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+主函数(main)或程序入口点 & 内核程序的入口点。\tabularnewline
+\_\_RME\_Int\_Disable & 禁止处理器中断。\tabularnewline
+\_\_RME\_Int\_Enable & 使能处理器中断。\tabularnewline
+\_\_RME\_User\_Enter & 进入用户态执行。\tabularnewline
+\end{xltabular}
+
+这些函数的具体实现方法和实现次序将在后面章节加以讲解。
+
+\subsection{系统中断向量}\label{subsec:7-system-interrupt-vectors}
+
+RME 最低仅仅要求用汇编或内联汇编实现3个中断向量。这些中断向量的名称和意义如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8317\hsize\raggedright\arraybackslash}X>{\hsize=1.1683\hsize\raggedright\arraybackslash}X@{}}
+\caption{系统中断向量一览}\label{tab:7-7-system-interrupt-vectors-overview}\\
+\toprule
+中断向量名 & 意义\tabularnewline
+\endfirsthead
+\toprule
+中断向量名 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+系统定时器中断向量 & 处理系统定时器中断，管理时间片使用。\tabularnewline
+系统调用中断向量 & 处理系统调用时使用。\tabularnewline
+系统错误中断向量 & 发生访存错误及其他处理器错误时使用。\tabularnewline
+\end{xltabular}
+
+这些中断向量的具体实现方法和实现次序将在后面章节加以讲解。
+
+\subsection{其他底层函数}\label{subsec:7-other-low-level-functions}
+
+这些底层函数涉及到页表、处理器特殊功能等其他方面。这些函数可以用汇编实现，也可以不用汇编实现，也可以部分使用 C 语言，部分使用内联汇编实现。这些函数的可以分成如下几类：
+
+\subsubsection{内核调试打印函数}\label{subsubsec:7-kernel-debug-print-function}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7990\hsize\raggedright\arraybackslash}X>{\hsize=1.2010\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核调试打印函数一览}\label{tab:7-8-kernel-debug-print-function-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Putchar & 打印一个字符到内核调试控制台。\tabularnewline
+\end{xltabular}
+
+\subsubsection{处理器特殊功能宏定义}\label{subsubsec:7-processor-special-function-macros}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8541\hsize\raggedright\arraybackslash}X>{\hsize=1.1459\hsize\raggedright\arraybackslash}X@{}}
+\caption{处理器特殊功能宏定义一览}\label{tab:7-9-processor-special-function-macros-overview}\\
+\toprule
+宏定义/函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+宏定义/函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+RME\_READ\_ACQUIRE & 读获取操作。\tabularnewline
+RME\_WRITE\_RELEASE & 写释放操作。\tabularnewline
+RME\_COMP\_SWAP & 比较交换原子操作。\tabularnewline
+RME\_FETCH\_ADD & 加载自增原子操作。\tabularnewline
+RME\_FETCH\_AND & 加载逻辑与原子操作。\tabularnewline
+RME\_MSB\_GET & 得到一个字的最高位（MSB）位置。\tabularnewline
+\end{xltabular}
+
+\subsubsection{初始化与启动函数}\label{subsubsec:7-init-and-boot-functions}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8787\hsize\raggedright\arraybackslash}X>{\hsize=1.1213\hsize\raggedright\arraybackslash}X@{}}
+\caption{初始化与启动函数一览}\label{tab:7-10-init-and-boot-functions-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Lowlvl\_Init & 底层硬件初始化。\tabularnewline
+\_\_RME\_Boot & 创建初始内核对象并启动系统。\tabularnewline
+\end{xltabular}
+
+\subsubsection{寄存器组相关函数}\label{subsubsec:7-register-set-functions}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8554\hsize\raggedright\arraybackslash}X>{\hsize=1.1446\hsize\raggedright\arraybackslash}X@{}}
+\caption{寄存器组相关函数一览}\label{tab:7-11-register-set-functions-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Svc\_Param\_Get & 从寄存器组中得到系统调用参数。\tabularnewline
+\_\_RME\_Svc\_Retval\_Set &
+向寄存器组中设置系统调用的返回值。\tabularnewline
+\_\_RME\_Thd\_Reg\_Init &
+初始化线程或迁移调用的寄存器组。\tabularnewline
+\_\_RME\_Thd\_Reg\_Copy &
+将一个寄存器组拷贝到另一个寄存器组。\tabularnewline
+\_\_RME\_Thd\_Reg\_Print &
+打印线程的寄存器组；仅作调试用。\tabularnewline
+\_\_RME\_Thd\_Cop\_Init & 初始化线程的协处理器寄存器组。\tabularnewline
+\_\_RME\_Thd\_Cop\_Swap &
+保存和恢复线程的协处理器寄存器组。\tabularnewline
+\_\_RME\_Inv\_Reg\_Save &
+保存同步迁移调用返回用的必要寄存器。\tabularnewline
+\_\_RME\_Inv\_Reg\_Restore &
+恢复同步迁移调用返回用的必要寄存器。\tabularnewline
+\_\_RME\_Inv\_Retval\_Set &
+向寄存器组中设置同步迁移调用的返回值。\tabularnewline
+\end{xltabular}
+
+\subsubsection{协处理器寄存器组相关函数}\label{subsubsec:7-coprocessor-register-set-functions}
+
+
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8317\hsize\raggedright\arraybackslash}X>{\hsize=1.1683\hsize\raggedright\arraybackslash}X@{}}
+\caption{协处理器寄存器组相关函数一览}\label{tab:7-12-coprocessor-register-set-functions-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Thd\_Reg\_Init &
+初始化线程或迁移调用的寄存器组。\tabularnewline
+\_\_RME\_Thd\_Reg\_Copy &
+将一个寄存器组拷贝到另一个寄存器组。\tabularnewline
+\_\_RME\_Thd\_Cop\_Init & 初始化线程的协处理器寄存器组。\tabularnewline
+\_\_RME\_Thd\_Cop\_Swap &
+保存和恢复线程的协处理器寄存器组。\tabularnewline
+\end{xltabular}
+
+\subsubsection{内核功能调用函数}\label{subsubsec:7-kernel-function-call-functions}
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.9605\hsize\raggedright\arraybackslash}X>{\hsize=1.0395\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核功能调用函数一览}\label{tab:7-13-kernel-function-call-functions-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Kfn\_Handler & 内核功能调用的实现。\tabularnewline
+\end{xltabular}
+
+\needspace{30\baselineskip}
+\subsubsection{页表相关函数}\label{subsubsec:7-page-table-functions}
+\nopagebreak[4]
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7716\hsize\raggedright\arraybackslash}X>{\hsize=1.2284\hsize\raggedright\arraybackslash}X@{}}
+\caption{页表相关函数一览}\label{tab:7-14-page-table-functions-overview}\\
+\toprule
+函数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_\_RME\_Pgt\_Set &
+切换当前使用的页表\footnote{顶层页目录}。\tabularnewline
+\_\_RME\_Pgt\_Kom\_Init & 初始化内核页表。\tabularnewline
+\_\_RME\_Pgt\_Check & 检查页目录参数是否能被本架构支持。\tabularnewline
+\_\_RME\_Pgt\_Init & 初始化页目录。\tabularnewline
+\_\_RME\_Pgt\_Del\_Check & 检查该页目录是否能被删除。\tabularnewline
+\_\_RME\_Pgt\_Page\_Map & 映射一个页到页目录内。\tabularnewline
+\_\_RME\_Pgt\_Page\_Unmap & 从页目录内删除一个页的映射。\tabularnewline
+\_\_RME\_Pgt\_Pgdir\_Map &
+映射一个子页目录到一个父页目录内。\tabularnewline
+\_\_RME\_Pgt\_Pgdir\_Unmap &
+从父页目录内删除一个子页目录的映射。\tabularnewline
+\_\_RME\_Pgt\_Lookup &
+在一个页目录内根据相对位置查找一个物理地址页。\tabularnewline
+\_\_RME\_Pgt\_Walk &
+从顶层页目录开始查找一个虚拟地址对应的物理地址页属性。\tabularnewline
+\end{xltabular}
+
+\section{类型定义与汇编底层函数的移植}\label{sec:7-type-definition-and-assembly-function-porting}
+
+对于类型定义，只需要确定处理器的字长在编译器中的表达方法，使用 typedef 定义即可。需要注意的是，对于某些架构和编译器，long（长整型）类型对应的是两个机器字的长度，而非一个机器字；此时应当使用 int 类型来表达一个机器字的长度。对于另一些架构和编译器，int 是半个机器字的长度，long 是一个机器字的长度，此时应当注意用 long 来定义一个机器字。
+
+在必要的时候，可以使用 sizeof() 运算符编写几个小程序，来确定该编译器的机器字究竟是何种标准。
+
+为了使得底层函数的编写更加方便，推荐使用如下的几个 typedef 来定义经常使用到的确定位数的整形。在定义这些整形时，也需要确定编译器的 char、short、int、long 等究竟是多少个机器字的长度。有些编译器不提供六十四位或者一百二十八位整数，那么这几个类型可以略去。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6576\hsize\raggedright\arraybackslash}X>{\hsize=1.3424\hsize\raggedright\arraybackslash}X@{}}
+\caption{常用类型一览}\label{tab:7-15-common-types-overview}\\
+\toprule
+类型 & 意义\tabularnewline
+\endfirsthead
+\toprule
+类型 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+s8\_t\strut
+ & 一个有符号八位整形。
+
+例如：\texttt{typedef char s8\_t};\strut
+\tabularnewline
+s16\_t\strut
+ & 一个有符号十六位整形。
+
+例如：\texttt{typedef short s16\_t};\strut
+\tabularnewline
+s32\_t\strut
+ & 一个有符号三十二位整形。
+
+例如：\texttt{typedef int s32\_t};\strut
+\tabularnewline
+s64\_t\strut
+ & 一个有符号六十四位整形。
+
+例如：\texttt{typedef long s64\_t};\strut
+\tabularnewline
+s128\_t\strut
+ & 一个有符号一百二十八位整形。
+
+例如：\texttt{typedef long long s128\_t};\strut
+\tabularnewline
+u8\_t\strut
+ & 一个无符号八位整形。
+
+例如：\texttt{typedef unsigned char u8\_t};\strut
+\tabularnewline
+u16\_t\strut
+ & 一个无符号十六位整形。
+
+例如：\texttt{typedef unsigned short u16\_t};\strut
+\tabularnewline
+u32\_t\strut
+ & 一个无符号三十二位整形。
+
+例如：\texttt{typedef unsigned int u32\_t};\strut
+\tabularnewline
+u64\_t\strut
+ & 一个无符号六十四位整形。
+
+例如：\texttt{typedef unsigned long u64\_t};\strut
+\tabularnewline
+u128\_t\strut
+ & 一个无符号一百二十八位整形。
+
+例如：\texttt{typedef unsigned long long u128\_t};\strut
+\tabularnewline
+\end{xltabular}
+
+对于宏定义和结构体类型的定义，需要根据具体系统的配置来决定。具体的决定方法见上节所述，依表格说明填充这些定义即可。
+
+接下来说明对于汇编底层函数的移植过程。
+
+\subsection{内核入口点的实现}\label{subsec:7-kernel-entry-point-implementation}
+
+内核入口点完成一系列准备工作，然后调用RME\_Kmain函数。对于不同的架构和工具链，内核入口点的写法也有所不同，需要自行发挥。在调用RME\_Kmain之前，需要进行如下准备工作：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  将内核的各个部分通过启动器（Bootloader）正确地加载到内存中，并将处理器置于特权态。
+\item
+  建立最初的系统启动用页表，并使用该页表将系统切换到保护模式。该页表只要实现了内核内存的虚拟地址到内核内存的物理地址的映射即可。这个临时页表仅仅在启动过程中使用一次，在之后就不再使用了，因此在系统启动完成后可以将其删除。
+\item
+  根据 RME\_KSTK\_VA\_BASE 和 RME\_KSTK\_VA\_SIZE 设置正确的内核堆栈指针。
+\end{enumerate}
+
+\subsection{\_\_RME\_Int\_Disable的实现}\label{subsec:7-rme-int-disable-implementation}
+
+该函数需要关闭处理器的中断，然后返回。实现上没有特别需要注意的地方，通常而言只需要写一个CPU寄存器或者外设地址，关闭中断，然后返回即可。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7236\hsize\raggedright\arraybackslash}X>{\hsize=1.2764\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Int\_Disable的实现}\label{tab:7-16-rme-int-disable-implementation}\\
+\toprule
+原型 & void \_\_RME\_Int\_Disable(void)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_Int\_Disable(void)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 关闭处理器中断。\tabularnewline
+返回值 & 无。\tabularnewline
+参数 & 无。\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Int\_Enable的实现}\label{subsec:7-rme-int-enable-implementation}
+
+该函数需要开启处理器的中断，然后返回。实现上没有特别需要注意的地方，通常而言只需要写一个CPU寄存器或者外设地址，开启中断，然后返回即可。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7321\hsize\raggedright\arraybackslash}X>{\hsize=1.2679\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Int\_Enable的实现}\label{tab:7-17-rme-int-enable-implementation}\\
+\toprule
+原型 & void \_\_RME\_Int\_Enable(void)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_Int\_Enable(void)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 开启处理器中断。\tabularnewline
+返回值 & 无。\tabularnewline
+参数 & 无。\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_User\_Enter的实现}\label{subsec:7-rme-user-enter-implementation}
+
+该函数实现从特权态到用户态的切换，仅在系统启动阶段的最后被调用。在此之后，系统进入正常运行状态。该函数只要将 Stack 的值赋给堆栈指针，将 CPUID 赋给调用约定决定的第一个参数的寄存器，然后直接跳转到 Entry 并进行处理器状态切换即可。该函数将永远不会返回。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5670\hsize\raggedright\arraybackslash}X>{\hsize=1.4330\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_User\_Enter的实现}\label{tab:7-18-rme-user-enter-implementation}\\
+\toprule
+原型 & void \_\_RME\_User\_Enter(ptr\_t Entry, ptr\_t Stack, ptr\_t
+CPUID)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_User\_Enter(ptr\_t Entry, ptr\_t Stack, ptr\_t
+CPUID)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 进入用户模式，开始执行第一个进程。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & ptr\_t Entry
+
+第一个用户态应用程序的入口虚拟地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t Stack
+
+第一个用户态应用程序的栈虚拟地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t CPUID
+
+该线程所属的处理器的 CPUID。\strut
+\tabularnewline
+\end{xltabular}
+
+\section{系统中断向量的移植}\label{sec:7-system-interrupt-vector-porting}
+
+系统中断向量的移植的主要工作包括两部分：一部分是进入中断向量和退出中断向量的汇编代码，另一部分是系统中断向量本身。RME 仅仅要求实现最少三个中断向量。中断向量进入部分要求保存处理器的寄存器到栈上，其退出部分则要求从栈上恢复这些寄存器。在中断向量中还可能涉及对系统协处理器寄存器的保存和恢复。
+
+系统中断向量不可互相嵌套，因此它们的抢占优先级必须被设置为相同的值。有关例外情况，请参见\ref{sec:7-device-interrupt-vector-writing}
+。
+
+\subsection{中断的压栈和弹栈}\label{subsec:7-interrupt-push-and-pop}
+
+中断向量的进入阶段，需要将要由中断保存的处理器的各个寄存器压栈处理，压栈的顺序应当和定义的寄存器结构体一致。在压栈完成后，需要调用相应的处理函数，并且把指向栈上寄存器结构体的指针传给它。在中断向量的退出阶段，只需要从栈上按相反顺序弹出寄存器组即可。在中断向量中，如果涉及到线程切换，系统会判断是否需要保存和恢复协处理器的寄存器组。如果需要的话，协处理器寄存器组会被保存和恢复。协处理器寄存器组不会被压栈，因此协处理器寄存器结构体只要包括协处理器的全部寄存器就可以了，无须关心顺序。
+
+如果栈是向下生长的满堆栈，那么全部压栈完成后，堆栈指针就是指向结构体的指针；
+
+如果栈是向下生长的空堆栈，那么全部压栈完成后，堆栈指针加上处理器字长（以Byte为单位）就是指向结构体的指针。
+
+如果栈是向上生长的满堆栈，那么全部压栈完成后，将堆栈指针减去寄存器结构体的大小再加上处理器字长（以Byte为单位）就是指向结构体的指针。
+
+如果栈是向上生长的空堆栈，那么全部压栈完成后，将堆栈指针减去寄存器结构体的大小就是指向结构体的指针。
+
+定时器中断处理函数、系统调用处理函数和内存错误处理函数都只接受指向堆栈的指针这一个参数。由于这三个函数一般都用 C 语言写成，因此参数的传入要根据 C 语言调用约定进行。
+
+\needspace{30\baselineskip}
+\subsection{定时器中断向量}\label{subsec:7-timer-interrupt-vector}
+\nopagebreak[4]
+
+定时器中断向量负责维护系统的基本计时。在多处理器系统中，定时器中断的产生有两种方式：一种方式是在主处理器上生成定时器中断并递增时间戳变量，然后发送处理器间中断（Inter-Processor
+Interrupt，IPI）给其它从处理器的定时器中断向量，这种方式仅适用于有节拍内核；另一种方式则是在所有的处理器上都生成定时器中断，时间戳则靠读取独立的单向自增计数器实现，这种方式既适用于有节拍内核，又适用于无节拍内核。不论采取哪种方式，在定时器中断处理向量中都需要调用如下函数：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{定时器中断向量的实现}\label{tab:7-19-timer-interrupt-vector-implementation}\\
+\toprule
+原型 & void \_RME\_Tim\_Handler(struct RME\_Reg\_Struct* Reg, ptr\_t
+Slice)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Tim\_Handler(struct RME\_Reg\_Struct* Reg, ptr\_t
+Slice)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 执行定时器中断处理。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+在进入阶段被压栈的处理器寄存器组。\strut
+\tabularnewline
+\strut
+ & ptr\_t Slice
+
+在有节拍内核中，每次发生时钟中断时，填充为1；在无节拍内核中，填充为上一次调用\_RME\_Tim\_Elapse或\_RME\_Tim\_Handler以来经过的时间片数。该时间片至少为1。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数是系统实现好的，无需用户自行实现。有关无节拍内核和\_RME\_Tim\_Elapse，请参见\ref{subsec:9-isolated-kernel}
+。
+
+\subsection{系统调用中断向量}\label{subsec:7-system-call-interrupt-vector}
+
+系统调用中断向量负责接受并响应系统调用。在系统调用中断向量中，需要调用如下函数：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5534\hsize\raggedright\arraybackslash}X>{\hsize=1.4466\hsize\raggedright\arraybackslash}X@{}}
+\caption{系统调用中断向量的实现}\label{tab:7-20-system-call-interrupt-vector-implementation}\\
+\toprule
+原型 & void \_RME\_Svc\_Handler(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Svc\_Handler(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 执行系统调用处理。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+在进入阶段被压栈的处理器寄存器组。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数也是系统实现好的，无需用户自行实现。
+
+\subsection{异常处理中断向量}\label{subsec:7-exception-handling-interrupt-vector}
+
+异常处理中断向量负责处理进程的运行时异常。在异常处理中断向量中，需要调用一个用户提供的异常处理函数。该函数的实现是与架构紧密相关的，因此需要在移植时重新设计。该函数的名称可由用户自行决定，但其原型必须如下所示。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5534\hsize\raggedright\arraybackslash}X>{\hsize=1.4466\hsize\raggedright\arraybackslash}X@{}}
+\caption{异常中断向量的实现}\label{tab:7-21-exception-interrupt-vector-implementation}\\
+\toprule
+原型 & void \_RME\_Exc\_Handler(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Exc\_Handler(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 执行系统异常处理。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+在进入阶段被压栈的处理器寄存器组。\strut
+\tabularnewline
+\end{xltabular}
+
+在该函数中需要判断发生的异常是可恢复异常还是不可恢复异常。如果是无需用户态干预的可恢复异常\footnote{如软件填充的TLB或MPU的缺页中断等}，则可以由内核处理该异常，并在进行完相应的处理和恢复工作之后立即退出中断向量；如果可恢复异常的恢复失败，或者发生的是不可恢复异常\footnote{比如除零、未定义指令、访存错误等等}，那么就需要填充线程的异常原因寄存器组，然后调用由系统提供的如下函数杀死线程。该函数会通过调度器事件和调度器信号\footnote{如果该线程在绑定时注册了信号端点的话}通知用户态来处理这一异常。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5409\hsize\raggedright\arraybackslash}X>{\hsize=1.4591\hsize\raggedright\arraybackslash}X@{}}
+\caption{杀死当前线程}\label{tab:7-22-kill-current-thread}\\
+\toprule
+原型 & void \_RME\_Thd\_Fatal(struct RME\_Reg\_Struct* Reg)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Thd\_Fatal(struct RME\_Reg\_Struct* Reg)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+该线程发生了致命的不可恢复错误，或者恢复失败，需要杀死该线程。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+在中断进入阶段被压栈的处理器寄存器组。\strut
+\tabularnewline
+\end{xltabular}
+
+最典型的可恢复错误是软件填充的TLB或MPU的不命中中断，在其中需要刷新页表或者页目录缓存。为了方便这一操作，系统提供如下函数来获取某线程的当前进程的页表：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{获取某线程的当前进程的页表}\label{tab:7-23-get-thread-current-process-page-table}\\
+\toprule
+原型 & struct RME\_Cap\_Pgt* \_RME\_Thd\_Pgt(struct RME\_Thd\_Struct*
+Thd)\tabularnewline
+\endfirsthead
+\toprule
+原型 & struct RME\_Cap\_Pgt* \_RME\_Thd\_Pgt(struct RME\_Thd\_Struct*
+Thd)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+该线程发生了致命的不可恢复错误，或者恢复失败，需要杀死该线程。\tabularnewline
+返回值\strut
+ & struct RME\_Cap\_Pgt*
+
+该线程所在的进程的页表。如果该线程没有进行迁移调用，则它就是该线程创建时所在的进程；否则它是该线程当前迁移到的进程。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Thd\_Struct* Thd
+
+该线程的结构体。\strut
+\tabularnewline
+\end{xltabular}
+
+在极少量架构上，有时会出现部分异常无法准确归因到线程的情况。这些异常可能是异步异常\footnote{如ARMv7-M的BUSFAULT；理论上讲异常都是同步的，但凡事皆有例外}，它们在一个线程内发生后可能在另一个线程内才暴露；这些异常也有可能是某种特殊的同步异常\footnote{如ARMv7-M的自动压栈/弹栈相关错误}，它们会在执行完可能进行线程切换的中断向量或系统调用后尾接执行，从而使得这些异常被不正确地归因于刚切换到的线程。我们将这种类型的异常称为难归因异常，在异常处理中必须忽略它们。如果不忽略它们而产生了不准确的异常归因，那么可能导致正常执行的其他线程（甚至包括 Init 线程）被杀死，造成严重的系统完整性和可用性问题。
+
+\section{设备中断向量的编写}\label{sec:7-device-interrupt-vector-writing}
+
+除了定时器中断、系统调用中断和异常处理中断之外，RME 中还有两种中断。第一种中断是透明中断，这种中断函数的编写方法和普通的无操作系统下程序的编写方法是一样的，不需要按照RME的中断保存方式来压栈寄存器保存上下文，而且可以与其他中断任意嵌套。因此，这种中断函数的响应会很快。但是，该种中断不能调用任何的内核函数，最多只能读取或写入IO，或者修改某个内存地址的变量。因此，该种中断主要适合编写那些要求快速响应的或时序严格的设备的内核态驱动程序。典型的此类设备是1-Wire的单线总线设备\footnote{如DS18B20，PGA300，DS2432，SHT-XX等}、频移键控（On-Off
+Keying，OOK）遥控设备\footnote{如 PT2262 软件解码等}、机电控制设备\footnote{如脉冲串输出、xShot 等}和高波特率串行接口\footnote{如 SPI、UART 等}。
+
+第二种中断是可感知中断。这种中断的进入和退出需要按照RME中断保存方式来压栈寄存器，保存线程上下文，并且不允许嵌套。该种中断可以调用一些特定的内核函数，向某个用户线程发送一些信号。此类中断适合那些需要把信号发送给应用程序并由它们来处理该设备的数据的用户态驱动程序。此外，此类中断还可以进行上下文切换。在下面的两节中，我们主要介绍可感知中断的特性，因为透明中断和常见的裸机程序的中断区别不大。
+
+无论是何种中断向量，它们都是这个系统非常重要的一部分。一个系统的安全性高度依赖于其中断向量的实现的安全性。对于这些中断的优先级和可嵌套性的要求是，透明中断之间可以互相嵌套，并且其抢占优先级必须高于可感知中断和系统中断；可感知中断不可互相嵌套，其抢占优先级必须等于或小于系统中断。
+
+在一些不区分中断和异常的特殊架构\footnote{最典型的此种架构是ARMv7-M}上，系统调用中断和异常处理中断与其它类型中断没有区别，是异步的、可悬起的，一旦它们与其它可感知中断一起发生，就有可能因非抢占优先级不足而被悬起。此时，即便这两个中断没有与可感知中断嵌套，也会造成竞争冒险：假设A线程发起系统调用但还未来得及处理，此时某可感知中断发生，并因其非抢占优先级较高而提前于系统调用中断处理。如果该可感知中断切换到B线程后退出，系统调用就会以B线程的身份开始处理，造成信息安全和功能安全问题。因此，在这些架构上，系统调用中断的异常处理中断的非抢占优先级必须高于定时器中断和其它可感知中断。在某些时候，为了使系统调用中断和异常处理中断看上去是同步的，甚至可以将它们的抢占优先级额外抬高一级。
+
+\subsection{中断向量的进入和退出}\label{subsec:7-interrupt-vector-entry-and-exit}
+
+可感知中断向量的进入和退出和系统中断向量的进入和退出是一样的，都需要按照寄存器结构体的顺序进行压栈和弹栈，并且在调用以C语言编写的中断处理函数时需要传入寄存器组作为参数。以C语言编写的中断函数的原型均如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5534\hsize\raggedright\arraybackslash}X>{\hsize=1.4466\hsize\raggedright\arraybackslash}X@{}}
+\caption{C语言编写的中断函数原型}\label{tab:7-24-c-interrupt-function-prototype}\\
+\toprule
+原型 & void \_User\_Handler(struct RME\_Reg\_Struct* Reg)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_User\_Handler(struct RME\_Reg\_Struct* Reg)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 执行可感知中断处理。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+在进入阶段被压栈的处理器寄存器组。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{中断向量中可以调用的特定内核函数}\label{subsec:7-specific-kernel-functions-in-interrupt-vectors}
+
+在（可感知）中断向量中，有一些特定的函数可以调用，来发送信号给用户态处理线程，使其就绪，或者执行其他操作。这些操作的函数列表如下：
+
+\subsubsection{向内核端点发送信号}\label{subsubsec:7-send-signal-to-kernel-endpoint}
+
+该函数用来向某个内核端点发送信号。这是最重要的函数，一般用于可感知中断向量的信号外传。该函数可以在一个中断向量中调用多次，如果有多个信号端点需要发送的话。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4701\hsize\raggedright\arraybackslash}X>{\hsize=1.2188\hsize\raggedright\arraybackslash}X>{\hsize=1.3111\hsize\raggedright\arraybackslash}X@{}}
+\caption{向内核端点发送信号的所需参数}\label{tab:7-25-send-signal-to-kernel-endpoint-parameters}\\
+\toprule
+原型 & ret\_t \_RME\_Kern\_Snd(struct RME\_Cap\_Sig* Cap\_Sig, ptr\_t
+Number) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_RME\_Kern\_Snd(struct RME\_Cap\_Sig* Cap\_Sig, ptr\_t
+Number) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Cap\_Sig & ... & 类型为struct
+RME\_Cap\_Sig*，是一个直接指向内核信号根权能的一个指针。调用本函数会向这个内核信号端点发送信号。\tabularnewline
+Number & ptr\_t &
+向信号端点发送的计数数量。一次能发送的数量上限在32位系统中为2\textsuperscript{16}，64位系统中则为2\textsuperscript{32}，依此类推。由于内核的优先级高于任何线程，因此它仅能用来计数，不能用来携带关于中断向量号的信息。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6537\hsize\raggedright\arraybackslash}X>{\hsize=1.3463\hsize\raggedright\arraybackslash}X@{}}
+\caption{向内核端点发送信号的可能返回值}\label{tab:7-26-send-signal-to-kernel-endpoint-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_SIV\_FULL & 该信号端点的信号计数已满，不能再向其继续发送。这是很罕见的，因为在32位系统中信号计数的上限为232-2，64位系统中则为264-2，依此类推。\tabularnewline
+\end{xltabular}
+
+本函数和常规发送函数的不同是，如果在这一发送过程中有更高优先级的线程被唤醒，我们仅将该线程就绪而并不立即进行上下文切换。这样做的理由是，在一个中断向量中我们可能向多个内核端点发送信号，而如果被唤醒的线程的优先级一个比一个高，推迟切换到中断向量退出是一个更好的办法。关于中断向量退出时需要调用的切换函数，请参见\ref{subsubsec:7-thread-switch-on-interrupt-vector-exit}
+。
+
+\subsubsection{在中断向量退出时进行线程切换}\label{subsubsec:7-thread-switch-on-interrupt-vector-exit}
+
+该函数用来在中断向量退出时进行最终的线程切换。在任何调用了\_RME\_Kern\_Snd函数的中断向量的结尾，该函数都必须被调用。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4561\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X@{}}
+\caption{在中断向量退出时进行线程切换的所需参数}\label{tab:7-27-thread-switch-on-interrupt-vector-exit-parameters}\\
+\toprule
+原型\strut
+ & void \_RME\_Kern\_High(struct RME\_Reg\_Struct* Reg,
+
+struct RME\_CPU\_Local* Local)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_RME\_Kern\_High(struct RME\_Reg\_Struct* Reg,
+
+struct RME\_CPU\_Local* Local)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Reg & ... & 类型为struct
+RME\_Reg\_Struct*，是一个指向寄存器组的指针。该参数是从中断处理函数传入的。\tabularnewline
+Local & ... & 类型为struct
+RME\_CPU\_Local*，是一个指向当前CPU的数据结构体的指针。\tabularnewline
+\end{xltabular}
+
+该函数无返回值。
+
+\needspace{30\baselineskip}
+\section{内核调试打印函数的移植}\label{sec:7-kernel-debug-print-function-porting}
+
+\needspace{20\baselineskip}
+内核调试打印函数的底层接口只有一个函数，如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6606\hsize\raggedright\arraybackslash}X>{\hsize=1.3394\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Putchar的实现}\label{tab:7-28-rme-putchar-implementation}\\
+\toprule
+原型 & ptr\_t \_\_RME\_Putchar(char Char)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ptr\_t \_\_RME\_Putchar(char Char)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 输出一个字符到控制台。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+总是返回0。\strut
+\tabularnewline
+参数\strut
+ & char Char
+
+要输出到系统控制台的字符。\strut
+\tabularnewline
+\end{xltabular}
+
+在该函数的实现中，只需要重定向其输出到某外设即可。最常见的此类设备即是串口。
+
+\section{处理器特殊功能宏定义的移植}\label{sec:7-processor-special-function-macro-porting}
+
+处理器特殊功能宏定义包括了原子操作和最高位（Most
+Significant
+Bit，MSB）查找。原子操作是用来在多核条件下实现无锁内核的；最高位查找则能加快最高优先级的查找。这些宏定义提供的功能可以用 C 语言实现为函数，也可以用汇编或内联汇编实现，视情况而定。如果是用汇编语言实现，要注意遵循 C 语言调用约定，因为这些函数要被 C 语言调用。如果使用通常而言较易出错的内联汇编实现，则需要注意实现的正确性。
+
+在多核处理器上，所有的原子操作宏定义均必须在其前方包括一个编译器屏障（Compiler
+barrier），该屏障应当使编译器在其之前发起的写全部实际落入内存，并使编译器在其之后发起的读全部从内存重新获取。
+
+\subsection{读获取操作}\label{subsec:7-read-acquire-operation}
+
+该宏完成一个内存读获取屏障。在顺序一致性架构或单核架构上这个宏可以直接实现为对X地址的读取；在其他情况下，这个值应该被定义为一个实现读屏障的函数。如果编译器有内建函数可以执行该操作，使用内建函数达成此效果也可以。这个宏应当保证宏下方的内存操作在自身的读操作进行完毕之前不会被执行，相当于保证了读-读和读-写的一致性。值得注意的是，RME并不需要保证写-读的顺序一致性。如果在某些架构上仅有写-读顺序不一致\footnote{如x86-64等}，这个宏也可以实现为一个简单读取。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_READ\_ACQUIRE的实现}\label{tab:7-29-rme-read-acquire-implementation}\\
+\toprule
+宏定义 & ptr\_t RME\_READ\_ACQUIRE(volatile ptr\_t* PTR)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & ptr\_t RME\_READ\_ACQUIRE(volatile ptr\_t* PTR)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行读获取操作。该操作会返回PTR所指的内存单元的值，并防止逻辑上在它后方的操作乱序到它前方。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+读操作在该地址上得到的值。\strut
+\tabularnewline
+参数\strut
+ & volatile ptr\_t* PTR
+
+指向目标操作地址的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+一些例子如下：
+
+\#define RME\_READ\_ACQUIRE(PTR) (*(PTR))
+
+（简单读取的情况）
+
+\#define RME\_READ\_ACQUIRE(PTR) asm("LDA PTR":::memory)
+
+（处理器提供了读获取指令的情况）
+
+\#define RME\_READ\_ACQUIRE(PTR) asm("LDR PTR; DMB":::memory)
+
+（处理器提供了内存屏障的情况）
+
+\#define RME\_READ\_ACQUIRE(PTR) \_\_read\_acquire(PTR)
+
+（使用编译器内建函数的情况）
+
+\subsection{写释放操作}\label{subsec:7-write-release-operation}
+
+该宏完成一个内存写释放屏障。在顺序一致性架构或单核架构上这个宏可以直接实现为对X地址的写入；在其他情况下，这个值应该被定义为一个实现写屏障的函数。如果编译器有内建函数可以执行该操作，使用内建函数达成此效果也可以。这个宏应当保证自身的写操作在宏上方的内存操作进行完毕之前不会被执行，相当于保证了读-写和写-写的一致性。值得注意的是，RME并不需要保证写-读的顺序一致性。如果在某些架构上仅有写-读顺序不一致\footnote{如x86-64等}，这个宏也可以实现为一个简单写入。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_WRITE\_RELEASE的实现}\label{tab:7-30-rme-write-release-implementation}\\
+\toprule
+宏定义 & void RME\_WRITE\_RELEASE(volatile ptr\_t* PTR, ptr\_t
+VAL)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & void RME\_WRITE\_RELEASE(volatile ptr\_t* PTR, ptr\_t
+VAL)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行写释放操作。该操作会将 VAL 写入 PTR 所指的内存单元，并防止逻辑上在它前方的操作乱序到它后方。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+读操作在该地址上得到的值。\strut
+\tabularnewline
+参数\strut
+ & volatile ptr\_t* PTR
+
+指向目标操作地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t VAL
+
+写释放操作要写入的值。\strut
+\tabularnewline
+\end{xltabular}
+
+一些例子如下：
+
+\#define RME\_WRITE\_RELEASE(PTR,VAL) ((*(PTR))=(VAL))
+
+（简单写入的情况）
+
+\#define RME\_WRITE\_RELEASE(PTR,VAL) asm("STL PTR,VAL":::memory)
+
+（处理器提供了写释放指令的情况）
+
+\#define RME\_WRITE\_RELEASE(PTR,VAL) asm("DMB;STR PTR,VAL":::memory)
+
+（处理器提供了内存屏障的情况）
+
+\#define RME\_WRITE\_RELEASE(PTR,VAL) \_\_write\_release(PTR,VAL)
+
+（使用编译器内建函数的情况）
+
+\subsection{比较交换原子操作}\label{subsec:7-compare-and-swap-atomic-operation}
+
+该宏/函数完成一个基本的比较交换（Compare-And-Swap，CAS）原子操作。在某些架构上它有直接的指令支持\footnote{如 x86-64 的 PREFIX LOCK CMPXCHG 指令}，此时可以考虑以汇编或内联汇编实现该指令。在某些RISC架构上，也可以考虑使用排他性加载和排他性写回指令来支持\footnote{如 ARMv7 的 LDREX 和 STREX 指令}。对于某些更新的处理器，可以考虑用排他性获取加载和排他性写回释放指令来实现\footnote{如 ARMv8 的 LDAEX 和 STLEX 指令}。具体的支持方法随各个处理器而有不同。针对单核处理器，RME 提供了一个通用实现\_RME\_Comp\_Swap\_Single，可直接将此宏定义为该函数名。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_COMP\_SWAP的实现}\label{tab:7-31-rme-comp-swap-implementation}\\
+\toprule
+宏定义 & ptr\_t RME\_COMP\_SWAP(volatile ptr\_t* PTR, ptr\_t OLD, ptr\_t
+NEW)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & ptr\_t RME\_COMP\_SWAP(volatile ptr\_t* PTR, ptr\_t OLD, ptr\_t
+NEW)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行比较交换原子操作。该操作会比较 OLD 和*PTR 的值，如果 OLD 和*PTR 不相等，那么返回0；如果 OLD 和*PTR 相等，那么返回1，并且把 NEW 的值赋给*PTR。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+该宏/函数是否成功的返回值。成功返回1，失败返回0。\strut
+\tabularnewline
+参数\strut
+ & volatile ptr\_t* PTR
+
+指向目标操作地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t OLD
+
+参加比较的老值。\strut
+\tabularnewline
+\strut
+ & ptr\_t NEW
+
+如果老值和目标地址的值相同，此时要赋给目标地址的新值。\strut
+\tabularnewline
+\end{xltabular}
+
+由于 RME 的内核在读写某些数据结构后使用CAS置位一些标志，也在使用CAS置位某些标志后读写一些数据结构，因此我们不希望CAS与其前后的其他内存操作在其他处理器看来乱序发生。如果目标处理器不是顺序一致性（Strongly-ordered）的\footnote{比如 PowerPC 和 ARMv7、ARMv8}，而且原子操作不是内存访问串行化指令（Memory
+access serializing
+instruction），那么该宏/函数在实现时，必须在操作的前后都加上一个完全的内存屏障。
+
+严格地讲，在有排他性加载和写回指令的处理器上，CAS是分成两个步骤执行的，一个是排他性加载，另外一个是排他性写回。考虑到这一点，RME 的设计允许放宽一点限制，允许排他性加载和CAS操作上方的其他操作乱序，也允许排他性写回和CAS下方的其他操作乱序。因此，在具备排他性获取加载和排他性写回释放的处理器上，任何额外的内存屏障都是不必要的。
+
+\subsection{加载自增原子操作}\label{subsec:7-fetch-and-add-atomic-operation}
+
+该宏/函数完成一个基本的加载自增（Fetch-And-Add，FAA）原子操作。在实现时应当注意，当多个处理器同时进行该操作时，该宏/函数在各个处理器上的返回值组成的集合必须是连续的，不能有跳跃和间断。在某些架构上它有直接的指令支持\footnote{如 x86-64 的 PREFIX LOCK XADDL 指令}，此时可以考虑以汇编或内联汇编实现该指令。在某些RISC架构上，也可以考虑使用排他性加载和排他性写回指令来支持\footnote{如ARMv7的LDREX和STREX指令}。具体的支持方法随各个处理器而有不同。RME 的设计使得该指令不需要保证有完全内存屏障的作用。针对单核处理器，RME 提供了一个通用实现\_RME\_Fetch\_Add\_Single，可直接将此宏定义为该函数名。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_FETCH\_ADD的实现}\label{tab:7-32-rme-fetch-add-implementation}\\
+\toprule
+宏定义 & ptr\_t RME\_FETCH\_ADD(volatile ptr\_t* PTR, cnt\_t
+ADDEND)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & ptr\_t RME\_FETCH\_ADD(volatile ptr\_t* PTR, cnt\_t
+ADDEND)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行加载自增原子操作。该操作会把*PTR 的值加上 ADDEND，然后写回*PTR，并且返回加上 ADDEND 之前的*PTR。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+加上 ADDEND 之前的*PTR。\strut
+\tabularnewline
+参数\strut
+ & volatile ptr\_t* PTR
+
+指向目标操作地址的指针。\strut
+\tabularnewline
+\strut
+ & cnt\_t ADDEND
+
+目标操作地址要加上的数。该数可以是一个正数也是一个负数。\strut
+\tabularnewline
+\end{xltabular}
+
+RME 假设该操作是无等待（Wait-free）的。但是，在仅具备排他性加载和排他性写回指令的处理器上，该操作必须用一个循环尝试实现，使得其无等待性受到一定影响。但是，在实践中这不会破坏系统的实时响应：因为 RME 的系统调用有一个最小执行时间，而该时间限制了系统调用的执行频率，通常而言该频率（即便乘以CPU的数量也）远低于循环尝试的频率。因此，该操作循环尝试的次数在实际应用中是有一个可接受的上界的，不会无限循环下去。
+
+\subsection{逻辑与原子操作}\label{subsec:7-logical-and-atomic-operation}
+
+该宏/函数完成一个基本的逻辑与（Fetch-And-aNd，FAN）原子操作。在某些架构上它有直接的指令支持\footnote{如 x86-64 的 PREFIX LOCK ANDL 指令}，此时可以考虑以汇编或内联汇编实现该指令。在某些RISC架构上，也可以考虑使用排他性加载和排他性写回指令来支持\footnote{如ARMv7的LDREX和STREX指令}。具体的支持方法随各个处理器而有不同。RME的设计使得该指令不需要保证有完全内存屏障的作用。针对单核处理器，RME提供了一个通用实现\_RME\_Fetch\_Add\_Single，可直接将此宏定义为该函数名。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_FETCH\_AND的实现}\label{tab:7-33-rme-fetch-and-implementation}\\
+\toprule
+宏定义 & ptr\_t RME\_FETCH\_AND(volatile ptr\_t* PTR, ptr\_t
+OPERAND)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & ptr\_t RME\_FETCH\_AND(volatile ptr\_t* PTR, ptr\_t
+OPERAND)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行逻辑与原子操作。该操作会把*PTR 的值和 OPERAND 进行逻辑与，然后写回*PTR，并且返回和 OPERAND 进行逻辑与之前的*PTR。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+与上 OPERAND 之前的*PTR。\strut
+\tabularnewline
+参数\strut
+ & volatile ptr\_t* PTR
+
+指向目标操作地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t OPERAND
+
+目标操作地址要与上的无符号数。\strut
+\tabularnewline
+\end{xltabular}
+
+RME 假设这个操作也是无等待的。在这方面的具体细节请参见上一节关于FAA的描述。
+
+\subsection{得到一个字的最高位位置}\label{subsec:7-get-msb-position-of-word}
+
+该宏/函数返回该字最高位的位置。最高位的定义是第一个``1''出现的位置，位置是从LSB开始计算的（LSB为第0位）。比如该数为32位的0x12345678，那么第一个``1''出现在第28位，这个函数就会返回28。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{RME\_MSB\_GET的实现}\label{tab:7-34-rme-msb-get-implementation}\\
+\toprule
+宏定义 & ptr\_t RME\_MSB\_GET(ptr\_t VAL)\tabularnewline
+\endfirsthead
+\toprule
+宏定义 & ptr\_t RME\_MSB\_GET(ptr\_t VAL)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+得到一个与处理器字长相等的无符号数的最高位位置，也即其二进制表示从左向右数第一个数字``1''的位置。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+返回第一个``1''的位置。\strut
+\tabularnewline
+参数\strut
+ & ptr\_t VAL
+
+要计算最高位位置的数字。\strut
+\tabularnewline
+\end{xltabular}
+
+由于该宏/函数需要被高效实现，因此其实现方法在不同的处理器上差别很大。对于那些提供了最高位计算指令的架构，直接以汇编形式实现本宏/函数，使用该指令即可。对于那些提供了前导零计算指令的架构\footnote{如提供了 CLZ 指令的 ARMv7}，也可以用汇编函数先计算出前导零的数量，然后用处理器的字长-1（单位为Bit）减去这个值。比如0x12345678的前导零一共有3个，用31减去3即得到28。
+
+对于那些没有实现特定指令的架构，推荐使用折半查找的方法。先判断一个字的高半字是否为0，如果不为0，再在这高半字中折半查找，如果为0，那么在低半字中折半查找，直到确定第一个``1''的位置为止。在折半到16位或者8位时，可以使用一个查找表直接对应到第一个``1''在这16或8位中的相对位置，从而不需要再进行折半，然后综合各次折半的结果计算第一个``1''的位置即可。如果不想手工编写该汇编函数，RME 也提供一个通用版本\_RME\_MSB\_Generic，可直接将此宏定义为该函数名。
+
+对于在移植中需要``取得一个字的最低位''的架构，RME 还额外提供了\_RME\_LSB\_Generic。内核本身并不使用它；提供它仅仅是为了方便用户。
+
+\section{初始化与启动函数的移植}\label{sec:7-init-and-boot-function-porting}
+
+初始化与启动函数一共有四个，如下所示。
+
+\subsection{\_\_RME\_Lowlvl\_Init的实现}\label{subsec:7-rme-lowlvl-init-implementation}
+
+这个函数需要进行处理器时钟、Cache等除了内存管理单元之外的底层硬件的初始化。这里不需要进行内存管理单元初始化的原因是，内存管理单元实际上已经在\_RME\_Kmain 退出之前被初始化了。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Lowlvl\_Init的实现}\label{tab:7-35-rme-lowlvl-init-implementation}\\
+\toprule
+原型 & void \_\_RME\_Lowlvl\_Init(void)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_Lowlvl\_Init(void)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+进行最底层硬件的初始化。这包括了处理器时钟的初始设置、必要的其他硬件\footnote{如Cache控制器和中断控制器，或者处理器主板上的必须在上电初期初始化的其他外设}的初始化等等。在这个函数运行完成后，内核数据结构的初始化才开始。\tabularnewline
+返回值 & 无。\tabularnewline
+参数 & 无。\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Boot的实现}\label{subsec:7-rme-boot-implementation}
+
+这个函数是 RME 启动过程中最重要的函数。它在内核态运行，创建 Init 进程的权能表、页表，将所有的用户可访问页添加进 Init 进程的页表，创建所有的内核信号端点和内核调用权能。在单核系统下，该函数需要创建一个线程，设置执行属性并在最后调用 \_RME\_Enter\_User\_Mode 切换到它进行执行。在多核系统下，系统需要初始化其他处理器，并且需要让它们在各自的CPU核上创建属于一个自己的线程，然后跳转到该线程中去运行。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Boot的实现}\label{tab:7-36-rme-boot-implementation}\\
+\toprule
+原型 & void \_\_RME\_Boot(void)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_Boot(void)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+该函数启动系统中的第一个进程 Init，并且初始化系统中所有的内核信号端点、内核功能调用权能，而且负责把系统中的所有用户可访问页添加进 Init 的初始页表。\tabularnewline
+返回值 & 无。\tabularnewline
+参数 & 无。\tabularnewline
+\end{xltabular}
+
+该函数需要调用的各个函数如下。除最后列出的三个函数由用户提供之外，其他函数均是 RME 的内建函数。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.9044\hsize\raggedright\arraybackslash}X>{\hsize=0.8927\hsize\raggedright\arraybackslash}X>{\hsize=1.2029\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Boot需要调用的函数一览}\label{tab:7-37-rme-boot-called-functions-overview}\\
+\toprule
+函数 & 调用次数 & 意义\tabularnewline
+\endfirsthead
+\toprule
+函数 & 调用次数 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\_RME\_Kot\_Init & 全系统只需调用一次 &
+在启动时初始化内核内存登记表。\tabularnewline
+\_RME\_CPU\_Local\_Init & 每个处理器调用一次 &
+在启动时初始化各处理器的本地存储。\tabularnewline
+\_RME\_Cpt\_Boot\_Init & 全系统只需创建一次 &
+在启动时创建初始权能表。\tabularnewline
+\_RME\_Cpt\_Boot\_Crt & 视情况而定 &
+在启动时创建其它权能表。\tabularnewline
+\_RME\_Pgt\_Boot\_Crt & 全系统只需创建一组 &
+在启动时创建页目录。\tabularnewline
+\_RME\_Pgt\_Boot\_Con & 全系统只需调用一组 &
+在启动时构造页目录。\tabularnewline
+\_RME\_Pgt\_Boot\_Add & 全系统只需调用一组 &
+在启动时向页目录中添加页。\tabularnewline
+\_RME\_Prc\_Boot\_Crt & 全系统只需创建一次 &
+在启动时创建第一个进程。\tabularnewline
+\_RME\_Kfn\_Boot\_Crt & 全系统只需创建一次 &
+在启动时创建内核功能调用权能。\tabularnewline
+\_RME\_Kom\_Boot\_Crt & 视情况而定 &
+在启动时创建内核内存权能。\tabularnewline
+\_RME\_Sig\_Boot\_Crt & 视情况而定 &
+在启动时创建内核信号端点。\tabularnewline
+\_RME\_Thd\_Boot\_Crt & 每个处理器调用一次 &
+在启动时创建初始线程。\tabularnewline
+\_\_RME\_Pgt\_Set & 每个处理器调用一次 &
+设置处理器使用当前页表。\tabularnewline
+\_\_RME\_Int\_Enable & 每个处理器调用一次 & 使能中断。\tabularnewline
+\_\_RME\_User\_Enter & 每个处理器调用一次 &
+进入用户态开始执行。\tabularnewline
+\end{xltabular}
+
+上述函数是按照调用的逻辑顺序列出的。这些函数的介绍和调用方法如下所示。一旦其中任何一个函数返回失败，那么就需要停止整个系统启动过程。因此，建议使用 RME\_ASSERT( func(...) == 0 )的宏判断包裹这些函数，一旦失败即进入死循环，打印内核崩溃信息。
+
+\subsubsection{在启动时初始化内核内存登记表}\label{subsubsec:7-init-kernel-object-table-at-boot}
+
+该函数用来在系统启动时初始化内核内存登记表。初始化的工作是将该登记表清零，代表没有内核内存被占用。内核启动时会默认调用一次该函数，初始化内核内存登记表的编译时就能确定的部分。对于某些架构，这就足够了，无需再次调用该函数\footnote{如 Cortex-M 等在编译时确定内核内存登记表大小的架构}。但是在另一些些架构上，内核内存的数量需要被动态探测，因此该工作可能要由移植者再次调用该函数进行\footnote{如 x86-64 等在运行时确定内核内存登记表大小的架构}。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5233\hsize\raggedright\arraybackslash}X>{\hsize=1.0172\hsize\raggedright\arraybackslash}X>{\hsize=1.4595\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时初始化内核内存登记表的所需参数}\label{tab:7-38-init-kernel-object-table-at-boot-parameters}\\
+\toprule
+原型 & ret\_t \_RME\_Kot\_Init(ptr\_t Word) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_RME\_Kot\_Init(ptr\_t Word) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Word & ptr\_t &
+内核内存登记表的大小，单位是处理器字长。这个值要根据内核内存分配粒度和探测到的内核内存大小动态计算，具体计算方法是将内核内存的地址空间大小除以内核内存分配粒度，然后再除以处理器的位数。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时初始化内核内存登记表的可能返回值}\label{tab:7-39-init-kernel-object-table-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    -1 & 传入的内核内存登记表大小比默认的最小大小要小。默认的最小大小是由宏 RME\_KOM\_SIZE 计算得出的。\tabularnewline
+\end{xltabular}
+
+\subsubsection{在启动时初始化各处理器的本地存储}\label{subsubsec:7-init-cpu-local-storage-at-boot}
+
+该函数用来在系统启动时初始化各处理器的本地存储区。本地存储区包含了该处理器的 CPUID、定时器信号端点和中断信号端点，以及该处理器的运行队列。本函数将初始化这些数据结构。对于单核架构，只要调用该函数一次来初始化编译时静态定义的存储区就足够了；对于多核架构，则需要每个处理器调用一次来初始化各自的存储区。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5066\hsize\raggedright\arraybackslash}X>{\hsize=1.3605\hsize\raggedright\arraybackslash}X>{\hsize=1.1329\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时初始化各处理器的本地存储的所需参数}\label{tab:7-40-init-cpu-local-storage-at-boot-parameters}\\
+\toprule
+原型 & void \_RME\_CPU\_Local\_Init(struct RME\_CPU\_Local* CPU\_Local,
+ptr\_t CPUID) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_CPU\_Local\_Init(struct RME\_CPU\_Local* CPU\_Local,
+ptr\_t CPUID) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPU\_Local & ... &
+类型为 struct RME\_CPU\_Local*，是一个指向要初始化的CPU本地存储的指针。\tabularnewline
+CPUID & ptr\_t & 该CPU的 CPUID，标识了该CPU的编号。\tabularnewline
+\end{xltabular}
+
+该函数无返回值。
+
+\subsubsection{在启动时创建最初权能表}\label{subsubsec:7-create-initial-capability-table-at-boot}
+
+该函数用来在系统启动时创建第一个权能表，并且将指向这个权能表的权能放入该权能表中指定的权能槽位。这个函数与创建权能表的系统调用相比，其区别是只能在系统启动时使用，并且不需要一个上级权能表\footnote{因为此时系统中还没有其他权能表}。该函数不需要内核内存权能。此外，该函数创建的权能表大小不受 RME\_CPT\_ENTRY\_MAX 限制而仅受处理器字长限制。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4888\hsize\raggedright\arraybackslash}X>{\hsize=1.2982\hsize\raggedright\arraybackslash}X>{\hsize=1.2130\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建最初权能表的所需参数}\label{tab:7-41-create-initial-capability-table-at-boot-parameters}\\
+\toprule
+原型 & ret\_t \_RME\_Cpt\_Boot\_Init(cid\_t Cap\_Cpt, ptr\_t Vaddr,
+ptr\_t Entry\_Num) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_RME\_Cpt\_Boot\_Init(cid\_t Cap\_Cpt, ptr\_t Vaddr,
+ptr\_t Entry\_Num) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Cap\_Cpt & cid\_t &
+要接受产生的权能表权能的位置。该权能号只能是一级查找编码。\tabularnewline
+Vaddr & ptr\_t & 初始权能表要使用的内核空间起始虚拟地址。\tabularnewline
+Entry\_Num & ptr\_t &
+该权能表包含的表项数目，必须在1到RME\_CID\_2L之间。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.7411\hsize\raggedright\arraybackslash}X>{\hsize=1.2589\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建最初权能表的可能返回值}\label{tab:7-42-create-initial-capability-table-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & 传入的权能表权能数目参数超出了操作系统允许的范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Crt 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+\end{xltabular}
+
+这个函数只被调用一次。它会创建最初始的权能表。这个权能表在将来会用于放置在内核初始化过程中创建的其他权能。
+
+\subsubsection{在启动时创建其他权能表}\label{subsubsec:7-create-other-capability-tables-at-boot}
+
+该函数用来在系统启动时创建其他权能表，并且将指向这个权能表的权能放入指定的权能表中。这个函数与创建初始权能表的系统调用相比，其区别是它需要一个上级权能表来存放指向自己的权能，而并不会把指向自己的权能放入自己。该函数不需要内核内存权能。此外，该函数创建的权能表大小不受RME\_CPT\_ENTRY\_MAX限制而仅受处理器字长限制。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5055\hsize\raggedright\arraybackslash}X>{\hsize=1.2472\hsize\raggedright\arraybackslash}X>{\hsize=1.2472\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建其他权能表的所需参数}\label{tab:7-43-create-other-capability-tables-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Cpt\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt\_Crt, cid\_t Cap\_Crt,
+
+ptr\_t Vaddr, ptr\_t Entry\_Num)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Cpt\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt\_Crt, cid\_t Cap\_Crt,
+
+ptr\_t Vaddr, ptr\_t Entry\_Num)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表内核对象的实体指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt\_Crt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的权能表权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Cpt & cid\_t &
+要接受产生的权能表权能的位置。该权能号只能是一级查找编码。\tabularnewline
+Vaddr & ptr\_t &
+新创建的权能表要使用的内核空间起始虚拟地址。\tabularnewline
+Entry\_Num & ptr\_t &
+该权能表包含的表项数目，必须在1到RME\_CID\_2L之间。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.9449\hsize\raggedright\arraybackslash}X>{\hsize=1.0551\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建其他权能表的可能返回值}\label{tab:7-44-create-other-capability-tables-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & 传入的权能表权能数目参数超出了操作系统允许的范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt\_Crt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Crt 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Cpt\_Crt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Crt 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt\_Crt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt\_Crt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Crt 不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+\end{xltabular}
+
+这个函数的调用数目视情况而定。如果除了初始的第一个由\_RME\_Cpt\_Boot\_Init 创建的权能表之外，我们还需要其他的权能表，那么就需要调用它。
+
+\subsubsection{在启动时创建页目录}\label{subsubsec:7-create-page-directory-at-boot}
+
+该函数用来在系统启动时创建页目录，并将这个指向页目录的权能放入指定的权能表内。该函数不需要内核内存权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4867\hsize\raggedright\arraybackslash}X>{\hsize=1.2567\hsize\raggedright\arraybackslash}X>{\hsize=1.2567\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建页目录的所需参数}\label{tab:7-45-create-page-directory-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Pgt, ptr\_t Vaddr, ptr\_t Base,
+
+ptr\_t Is\_Top, ptr\_t Size\_Order, ptr\_t Num\_Order)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Pgt, ptr\_t Vaddr, ptr\_t Base,
+
+ptr\_t Is\_Top, ptr\_t Size\_Order, ptr\_t Num\_Order)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表内核对象的实体指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的页目录权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Pgt & cid\_t &
+一个对应于接受该新创建的页目录权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Vaddr & ptr\_t &
+新创建的页目录要使用的内核空间起始虚拟地址。\tabularnewline
+Base & ptr\_t &
+新创建的页目录的映射起始地址，最后一位为顶层标志，见下。\tabularnewline
+Is\_Top & ptr\_t &
+该页目录是否是顶层页目录。``1''意味着该页目录为顶层。\tabularnewline
+Size\_Order & ptr\_t & 该页目录的大小量级。\tabularnewline
+Num\_Order & ptr\_t & 该页目录的数目量级。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0127\hsize\raggedright\arraybackslash}X>{\hsize=0.9873\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建页目录的可能返回值}\label{tab:7-46-create-page-directory-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Cpt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Pgt 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Pgt 不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_PGT\_HW & 底层硬件制约，不允许创建这样的页目录。\tabularnewline
+\end{xltabular}
+
+在启动时，需要多少个页目录，就创建多少个页目录。因此，该函数可能被调用多次，产生一组页目录。在通常启动过程中，只需要一个处理器完成这个功能即可，因此在整个系统中该函数只会被调用一组。
+
+\subsubsection{在启动时构造页目录}\label{subsubsec:7-construct-page-directory-at-boot}
+
+该函数用来在系统启动时构造页目录，将上一步创建的多个页目录组成一棵目录树\footnote{也即页表}。在接下来的步骤中，我们会用初始的权能表和页表创造最初的进程。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5561\hsize\raggedright\arraybackslash}X>{\hsize=1.2219\hsize\raggedright\arraybackslash}X>{\hsize=1.2219\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时构造页目录的所需参数}\label{tab:7-47-construct-page-directory-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Con(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Pgt\_Parent, ptr\_t Pos,
+
+cid\_t Cap\_Pgt\_Child)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Con(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Pgt\_Parent, ptr\_t Pos,
+
+cid\_t Cap\_Pgt\_Child)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Pgt\_Parent & cid\_t &
+一个对应于必须拥有 RME\_PGT\_FLAG\_CON\_PARENT 属性的页目录权能的权能号，该权能号对应的权能指向父页目录。该权能号可以是一级或者二级查找编码。\tabularnewline
+Pos & ptr\_t &
+一个该目标页目录中要接受传递的目标页表项位置。该页表项必须是空白的。\tabularnewline
+Cap\_Pgt\_Child & cid\_t &
+一个对应于必须拥有 RME\_PGT\_FLAG\_CHILD 属性的页目录权能的权能号，该权能号对应的权能指向子页目录。该权能号可以是一级或者二级查找编码。\tabularnewline
+Flags\_Child & ptr\_t &
+子页目录被映射时的属性。这个属性限制了该映射以下的所有页目录的访问权限。对于不同的架构，这个位置的值的意义也不相同。对于有些不支持页目录属性的架构而言\footnote{比如所有的基于MPU的系统}，这个值无效。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8640\hsize\raggedright\arraybackslash}X>{\hsize=1.1360\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时构造页目录的可能返回值}\label{tab:7-48-construct-page-directory-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt\_Parent 或 Cap\_Pgt\_Child 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Pgt\_Parent 或 Cap\_Pgt\_Child 的一级/二级查找的权能被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt\_Parent 或 Cap\_Pgt\_Child 不是页目录权能。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & Pos 超出了父页目录的页表项数目。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & 子页目录的总大小大于父页目录的一个页的大小。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & 在开启了物理地址等于虚拟地址的检查时，映射的物理地址和目标虚拟地址有冲突。\tabularnewline
+    RME\_ERR\_PGT\_MAP & 尝试构造，由于硬件原因失败。具体的失败原因与硬件有关，可能是硬件不支持此种映射。\tabularnewline
+\end{xltabular}
+
+在启动时，需要构造多少次页目录，就调用本函数多少次。在通常启动过程中，只需要一个处理器完成这个功能即可，因此在整个系统中该函数只会被调用一组。
+
+\subsubsection{在启动时向页目录中添加页}\label{subsubsec:7-add-page-to-page-directory-at-boot}
+
+该函数用来在已经构建好的页目录中添加页，并且这一操作无视页目录是否允许添加操作。这些页在启动后会构成所有的用户地址可访问空间。这个函数是新增加物理内存页到系统中的唯一机会，未来用户地址可访问的内存空间只能从这些页中产生。并且，这些页在被映射时，还要求提供一个属性，在以后的页映射操作中，该物理内存页不可能拥有更多的属性。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4561\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时向页目录中添加页的所需参数}\label{tab:7-49-add-page-to-page-directory-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Add(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Pgt,
+
+ptr\_t Paddr, ptr\_t Pos, ptr\_t Flag)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Pgt\_Boot\_Add(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Pgt,
+
+ptr\_t Paddr, ptr\_t Pos, ptr\_t Flag)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Paddr & ptr\_t & 物理内存地址。\tabularnewline
+Pos & ptr\_t &
+一个该页目录中要被填充的目标页表项位置。该页表项必须是空白的。\tabularnewline
+Flag & ptr\_t &
+页表项的属性。这个属性限制了页表项的特性。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.8640\hsize\raggedright\arraybackslash}X>{\hsize=1.1360\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时向页目录中添加页的可能返回值}\label{tab:7-50-add-page-to-page-directory-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Pgt 的一级/二级查找的权能被冻结。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是页目录权能。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & Pos 超出了页目录的页表项数目。\tabularnewline
+    RME\_ERR\_PGT\_ADDR & 在开启了物理地址等于虚拟地址的检查时，映射的物理地址和目标虚拟地址不同。\tabularnewline
+    RME\_ERR\_PGT\_MAP & 尝试映射，由于硬件原因失败。具体的失败原因与硬件有关。\tabularnewline
+\end{xltabular}
+
+在启动时，需要添加多少个物理内存页，就调用本函数多少次。在通常启动过程中，只需要一个处理器完成这个功能即可，因此在整个系统中该函数只会被调用一组。同时，在这一过程中不要求每个物理内存页只能映射一次。如果映射了多次，那么这多个映射将会同时存在，并且都是合法的。
+
+\subsubsection{在启动时创建第一个进程}\label{subsubsec:7-create-first-process-at-boot}
+
+该函数用来在启动时创建第一个进程，并将这个指向进程的权能放入指定的权能表内。该函数不需要内核内存权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5055\hsize\raggedright\arraybackslash}X>{\hsize=1.2472\hsize\raggedright\arraybackslash}X>{\hsize=1.2472\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建第一个进程的所需参数}\label{tab:7-51-create-first-process-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Prc\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt\_Crt, cid\_t Cap\_Prc,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Pgt, ptr\_t Vaddr)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Prc\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt\_Crt, cid\_t Cap\_Prc,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Pgt, ptr\_t Vaddr)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt\_Crt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的进程权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Prc & cid\_t &
+一个对应于接受该新创建的进程权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_PRC\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要给新创建的进程使用的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Pgt & cid\_t &
+一个对应于必须拥有 RME\_PGT\_FLAG\_PRC\_CRT 属性的页表权能的权能号，该权能号对应的权能指向要给新创建的进程使用的页表\footnote{顶层页目录}。该权能号可以是一级或者二级查找编码。\tabularnewline
+Vaddr & ptr\_t &
+新创建的进程内核对象要使用的内核空间起始虚拟地址。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0063\hsize\raggedright\arraybackslash}X>{\hsize=0.9937\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建第一个进程的可能返回值}\label{tab:7-52-create-first-process-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt\_Crt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Pgt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Prc 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt\_Crt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt 的一级/二级查找权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Pgt 的一级/二级查找权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Prc 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt\_Crt 或 Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Pgt 不是页表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt\_Crt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_PRC\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Pgt 无 RME\_PGT\_FLAG\_PRC\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Prc 不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_CPT\_REFCNT（不太可能返回该值） & Cap\_Cpt 或 Cap\_Pgt 的引用计数超过了系统允许的最大范围。\tabularnewline
+\end{xltabular}
+
+该函数在整个系统启动时只要由一个核调用一次即可。
+
+\subsubsection{在启动时创建内核功能调用权能}\label{subsubsec:7-create-kernel-function-capability-at-boot}
+
+该函数用来在系统启动时创建内核功能调用权能，并将这个内核功能调用权能放入指定的权能表内。内核功能调用权能只能在内核启动时完成创建，此后新产生的内核功能调用权能都是由此权能传递得到的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4561\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核功能调用权能的所需参数}\label{tab:7-53-create-kernel-function-capability-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Kfn\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Kfn)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Kfn\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Kfn)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的内核功能调用权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Kfn & cid\_t &
+一个对应于接受该新创建的内核功能调用权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0260\hsize\raggedright\arraybackslash}X>{\hsize=0.9740\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核功能调用权能的可能返回值}\label{tab:7-54-create-kernel-function-capability-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kfn 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Cpt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Kfn 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Kfn 不是空白权能。\tabularnewline
+\end{xltabular}
+
+该函数在整个系统启动时只要由一个核调用一次即可。
+
+\subsubsection{在启动时创建内核内存权能}\label{subsubsec:7-create-kernel-memory-capability-at-boot}
+
+该函数用来在系统启动时创建内核内存权能，并将这个内核内存权能放入指定的权能表内。内核内存权能只能在内核启动时完成创建，此后新产生的内核内存权能都是由此权能传递得到的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4561\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核内存权能的所需参数}\label{tab:7-55-create-kernel-memory-capability-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Kom\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Kom, ptr\_t Begin, ptr\_t End, ptr\_t Flags)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Kom\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Kom, ptr\_t Begin, ptr\_t End, ptr\_t Flags)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的内存权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Kom & cid\_t &
+一个对应于接受该新创建的内核内存权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Begin & ptr\_t &
+内核内存的起始虚拟地址。该地址在传入时会被自动对齐到内核内存登记表的粒度。\tabularnewline
+End & ptr\_t &
+内核内存的终止虚拟地址。该地址在传入时会被自动对齐到内核内存登记表的粒度-1。\tabularnewline
+Flags & ptr\_t &
+该内核内存权能的标志位，指明允许创建哪些内核对象在这段内存上。该值不能为0，否则内核会直接崩溃。\tabularnewline
+\end{xltabular}
+
+\needspace{20\baselineskip}
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0260\hsize\raggedright\arraybackslash}X>{\hsize=0.9740\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核内存权能的可能返回值}\label{tab:7-56-create-kernel-memory-capability-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Kom 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Cpt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Kom 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Kom 不是空白权能。\tabularnewline
+\end{xltabular}
+
+通常而言该函数在整个系统启动时只要由一个核调用一次即可。如果系统的可用内核内存分成很多段，或者各个段有不同的性质，那么可能会有多个内核内存权能被创建。
+
+\subsubsection{在启动时创建内核信号端点}\label{subsubsec:7-create-kernel-signal-endpoint-at-boot}
+
+该函数用来在启动时创建内核信号端点。内核信号端点用来处理中断，在中断向量中通过发送信号到内核信号端点来唤醒对应的用户态线程进行中断处理。由于任何一个内核信号端点在任何时刻只能有一个线程阻塞在它上面，因此需要创建的内核信号端点的数量为``中断向量-处理线程''对的数量。
+
+内核信号端点只能在内核启动时完成创建，并且不可删除。此后新产生的内核信号端点都是由此权能传递得到的。该函数不需要内核内存权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4561\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X>{\hsize=1.2720\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核信号端点的所需参数}\label{tab:7-57-create-kernel-signal-endpoint-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Sig\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Sig, ptr\_t Vaddr)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Sig\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt,
+
+cid\_t Cap\_Cpt, cid\_t Cap\_Sig, ptr\_t Vaddr)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的内核信号端点权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Sig & cid\_t &
+一个对应于接受该新创建的内核信号端点权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Vaddr & ptr\_t &
+新创建的内核信号端点内核对象要使用的内核空间起始虚拟地址。\tabularnewline
+\end{xltabular}
+
+\needspace{20\baselineskip}
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0260\hsize\raggedright\arraybackslash}X>{\hsize=0.9740\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建内核信号端点的可能返回值}\label{tab:7-58-create-kernel-signal-endpoint-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    0 & 操作成功。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Sig 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Cpt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN（不太可能返回该值） & Cap\_Sig 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Sig 不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+\end{xltabular}
+
+该函数的调用方法有两种模式。在第一种模式下，由一个处理器核创建所有的内核信号端点。在第二种模式下，由各个处理器分开创建各自需要使用的内核信号端点。第二种模式快一些，但是程序相对更加复杂。通常，使用第一种方法就足够了。
+
+在多核系统下如果使用第一种模式，那么需要在完成这一步之后，给其他处理器发送IPI，让其他处理器各自都执行接下来的函数，完成各自的初始化。如果使用第二种模式，那么在执行这一步之前就要分开。这一步之后的所有步骤都需要各自处理器分开执行一次。
+
+对于每个核至少要创建两个信号端点：第一个信号端点是用来接收定时器信号的，指向它的指针应当被赋给该CPU的本地存储的 Tick\_Sig 成员；第二个端点是用来在默认情况下接收所有的其他外设中断的，指向它的指针应当被赋给该CPU的本地存储的 Int\_Sig 成员。
+
+\subsubsection{在启动时创建初始线程}\label{subsubsec:7-create-initial-thread-at-boot}
+
+该函数用来在系统启动时创建初始线程，也即 Init 线程。Init 线程一经创建就会被绑定到某处理器，并且拥有无限的时间片。Init 进程中，每个处理器核都拥有一个 Init 线程。Init 线程不可被杀死，不能被从该处理器解除绑定，而且不能被在任何一个信号端点上被阻塞，但其优先级是可以更改的。Init 线程的优先级上限由系统指定为 RME\_PREEMPT\_PRIO\_NUM-1。Init 线程的TID总是0。
+
+与创建线程的系统调用不同，这个函数允许通过 CPU\_Local 参数来指定该线程被绑定到何处理器，这是为了在多处理器体系中方便启动处理器核创建所有的内核对象，这也是推荐的做法。该函数不需要内核内存权能。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.4666\hsize\raggedright\arraybackslash}X>{\hsize=1.2667\hsize\raggedright\arraybackslash}X>{\hsize=1.2667\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建初始线程的所需参数}\label{tab:7-59-create-initial-thread-at-boot-parameters}\\
+\toprule
+原型\strut
+ & ret\_t \_RME\_Thd\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Thd, cid\_t Cap\_Prc, ptr\_t Vaddr,
+
+ptr\_t Prio, struct RME\_CPU\_Local* CPU\_Local)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_RME\_Thd\_Boot\_Crt(struct RME\_Cap\_Cpt* Cpt, cid\_t Cap\_Cpt,
+
+cid\_t Cap\_Thd, cid\_t Cap\_Prc, ptr\_t Vaddr,
+
+ptr\_t Prio, struct RME\_CPU\_Local* CPU\_Local)\strut
+ & \strut
+\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+CPT & ... &
+类型为 struct RME\_Cap\_Cpt*，是一个指向上级权能表权能的指针。所有的权能号都是针对这个权能表而言的。\tabularnewline
+Cap\_Cpt & cid\_t &
+一个对应于必须拥有 RME\_CPT\_FLAG\_CRT 属性的权能表权能的权能号，该权能号对应的权能指向要接受此新创建的初始线程权能的权能表。该权能号可以是一级或者二级查找编码。\tabularnewline
+Cap\_Thd & cid\_t &
+一个对应于接受该新创建的线程权能的权能表的某位置的权能号。该权能号对应的权能必须是空白的。该权能号只能是一级查找编码。\tabularnewline
+Cap\_Prc & cid\_t &
+一个对应于必须拥有 RME\_PRC\_FLAG\_THD 属性的进程权能的权能号，该权能号对应的权能指向包含新创建的线程的进程。该权能号可以是一级或者二级查找编码。\tabularnewline
+Vaddr & ptr\_t &
+新创建的初始线程内核对象要使用的内核空间起始虚拟地址。\tabularnewline
+Prio & ptr\_t &
+初始线程的抢占优先级。在 RME 中线程的优先级从0开始计算，值越大优先级越高。这个值不能超过系统允许的最大值。\tabularnewline
+CPU\_Local & ... &
+类型为 struct RME\_CPU\_Local*，是一个指向要将该线程绑定到的CPU的CPU本地存储的指针。\tabularnewline
+\end{xltabular}
+
+该函数的返回值可能如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=1.0260\hsize\raggedright\arraybackslash}X>{\hsize=0.9740\hsize\raggedright\arraybackslash}X@{}}
+\caption{在启动时创建初始线程的可能返回值}\label{tab:7-60-create-initial-thread-at-boot-return-values}\\
+\toprule
+返回值 & 意义\tabularnewline
+\endfirsthead
+\toprule
+返回值 & 意义\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+    非负值 & 操作成功，返回线程标识符（TID）。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Cpt 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Prc 的一级/二级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_RANGE & Cap\_Thd 的一级查找超出了范围。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Cpt 的一级/二级查找的权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Prc 的一级/二级查找权能已经被冻结。\tabularnewline
+    RME\_ERR\_CPT\_FROZEN & Cap\_Thd 被冻结，或者其它核正在该处创建权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Cpt 不是权能表权能。\tabularnewline
+    RME\_ERR\_CPT\_TYPE & Cap\_Prc 不是进程权能。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Cpt 无 RME\_CPT\_FLAG\_CRT 属性。\tabularnewline
+    RME\_ERR\_CPT\_FLAG & Cap\_Prc 无 RME\_PRC\_FLAG\_THD 属性。\tabularnewline
+    RME\_ERR\_CPT\_EXIST & Cap\_Thd 不是空白权能。\tabularnewline
+    RME\_ERR\_CPT\_KOT & 分配内核内存失败。\tabularnewline
+    RME\_ERR\_PTH\_PRIO & 指定的初始线程优先级超过了 RME\_PREEMPT\_PRIO\_NUM-1。\tabularnewline
+\end{xltabular}
+
+该函数需要每个处理器调用一次，在该处理器上创建绑定到自身的 Init 线程。当然，也可以由一个处理器为所有的其他处理器创建 Init 线程。
+
+\subsubsection{设置当前页表、使能中断和进入用户态开始执行}\label{subsubsec:7-set-page-table-enable-interrupt-and-enter-user-mode}
+
+各处理器依次调用一次 \_\_RME\_Pgt\_Set、\_\_RME\_Int\_Enable 和 \_\_RME\_User\_Enter，进入用户态开始执行。关于 \_\_RME\_Pgt\_Set 的相关信息，请参见\ref{subsec:7-rme-pgt-set-implementation}
+；关于 \_\_RME\_Int\_Enable 和 \_\_RME\_User\_Enter 的相关信息，请参见\ref{sec:7-type-definition-and-assembly-function-porting}
+。
+
+\section{寄存器组相关函数的移植}\label{sec:7-register-set-function-porting}
+
+RME 中，和寄存器组有关的函数有以下 8 个。这8个函数都是非常短小的，仅涉及寄存器上下文。这些函数的实现往往和架构相关结构体有关系，和用户态库使用这些寄存器的方法也有关系。
+
+\subsection{\_\_RME\_Svc\_Param\_Get的实现}\label{subsec:7-rme-svc-param-get-implementation}
+
+该函数用于从寄存器组中提取系统调用的参数。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Svc\_Param\_Get的实现}\label{tab:7-61-rme-svc-param-get-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Svc\_Param\_Get(struct RME\_Reg\_Struct* Reg,
+
+ptr\_t* Svc, ptr\_t* Cid, ptr\_t* Param)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Svc\_Param\_Get(struct RME\_Reg\_Struct* Reg,
+
+ptr\_t* Svc, ptr\_t* Cid, ptr\_t* Param)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 提取系统调用的参数，并放入分别的各个返回值。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+指向寄存器组的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Svc
+
+该参数用于输出，输出半字长的系统调用号（N）。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Cid
+
+该参数用于输出，输出半字长的权能号（C）。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Param
+
+该参数用于输出，输出三个字长的参数（P1-P3）。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Svc\_Retval\_Set的实现}\label{subsec:7-rme-svc-retval-set-implementation}
+
+该函数用于向寄存器组中存入系统调用的返回值。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5379\hsize\raggedright\arraybackslash}X>{\hsize=1.4621\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Svc\_Retval\_Set的实现}\label{tab:7-62-rme-svc-retval-set-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Svc\_Retval\_Set(struct RME\_Reg\_Struct* Reg,
+
+ret\_t Retval)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Svc\_Retval\_Set(struct RME\_Reg\_Struct* Reg,
+
+ret\_t Retval)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 将系统调用的返回值存入寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+该参数用于输出，是指向寄存器组的指针。\strut
+\tabularnewline
+\strut
+ & ret\_t Retval
+
+系统调用返回的返回值。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Reg\_Init的实现}\label{subsec:7-rme-thd-reg-init-implementation}
+
+该函数用于初始化线程或迁移调用的寄存器组。在线程设置执行属性和迁移调用被调用时，该函数都会被调用。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Reg\_Init的实现}\label{tab:7-63-rme-thd-reg-init-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Reg\_Init(ptr\_t Attr,
+
+ptr\_t Entry,
+
+ptr\_t Stack,
+
+ptr\_t Param,
+
+struct RME\_Reg\_Struct* Reg)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Reg\_Init(ptr\_t Attr,
+
+ptr\_t Entry,
+
+ptr\_t Stack,
+
+ptr\_t Param,
+
+struct RME\_Reg\_Struct* Reg)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+使用入口地址，栈地址和参数初始化线程或迁移调用寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & ptr\_t Attr
+
+协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\strut
+ & ptr\_t Entry
+
+线程的入口地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t Stack
+
+线程栈的地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t Param
+
+要赋给线程的参数。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg
+
+该参数用于输出，是指向该线程寄存器组结构体的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Reg\_Copy的实现}\label{subsec:7-rme-thd-reg-copy-implementation}
+
+该函数用于复制线程的寄存器组。有时候需要用汇编实现这个函数以提高效率。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Reg\_Copy的实现}\label{tab:7-64-rme-thd-reg-copy-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Reg\_Copy(struct RME\_Reg\_Struct* Dst,
+
+struct RME\_Reg\_Struct* Src)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Reg\_Copy(struct RME\_Reg\_Struct* Dst,
+
+struct RME\_Reg\_Struct* Src)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 将一个寄存器组数据结构复制到另一个。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Dst
+
+该参数用于输出，是指向目标寄存器组数据结构的指针。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg
+
+指向源寄存器组数据结构的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Reg\_Print的实现}\label{subsec:7-rme-thd-reg-print-implementation}
+
+该函数用于打印线程的寄存器组。该函数仅用于调试打印，只会在 RME\_DBGLOG\_ENABLE 定义为1时被调用。如果不需要此功能，可以将其实现为空函数。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5534\hsize\raggedright\arraybackslash}X>{\hsize=1.4466\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Reg\_Print的实现}\label{tab:7-65-rme-thd-reg-print-implementation}\\
+\toprule
+原型 & void \_\_RME\_Thd\_Reg\_Print(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_\_RME\_Thd\_Reg\_Print(struct RME\_Reg\_Struct*
+Reg)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 打印线程的寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+指向待打印寄存器组数据结构的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Inv\_Reg\_Save的实现}\label{subsec:7-rme-inv-reg-save-implementation}
+
+该函数用于保存必要的寄存器到同步迁移调用结构体中以方便返回。只需要保存那些对恢复程序执行流必要的寄存器就可以了\footnote{比如对于 x86-64，要保存 SP 和 IP；对于 Cortex-M，则要保存 LR 和 SP}。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Inv\_Reg\_Save的实现}\label{tab:7-66-rme-inv-reg-save-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Inv\_Reg\_Save(struct RME\_Iret\_Struct* Ret,
+
+struct RME\_Reg\_Struct* Reg)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Inv\_Reg\_Save(struct RME\_Iret\_Struct* Ret,
+
+struct RME\_Reg\_Struct* Reg)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 保存必要的寄存器到同步迁移调用结构体中。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Iret\_Struct* Ret
+
+该参数用于输出，是指向必要寄存器结构体的指针。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg
+
+指向寄存器组的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Inv\_Reg\_Restore的实现}\label{subsec:7-rme-inv-reg-restore-implementation}
+
+该函数用于从同步迁移调用结构体恢复必要的寄存器以返回。只需要恢复那些对恢复程序执行流必要的寄存器就可以了\footnote{比如对于 x86-64，要恢复 SP 和 IP；对于 Cortex-M，则要恢复 LR 和 SP}。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Inv\_Reg\_Restore的实现}\label{tab:7-67-rme-inv-reg-restore-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Inv\_Reg\_Restore(struct RME\_Reg\_Struct* Reg,
+
+struct RME\_Iret\_Struct* Ret)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Inv\_Reg\_Restore(struct RME\_Reg\_Struct* Reg,
+
+struct RME\_Iret\_Struct* Ret)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 从同步迁移调用结构体中恢复必要的寄存器。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+该参数用于输出，是指向寄存器组的指针。\strut
+\tabularnewline
+\strut
+ & struct RME\_Iret\_Struct* Ret
+
+指向必要寄存器结构体的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Set\_Inv\_Retval的实现}\label{subsec:7-rme-set-inv-retval-implementation}
+
+该函数用于向寄存器组中存入同步迁移调用的返回值。它也在接收线程的调度器事件时被使用，用来返回线程出错的原因。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5379\hsize\raggedright\arraybackslash}X>{\hsize=1.4621\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Set\_Inv\_Retval的实现}\label{tab:7-68-rme-set-inv-retval-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Set\_Inv\_Retval(struct RME\_Reg\_Struct* Reg,
+
+ret\_t Retval)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Set\_Inv\_Retval(struct RME\_Reg\_Struct* Reg,
+
+ret\_t Retval)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 将同步迁移调用的返回值存入寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Reg\_Struct* Reg
+
+该参数用于输出，是指向寄存器组的指针。\strut
+\tabularnewline
+\strut
+ & ret\_t Retval
+
+同步迁移调用返回的返回值。\strut
+\tabularnewline
+\end{xltabular}
+
+\section{协处理器寄存器组相关函数的移植}\label{sec:7-coprocessor-register-set-function-porting}
+
+RME中，和协处理器有关的函数有以下4个。这4个函数都是非常短小的，仅涉及协处理器上下文。如果不使用协处理器，则这些函数可以不实现。
+
+\subsection{\_\_RME\_Thd\_Cop\_Check的实现}\label{subsec:7-rme-thd-cop-check-implementation}
+
+该函数被用于绑定线程到处理器时检查该线程使用的协处理器能否被当前处理器支持。在某些非对称处理器上，一些CPU可能缺乏某些线程需要的指令集扩展，这使得它们无法绑定这些线程，此时只要在本函数中检查中发现并拒绝这种情况即可。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5350\hsize\raggedright\arraybackslash}X>{\hsize=1.4650\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Cop\_Check的实现}\label{tab:7-69-rme-thd-cop-check-implementation}\\
+\toprule
+原型 & ret\_t \_\_RME\_Thd\_Cop\_Check(ptr\_t Attr)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_\_RME\_Thd\_Cop\_Check(ptr\_t Attr)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 检查当前CPU是否支持该协处理器属性。\tabularnewline
+返回值\strut
+ & ret\_t
+
+如果当前CPU可以兼容这种上下文属性，则返回0，否则返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & ptr\_t Attr
+
+协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Cop\_SIze的实现}\label{subsec:7-rme-thd-cop-size-implementation}
+
+该函数被用于查询某种协处理器扩展的上下文大小。在分配线程内核对象时，为了避免浪费空间，我们分配的大小总是刚好能够放下所有协处理器需要使用的上下文空间，因此需要事先对协处理器上下文使用的空间进行查询。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5583\hsize\raggedright\arraybackslash}X>{\hsize=1.4417\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Cop\_Size的实现}\label{tab:7-70-rme-thd-cop-size-implementation}\\
+\toprule
+原型 & ptr\_t \_\_RME\_Thd\_Cop\_Size(ptr\_t Attr)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ptr\_t \_\_RME\_Thd\_Cop\_Size(ptr\_t Attr)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 检查当前CPU是否支持该协处理器属性。\tabularnewline
+返回值\strut
+ & ptr\_t
+
+该协处理器上下文属性对应的额外协处理器上下文大小。\strut
+\tabularnewline
+参数\strut
+ & ptr\_t Attr
+
+协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Cop\_Init的实现}\label{subsec:7-rme-thd-cop-init-implementation}
+
+该函数被用于在设置线程执行属性时初始化线程的协处理器寄存器组。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Cop\_Init的实现}\label{tab:7-71-rme-thd-cop-init-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Cop\_Init(ptr\_t Attr,
+
+struct RME\_Reg\_Struct* Reg,
+
+void* Cop)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Cop\_Init(ptr\_t Attr,
+
+struct RME\_Reg\_Struct* Reg,
+
+void* Cop)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 初始化线程协处理器寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & ptr\_t Attr
+
+协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg
+
+指向寄存器组数据结构的指针。这个参数是用来辅助协处理器寄存器初始化用的。\strut
+\tabularnewline
+\strut
+ & void* Cop
+
+该参数用于输出，是指向协处理器寄存器组的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+\subsection{\_\_RME\_Thd\_Cop\_Swap的实现}\label{subsec:7-rme-thd-cop-swap-implementation}
+
+该函数用于按需保存以及恢复线程的协处理器寄存器组。有时候需要用汇编实现这个函数以提高效率。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Thd\_Cop\_Swap的实现}\label{tab:7-72-rme-thd-cop-swap-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Cop\_Swap(ptr\_t Attr\_New,
+
+ptr\_t Is\_Hyp\_New,
+
+struct RME\_Reg\_Struct* Reg\_New,
+
+void* Cop\_New,
+
+ptr\_t Attr\_Cur,
+
+ptr\_t Is\_Hyp\_Cur,
+
+struct RME\_Reg\_Struct* Reg\_Cur,
+
+void* Cop\_Cur)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Thd\_Cop\_Swap(ptr\_t Attr\_New,
+
+ptr\_t Is\_Hyp\_New,
+
+struct RME\_Reg\_Struct* Reg\_New,
+
+void* Cop\_New,
+
+ptr\_t Attr\_Cur,
+
+ptr\_t Is\_Hyp\_Cur,
+
+struct RME\_Reg\_Struct* Reg\_Cur,
+
+void* Cop\_Cur)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 保存线程的协处理器寄存器组。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & ptr\_t Attr\_New
+
+新线程的协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\strut
+ & ptr\_t Is\_Hyp\_New
+
+指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg\_New
+
+指向新线程寄存器组数据结构的指针。这个参数是用来辅助判断新线程是否使用协处理器的。\strut
+\tabularnewline
+\strut
+ & void* Cop\_New
+
+指向新线程协处理器寄存器组的指针。协处理器的上下文应当从该指针中恢复。\strut
+\tabularnewline
+\strut
+ & ptr\_t Attr\_Cur
+
+老线程的协处理器的上下文属性。该值的具体意义由架构决定。\strut
+\tabularnewline
+\strut
+ & ptr\_t Is\_Hyp\_Cur
+
+指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg\_Cur
+
+指向老线程寄存器组数据结构的指针。这个参数是用来辅助判断老线程是否使用协处理器的。\strut
+\tabularnewline
+\strut
+ & void* Cop\_Cur
+
+指向老线程协处理器寄存器组的指针。协处理器的上下文应当被保存到该指针。\strut
+\tabularnewline
+\end{xltabular}
+
+需要特别注意的是，协处理器寄存器组有时可以被当作一个传输能力很强的隐蔽通道使用。因此，在那些注重信息安全的实现中，如果检测到新线程没有使用协处理器寄存器组，那么应当使用无意义的字符（比如0x00）填充协处理器寄存器组，防止老线程的信息泄露到新线程；也可以无视线程是否使用了协处理器寄存器组，总是保存和恢复协处理器寄存器组。
+
+\section{内核功能调用函数的移植}\label{sec:7-kernel-function-call-function-porting}
+
+内核功能调用函数是一组由用户实现的、可以在操作系统内核态运行的一系列函数。这些函数是在编译时确定的。这些函数的描述如下：
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{内核功能调用函数的实现}\label{tab:7-73-kernel-function-call-function-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_User\_Func(struct RME\_Cap\_Cpt* Cpt,
+
+struct RME\_Reg\_Struct* Reg,
+
+ptr\_t Func\_ID, ptr\_t Sub\_ID,
+
+ptr\_t Param1, ptr\_t Param2)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_User\_Func(struct RME\_Cap\_Cpt* Cpt,
+
+struct RME\_Reg\_Struct* Reg,
+
+ptr\_t Func\_ID, ptr\_t Sub\_ID,
+
+ptr\_t Param1, ptr\_t Param2)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 实现一个用户定义的内核态操作。\tabularnewline
+返回值\strut
+ & ret\_t
+
+如果失败，必须返回负值；如果成功，必须返回非负值。此外，如果该函数成功，由该函数负责设置其返回值到寄存器组。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Cpt* Cpt
+
+指向当前进程的权能表的指针。\strut
+\tabularnewline
+\strut
+ & struct RME\_Reg\_Struct* Reg
+
+该参数可用于输入或输出，是指向寄存器组的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t Func\_ID
+
+主功能号。\strut
+\tabularnewline
+\strut
+ & ptr\_t Sub\_ID
+
+子功能号。\strut
+\tabularnewline
+\strut
+ & ptr\_t Param1
+
+该函数的第一个参数。\strut
+\tabularnewline
+\strut
+ & ptr\_t Param2
+
+该函数的第二个参数。\strut
+\tabularnewline
+\end{xltabular}
+
+这是一个接受两个用户自定义参数，完成一些操作，然后返回的内核态函数。通常而言这些函数被用于实现一些处理器特定的功能\footnote{比如某些内建于CPU的外设、特殊协处理器指令或者其他必须在内核态实现的I/O操作}。这些函数的实现都应该短小精悍，并且应当保证能在一定时限之内完成，否则调用这些函数的实时性就没有保证。
+
+接下来介绍几个最常见的内核功能的实现思路以供参考。
+
+\subsection{高精度定时器系统的实现}\label{subsec:7-high-precision-timer-system-implementation}
+
+要使用高精度定时器，只需要实现几个内核功能调用，并且赋予他们操作定时器的功能即可。定时器产生的中断可以直接通过内核信号端点传递到对应的目标线程，也可以由另外一个管理线程负责处理，然后再把定时器中断传递给其他线程。
+
+\subsection{处理器间中断的实现}\label{subsec:7-inter-processor-interrupt-implementation}
+
+由于 RME 中，从一个CPU发出的异步信号无法直接被传送到另外一个CPU，从而唤醒其上的线程，因此需要一个内核功能调用来实现处理器间中断，并且提示另一个核上的某个线程需要唤醒某其他线程。
+
+\subsection{缓存操作的实现}\label{subsec:7-cache-operation-implementation}
+
+处理器的缓存操作一般也是特权指令。因此，可以把这些操作分别用内核功能调用实现。
+
+\section{页表相关函数的移植}\label{sec:7-page-table-function-porting}
+
+RME 中，和页表相关的函数有以下11个。这些函数的实现和处理器架构紧密相关，而且在多核环境下还要负责检查并行操作的冲突。这些函数的安全性和可靠性会极大地影响系统的安全性和可靠性，因此是系统移植中最重要的一环。接下来我们分别解释这些函数的功能和移植注意事项。
+
+\subsection{\_\_RME\_Pgt\_Set的实现}\label{subsec:7-rme-pgt-set-implementation}
+
+该函数负责设置处理器当前使用的页表。该函数传入的是一个虚拟地址；在该函数中往往需要先进行虚拟地址到物理地址的转换，然后再将物理地址赋给处理器的相应寄存器。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Set的实现}\label{tab:7-74-rme-pgt-set-implementation}\\
+\toprule
+原型\strut
+ & void \_\_RME\_Pgt\_Set(struct RME\_Cap\_Pgt* Pgt)
+
+void \_\_RME\_Pgt\_Set(ptr\_t Pgt)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & void \_\_RME\_Pgt\_Set(struct RME\_Cap\_Pgt* Pgt)
+
+void \_\_RME\_Pgt\_Set(ptr\_t Pgt)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 设置处理器使用该页表。\tabularnewline
+返回值 & 无。\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt
+
+指向顶层页目录的，含有该页目录的所有信息的页目录根权能。可用宏 RME\_CAP\_GETOBJ 来得到页目录的虚拟地址，将该虚拟地址通过架构相关方法变换成物理地址即可装入处理器。在需要额外信息\footnote{如ASID等}来辅助设置的场合，也可以读取权能中存放的值。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pgt
+
+一旦在移植时开启了用户态页表控制宏RME\_PGT\_RAW\_USER，该参数即取代Pgt。它是处理器可直接识别的页表数据结构所在的物理地址。\strut
+\tabularnewline
+\end{xltabular}
+
+对于MMU架构，该函数会将顶层页目录指针寄存器\footnote{如 x86-64 中的 CR3}指向顶层页目录，这一操作也会同时刷新TLB缓存。对于MPU架构，该函数会将顶层页表的元数据复制进MPU的相关寄存器中完成保护区域设置。由于MPU的寄存器相对较多，因此可考虑用汇编实现该函数，从而达到快速设置页表的效果。
+
+\subsection{\_\_RME\_Pgt\_Kom\_Init的实现}\label{subsec:7-rme-pgt-kom-init-implementation}
+
+该函数负责在系统启动时建立初始的内核页表。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6762\hsize\raggedright\arraybackslash}X>{\hsize=1.3238\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Kom\_Init的实现}\label{tab:7-75-rme-pgt-kom-init-implementation}\\
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Kom\_Init(void)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Kom\_Init(void)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 建立内核初始页表。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数 & 无。\tabularnewline
+\end{xltabular}
+
+该函数建立的内核映射一经成立，就不会被用户变更，而且这些物理地址将在系统存在期间永续地被作为内核内存来使用。这个内核页表\footnote{或者这些内核页目录}将会被映射进每一个进程的顶层页目录，并且其特权属性将会被定义为内核级别。在初始内核页表中应当包括两个部分，一个部分是内核所占虚拟空间，另一个部分则是内核虚拟机使用的内存的空间。关于该种映射进行的时间，请参看有关 \_\_RME\_Pgt\_Init 的部分。
+
+在MPU环境下，这个函数一般直接返回成功就可以了。因为一般情况下，在特权模式下的处理器可以访问所有的内存空间，无需往页表和页表元数据中加入关于内核地址的条目。
+
+\subsection{\_\_RME\_Pgt\_Check的实现}\label{subsec:7-rme-pgt-check-implementation}
+
+该函数负责检查用来创建页目录的各个参数是否能够被底层架构支持。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Check的实现}\label{tab:7-76-rme-pgt-check-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Check(ptr\_t Base, ptr\_t Is\_Top,
+
+ptr\_t Size\_Order, ptr\_t Num\_Order, ptr\_t Vaddr)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Check(ptr\_t Base, ptr\_t Is\_Top,
+
+ptr\_t Size\_Order, ptr\_t Num\_Order, ptr\_t Vaddr)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 检查传入的页目录创建参数是否能够被底层硬件支持。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功（硬件支持）返回0，失败（硬件不支持）返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & ptr\_t Base
+
+页目录映射起始虚拟地址。该参数仅在MPU环境中有效。\strut
+\tabularnewline
+\strut
+ & ptr\_t Is\_Top
+
+页目录是否为顶层页目录。1为顶层，0则不为顶层。\strut
+\tabularnewline
+\strut
+ & ptr\_t Size\_Order
+
+页目录的页表项大小级数。\strut
+\tabularnewline
+\strut
+ & ptr\_t Num\_Order
+
+页目录的页表项数量级数。\strut
+\tabularnewline
+\strut
+ & ptr\_t Vaddr
+
+页目录内核对象自身位于的内核虚拟地址。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数会在创建页表的内核调用之前被调用，用来确认该种页表能够被创建，从而先在分配内核内存之前检查页表参数的有效性。该函数需要按照处理器硬件对页表的要求严格编写，使它只能对处理器支持的页表形式返回0，对于其他的组合都要返回 RME\_ERR\_HAL\_FAIL（-1）。
+
+\subsection{\_\_RME\_Pgt\_Init的实现}\label{subsec:7-rme-pgt-init-implementation}
+
+该函数负责初始化一个刚刚创建的页目录。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Init的实现}\label{tab:7-77-rme-pgt-init-implementation}\\
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Init(struct RME\_Cap\_Pgt*
+Pgt\_Op)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Init(struct RME\_Cap\_Pgt*
+Pgt\_Op)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 初始化刚刚创建的页目录。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数会在页目录创建时被调用，也是页目录创建的关键函数。该函数要把页目录初始化成可用的形式，比如将其所有的空隙全部初始化成空表项等。此外，如果是在MMU环境下创建顶层页目录，还需要把所有的由 \_\_RME\_Pgt\_Kom\_Init 创建的内核表项全部都映射到该页目录中去。由于之前由 \_\_RME\_Pgt\_Check 检查过页目录的参数，因此本函数可以略过这些检查。
+
+\subsection{\_\_RME\_Pgt\_Del\_Check的实现}\label{subsec:7-rme-pgt-del-check-implementation}
+
+该函数负责检查一个页目录能否被安全删除。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Del\_Check的实现}\label{tab:7-78-rme-pgt-del-check-implementation}\\
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Del\_Check(struct RME\_Cap\_Pgt*
+Pgt\_Op)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Del\_Check(struct RME\_Cap\_Pgt*
+Pgt\_Op)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 检查一个页目录能否被安全删除。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功（可以删除）返回0，失败（不能删除）返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数是删除页目录操作中必备的检查函数。在这个函数中，我们需要检查该页目录是否可以被删除。内核本身已经保证任何父页目录和子页目录无法被删除，因此通常无需进行此项检查。如果某些架构对被删除的页目录内部的页映射情况有要求，才需要进行此项检查。
+
+\subsection{\_\_RME\_Pgt\_Page\_Map的实现}\label{subsec:7-rme-pgt-page-map-implementation}
+
+该函数负责映射一个页到一个页目录内。如果这种映射由于传入的参数不正确\footnote{比如位号超标、物理地址对齐不符合要求、有不支持的标志位、或者该位置已经有映射}不能被完成，应当返回错误。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Page\_Map的实现}\label{tab:7-79-rme-pgt-page-map-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Page\_Map(struct RME\_Cap\_Pgt* Pgt\_Op,
+
+ptr\_t Paddr, ptr\_t Pos, ptr\_t Flag)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Page\_Map(struct RME\_Cap\_Pgt* Pgt\_Op,
+
+ptr\_t Paddr, ptr\_t Pos, ptr\_t Flag)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 映射一个页到页目录内部。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Paddr
+
+需要被映射的物理页框地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pos
+
+需要将该页映射到的页目录表项位号。\strut
+\tabularnewline
+\strut
+ & ptr\_t Flag
+
+该页的 RME 标准页标志。\strut
+\tabularnewline
+\end{xltabular}
+
+在上表中，``页目录表项位号''指的是被映射的页在页目录中的槽位号。比如一个页目录的每一项都代表了4kB大小的一个页框，那么12kB处就是其第3个槽位的起始点\footnote{槽位号从0开始计算}。``RME 标准页标志''是 RME 系统使用的抽象页标志，不是具体页表中使用的那些页标志，具体请参见第三章描述。该函数需要将这些页标志转换为处理器能直接识别的页表项的页标志，然后再写入页表。对于那些不支持部分页标志的处理器，那些不被支持的页标志可以直接被忽略。比如，对于那些硬件更新TLB的MMU架构，``静态（RME\_PGT\_STATIC）''页标志就可以不实现。
+
+在多核环境下，本函数需要保证两个CPU不会同时向一个位置处同时映射两个页。如果发生了这种情况，本函数可以使用读-改-写\footnote{也即比较交换，CAS}原子操作，保证多核环境下这样的冲突不会发生。在MPU环境下，该函数还要负责更新MPU的顶层页表元数据，加入该页的映射。
+
+\subsection{\_\_RME\_Pgt\_Page\_Unmap的实现}\label{subsec:7-rme-pgt-page-unmap-implementation}
+
+该函数负责解除页目录内一个页的映射。如果该操作由于传入的参数不正确\footnote{比如位号超标或者位号的位置没有页存在}，那么应当返回错误。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Page\_Unmap的实现}\label{tab:7-80-rme-pgt-page-unmap-implementation}\\
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Page\_Unmap(struct RME\_Cap\_Pgt* Pgt\_Op,
+ptr\_t Pos)\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_\_RME\_Pgt\_Page\_Unmap(struct RME\_Cap\_Pgt* Pgt\_Op,
+ptr\_t Pos)\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 从一个页目录中解除一个页的映射。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pos
+
+需要解除映射的页目录表项位号。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数是上面函数的逆操作，只要解除该页映射就可以了。在多核环境下，也需要保证当两个CPU同时试图解除映射时，冲突不会发生。在MMU环境下，该函数还要负责使用TLB刷新指令，刷新整个TLB缓存，或者也可以在确知该页映射的位置的状况下使用TLB单条刷新操作\footnote{如 x86-64 的 INVLTB 等}。不刷新缓存或者是定时使用特殊内核功能调用刷新缓存也是可以的，此时需要在用户态进行页面映射安定化处理\footnote{也即被除去映射的页面要等待一会才会真的从TLB中消失}。在MPU环境下，则需要负责更新MPU的顶层元数据，去掉该页的映射。
+
+\subsection{\_\_RME\_Pgt\_Pgdir\_Map的实现}\label{subsec:7-rme-pgt-pgdir-map-implementation}
+
+该函数负责映射一个子页目录到父页目录内。如果该操作由于传入的参数不正确\footnote{比如位号超标、物理地址对齐不符合要求、虚拟地址的关系不正确、该位置已经有映射、传入的标志位不正确或者在MPU环境下某些特殊约束不满足}，那么应当返回错误。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Pgdir\_Map的实现}\label{tab:7-81-rme-pgt-pgdir-map-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Pgdir\_Map(struct RME\_Cap\_Pgt* Pgt\_Parent,
+
+ptr\_t Pos, struct RME\_Cap\_Pgt* Pgt\_Child,
+
+ptr\_t Flag)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Pgdir\_Map(struct RME\_Cap\_Pgt* Pgt\_Parent,
+
+ptr\_t Pos, struct RME\_Cap\_Pgt* Pgt\_Child,
+
+ptr\_t Flag)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 映射一个子页目录到父页目录内部。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Parent
+
+指向父页目录的，含有父页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pos
+
+需要将该子页目录映射到的父页目录表项位号。\strut
+\tabularnewline
+\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Child
+
+指向子页目录的，含有子页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Flag
+
+该子页目录的 RME 标准页标志。该页标志决定了子页目录及以下各层页目录的访问权限限制。对于那些不允许设置页目录属性的架构或者基于MPU的架构，该值无效。\strut
+\tabularnewline
+\end{xltabular}
+
+该函数在MMU系统下和MPU系统下往往有不同的表现。在MMU系统下，这种映射不需要检查起始虚拟地址是否合规，但是需要子页目录包含的地址范围正好是父页目录的一个槽位的大小。在MPU系统下，由于可以使用压缩页表，因此子页目录包含的地址范围可以比父页目录的一个槽位小，但是需要保证其起始虚拟地址是合规的。
+
+在MPU系统下，由于MPU的某些固有属性\footnote{请参见第~\ref{subsec:3-path-compressed-page-table-under-mpu}~节}，因此可能要求父页目录必须具备\footnote{或者自身就是}顶层页目录，要求子页目录必须自己不是顶层页目录，也不具备顶层页目录。此外，在映射完成后，如果子页目录中含有已映射的页，那么需要更新顶层页目录处包含的MPU元数据，添加这些页的映射。
+
+\subsection{\_\_RME\_Pgt\_Pgdir\_Unmap的实现}\label{subsec:7-rme-pgt-pgdir-unmap-implementation}
+
+该函数负责解除父页目录内一个子页目录的映射。如果该操作由于传入的参数不正确\footnote{比如位号超标、位号的位置没有子页目录存在，或者在MPU环境下某些特殊约束不满足}，比如父页目录的那个位置并非该子页目录，那么应当返回错误。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Pgdir\_Unmap的实现}\label{tab:7-82-rme-pgt-pgdir-unmap-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Pgdir\_Unmap(struct RME\_Cap\_Pgt* Pgt\_Parent,
+ptr\_t Pos,
+
+struct RME\_Cap\_Pgt* Pgt\_Child)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Pgdir\_Unmap(struct RME\_Cap\_Pgt* Pgt\_Parent,
+ptr\_t Pos,
+
+struct RME\_Cap\_Pgt* Pgt\_Child)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 解除父页目录内一个子页目录的映射。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Parent
+
+指向父页目录的，含有父页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pos
+
+需要解除映射的子页目录表项位号。\strut
+\tabularnewline
+\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Child
+
+指向子页目录的，含有子页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\end{xltabular}
+
+这个函数是上面函数的逆操作，只要解除子页目录映射就可以了。在多核环境下，也需要使用比较交换原子操作保证当两个CPU同时试图解除映射时，冲突不会发生。在MMU环境下，该函数还要负责使用TLB刷新指令，刷新整个TLB缓存。不刷新缓存而使用\ref{subsec:7-rme-pgt-page-unmap-implementation}
+提到的页面映射安定化处理也是可以的。在MPU环境下，则可能需要负责更新MPU的顶层元数据，去掉子页目录中含有的页的映射。
+
+\subsection{\_\_RME\_Pgt\_Lookup的实现}\label{subsec:7-rme-pgt-lookup-implementation}
+
+该函数负责查找一个页目录内的某个页的信息。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Lookup的实现}\label{tab:7-83-rme-pgt-lookup-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Lookup(struct RME\_Cap\_Pgt* Pgt\_Op,
+
+ptr\_t Pos, ptr\_t* Paddr, ptr\_t* Flag)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Lookup(struct RME\_Cap\_Pgt* Pgt\_Op,
+
+ptr\_t Pos, ptr\_t* Paddr, ptr\_t* Flag)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 & 查找一个页目录内某个位号上的页的信息并且返回之。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功\footnote{找到该页}返回0，失败\footnote{未找到或该位置上映射的表项为页目录}返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
+\tabularnewline
+\strut
+ & ptr\_t Pos
+
+需要查找的页目录表项位号。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Paddr
+
+该参数用于输出，是指向该页的物理页框地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Flag
+
+该参数用于输出，是指向该页的 RME 标准页标志的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+该函数只要查找该页上对应的信息并且将其输出\footnote{写入指针所指的变量内}即可。对于页标志，要注意把处理器可识别的页标志转换为RME的标准页标志再输出。此外，两个输出参数都应该实现为可选项，当只需要查找其中一项时，另外一个参数传入0（NULL）即可，此时只查询其中一种信息。
+
+\subsection{\_\_RME\_Pgt\_Walk的实现}\label{subsec:7-rme-pgt-walk-implementation}
+
+该函数负责查找整个页表\footnote{页目录树}中一个虚拟地址是否被映射以及其信息。该函数只应该接受从顶层页目录发起的页表查找，如果试图从其他页目录开始页表查找，那么都应该返回错误。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
+\caption{\_\_RME\_Pgt\_Walk的实现}\label{tab:7-84-rme-pgt-walk-implementation}\\
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Walk(struct RME\_Cap\_Pgt* Pgt\_Op, ptr\_t Vaddr,
+
+ptr\_t* Pgt, ptr\_t* Map\_Vaddr, ptr\_t* Paddr,
+
+ptr\_t* Size\_Order, ptr\_t* Num\_Order, ptr\_t* Flag)\strut
+\tabularnewline
+\endfirsthead
+\toprule
+原型\strut
+ & ret\_t \_\_RME\_Pgt\_Walk(struct RME\_Cap\_Pgt* Pgt\_Op, ptr\_t Vaddr,
+
+ptr\_t* Pgt, ptr\_t* Map\_Vaddr, ptr\_t* Paddr,
+
+ptr\_t* Size\_Order, ptr\_t* Num\_Order, ptr\_t* Flag)\strut
+\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+意义 &
+查找页表\footnote{页目录树}中一个虚拟地址是否被映射以及其信息，并且返回之。\tabularnewline
+返回值\strut
+ & ret\_t
+
+成功\footnote{找到该页}返回0，失败\footnote{未找到该页}返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
+\tabularnewline
+参数\strut
+ & struct RME\_Cap\_Pgt* Pgt\_Op
+
+指向该页目录的，含有该页目录的所有信息的页目录权能。该页目录必须是顶层的。\strut
+\tabularnewline
+\strut
+ & ptr\_t Vaddr
+
+需要查询的虚拟地址。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Pgt
+
+该参数用于输出，是指向该虚拟地址所在的页目录内核对象的存放虚拟地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Map\_Vaddr
+
+该参数用于输出，是指向该虚拟地址所在的页框的映射起始虚拟地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Paddr
+
+该参数用于输出，是指向该虚拟地址所在的页框的映射起始物理地址的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Size\_Order
+
+该参数用于输出，是指向该虚拟地址所在的页目录的大小级数的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Num\_Order
+
+该参数用于输出，是指向该虚拟地址所在的页目录的数量级数的指针。\strut
+\tabularnewline
+\strut
+ & ptr\_t* Flag
+
+该参数用于输出，是指向该虚拟地址所属页的 RME 标准页标志的指针。\strut
+\tabularnewline
+\end{xltabular}
+
+该函数需要根据传入的虚拟地址查找（可能是压缩的）页表树，确定所传入的虚拟地址是否在该页表中，如果存在的话还要确定其所在的页目录内核对象本身的虚拟地址和它在这个页目录中的哪个槽位。该函数只允许查找用户页；查找内存页的信息是不允许的，必须返回错误。
+
+对于页标志，要注意把处理器可识别的页标志转换为 RME 的标准页标志再输出。对于那些允许在页目录上设置访问控制标志的架构而言，各级页目录的标志位也应该考虑在内。此外，六个输出参数都应该实现为可选项，当只需要查找其中几项时，其他各项参数传入0即可，此时只查询其中几种信息。
+
+\section{其他函数说明}\label{sec:7-other-function-descriptions}
+
+在编写底层驱动和调试内核代码的过程中，有几个常用的助手函数可以使用。内核提供这些函数，这样就尽可能地实现了与编译器自带 C 运行时库的脱钩。这些函数的定义都位于 kernel.h，在需要使用时包含 kernel.h 即可。这些函数的列表如下：
+
+\subsection{变量清空}\label{subsec:7-clear-variables}
+
+该函数用来在内核中清零一片区域。该函数实质上等价于 C 语言运行时库的 memset 函数填充0时的特殊情况。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6377\hsize\raggedright\arraybackslash}X>{\hsize=1.3103\hsize\raggedright\arraybackslash}X>{\hsize=1.0521\hsize\raggedright\arraybackslash}X@{}}
+\caption{变量清空的所需参数}\label{tab:7-85-clear-variables-parameters}\\
+\toprule
+原型 & void \_RME\_Clear(void* Addr, ptr\_t Size) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Clear(void* Addr, ptr\_t Size) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Addr & void* & 需要清零区域的起始地址。\tabularnewline
+Size & ptr\_t & 需要清零区域的字节数。\tabularnewline
+\end{xltabular}
+
+\subsection{比较两段内存}\label{subsec:7-compare-two-memory-blocks}
+
+该函数用来比较两段内存是否相同。该函数实质上等价于 C 语言运行时库的 memcmp。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5451\hsize\raggedright\arraybackslash}X>{\hsize=1.4191\hsize\raggedright\arraybackslash}X>{\hsize=1.0358\hsize\raggedright\arraybackslash}X@{}}
+\caption{比较两段内存的所需参数}\label{tab:7-86-compare-two-memory-blocks-parameters}\\
+\toprule
+原型 & ret\_t \_RME\_Memcmp(const void* Ptr1, const void* Ptr2, ptr\_t
+Num) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & ret\_t \_RME\_Memcmp(const void* Ptr1, const void* Ptr2, ptr\_t
+Num) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Ptr1 & const void* & 指向参与比较的第一段内存的指针。\tabularnewline
+Ptr2 & const void* & 指向参与比较的第二段内存的指针。\tabularnewline
+Num & ptr\_t & 要比较内存的长度，单位是字节。\tabularnewline
+\end{xltabular}
+
+如果两段内存在指定的长度范围内完全相同，会返回0；如果不相同则会返回一个非0值。
+
+\subsection{复制一段内存}\label{subsec:7-copy-memory-block}
+
+该函数用来复制一段内存的内容到另一区域。该函数实质上等价于 C 语言运行时库的 memcpy。两段内存区域不能重叠，否则该函数的行为是未定义的。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.5785\hsize\raggedright\arraybackslash}X>{\hsize=1.3221\hsize\raggedright\arraybackslash}X>{\hsize=1.0994\hsize\raggedright\arraybackslash}X@{}}
+\caption{复制一段内存的所需参数}\label{tab:7-87-copy-memory-block-parameters}\\
+\toprule
+原型 & void \_RME\_Memcpy(void* Dst, void* Src, ptr\_t Num)
+&\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & void \_RME\_Memcpy(void* Dst, void* Src, ptr\_t Num)
+&\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Dst & void* & 复制的目标地址。\tabularnewline
+Src & void* & 复制的源地址。\tabularnewline
+Num & ptr\_t & 要复制的内存的长度，单位是字节。\tabularnewline
+\end{xltabular}
+
+需要注意的是，\ref{subsec:7-clear-variables}
+-\ref{subsec:7-copy-memory-block}
+列出的三个函数都是它们功能的逐字节实现，并且没有考虑任何优化，因此不要在大段内存操作中使用它们。这是为了最大的编译器和架构兼容性（某些架构对于按字操作有对齐等特殊要求；又或者需要使用特殊指令才能高效操作；又或者其编译器内建的高速实现会使用FPU寄存器。这三种情况在内核中都必须被尽力避免）。RME 的架构无关部分没有使用这三个函数中的任何一个；在硬件抽象层中也应尽量避免用大段的内存操作。如果一定要用到大段内存操作，那么可以考虑自行编写，或者使用编译器提供的版本。无论如何，使用到的操作一定不能运用FPU寄存器，或者造成内存访问不对齐错误，这一点在使用编译器提供的库函数时应多加注意。
+
+\subsection{打印一个有符号整数}\label{subsec:7-print-signed-integer}
+
+该函数用来按十（10）进制打印一个有符号整数，主要用于内核调试。打印是阻塞的，直到打印完成为止函数才返回。打印是包含符号位的。该函数有一个受调试开关控制的同功能宏 RME\_DBG\_I。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6808\hsize\raggedright\arraybackslash}X>{\hsize=1.2429\hsize\raggedright\arraybackslash}X>{\hsize=1.0764\hsize\raggedright\arraybackslash}X@{}}
+\caption{打印一个有符号整数的所需参数}\label{tab:7-88-print-signed-integer-parameters}\\
+\toprule
+原型 & cnt\_t RME\_Int\_Print(cnt\_t Int) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & cnt\_t RME\_Int\_Print(cnt\_t Int) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Int & cnt\_t & 需要打印的有符号整数。\tabularnewline
+\end{xltabular}
+
+该函数的返回值是成功打印的字符串的长度。
+
+\subsection{打印一个无符号整数}\label{subsec:7-print-unsigned-integer}
+
+该函数用来按十六（16）进制打印一个无符号整数，主要用于内核调试。打印是阻塞的，直到打印完成为止函数才返回。打印是不包含``0x''前缀的，并且十六进制中的A-F均为大写。该函数有一个受调试开关控制的同功能宏RME\_DBG\_H。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6761\hsize\raggedright\arraybackslash}X>{\hsize=1.2548\hsize\raggedright\arraybackslash}X>{\hsize=1.0690\hsize\raggedright\arraybackslash}X@{}}
+\caption{一个无符号整数的所需参数}\label{tab:7-89-print-unsigned-integer-parameters}\\
+\toprule
+原型 & cnt\_t RME\_Hex\_Print(ptr\_t Uint) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & cnt\_t RME\_Hex\_Print(ptr\_t Uint) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Uint & ptr\_t & 需要打印的无符号整数。\tabularnewline
+\end{xltabular}
+
+该函数的返回值是成功打印的字符串的长度。
+
+\subsection{打印一个字符串}\label{subsec:7-print-string}
+
+该函数用来打印一个字符串，主要用于内核调试。打印是阻塞的，直到打印完成为止函数才返回。该函数有一个受调试开关控制的同功能宏RME\_DBG\_S。
+
+\begin{xltabular}{\textwidth}{@{}>{\hsize=0.6766\hsize\raggedright\arraybackslash}X>{\hsize=1.3533\hsize\raggedright\arraybackslash}X>{\hsize=0.9701\hsize\raggedright\arraybackslash}X@{}}
+\caption{打印一个字符串的所需参数}\label{tab:7-90-print-string-parameters}\\
+\toprule
+原型 & cnt\_t RME\_Str\_Print(const s8\_t* String) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\endfirsthead
+\toprule
+原型 & cnt\_t RME\_Str\_Print(const s8\_t* String) &\tabularnewline
+参数名称 & 类型 & 描述\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+String & const s8\_t* & 需要打印的字符串。\tabularnewline
+\end{xltabular}
+
+该函数的返回值是成功打印的字符串的长度。这个长度不包括字符串的``\textbackslash0''终结标志。
+
+\section{本章参考文献}\label{sec:7-chapter-bibliography}
+
+无
+

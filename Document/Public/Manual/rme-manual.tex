@@ -1,0 +1,41 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% M7M01 (Eukaron) Real-Time Operating System -- English User Manual
+%
+% Build with XeLaTeX:
+%   latexmk -xelatex -outdir=Build rme-manual.tex
+%
+% Nine-chapter R4T1 organisation.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[10pt,a4paper,twoside,openany]{book}
+\usepackage{rme-style}
+
+\begin{document}
+
+\frontmatter
+\input{Chapter/00-frontmatter}
+
+\tableofcontents
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+\clearpage
+\RMERevisionHistory
+
+\let\cleardoublepage\clearpage
+\mainmatter
+\input{Chapter/01-overview}
+\input{Chapter/02-capability}
+\input{Chapter/03-memory}
+\input{Chapter/04-process}
+\input{Chapter/05-communication}
+\input{Chapter/06-kernel-call}
+\input{Chapter/07-porting}
+\input{Chapter/08-implementation}
+\input{Chapter/09-appendix}
+
+\end{document}
