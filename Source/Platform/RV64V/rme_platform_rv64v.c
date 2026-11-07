@@ -124,6 +124,22 @@ rme_ret_t ___RME_RV64V_Sbi_Reset(void)
 }
 /* End Function:___RME_RV64V_Sbi_Reset ***************************************/
 
+/* Function:___RME_RV64V_Sbi_Shutdown *****************************************
+Description : Shut the system down via the OpenSBI SRST extension. This should
+              never return.
+Input       : None.
+Output      : None.
+Return      : rme_ret_t - SBI error code if the request fails.
+******************************************************************************/
+rme_ret_t ___RME_RV64V_Sbi_Shutdown(void)
+{
+    return ___RME_RV64V_Sbi_Call(RME_RV64V_SBI_EXT_SRST,
+                                 RME_RV64V_SBI_SRST_SYSTEM_RESET,
+                                 RME_RV64V_SBI_SRST_TYPE_SHUTDOWN,
+                                 0U,0U,0U,0U,0U).Error;
+}
+/* End Function:___RME_RV64V_Sbi_Shutdown ************************************/
+
 /* Function:__RME_RV64V_CPU_Local_Get ****************************************
 Description : Get the CPU-local data structure of the running hart. The tp
               register points at this hart's RME_RV64V_CPU_Data record while
@@ -605,7 +621,7 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
         if((Operation==RME_RV64V_KFN_CACHE_INV_ALL)||
            (Operation==RME_RV64V_KFN_CACHE_INV_ADDR))
         {
-            __asm__ volatile("fence.i" : : : "memory");
+            ___RME_RV64V_Fence_I();
             return 0;
         }
 
@@ -627,21 +643,21 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
             case RME_RV64V_KFN_CACHE_CLEAN_ADDR:
             {
                 /* cbo.clean: funct3=2, imm=1 */
-                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x001" : : "r"(Addr) : "memory");
+                ___RME_RV64V_Cbo_Clean(Addr);
                 Retval=0;
                 break;
             }
             case RME_RV64V_KFN_CACHE_INV_ADDR:
             {
                 /* cbo.inval: funct3=2, imm=0 */
-                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x000" : : "r"(Addr) : "memory");
+                ___RME_RV64V_Cbo_Inval(Addr);
                 Retval=0;
                 break;
             }
             case RME_RV64V_KFN_CACHE_CLEAN_INV_ADDR:
             {
                 /* cbo.flush: funct3=2, imm=2 (clean + invalidate) */
-                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x002" : : "r"(Addr) : "memory");
+                ___RME_RV64V_Cbo_Flush(Addr);
                 Retval=0;
                 break;
             }
@@ -652,7 +668,7 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
             }
         }
 
-        __asm__ volatile("fence" : : : "memory");
+        ___RME_RV64V_Fence();
         ___RME_RV64V_SSTATUS_Set(Sstatus);
         return Retval;
     }
@@ -696,15 +712,37 @@ rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
      * change. ASID 0 is shared by the boot/unassigned tables, so it is never
      * flushed here. */
     if(Pgt_Op->ASID!=0U)
-        __asm__ volatile("sfence.vma x0, %0" : : "r"(Pgt_Op->ASID) : "memory");
+        ___RME_RV64V_TLB_Flush_Asid(Pgt_Op->ASID);
     if(Asid!=0U)
-        __asm__ volatile("sfence.vma x0, %0" : : "r"(Asid) : "memory");
+        ___RME_RV64V_TLB_Flush_Asid(Asid);
 
     RME_WRITE_RELEASE((rme_ptr_t*)&(Pgt_Op->ASID),Asid);
 
     return 0;
 }
 /* End Function:__RME_RV64V_Pgt_Asid_Set ************************************/
+
+/* Function:__RME_RV64V_Pgt_Line_Clear ***************************************
+Description : Invalidate one virtual address from the TLB. ASID 0 flushes all
+              ASIDs; otherwise only the given ASID is flushed.
+Input       : Vaddr - The virtual address.
+              Asid - The ASID, or 0 for all.
+Output      : None.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
+******************************************************************************/
+rme_ret_t __RME_RV64V_Pgt_Line_Clear(rme_ptr_t Vaddr, rme_ptr_t Asid)
+{
+    if(Asid>RME_RV64V_SATP_ASID_MASK)
+        return RME_ERR_KFN_FAIL;
+
+    if(Asid==0U)
+        ___RME_RV64V_TLB_Flush_Vaddr(Vaddr);
+    else
+        ___RME_RV64V_TLB_Flush_Vaddr_Asid(Vaddr,Asid);
+
+    return 0;
+}
+/* End Function:__RME_RV64V_Pgt_Line_Clear **********************************/
 
 /* Function:__RME_Kfn_Handler *************************************************
 Description : Handle kernel function calls.
@@ -730,8 +768,17 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
     switch(Func_ID)
     {
 /* Page table operations *****************************************************/
-        case RME_KFN_PGT_CACHE_CLR:     {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_CACHE_CLR:
+        {
+            ___RME_RV64V_TLB_Flush();
+            Retval=0;
+            break;
+        }
+        case RME_KFN_PGT_LINE_CLR:
+        {
+            Retval=__RME_RV64V_Pgt_Line_Clear(Param1,Param2);
+            break;
+        }
         case RME_KFN_PGT_ASID_SET:
         {
             Retval=__RME_RV64V_Pgt_Asid_Set(Cpt,
@@ -790,7 +837,12 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
             while(1);
             break;
         }
-        case RME_KFN_SYS_SHDN:          {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_SYS_SHDN:
+        {
+            ___RME_RV64V_Sbi_Shutdown();
+            while(1);
+            break;
+        }
         case RME_KFN_VOLT_MOD:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_FREQ_MOD:          {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PMOD_MOD:          {return RME_ERR_KFN_FAIL;}
@@ -1899,7 +1951,7 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
         if(Asid<=RME_RV64V_SATP_ASID_MASK)
         {
             /* Make sure the reused ASID has no stale translations. */
-            __asm__ volatile("sfence.vma x0, %0" : : "r"(Asid) : "memory");
+            ___RME_RV64V_TLB_Flush_Asid(Asid);
             if(RME_COMP_SWAP((volatile rme_ptr_t*)&(Pgt->ASID),0U,Asid)==RME_CASFAIL)
                 Asid=Pgt->ASID&RME_RV64V_SATP_ASID_MASK;
         }
@@ -2054,7 +2106,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
      * takes effect on this hart immediately. */
     Vaddr=(Pgt_Op->Base&(~RME_PGT_TOP))+
           (((rme_ptr_t)Pos)<<RME_PGT_SZORD(Pgt_Op->Order));
-    __asm__ volatile("sfence.vma %0, x0" : : "r"(Vaddr) : "memory");
+    ___RME_RV64V_TLB_Flush_Vaddr(Vaddr);
 
     return 0;
 }
@@ -2101,7 +2153,7 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
     /* Drop the stale translation for this VA (all ASIDs). */
     Vaddr=(Pgt_Op->Base&(~RME_PGT_TOP))+
           (((rme_ptr_t)Pos)<<RME_PGT_SZORD(Pgt_Op->Order));
-    __asm__ volatile("sfence.vma %0, x0" : : "r"(Vaddr) : "memory");
+    ___RME_RV64V_TLB_Flush_Vaddr(Vaddr);
 
     return 0;
 }

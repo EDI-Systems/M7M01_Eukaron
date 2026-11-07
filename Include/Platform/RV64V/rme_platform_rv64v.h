@@ -239,6 +239,7 @@ while(0)
 #define RME_RV64V_SBI_DBCN_CONSOLE_WRITE_BYTE   (2U)
 #define RME_RV64V_SBI_TIME_SET_TIMER            (0U)
 #define RME_RV64V_SBI_SRST_SYSTEM_RESET         (0U)
+#define RME_RV64V_SBI_SRST_TYPE_SHUTDOWN        (0U)
 #define RME_RV64V_SBI_SRST_TYPE_COLD_REBOOT     (1U)
 #define RME_RV64V_SBI_HSM_HART_START            (0U)
 
@@ -740,6 +741,8 @@ static rme_ret_t __RME_RV64V_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
 static rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
                                           rme_cid_t Cap_Pgt,
                                           rme_ptr_t Asid);
+static rme_ret_t __RME_RV64V_Pgt_Line_Clear(rme_ptr_t Vaddr,
+                                            rme_ptr_t Asid);
 static rme_ret_t __RME_RV64V_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,
@@ -812,6 +815,15 @@ RME_EXTERN void ___RME_RV64V_SCOUNTEREN_Set(rme_ptr_t Value);
 /* MMU (satp) manipulations */
 RME_EXTERN void ___RME_RV64V_SATP_Set(rme_ptr_t Value);
 RME_EXTERN void ___RME_RV64V_TLB_Flush(void);
+RME_EXTERN void ___RME_RV64V_TLB_Flush_Asid(rme_ptr_t Asid);
+RME_EXTERN void ___RME_RV64V_TLB_Flush_Vaddr(rme_ptr_t Vaddr);
+RME_EXTERN void ___RME_RV64V_TLB_Flush_Vaddr_Asid(rme_ptr_t Vaddr,
+                                                  rme_ptr_t Asid);
+RME_EXTERN void ___RME_RV64V_Fence(void);
+RME_EXTERN void ___RME_RV64V_Fence_I(void);
+RME_EXTERN void ___RME_RV64V_Cbo_Clean(rme_ptr_t Addr);
+RME_EXTERN void ___RME_RV64V_Cbo_Inval(rme_ptr_t Addr);
+RME_EXTERN void ___RME_RV64V_Cbo_Flush(rme_ptr_t Addr);
 /* OpenSBI (SBI) service helpers. The raw call implements the SBI v0.2+
  * calling convention: EID in a7, FID in a6, parameters in a0-a5. */
 RME_EXTERN struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(
@@ -823,6 +835,7 @@ RME_EXTERN void ___RME_RV64V_Sie_Timer_Enable(void);
 __RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char);
 __RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Timer_Set(rme_ptr_t Next_Time);
 __RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Reset(void);
+__RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Shutdown(void);
 #if(RME_DBGLOG_ENABLE!=0U)
 /* Debugging */
 __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);

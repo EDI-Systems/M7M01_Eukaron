@@ -132,6 +132,14 @@ F31    $ft11      temporary (caller-save)
     /* MMU (satp) manipulations */
     .global             ___RME_RV64V_SATP_Set
     .global             ___RME_RV64V_TLB_Flush
+    .global             ___RME_RV64V_TLB_Flush_Asid
+    .global             ___RME_RV64V_TLB_Flush_Vaddr
+    .global             ___RME_RV64V_TLB_Flush_Vaddr_Asid
+    .global             ___RME_RV64V_Fence
+    .global             ___RME_RV64V_Fence_I
+    .global             ___RME_RV64V_Cbo_Clean
+    .global             ___RME_RV64V_Cbo_Inval
+    .global             ___RME_RV64V_Cbo_Flush
     /* Handler for everything */
     .global             __RME_RV64V_Handler
     /* Coprocessor save/load */
@@ -459,6 +467,120 @@ ___RME_RV64V_TLB_Flush:
     SFENCE.VMA          x0,x0
     RET
 /* End Function:___RME_RV64V_TLB_Flush ****************************************/
+
+/* Function:___RME_RV64V_TLB_Flush_Asid ***************************************
+Description : Flush all TLB entries of one ASID on the calling hart.
+Input       : a0 - The ASID.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_tlb_flush_asid
+    .align              3
+
+___RME_RV64V_TLB_Flush_Asid:
+    SFENCE.VMA          x0,a0
+    RET
+/* End Function:___RME_RV64V_TLB_Flush_Asid **********************************/
+
+/* Function:___RME_RV64V_TLB_Flush_Vaddr **************************************
+Description : Flush all TLB entries of one virtual address, all ASIDs.
+Input       : a0 - The virtual address.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_tlb_flush_vaddr
+    .align              3
+
+___RME_RV64V_TLB_Flush_Vaddr:
+    SFENCE.VMA          a0,x0
+    RET
+/* End Function:___RME_RV64V_TLB_Flush_Vaddr *********************************/
+
+/* Function:___RME_RV64V_TLB_Flush_Vaddr_Asid ********************************
+Description : Flush one virtual address of one ASID.
+Input       : a0 - The virtual address.
+              a1 - The ASID.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_tlb_flush_vaddr_asid
+    .align              3
+
+___RME_RV64V_TLB_Flush_Vaddr_Asid:
+    SFENCE.VMA          a0,a1
+    RET
+/* End Function:___RME_RV64V_TLB_Flush_Vaddr_Asid ****************************/
+
+/* Function:___RME_RV64V_Fence ************************************************
+Description : Order prior memory accesses before later ones.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_fence
+    .align              3
+
+___RME_RV64V_Fence:
+    FENCE
+    RET
+/* End Function:___RME_RV64V_Fence *******************************************/
+
+/* Function:___RME_RV64V_Fence_I **********************************************
+Description : Synchronize the local instruction stream with prior code stores.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_fence_i
+    .align              3
+
+___RME_RV64V_Fence_I:
+    FENCE.I
+    RET
+/* End Function:___RME_RV64V_Fence_I *****************************************/
+
+/* Function:___RME_RV64V_Cbo_Clean ********************************************
+Description : cbo.clean on the cache block containing a0. Raw .insn because
+              the assembler target does not enable Zicbom.
+Input       : a0 - The virtual address.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_cbo_clean
+    .align              3
+
+___RME_RV64V_Cbo_Clean:
+    .insn i 15, 2, x0, a0, 1
+    RET
+/* End Function:___RME_RV64V_Cbo_Clean ***************************************/
+
+/* Function:___RME_RV64V_Cbo_Inval ********************************************
+Description : cbo.inval on the cache block containing a0.
+Input       : a0 - The virtual address.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_cbo_inval
+    .align              3
+
+___RME_RV64V_Cbo_Inval:
+    .insn i 15, 2, x0, a0, 0
+    RET
+/* End Function:___RME_RV64V_Cbo_Inval ***************************************/
+
+/* Function:___RME_RV64V_Cbo_Flush ********************************************
+Description : cbo.flush on the cache block containing a0.
+Input       : a0 - The virtual address.
+Output      : None.
+Return      : None.
+******************************************************************************/
+    .section            .text.___rme_rv64v_cbo_flush
+    .align              3
+
+___RME_RV64V_Cbo_Flush:
+    .insn i 15, 2, x0, a0, 2
+    RET
+/* End Function:___RME_RV64V_Cbo_Flush ***************************************/
 
 /* Function:__RME_User_Enter **************************************************
 Description : Entering of the user mode, after the system finish its preliminary
