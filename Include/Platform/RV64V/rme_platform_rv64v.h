@@ -206,6 +206,8 @@ static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
 #define RME_RV64V_SSTATUS_INIT                  (0x00000022U)
 /* The SPP bit - set when the trap was taken from S-mode (kernel level) */
 #define RME_RV64V_SSTATUS_RET_KERNEL            (0x00000100U)
+/* The SUM bit - allow S-mode to access user pages (needed by CBO on user VAs) */
+#define RME_RV64V_SSTATUS_SUM                   (0x00040000U)
 /* SSTATUS FPU states */
 #define RME_RV64V_SSTATUS_FPU_MASK              (0x00006000U)
 #define RME_RV64V_SSTATUS_FPU_OFF               (0x00000000U)
@@ -432,6 +434,20 @@ while(0)
      ((((FLAGS)&RME_RV64V_MMU_X)!=0U)?RME_PGT_EXECUTE:0U))
 
 /* Platform-specific kernel function macros **********************************/
+/* Cache identifiers and maintenance operations. The numeric values mirror the
+ * A7M port so the generic KFN ABI is unchanged. RV64V can only do address
+ * based operations through Zicbom; whole-cache operations are unsupported. */
+#define RME_RV64V_KFN_CACHE_ICACHE              (0U)
+#define RME_RV64V_KFN_CACHE_DCACHE              (1U)
+#define RME_RV64V_KFN_CACHE_CLEAN_ALL           (0U)
+#define RME_RV64V_KFN_CACHE_CLEAN_ADDR          (1U)
+#define RME_RV64V_KFN_CACHE_INV_ALL             (5U)
+#define RME_RV64V_KFN_CACHE_INV_ADDR            (6U)
+#define RME_RV64V_KFN_CACHE_CLEAN_INV_ALL       (10U)
+#define RME_RV64V_KFN_CACHE_CLEAN_INV_ADDR      (11U)
+/* Zicbom operates on one cache block; QEMU virt and K3 use 64-byte blocks. */
+#define RME_RV64V_CACHE_BLOCK_SIZE              (64U)
+
 /* Page table entry mode which property to get */
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_FLAG_GET    (0U)
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_SZORD_GET   (1U)
@@ -731,6 +747,9 @@ static rme_ret_t __RME_RV64V_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,
                                            rme_ptr_t Operation);
+static rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
+                                         rme_ptr_t Operation,
+                                         rme_ptr_t Param);
 /* SMP / SBI helpers **********************************************************/
 static void ___RME_RV64V_CPU_Set(rme_ptr_t CPUID);
 static rme_ret_t ___RME_RV64V_Sbi_Hart_Start(rme_ptr_t Hart_ID,

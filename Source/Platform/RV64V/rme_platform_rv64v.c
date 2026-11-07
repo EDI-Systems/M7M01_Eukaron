@@ -579,6 +579,88 @@ rme_ret_t __RME_RV64V_Debug_Exc_Get(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_RV64V_Debug_Exc_Get ************************************/
 
+/* Function:__RME_RV64V_Cache_Maint *******************************************
+Description : Do cache maintenance. RV64V has no architected whole-cache
+              operation; only address-based Zicbom operations and fence.i are
+              supported. The raw .insn encoding is used because -march=rv64gc
+              does not enable the Zicbom assembler extension.
+Input       : Cache_ID - RME_RV64V_KFN_CACHE_ICACHE or DCACHE.
+              Operation - CLEAN_ADDR / INV_ADDR / CLEAN_INV_ADDR, or INV_ALL
+                          for the instruction cache.
+              Param - The virtual address (for address operations).
+Output      : None.
+Return      : If successful, 0; else RME_ERR_KFN_FAIL.
+******************************************************************************/
+rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
+                                  rme_ptr_t Operation,
+                                  rme_ptr_t Param)
+{
+    rme_ptr_t Addr;
+    rme_ptr_t Sstatus;
+    rme_ret_t Retval;
+
+    if(Cache_ID==RME_RV64V_KFN_CACHE_ICACHE)
+    {
+        /* fence.i is a full instruction-cache sync; the address is ignored. */
+        if((Operation==RME_RV64V_KFN_CACHE_INV_ALL)||
+           (Operation==RME_RV64V_KFN_CACHE_INV_ADDR))
+        {
+            __asm__ volatile("fence.i" : : : "memory");
+            return 0;
+        }
+
+        return RME_ERR_KFN_FAIL;
+    }
+
+    if(Cache_ID==RME_RV64V_KFN_CACHE_DCACHE)
+    {
+        /* Zicbom operates on one cache block (64B on QEMU virt and K3). */
+        Addr=Param&(~((rme_ptr_t)RME_RV64V_CACHE_BLOCK_SIZE-1U));
+
+        /* The address is a user VA, but the KFN runs in S-mode. Enable SUM
+         * while the CBO instruction probes the user page, then restore it. */
+        Sstatus=___RME_RV64V_SSTATUS_Get();
+        ___RME_RV64V_SSTATUS_Set(Sstatus|RME_RV64V_SSTATUS_SUM);
+
+        switch(Operation)
+        {
+            case RME_RV64V_KFN_CACHE_CLEAN_ADDR:
+            {
+                /* cbo.clean: funct3=2, imm=1 */
+                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x001" : : "r"(Addr) : "memory");
+                Retval=0;
+                break;
+            }
+            case RME_RV64V_KFN_CACHE_INV_ADDR:
+            {
+                /* cbo.inval: funct3=2, imm=0 */
+                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x000" : : "r"(Addr) : "memory");
+                Retval=0;
+                break;
+            }
+            case RME_RV64V_KFN_CACHE_CLEAN_INV_ADDR:
+            {
+                /* cbo.flush: funct3=2, imm=2 (clean + invalidate) */
+                __asm__ volatile(".insn i 0x0F, 2, x0, %0, 0x002" : : "r"(Addr) : "memory");
+                Retval=0;
+                break;
+            }
+            default:
+            {
+                Retval=RME_ERR_KFN_FAIL;
+                break;
+            }
+        }
+
+        __asm__ volatile("fence" : : : "memory");
+        ___RME_RV64V_SSTATUS_Set(Sstatus);
+        return Retval;
+    }
+
+    return RME_ERR_KFN_FAIL;
+}
+/* End Function:__RME_RV64V_Cache_Maint **************************************/
+
 /* Function:__RME_Kfn_Handler *************************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
@@ -630,7 +712,13 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
          * successful no-ops. */
         case RME_KFN_CACHE_MOD:         {return RME_ERR_KFN_FAIL;}
         case RME_KFN_CACHE_CONFIG:      {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_CACHE_MAINT:       {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_CACHE_MAINT:
+        {
+            Retval=__RME_RV64V_Cache_Maint(Sub_ID,
+                                           Param1,
+                                           Param2);
+            break;
+        }
         case RME_KFN_CACHE_LOCK:        {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PRFTH_MOD:         {return RME_ERR_KFN_FAIL;}
 /* Hot plug and pull operations **********************************************/
