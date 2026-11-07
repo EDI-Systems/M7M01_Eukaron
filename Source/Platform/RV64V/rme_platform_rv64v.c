@@ -661,6 +661,51 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
 }
 /* End Function:__RME_RV64V_Cache_Maint **************************************/
 
+/* Function:__RME_RV64V_Pgt_Asid_Set *****************************************
+Description : Set the ASID of a top-level page table. The old and new ASID
+              TLB entries are flushed before the change, so an ASID can be
+              reused safely. ASID 0 is left untagged for the boot mapping.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
+              rme_cid_t Cap_Pgt - The capability to the top-level page table.
+              rme_ptr_t Asid - The new ASID (0..0xFFFF).
+Output      : None.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
+******************************************************************************/
+rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
+                                   rme_cid_t Cap_Pgt,
+                                   rme_ptr_t Asid)
+{
+    struct RME_Cap_Pgt* Pgt_Op;
+    rme_ptr_t Type_Stat;
+
+    /* Get the capability slot */
+    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,
+                   struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
+
+    /* Only a top-level table represents an address space */
+    if((Pgt_Op->Base&RME_PGT_TOP)==0U)
+        return RME_ERR_KFN_FAIL;
+
+    if(Asid>RME_RV64V_SATP_ASID_MASK)
+        return RME_ERR_KFN_FAIL;
+
+    if(Pgt_Op->ASID==Asid)
+        return 0;
+
+    /* Drop stale translations for both the old and the new ASID before the
+     * change. ASID 0 is shared by the boot/unassigned tables, so it is never
+     * flushed here. */
+    if(Pgt_Op->ASID!=0U)
+        __asm__ volatile("sfence.vma x0, %0" : : "r"(Pgt_Op->ASID) : "memory");
+    if(Asid!=0U)
+        __asm__ volatile("sfence.vma x0, %0" : : "r"(Asid) : "memory");
+
+    RME_WRITE_RELEASE((rme_ptr_t*)&(Pgt_Op->ASID),Asid);
+
+    return 0;
+}
+/* End Function:__RME_RV64V_Pgt_Asid_Set ************************************/
+
 /* Function:__RME_Kfn_Handler *************************************************
 Description : Handle kernel function calls.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
@@ -687,7 +732,13 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Page table operations *****************************************************/
         case RME_KFN_PGT_CACHE_CLR:     {return RME_ERR_KFN_FAIL;}
         case RME_KFN_PGT_LINE_CLR:      {return RME_ERR_KFN_FAIL;}
-        case RME_KFN_PGT_ASID_SET:      {return RME_ERR_KFN_FAIL;}
+        case RME_KFN_PGT_ASID_SET:
+        {
+            Retval=__RME_RV64V_Pgt_Asid_Set(Cpt,
+                                            (rme_cid_t)Sub_ID,
+                                            Param1);
+            break;
+        }
         case RME_KFN_PGT_TLB_LOCK:      {return RME_ERR_KFN_FAIL;}
 #if(RME_PGT_RAW_ENABLE==0U)
         case RME_KFN_PGT_ENTRY_MOD:
@@ -707,9 +758,8 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
         case RME_KFN_INT_LOCAL_TRIG:    {return RME_ERR_KFN_FAIL;}
         case RME_KFN_EVT_LOCAL_TRIG:    {return RME_ERR_KFN_FAIL;}
 /* Cache and prefetcher operations *******************************************/
-        /* There is no architectural S-mode CSR for cache or prefetcher
-         * control on this port, so these are unsupported rather than
-         * successful no-ops. */
+        /* CACHE_MAINT = Zicbom. No architected cache config/lock or prefetcher
+         * control; the rest stay unsupported. */
         case RME_KFN_CACHE_MOD:         {return RME_ERR_KFN_FAIL;}
         case RME_KFN_CACHE_CONFIG:      {return RME_ERR_KFN_FAIL;}
         case RME_KFN_CACHE_MAINT:
@@ -1828,18 +1878,49 @@ Return      : None.
 void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
     rme_ptr_t Satp;
+    rme_ptr_t Asid;
+    rme_ptr_t Old;
+    rme_ptr_t New;
+
+    Asid=Pgt->ASID&RME_RV64V_SATP_ASID_MASK;
+
+    /* First switch: take the next ASID; exhaustion falls back to 0. */
+    if(Asid==0U)
+    {
+        do
+        {
+            Old=RME_RV64V_ASID_Next;
+            New=(Old==0U)?2U:(Old+1U);
+        }
+        while(RME_COMP_SWAP(&RME_RV64V_ASID_Next,Old,New)==RME_CASFAIL);
+
+        Asid=(Old==0U)?1U:Old;
+
+        if(Asid<=RME_RV64V_SATP_ASID_MASK)
+        {
+            /* Make sure the reused ASID has no stale translations. */
+            __asm__ volatile("sfence.vma x0, %0" : : "r"(Asid) : "memory");
+            if(RME_COMP_SWAP((volatile rme_ptr_t*)&(Pgt->ASID),0U,Asid)==RME_CASFAIL)
+                Asid=Pgt->ASID&RME_RV64V_SATP_ASID_MASK;
+        }
+        else
+        {
+            Asid=0U;
+        }
+    }
 
     /* The page table object lives in the kernel object memory (high half), so
      * translate its VA to PA first. Build satp: [63:60] MODE = 8 (Sv39),
-     * [59:44] ASID = 0, [43:0] PPN = root_pa >> 12 (4KB aligned). Sv39
-     * supports a 56-bit physical address, so the PPN field is 44 bits. */
-    Satp=(8UL<<60)|
+     * [59:44] ASID, [43:0] PPN = root_pa >> 12 (4KB aligned). Sv39 supports
+     * a 56-bit physical address, so the PPN field is 44 bits. */
+    Satp=(8UL<<60)|(Asid<<RME_RV64V_SATP_ASID_SHIFT)|
          ((RME_RV64V_VA2PA(RME_CAP_GETOBJ(Pgt,rme_ptr_t))>>12)&RME_RV64V_SATP_PPN_MASK);
 
-    /* Write satp to enable/switch the MMU, then flush the TLB so the new
-     * translation takes effect immediately */
     ___RME_RV64V_SATP_Set(Satp);
-    ___RME_RV64V_TLB_Flush();
+
+    /* Non-zero ASID was flushed at allocation; ASID 0 needs a full flush. */
+    if(Asid==0U)
+        ___RME_RV64V_TLB_Flush();
 }
 /* End Function:__RME_Pgt_Set **********************************************/
 
@@ -1940,6 +2021,7 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
     rme_ptr_t* Table;
     rme_ptr_t RV64V_Flags;
     rme_ptr_t Szord;
+    rme_ptr_t Vaddr;
 
     /* It should at least be readable (Sv39 also requires R=1 whenever W=1) */
     if((Flags&RME_PGT_READ)==0)
@@ -1968,6 +2050,12 @@ rme_ret_t __RME_Pgt_Page_Map(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Paddr, rme_pt
     if(RME_COMP_SWAP(&(Table[Pos]),0,RV64V_Flags)==0)
         return RME_ERR_HAL_FAIL;
 
+    /* Drop the old translation for this VA (all ASIDs) so the new mapping
+     * takes effect on this hart immediately. */
+    Vaddr=(Pgt_Op->Base&(~RME_PGT_TOP))+
+          (((rme_ptr_t)Pos)<<RME_PGT_SZORD(Pgt_Op->Order));
+    __asm__ volatile("sfence.vma %0, x0" : : "r"(Vaddr) : "memory");
+
     return 0;
 }
 /* End Function:__RME_Pgt_Page_Map *****************************************/
@@ -1983,6 +2071,7 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
 {
     rme_ptr_t* Table;
     rme_ptr_t Temp;
+    rme_ptr_t Vaddr;
 
     /* Are we trying to unmap the kernel space on the top level? */
     if(((Pgt_Op->Base&RME_PGT_TOP)!=0)&&(Pos>=256))
@@ -2008,6 +2097,11 @@ rme_ret_t __RME_Pgt_Page_Unmap(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Pos)
     /* Try to unmap it. Use CAS just in case */
     if(RME_COMP_SWAP(&(Table[Pos]),Temp,0)==0)
         return RME_ERR_HAL_FAIL;
+
+    /* Drop the stale translation for this VA (all ASIDs). */
+    Vaddr=(Pgt_Op->Base&(~RME_PGT_TOP))+
+          (((rme_ptr_t)Pos)<<RME_PGT_SZORD(Pgt_Op->Order));
+    __asm__ volatile("sfence.vma %0, x0" : : "r"(Vaddr) : "memory");
 
     return 0;
 }
@@ -2054,6 +2148,10 @@ rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),0,RV64V_Flags)==0)
         return RME_ERR_HAL_FAIL;
 
+    /* The child pointer covers a whole subtree; a full flush is the safe
+     * conservative choice for this rare operation. */
+    ___RME_RV64V_TLB_Flush();
+
     return 0;
 }
 /* End Function:__RME_Pgt_Pgdir_Map ****************************************/
@@ -2099,6 +2197,10 @@ rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
     /* Try to unmap it. Use CAS just in case */
     if(RME_COMP_SWAP(&(Parent_Table[Pos]),Temp,0)==0)
         return RME_ERR_HAL_FAIL;
+
+    /* The child pointer covers a whole subtree; a full flush is the safe
+     * conservative choice for this rare operation. */
+    ___RME_RV64V_TLB_Flush();
 
     return 0;
 }

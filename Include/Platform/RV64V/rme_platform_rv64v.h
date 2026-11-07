@@ -379,6 +379,10 @@ while(0)
 #define RME_RV64V_VA2PA(VA)                       (((rme_ptr_t)(VA))-RME_RV64V_VA_BASE)
 /* The satp PPN field - Sv39 uses PPN[43:0], i.e. a 56-bit physical address */
 #define RME_RV64V_SATP_PPN_MASK                   (0xFFFFFFFFFFFUL)
+/* The satp ASID field - [59:44] on RV64, 16 bits wide (ASIDLEN is
+ * implementation-defined; software must still handle wrapping) */
+#define RME_RV64V_SATP_ASID_SHIFT                 (44U)
+#define RME_RV64V_SATP_ASID_MASK                  (0xFFFFUL)
 
 /* Sv39 page table entry layout (64-bit):
  * [63]    PBMT/N  - ignored in base Sv39
@@ -445,8 +449,6 @@ while(0)
 #define RME_RV64V_KFN_CACHE_INV_ADDR            (6U)
 #define RME_RV64V_KFN_CACHE_CLEAN_INV_ALL       (10U)
 #define RME_RV64V_KFN_CACHE_CLEAN_INV_ADDR      (11U)
-/* Zicbom operates on one cache block; QEMU virt and K3 use 64-byte blocks. */
-#define RME_RV64V_CACHE_BLOCK_SIZE              (64U)
 
 /* Page table entry mode which property to get */
 #define RME_RV64V_KFN_PGT_ENTRY_MOD_FLAG_GET    (0U)
@@ -712,6 +714,8 @@ static struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
 static volatile rme_ptr_t RME_RV64V_CPU_Cnt;
 /* Number of CPUs that were actually brought up */
 static volatile rme_ptr_t RME_RV64V_Num_CPU;
+/* Monotonic ASID allocator; >0xFFFF means exhausted (fall back to 0). */
+static volatile rme_ptr_t RME_RV64V_ASID_Next;
 /* Per-CPU kernel stacks - every hart traps on its own */
 static rme_u8_t RME_RV64V_KStack[RME_RV64V_CPU_NUM][RME_RV64V_KSTACK_SIZE]
                                 __attribute__((aligned(4096)));
@@ -733,6 +737,9 @@ static rme_ret_t __RME_RV64V_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
                                            rme_ptr_t Vaddr,
                                            rme_ptr_t Type);
 #endif
+static rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
+                                          rme_cid_t Cap_Pgt,
+                                          rme_ptr_t Asid);
 static rme_ret_t __RME_RV64V_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,

@@ -46,6 +46,8 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_RV64V_INIT_PA                               (0x81030000U)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV64V_OSTIM_VAL                             (100000U)
+/* Zicbom operates on one cache block; QEMU virt uses 64-byte blocks. */
+#define RME_RV64V_CACHE_BLOCK_SIZE                      (64U)
 /* What is the FPU type? QEMU virt is rv64imafdch, so enable F and D. */
 #define RME_COP_NUM                                     (1U)
 #define RME_RV64V_COP_RVF                               (1U)
