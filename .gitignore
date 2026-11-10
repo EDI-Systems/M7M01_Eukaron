@@ -101,6 +101,7 @@ Project/MFGCC-XC7Z020/Object/start
 Project/MFGCC-XC7Z020/Object/USER.bin
 #VScode specific
 .vscode/
+.zcode/
 Project/VSCODE-*/.vscode/c_cpp_properties.json
 
 #MacOS generated files

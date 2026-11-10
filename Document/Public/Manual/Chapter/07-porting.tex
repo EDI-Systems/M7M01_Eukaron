@@ -345,8 +345,8 @@ RME\_RVM\_KOM\_DONE\_FRONT\strut
 RME\_RVM\_PHYS\_VCT\_NUM &
 The number of physical interrupts. This macro will be filled in by the project generator according to the actual situation of the chip.\tabularnewline
 RME\_RVM\_PHYS\_VCTF\_BASE &
-The starting position and size of the physical interrupt flag storage area. It is used to notify the virtual machine monitor of the occurrence of physical interrupts. This macro will be filled in by the project generator.\tabularnewline
-RME\_RVM\_PHYS\_VCTF\_SIZE &\tabularnewline
+\multirow{2}{=}{\parbox{\hsize}{The starting position and size of the physical interrupt flag storage area. It is used to notify the virtual machine monitor of the occurrence of physical interrupts. This macro will be filled in by the project generator.}}\tabularnewline
+RME\_RVM\_PHYS\_VCTF\_SIZE & \rule{0pt}{2\baselineskip}\tabularnewline
 RME\_RVM\_VIRT\_EVT\_NUM &
 The number of event sources. This macro will be filled in by the project generator according to the project configuration.\tabularnewline
 RME\_RVM\_VIRT\_EVTF\_BASE &
@@ -785,8 +785,7 @@ CPUID)\tabularnewline
 \endlastfoot
 Meaning & Enters user mode and begins executing the first process.\tabularnewline
 Return value & None.\tabularnewline
-Parameters\strut
- & ptr\_t Entry
+\multirow{3}{*}{Parameters} & ptr\_t Entry
 
 The entry virtual address of the first user-mode application.\strut
 \tabularnewline
@@ -846,8 +845,7 @@ Slice)\tabularnewline
 \endlastfoot
 Meaning & Performs timer interrupt handling.\tabularnewline
 Return value & None.\tabularnewline
-Parameters\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{Parameters} & struct RME\_Reg\_Struct* Reg
 
 The processor register set pushed onto the stack during the entry phase.\strut
 \tabularnewline
@@ -1216,8 +1214,7 @@ Return value\strut
 
 The value obtained by the read operation at this address.\strut
 \tabularnewline
-Parameter\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{Parameter} & volatile ptr\_t* PTR
 
 A pointer to the target operation address.\strut
 \tabularnewline
@@ -1272,8 +1269,7 @@ Return value\strut
 
 The return value indicating whether this macro/function succeeded. Returns 1 on success and 0 on failure.\strut
 \tabularnewline
-Parameter\strut
- & volatile ptr\_t* PTR
+\multirow{3}{*}{Parameter} & volatile ptr\_t* PTR
 
 A pointer to the target operation address.\strut
 \tabularnewline
@@ -1320,8 +1316,7 @@ Return value\strut
 
 The value of *PTR before ADDEND was added.\strut
 \tabularnewline
-Parameter\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{Parameter} & volatile ptr\_t* PTR
 
 A pointer to the target operation address.\strut
 \tabularnewline
@@ -1360,8 +1355,7 @@ Return value\strut
 
 The value of *PTR before it was ANDed with OPERAND.\strut
 \tabularnewline
-Parameter\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{Parameter} & volatile ptr\_t* PTR
 
 A pointer to the target operation address.\strut
 \tabularnewline
@@ -2315,8 +2309,7 @@ ptr\_t* Svc, ptr\_t* Cid, ptr\_t* Param)\strut
 \endlastfoot
 Meaning & Extracts the parameters of the system call and puts them into the respective return values.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{4}{*}{Parameter} & struct RME\_Reg\_Struct* Reg
 
 A pointer to the register set.\strut
 \tabularnewline
@@ -2363,8 +2356,7 @@ ret\_t Retval)\strut
 \endlastfoot
 Meaning & Stores the return value of the system call into the register set.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{Parameter} & struct RME\_Reg\_Struct* Reg
 
 This parameter is used for output; it is a pointer to the register set.\strut
 \tabularnewline
@@ -2414,8 +2406,7 @@ struct RME\_Reg\_Struct* Reg)\strut
 Meaning &
 Initializes the register set of a thread or of an invocation using the entry address, the stack address and the parameter.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & ptr\_t Attr
+\multirow{5}{*}{Parameter} & ptr\_t Attr
 
 The context attribute of the coprocessor. The specific meaning of this value is determined by the architecture.\strut
 \tabularnewline
@@ -2467,8 +2458,7 @@ struct RME\_Reg\_Struct* Src)\strut
 \endlastfoot
 Meaning & Copies one register set data structure to another.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Reg\_Struct* Dst
+\multirow{2}{*}{Parameter} & struct RME\_Reg\_Struct* Dst
 
 This parameter is used for output; it is a pointer to the destination register set data structure.\strut
 \tabularnewline
@@ -2532,8 +2522,7 @@ struct RME\_Reg\_Struct* Reg)\strut
 \endlastfoot
 Meaning & Saves the necessary registers into the synchronous invocation structure.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Iret\_Struct* Ret
+\multirow{2}{*}{Parameter} & struct RME\_Iret\_Struct* Ret
 
 This parameter is used for output; it is a pointer to the necessary register structure.\strut
 \tabularnewline
@@ -2570,8 +2559,7 @@ struct RME\_Iret\_Struct* Ret)\strut
 \endlastfoot
 Meaning & Restores the necessary registers from the synchronous invocation structure.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{Parameter} & struct RME\_Reg\_Struct* Reg
 
 This parameter is used for output; it is a pointer to the register set.\strut
 \tabularnewline
@@ -2608,8 +2596,7 @@ ret\_t Retval)\strut
 \endlastfoot
 Meaning & Stores the return value of the synchronous invocation into the register set.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{Parameter} & struct RME\_Reg\_Struct* Reg
 
 This parameter is used for output; it is a pointer to the register set.\strut
 \tabularnewline
@@ -2712,8 +2699,7 @@ void* Cop)\strut
 \endlastfoot
 Meaning & Initializes the thread's coprocessor register set.\tabularnewline
 Return value & None.\tabularnewline
-Parameter\strut
- & ptr\_t Attr
+\multirow{3}{*}{Parameter} & ptr\_t Attr
 
 The context attribute of the coprocessor. The specific meaning of this value is determined by the architecture.\strut
 \tabularnewline
@@ -2734,6 +2720,7 @@ This parameter is used for output; it is a pointer to the coprocessor register s
 
 This function is used to save and restore the coprocessor register set of a thread as needed. Sometimes this function needs to be implemented in assembly to improve efficiency.
 
+\needspace{34\baselineskip}
 \begin{xltabular}{\textwidth}{@{}>{\hsize=0.5279\hsize\raggedright\arraybackslash}X>{\hsize=1.4721\hsize\raggedright\arraybackslash}X@{}}
 \caption{Implementation of \_\_RME\_Thd\_Cop\_Swap}\label{tab:7-72-rme-thd-cop-swap-implementation}\\
 \toprule
@@ -2779,46 +2766,15 @@ void* Cop\_Cur)\strut
 \endlastfoot
 Meaning & Saves the coprocessor register set of a thread.\tabularnewline
 Return value & None.\tabularnewline
-Parameters\strut
- & ptr\_t Attr\_New
-
-The coprocessor context attributes of the new thread. The specific meaning of this value is determined by the architecture.\strut
-\tabularnewline
-\strut
- & ptr\_t Is\_Hyp\_New
-
-A flag bit indicating whether the old thread is dedicated to para-virtualization. If it is not 0, the old thread is dedicated to para-virtualization.\strut
-\tabularnewline
-\strut
- & struct RME\_Reg\_Struct* Reg\_New
-
-A pointer to the register set data structure of the new thread. This parameter is used to help determine whether the new thread uses a coprocessor.\strut
-\tabularnewline
-\strut
- & void* Cop\_New
-
-A pointer to the coprocessor register set of the new thread. The coprocessor context should be restored from this pointer.\strut
-\tabularnewline
-\strut
- & ptr\_t Attr\_Cur
-
-The coprocessor context attributes of the old thread. The specific meaning of this value is determined by the architecture.\strut
-\tabularnewline
-\strut
- & ptr\_t Is\_Hyp\_Cur
-
-A flag bit indicating whether the old thread is dedicated to para-virtualization. If it is not 0, the old thread is dedicated to para-virtualization.\strut
-\tabularnewline
-\strut
- & struct RME\_Reg\_Struct* Reg\_Cur
-
-A pointer to the register set data structure of the old thread. This parameter is used to help determine whether the old thread uses a coprocessor.\strut
-\tabularnewline
-\strut
- & void* Cop\_Cur
-
-A pointer to the coprocessor register set of the old thread. The coprocessor context should be saved to this pointer.\strut
-\tabularnewline
+\multicolumn{2}{@{}l}{\textbf{Parameters}}\tabularnewline
+ptr\_t Attr\_New & The coprocessor context attributes of the new thread. The specific meaning of this value is determined by the architecture.\tabularnewline
+ptr\_t Is\_Hyp\_New & A flag bit indicating whether the old thread is dedicated to para-virtualization. If it is not 0, the old thread is dedicated to para-virtualization.\tabularnewline
+struct RME\_Reg\_Struct* Reg\_New & A pointer to the register set data structure of the new thread. This parameter is used to help determine whether the new thread uses a coprocessor.\tabularnewline
+void* Cop\_New & A pointer to the coprocessor register set of the new thread. The coprocessor context should be restored from this pointer.\tabularnewline
+ptr\_t Attr\_Cur & The coprocessor context attributes of the old thread. The specific meaning of this value is determined by the architecture.\tabularnewline
+ptr\_t Is\_Hyp\_Cur & A flag bit indicating whether the old thread is dedicated to para-virtualization. If it is not 0, the old thread is dedicated to para-virtualization.\tabularnewline
+struct RME\_Reg\_Struct* Reg\_Cur & A pointer to the register set data structure of the old thread. This parameter is used to help determine whether the old thread uses a coprocessor.\tabularnewline
+void* Cop\_Cur & A pointer to the coprocessor register set of the old thread. The coprocessor context should be saved to this pointer.\tabularnewline
 \end{xltabular}
 \nopagebreak[4]
 
@@ -2863,8 +2819,7 @@ Return value\strut
 
 If it fails, it must return a negative value; if it succeeds, it must return a non-negative value. In addition, if this function succeeds, it is this function's responsibility to set its return value into the register set.\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Cpt* Cpt
+\multirow{6}{*}{Parameters} & struct RME\_Cap\_Cpt* Cpt
 
 A pointer to the capability table of the current process.\strut
 \tabularnewline
@@ -2941,8 +2896,7 @@ void \_\_RME\_Pgt\_Set(ptr\_t Pgt)\strut
 \endlastfoot
 Meaning & Sets the page table used by the processor.\tabularnewline
 Return value & None.\tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt
+\multirow{2}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt
 
 The page directory root capability that points to the top-level page directory and contains all the information of this page directory. The macro RME\_CAP\_GETOBJ can be used to obtain the virtual address of the page directory, and this virtual address can be converted into a physical address by an architecture-dependent method and then loaded into the processor. In cases where additional information\footnote{Such as the ASID, etc.} is needed to assist the setting, the values stored in the capability can also be read.\strut
 \tabularnewline
@@ -3014,8 +2968,7 @@ Return value\strut
 
 Returns 0 on success (supported by the hardware), or RME\_ERR\_HAL\_FAIL (-1) on failure (not supported by the hardware).\strut
 \tabularnewline
-Parameters\strut
- & ptr\_t Base
+\multirow{5}{*}{Parameters} & ptr\_t Base
 
 The starting virtual address of the page directory mapping. This parameter is valid only in an MPU environment.\strut
 \tabularnewline
@@ -3139,8 +3092,7 @@ Return value\strut
 
 Returns 0 on success, or RME\_ERR\_HAL\_FAIL (-1) on failure.\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{4}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 The page directory capability that points to this page directory and contains all the information of this page directory.\strut
 \tabularnewline
@@ -3189,8 +3141,7 @@ Return value\strut
 
 Returns 0 on success, or RME\_ERR\_HAL\_FAIL (-1) on failure.\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{2}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 The page directory capability that points to this page directory and contains all the information of this page directory.\strut
 \tabularnewline
@@ -3237,8 +3188,7 @@ Return value\strut
 
 Returns 0 on success, or RME\_ERR\_HAL\_FAIL (-1) on failure.\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Parent
+\multirow{4}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt\_Parent
 
 The page directory capability that points to the parent page directory and contains all the information of the parent page directory.\strut
 \tabularnewline
@@ -3295,8 +3245,7 @@ Return value\strut
 
 Returns 0 on success, or RME\_ERR\_HAL\_FAIL (-1) on failure.\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Parent
+\multirow{3}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt\_Parent
 
 The page directory capability that points to the parent page directory and contains all the information of the parent page directory.\strut
 \tabularnewline
@@ -3345,8 +3294,7 @@ Return value\strut
 
 On success\footnote{The page is found} it returns 0, and on failure\footnote{The page is not found, or the entry mapped at that position is a page directory} it returns RME\_ERR\_HAL\_FAIL (-1).\strut
 \tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{4}{*}{Parameters} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 The page directory capability that points to this page directory and contains all the information of this page directory.\strut
 \tabularnewline
@@ -3402,48 +3350,16 @@ Looks up whether a virtual address in the page table\footnote{Page directory tre
 Return value\strut
  & ret\_t
 
-On success\footnote{The page is found} it returns 0, and on failure\footnote{The page is not found} it returns RME\_ERR\_HAL\_FAIL (-1).\strut
-\tabularnewline
-Parameters\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
-
-The page directory capability that points to this page directory and contains all the information of this page directory. This page directory must be top-level.\strut
-\tabularnewline
-\strut
- & ptr\_t Vaddr
-
-The virtual address to be queried.\strut
-\tabularnewline
-\strut
- & ptr\_t* Pgt
-
-This parameter is used for output and is a pointer to the storage virtual address of the page directory kernel object in which this virtual address resides.\strut
-\tabularnewline
-\strut
- & ptr\_t* Map\_Vaddr
-
-This parameter is used for output and is a pointer to the mapping start virtual address of the page frame in which this virtual address resides.\strut
-\tabularnewline
-\strut
- & ptr\_t* Paddr
-
-This parameter is used for output and is a pointer to the mapping start physical address of the page frame in which this virtual address resides.\strut
-\tabularnewline
-\strut
- & ptr\_t* Size\_Order
-
-This parameter is used for output and is a pointer to the size order of the page directory in which this virtual address resides.\strut
-\tabularnewline
-\strut
- & ptr\_t* Num\_Order
-
-This parameter is used for output and is a pointer to the number order of the page directory in which this virtual address resides.\strut
-\tabularnewline
-\strut
- & ptr\_t* Flag
-
-This parameter is used for output and is a pointer to the RME standard page flags of the page to which this virtual address belongs.\strut
-\tabularnewline
+On success\footnote{The page is found} it returns 0, and on failure\footnote{The page is not found} it returns RME\_ERR\_HAL\_FAIL (-1).\strut\tabularnewline
+\multicolumn{2}{@{}l}{\textbf{Parameters}}\tabularnewline
+struct RME\_Cap\_Pgt* Pgt\_Op & The page directory capability that points to this page directory and contains all the information of this page directory. This page directory must be top-level.\tabularnewline
+ptr\_t Vaddr & The virtual address to be queried.\tabularnewline
+ptr\_t* Pgt & This parameter is used for output and is a pointer to the storage virtual address of the page directory kernel object in which this virtual address resides.\tabularnewline
+ptr\_t* Map\_Vaddr & This parameter is used for output and is a pointer to the mapping start virtual address of the page frame in which this virtual address resides.\tabularnewline
+ptr\_t* Paddr & This parameter is used for output and is a pointer to the mapping start physical address of the page frame in which this virtual address resides.\tabularnewline
+ptr\_t* Size\_Order & This parameter is used for output and is a pointer to the size order of the page directory in which this virtual address resides.\tabularnewline
+ptr\_t* Num\_Order & This parameter is used for output and is a pointer to the number order of the page directory in which this virtual address resides.\tabularnewline
+ptr\_t* Flag & This parameter is used for output and is a pointer to the RME standard page flags of the page to which this virtual address belongs.\tabularnewline
 \end{xltabular}
 \nopagebreak[4]
 

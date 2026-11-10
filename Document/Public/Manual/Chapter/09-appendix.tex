@@ -182,28 +182,19 @@ Current thread & New thread & Operation\tabularnewline
 \endhead
 \bottomrule
 \endlastfoot
-Does not include the coprocessor
-
-(not in Attr)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Does not include the coprocessor (not in Attr)}} & Does not include the coprocessor\strut
  & Nothing needs to be done\strut
 \tabularnewline
 & Coprocessor untouched & Turn on the coprocessor\tabularnewline
 & Coprocessor used &
 Turn on the coprocessor and restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor untouched
-
-(initial)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor untouched (initial)}} & Does not include the coprocessor\strut
  & Turn off the coprocessor\strut
 \tabularnewline
 & Coprocessor untouched & Nothing needs to be done\tabularnewline
 & Coprocessor used &
 Restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor used
-
-(dirty)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor used (dirty)}} & Does not include the coprocessor\strut
  & First save the coprocessor context into the current thread's context structure, then reinitialize the coprocessor context, and finally turn off the coprocessor\strut
 \tabularnewline
 & Coprocessor untouched &
@@ -230,26 +221,17 @@ Operation\tabularnewline
 \endhead
 \bottomrule
 \endlastfoot
-Does not include the coprocessor
-
-(not in Attr)\strut
- & Does not include the coprocessor\strut
+\multirow{2}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Does not include the coprocessor (not in Attr)}} & Does not include the coprocessor\strut
  & Nothing needs to be done\strut
 \tabularnewline
 & Coprocessor saved &
 Turn on the coprocessor and restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor saved
-
-(clean)\strut
- & Does not include the coprocessor\strut
+\multirow{2}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor saved (clean)}} & Does not include the coprocessor\strut
  & Turn off the coprocessor (and clear the coprocessor context)\strut
 \tabularnewline
 & Coprocessor saved &
 Restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor not saved
-
-(dirty)\strut
- & Does not include the coprocessor\strut
+\multirow{2}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor not saved (dirty)}} & Does not include the coprocessor\strut
  & First save the coprocessor context into the current thread's context structure, then clear the current thread's ``dirty'' bit, and finally turn off the coprocessor (and clear the coprocessor context)\strut
 \tabularnewline
 & Coprocessor saved &
@@ -279,37 +261,25 @@ Operation\tabularnewline
 \endhead
 \bottomrule
 \endlastfoot
-Does not include the coprocessor
-
-(not in Attr)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Does not include the coprocessor (not in Attr)}} & Does not include the coprocessor\strut
  & Nothing needs to be done\strut
 \tabularnewline
 & Coprocessor untouched & Turn on the coprocessor\tabularnewline
 & Coprocessor saved &
 Turn on the coprocessor and restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor untouched
-
-(initial)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor untouched (initial)}} & Does not include the coprocessor\strut
  & Turn off the coprocessor\strut
 \tabularnewline
 & Coprocessor untouched & Nothing needs to be done\tabularnewline
 & Coprocessor saved &
 Restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor saved
-
-(clean)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor saved (clean)}} & Does not include the coprocessor\strut
  & Reinitialize the coprocessor context and turn off the coprocessor\strut
 \tabularnewline
 & Coprocessor untouched & Reinitialize the coprocessor context\tabularnewline
 & Coprocessor saved &
 Restore the coprocessor context from the new thread's context structure\tabularnewline
-Coprocessor not saved
-
-(dirty)\strut
- & Does not include the coprocessor\strut
+\multirow{3}{=}{\parbox{\hsize}{\raggedright\hyphenpenalty=10000 Coprocessor not saved (dirty)}} & Does not include the coprocessor\strut
  & First save the coprocessor context into the current thread's context structure, then change the current thread to the ``clean'' state, then reinitialize the coprocessor context, and finally turn off the coprocessor\strut
 \tabularnewline
 & Coprocessor untouched &
@@ -651,20 +621,17 @@ Thread & 线程\tabularnewline
 \end{xltabular}
 \nopagebreak[4]
 
-\section{Bibliography for This Chapter}\label{sec:9-bibliography}
+\section{Bibliography of This Chapter}\label{sec:9-bibliography}
 
 \protect\phantomsection\label{cite:9-1}
-{[}1{]}
-A. Baumann, P. Barham, P.-E. Dagand, T. Harris, R. Isaacs, S. Peter, et
-al., "The multikernel: a new OS architecture for scalable multicore
-systems," in Proceedings of the ACM SIGOPS 22nd symposium on Operating
-systems principles, 2009, pp. 29-44.
+
+\noindent {[}1{]} A. Baumann, P. Barham, P.-E. Dagand, T. Harris, R. Isaacs, S. Peter, et al., ``The multikernel: a new OS architecture for scalable multicore systems,'' in \textit{Proceedings of the ACM SIGOPS 22nd Symposium on Operating Systems Principles}, 2009, pp. 29--44.
 
 \protect\phantomsection\label{cite:9-2}
-{[}2{]} ISO, International Standards Organisation, "Programming
-Languages---C, International standard, ISO/IEC 9899: 1990 (E)", 1990.
+
+\noindent {[}2{]} ISO, ``Programming languages---C,'' International Organization for Standardization, ISO/IEC 9899:1990(E), 1990.
 
 \protect\phantomsection\label{cite:9-3}
-{[}3{]} M. I. S. R. Association, MISRA C 2012: Guidelines for the Use of
-the C Language in Critical Systems: March 2013: Motor Industry Research
-Association, 2013.
+
+\noindent {[}3{]} MISRA Association, \textit{MISRA C:2012: Guidelines for the Use of the C Language in Critical Systems}. MIRA, 2013.
+

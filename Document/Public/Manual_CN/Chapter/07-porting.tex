@@ -343,8 +343,8 @@ RME\_RVM\_KOM\_DONE\_FRONT\strut
 RME\_RVM\_PHYS\_VCT\_NUM &
 物理中断的数量。该宏将由工程生成器根据芯片实况填充。\tabularnewline
 RME\_RVM\_PHYS\_VCTF\_BASE &
-物理中断标志位占存区的起始位置以及大小。用以通知虚拟机监视器物理中断的发生。该宏将由工程生成器负责填充。\tabularnewline
-RME\_RVM\_PHYS\_VCTF\_SIZE &\tabularnewline
+\multirow{2}{=}{\parbox{\hsize}{物理中断标志位占存区的起始位置以及大小。用以通知虚拟机监视器物理中断的发生。该宏将由工程生成器负责填充。}}\tabularnewline
+RME\_RVM\_PHYS\_VCTF\_SIZE & \rule{0pt}{2\baselineskip}\tabularnewline
 RME\_RVM\_VIRT\_EVT\_NUM &
 事件源的数量。该宏将由工程生成器根据工程配置填充。\tabularnewline
 RME\_RVM\_VIRT\_EVTF\_BASE &
@@ -765,8 +765,7 @@ CPUID)\tabularnewline
 \endlastfoot
 意义 & 进入用户模式，开始执行第一个进程。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & ptr\_t Entry
+\multirow{3}{*}{参数} & ptr\_t Entry
 
 第一个用户态应用程序的入口虚拟地址。\strut
 \tabularnewline
@@ -825,8 +824,7 @@ Slice)\tabularnewline
 \endlastfoot
 意义 & 执行定时器中断处理。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{参数} & struct RME\_Reg\_Struct* Reg
 
 在进入阶段被压栈的处理器寄存器组。\strut
 \tabularnewline
@@ -1179,8 +1177,7 @@ VAL)\tabularnewline
 
 读操作在该地址上得到的值。\strut
 \tabularnewline
-参数\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{参数} & volatile ptr\_t* PTR
 
 指向目标操作地址的指针。\strut
 \tabularnewline
@@ -1233,8 +1230,7 @@ NEW)\tabularnewline
 
 该宏/函数是否成功的返回值。成功返回1，失败返回0。\strut
 \tabularnewline
-参数\strut
- & volatile ptr\_t* PTR
+\multirow{3}{*}{参数} & volatile ptr\_t* PTR
 
 指向目标操作地址的指针。\strut
 \tabularnewline
@@ -1280,8 +1276,7 @@ ADDEND)\tabularnewline
 
 加上 ADDEND 之前的*PTR。\strut
 \tabularnewline
-参数\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{参数} & volatile ptr\_t* PTR
 
 指向目标操作地址的指针。\strut
 \tabularnewline
@@ -1318,8 +1313,7 @@ OPERAND)\tabularnewline
 
 与上 OPERAND 之前的*PTR。\strut
 \tabularnewline
-参数\strut
- & volatile ptr\_t* PTR
+\multirow{2}{*}{参数} & volatile ptr\_t* PTR
 
 指向目标操作地址的指针。\strut
 \tabularnewline
@@ -2233,8 +2227,7 @@ ptr\_t* Svc, ptr\_t* Cid, ptr\_t* Param)\strut
 \endlastfoot
 意义 & 提取系统调用的参数，并放入分别的各个返回值。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{4}{*}{参数} & struct RME\_Reg\_Struct* Reg
 
 指向寄存器组的指针。\strut
 \tabularnewline
@@ -2280,8 +2273,7 @@ ret\_t Retval)\strut
 \endlastfoot
 意义 & 将系统调用的返回值存入寄存器组。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{参数} & struct RME\_Reg\_Struct* Reg
 
 该参数用于输出，是指向寄存器组的指针。\strut
 \tabularnewline
@@ -2330,8 +2322,7 @@ struct RME\_Reg\_Struct* Reg)\strut
 意义 &
 使用入口地址，栈地址和参数初始化线程或迁移调用寄存器组。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & ptr\_t Attr
+\multirow{5}{*}{参数} & ptr\_t Attr
 
 协处理器的上下文属性。该值的具体意义由架构决定。\strut
 \tabularnewline
@@ -2382,8 +2373,7 @@ struct RME\_Reg\_Struct* Src)\strut
 \endlastfoot
 意义 & 将一个寄存器组数据结构复制到另一个。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Dst
+\multirow{2}{*}{参数} & struct RME\_Reg\_Struct* Dst
 
 该参数用于输出，是指向目标寄存器组数据结构的指针。\strut
 \tabularnewline
@@ -2445,8 +2435,7 @@ struct RME\_Reg\_Struct* Reg)\strut
 \endlastfoot
 意义 & 保存必要的寄存器到同步迁移调用结构体中。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Iret\_Struct* Ret
+\multirow{2}{*}{参数} & struct RME\_Iret\_Struct* Ret
 
 该参数用于输出，是指向必要寄存器结构体的指针。\strut
 \tabularnewline
@@ -2482,8 +2471,7 @@ struct RME\_Iret\_Struct* Ret)\strut
 \endlastfoot
 意义 & 从同步迁移调用结构体中恢复必要的寄存器。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{参数} & struct RME\_Reg\_Struct* Reg
 
 该参数用于输出，是指向寄存器组的指针。\strut
 \tabularnewline
@@ -2519,8 +2507,7 @@ ret\_t Retval)\strut
 \endlastfoot
 意义 & 将同步迁移调用的返回值存入寄存器组。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Reg\_Struct* Reg
+\multirow{2}{*}{参数} & struct RME\_Reg\_Struct* Reg
 
 该参数用于输出，是指向寄存器组的指针。\strut
 \tabularnewline
@@ -2620,8 +2607,7 @@ void* Cop)\strut
 \endlastfoot
 意义 & 初始化线程协处理器寄存器组。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & ptr\_t Attr
+\multirow{3}{*}{参数} & ptr\_t Attr
 
 协处理器的上下文属性。该值的具体意义由架构决定。\strut
 \tabularnewline
@@ -2686,46 +2672,15 @@ void* Cop\_Cur)\strut
 \endlastfoot
 意义 & 保存线程的协处理器寄存器组。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & ptr\_t Attr\_New
-
-新线程的协处理器的上下文属性。该值的具体意义由架构决定。\strut
-\tabularnewline
-\strut
- & ptr\_t Is\_Hyp\_New
-
-指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\strut
-\tabularnewline
-\strut
- & struct RME\_Reg\_Struct* Reg\_New
-
-指向新线程寄存器组数据结构的指针。这个参数是用来辅助判断新线程是否使用协处理器的。\strut
-\tabularnewline
-\strut
- & void* Cop\_New
-
-指向新线程协处理器寄存器组的指针。协处理器的上下文应当从该指针中恢复。\strut
-\tabularnewline
-\strut
- & ptr\_t Attr\_Cur
-
-老线程的协处理器的上下文属性。该值的具体意义由架构决定。\strut
-\tabularnewline
-\strut
- & ptr\_t Is\_Hyp\_Cur
-
-指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\strut
-\tabularnewline
-\strut
- & struct RME\_Reg\_Struct* Reg\_Cur
-
-指向老线程寄存器组数据结构的指针。这个参数是用来辅助判断老线程是否使用协处理器的。\strut
-\tabularnewline
-\strut
- & void* Cop\_Cur
-
-指向老线程协处理器寄存器组的指针。协处理器的上下文应当被保存到该指针。\strut
-\tabularnewline
+\multicolumn{2}{@{}l}{\textbf{参数}}\tabularnewline
+ptr\_t Attr\_New & 新线程的协处理器的上下文属性。该值的具体意义由架构决定。\tabularnewline
+ptr\_t Is\_Hyp\_New & 指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\tabularnewline
+struct RME\_Reg\_Struct* Reg\_New & 指向新线程寄存器组数据结构的指针。这个参数是用来辅助判断新线程是否使用协处理器的。\tabularnewline
+void* Cop\_New & 指向新线程协处理器寄存器组的指针。协处理器的上下文应当从该指针中恢复。\tabularnewline
+ptr\_t Attr\_Cur & 老线程的协处理器的上下文属性。该值的具体意义由架构决定。\tabularnewline
+ptr\_t Is\_Hyp\_Cur & 指示老线程是否为准虚拟化专用线程的标志位。如果不为0，则老线程为准虚拟化专用线程。\tabularnewline
+struct RME\_Reg\_Struct* Reg\_Cur & 指向老线程寄存器组数据结构的指针。这个参数是用来辅助判断老线程是否使用协处理器的。\tabularnewline
+void* Cop\_Cur & 指向老线程协处理器寄存器组的指针。协处理器的上下文应当被保存到该指针。\tabularnewline
 \end{xltabular}
 
 需要特别注意的是，协处理器寄存器组有时可以被当作一个传输能力很强的隐蔽通道使用。因此，在那些注重信息安全的实现中，如果检测到新线程没有使用协处理器寄存器组，那么应当使用无意义的字符（比如0x00）填充协处理器寄存器组，防止老线程的信息泄露到新线程；也可以无视线程是否使用了协处理器寄存器组，总是保存和恢复协处理器寄存器组。
@@ -2767,8 +2722,7 @@ ptr\_t Param1, ptr\_t Param2)\strut
 
 如果失败，必须返回负值；如果成功，必须返回非负值。此外，如果该函数成功，由该函数负责设置其返回值到寄存器组。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Cpt* Cpt
+\multirow{6}{*}{参数} & struct RME\_Cap\_Cpt* Cpt
 
 指向当前进程的权能表的指针。\strut
 \tabularnewline
@@ -2844,8 +2798,7 @@ void \_\_RME\_Pgt\_Set(ptr\_t Pgt)\strut
 \endlastfoot
 意义 & 设置处理器使用该页表。\tabularnewline
 返回值 & 无。\tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt
+\multirow{2}{*}{参数} & struct RME\_Cap\_Pgt* Pgt
 
 指向顶层页目录的，含有该页目录的所有信息的页目录根权能。可用宏 RME\_CAP\_GETOBJ 来得到页目录的虚拟地址，将该虚拟地址通过架构相关方法变换成物理地址即可装入处理器。在需要额外信息\footnote{如ASID等}来辅助设置的场合，也可以读取权能中存放的值。\strut
 \tabularnewline
@@ -2915,8 +2868,7 @@ ptr\_t Size\_Order, ptr\_t Num\_Order, ptr\_t Vaddr)\strut
 
 成功（硬件支持）返回0，失败（硬件不支持）返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & ptr\_t Base
+\multirow{5}{*}{参数} & ptr\_t Base
 
 页目录映射起始虚拟地址。该参数仅在MPU环境中有效。\strut
 \tabularnewline
@@ -3037,8 +2989,7 @@ ptr\_t Paddr, ptr\_t Pos, ptr\_t Flag)\strut
 
 成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{4}{*}{参数} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
 \tabularnewline
@@ -3086,8 +3037,7 @@ ptr\_t Pos)\tabularnewline
 
 成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{2}{*}{参数} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
 \tabularnewline
@@ -3133,8 +3083,7 @@ ptr\_t Flag)\strut
 
 成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Parent
+\multirow{4}{*}{参数} & struct RME\_Cap\_Pgt* Pgt\_Parent
 
 指向父页目录的，含有父页目录的所有信息的页目录权能。\strut
 \tabularnewline
@@ -3190,8 +3139,7 @@ struct RME\_Cap\_Pgt* Pgt\_Child)\strut
 
 成功返回0，失败返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Parent
+\multirow{3}{*}{参数} & struct RME\_Cap\_Pgt* Pgt\_Parent
 
 指向父页目录的，含有父页目录的所有信息的页目录权能。\strut
 \tabularnewline
@@ -3239,8 +3187,7 @@ ptr\_t Pos, ptr\_t* Paddr, ptr\_t* Flag)\strut
 
 成功\footnote{找到该页}返回0，失败\footnote{未找到或该位置上映射的表项为页目录}返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
 \tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
+\multirow{4}{*}{参数} & struct RME\_Cap\_Pgt* Pgt\_Op
 
 指向该页目录的，含有该页目录的所有信息的页目录权能。\strut
 \tabularnewline
@@ -3295,48 +3242,16 @@ ptr\_t* Size\_Order, ptr\_t* Num\_Order, ptr\_t* Flag)\strut
 返回值\strut
  & ret\_t
 
-成功\footnote{找到该页}返回0，失败\footnote{未找到该页}返回 RME\_ERR\_HAL\_FAIL（-1）。\strut
-\tabularnewline
-参数\strut
- & struct RME\_Cap\_Pgt* Pgt\_Op
-
-指向该页目录的，含有该页目录的所有信息的页目录权能。该页目录必须是顶层的。\strut
-\tabularnewline
-\strut
- & ptr\_t Vaddr
-
-需要查询的虚拟地址。\strut
-\tabularnewline
-\strut
- & ptr\_t* Pgt
-
-该参数用于输出，是指向该虚拟地址所在的页目录内核对象的存放虚拟地址的指针。\strut
-\tabularnewline
-\strut
- & ptr\_t* Map\_Vaddr
-
-该参数用于输出，是指向该虚拟地址所在的页框的映射起始虚拟地址的指针。\strut
-\tabularnewline
-\strut
- & ptr\_t* Paddr
-
-该参数用于输出，是指向该虚拟地址所在的页框的映射起始物理地址的指针。\strut
-\tabularnewline
-\strut
- & ptr\_t* Size\_Order
-
-该参数用于输出，是指向该虚拟地址所在的页目录的大小级数的指针。\strut
-\tabularnewline
-\strut
- & ptr\_t* Num\_Order
-
-该参数用于输出，是指向该虚拟地址所在的页目录的数量级数的指针。\strut
-\tabularnewline
-\strut
- & ptr\_t* Flag
-
-该参数用于输出，是指向该虚拟地址所属页的 RME 标准页标志的指针。\strut
-\tabularnewline
+成功\footnote{找到该页}返回0，失败\footnote{未找到该页}返回 RME\_ERR\_HAL\_FAIL（-1）。\strut\tabularnewline
+\multicolumn{2}{@{}l}{\textbf{参数}}\tabularnewline
+struct RME\_Cap\_Pgt* Pgt\_Op & 指向该页目录的，含有该页目录的所有信息的页目录权能。该页目录必须是顶层的。\tabularnewline
+ptr\_t Vaddr & 需要查询的虚拟地址。\tabularnewline
+ptr\_t* Pgt & 该参数用于输出，是指向该虚拟地址所在的页目录内核对象的存放虚拟地址的指针。\tabularnewline
+ptr\_t* Map\_Vaddr & 该参数用于输出，是指向该虚拟地址所在的页框的映射起始虚拟地址的指针。\tabularnewline
+ptr\_t* Paddr & 该参数用于输出，是指向该虚拟地址所在的页框的映射起始物理地址的指针。\tabularnewline
+ptr\_t* Size\_Order & 该参数用于输出，是指向该虚拟地址所在的页目录的大小级数的指针。\tabularnewline
+ptr\_t* Num\_Order & 该参数用于输出，是指向该虚拟地址所在的页目录的数量级数的指针。\tabularnewline
+ptr\_t* Flag & 该参数用于输出，是指向该虚拟地址所属页的 RME 标准页标志的指针。\tabularnewline
 \end{xltabular}
 
 该函数需要根据传入的虚拟地址查找（可能是压缩的）页表树，确定所传入的虚拟地址是否在该页表中，如果存在的话还要确定其所在的页目录内核对象本身的虚拟地址和它在这个页目录中的哪个槽位。该函数只允许查找用户页；查找内存页的信息是不允许的，必须返回错误。

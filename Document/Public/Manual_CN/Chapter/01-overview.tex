@@ -720,23 +720,24 @@ RME 所有的系统调用都不会使用超过4个寄存器长度的参数。此
 
 \subsection{参数传递与参数位置编码}\label{subsec:1-parameter-passing-and-encoding}
 
+\needspace{24\baselineskip}
 RME 系统调用的参数被放在寄存器内传递。但是，某些寄存器的长度超过了我们要传递的参数的长度，因此使用一个寄存器仅仅传递一个参数太过奢侈，我们可以传递更多的参数。因此，我们把寄存器切成多段使用。在 RME 中，我们最多会把一个寄存器切成8段来使用。以32位系统为例，其各段的定义和标识符如下图所示\footnote{此处以32位机器为例；64位机器依此类推}：
 
-\begin{xltabular}{\textwidth}{@{}>{\hsize=1.2966\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X>{\hsize=0.9576\hsize\raggedright\arraybackslash}X@{}}
+\needspace{14\baselineskip}
+\begin{xltabular}{\textwidth}{@{}*{8}{>{\centering\arraybackslash}X}@{}}
 \caption{系统调用参数位置编码}\label{tab:1-14-system-call-parameter-encoding}\\
 \toprule
-{[}31 32位机器字 0{]} & & & & & & &\tabularnewline
-\endfirsthead
-\toprule
-{[}31 32位机器字 0{]} & & & & & & &\tabularnewline
+\multicolumn{8}{c}{[31 \quad 32 位机器字 \quad 0]}\\
 \midrule
-\endhead
+\multicolumn{4}{c}{\makecell{D1\\31--16}} & \multicolumn{4}{c}{\makecell{D0\\15--0}}\\
+\midrule
+\multicolumn{2}{c}{\makecell{Q3\\31--24}} & \multicolumn{2}{c}{\makecell{Q2\\23--16}} & \multicolumn{2}{c}{\makecell{Q1\\15--8}} & \multicolumn{2}{c}{\makecell{Q0\\7--0}}\\
+\midrule
+\makecell{O7\\31--28} & \makecell{O6\\27--24} & \makecell{O5\\23--20} & \makecell{O4\\19--16} & \makecell{O3\\15--12} & \makecell{O2\\11--8} & \makecell{O1\\7--4} & \makecell{O0\\3--0}\\
 \bottomrule
-\endlastfoot
-D1 & D0 & & & & & &\tabularnewline
-Q3 & Q2 & Q1 & Q0 & & & &\tabularnewline
-O7 & O6 & O5 & O4 & O3 & O2 & O1 & O0\tabularnewline
 \end{xltabular}
+
+{\small\noindent D、Q、O 分别表示把 32 位机器字等分为 2 段、4 段和 8 段时的段编号；每行单元格的宽度对应其实际位宽。\par}
 
 RME 也有少数特殊的系统调用使用其他的值传递方法。这些方法会在相关的函数处加以具体说明。
 
@@ -846,26 +847,22 @@ RME\_SVC\_INV\_SET & 33 &
 \section{本章参考文献}\label{sec:1-bibliography}
 
 \protect\phantomsection\label{cite:1-1}
-{[}1{]}
-T. N. B. Anh and S.-L. Tan, "Real-time operating systems for small
-microcontrollers," IEEE micro, vol. 29, 2009.
+
+\noindent {[}1{]} T. N. B. Anh and S.-L. Tan, ``Real-time operating systems for small microcontrollers,'' \textit{IEEE Micro}, vol. 29, 2009.
 
 \protect\phantomsection\label{cite:1-2}
-{[}2{]} R. P. Kar, "Implementing the Rhealstone real-time benchmark,"
-Dr. Dobb's Journal, vol. 15, pp. 46-55, 1990.
+
+\noindent {[}2{]} R. P. Kar, ``Implementing the Rhealstone real-time benchmark,'' \textit{Dr. Dobb's Journal}, vol. 15, pp. 46--55, 1990.
 
 \protect\phantomsection\label{cite:1-3}
-{[}3{]} T. J. Boger, Rhealstone benchmarking of FreeRTOS and the Xilinx
-Zynq extensible processing platform: Temple University, 2013.
+
+\noindent {[}3{]} T. J. Boger, ``Rhealstone benchmarking of FreeRTOS and the Xilinx Zynq extensible processing platform,'' M.S. thesis, Temple University, 2013.
 
 \protect\phantomsection\label{cite:1-4}
-{[}4{]} G. Klein, K. Elphinstone, G. Heiser, J. Andronick, D. Cock, P.
-Derrin, et al., "seL4: formal verification of an OS kernel," presented
-at the Proceedings of the ACM SIGOPS 22nd symposium on Operating systems
-principles, Big Sky, Montana, USA, 2009.
+
+\noindent {[}4{]} G. Klein, K. Elphinstone, G. Heiser, J. Andronick, D. Cock, P. Derrin, et al., ``seL4: formal verification of an OS kernel,'' in \textit{Proceedings of the ACM SIGOPS 22nd Symposium on Operating Systems Principles}, Big Sky, MT, USA, 2009.
 
 \protect\phantomsection\label{cite:1-5}
-{[}5{]} U. Steinberg and B. Kauer, "NOVA: a microhypervisor-based secure
-virtualization architecture," in Proceedings of the 5th European
-conference on Computer systems, 2010, pp. 209-222.
+
+\noindent {[}5{]} U. Steinberg and B. Kauer, ``NOVA: a microhypervisor-based secure virtualization architecture,'' in \textit{Proceedings of the 5th European Conference on Computer Systems}, 2010, pp. 209--222.
 

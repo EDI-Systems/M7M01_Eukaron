@@ -180,28 +180,19 @@ execution）机制必须有清晰了解，否则可能引起协处理器状态�
 \endhead
 \bottomrule
 \endlastfoot
-不包括协处理器
-
-（不在Attr中）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{不包括协处理器\\（不在Attr中）}} & 不包括协处理器\strut
  & 什么也不需要做\strut
 \tabularnewline
 & 协处理器没动过 & 开启协处理器\tabularnewline
 & 协处理器使用过 &
 开启协处理器并从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器没动过
-
-（初始）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{协处理器没动过\\（初始）}} & 不包括协处理器\strut
  & 关闭协处理器\strut
 \tabularnewline
 & 协处理器没动过 & 什么也不需要做\tabularnewline
 & 协处理器使用过 &
 从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器使用过
-
-（脏）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{协处理器使用过\\（脏）}} & 不包括协处理器\strut
  & 先保存协处理器上下文到当前线程上下文结构体，再重新初始化协处理器上下文，最后关闭协处理器\strut
 \tabularnewline
 & 协处理器没动过 &
@@ -227,26 +218,17 @@ execution）机制必须有清晰了解，否则可能引起协处理器状态�
 \endhead
 \bottomrule
 \endlastfoot
-不包括协处理器
-
-（不在Attr中）\strut
- & 不包括协处理器\strut
+\multirow{2}{=}{\makecell[l]{不包括协处理器\\（不在Attr中）}} & 不包括协处理器\strut
  & 什么也不需要做\strut
 \tabularnewline
 & 协处理器保存过 &
 开启协处理器并从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器保存过
-
-（干净）\strut
- & 不包括协处理器\strut
+\multirow{2}{=}{\makecell[l]{协处理器保存过\\（干净）}} & 不包括协处理器\strut
  & 关闭协处理器（并清空协处理器上下文）\strut
 \tabularnewline
 & 协处理器保存过 &
 从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器未保存
-
-（脏）\strut
- & 不包括协处理器\strut
+\multirow{2}{=}{\makecell[l]{协处理器未保存\\（脏）}} & 不包括协处理器\strut
  & 先保存协处理器上下文到当前线程上下文结构体，再清零当前线程的``脏''位，最后关闭协处理器（并清空协处理器上下文）\strut
 \tabularnewline
 & 协处理器保存过 &
@@ -274,37 +256,25 @@ execution）机制必须有清晰了解，否则可能引起协处理器状态�
 \endhead
 \bottomrule
 \endlastfoot
-不包括协处理器
-
-（不在 Attr 中）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{不包括协处理器\\（不在 Attr 中）}} & 不包括协处理器\strut
  & 什么也不需要做\strut
 \tabularnewline
 & 协处理器没动过 & 开启协处理器\tabularnewline
 & 协处理器保存过 &
 开启协处理器并从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器没动过
-
-（初始）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{协处理器没动过\\（初始）}} & 不包括协处理器\strut
  & 关闭协处理器\strut
 \tabularnewline
 & 协处理器没动过 & 什么也不需要做\tabularnewline
 & 协处理器保存过 &
 从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器保存过
-
-（干净）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{协处理器保存过\\（干净）}} & 不包括协处理器\strut
  & 重新初始化协处理器上下文并关闭协处理器\strut
 \tabularnewline
 & 协处理器没动过 & 重新初始化协处理器上下文\tabularnewline
 & 协处理器保存过 &
 从新线程上下文结构体中恢复协处理器上下文\tabularnewline
-协处理器未保存
-
-（脏）\strut
- & 不包括协处理器\strut
+\multirow{3}{=}{\makecell[l]{协处理器未保存\\（脏）}} & 不包括协处理器\strut
  & 先保存协处理器上下文到当前线程上下文结构体，再将当前线程转变为``干净''状态，再重新初始化协处理器上下文，最后关闭协处理器\strut
 \tabularnewline
 & 协处理器没动过 &
@@ -650,17 +620,14 @@ Thread & 线程\tabularnewline
 \section{本章参考文献}\label{sec:9-bibliography}
 
 \protect\phantomsection\label{cite:9-1}
-{[}1{]}
-A. Baumann, P. Barham, P.-E. Dagand, T. Harris, R. Isaacs, S. Peter, et
-al., "The multikernel: a new OS architecture for scalable multicore
-systems," in Proceedings of the ACM SIGOPS 22nd symposium on Operating
-systems principles, 2009, pp. 29-44.
+
+\noindent {[}1{]} A. Baumann, P. Barham, P.-E. Dagand, T. Harris, R. Isaacs, S. Peter, et al., ``The multikernel: a new OS architecture for scalable multicore systems,'' in \textit{Proceedings of the ACM SIGOPS 22nd Symposium on Operating Systems Principles}, 2009, pp. 29--44.
 
 \protect\phantomsection\label{cite:9-2}
-{[}2{]} ISO, International Standards Organisation, "Programming
-Languages---C, International standard, ISO/IEC 9899: 1990 (E)", 1990.
+
+\noindent {[}2{]} ISO, ``Programming languages---C,'' International Organization for Standardization, ISO/IEC 9899:1990(E), 1990.
 
 \protect\phantomsection\label{cite:9-3}
-{[}3{]} M. I. S. R. Association, MISRA C 2012: Guidelines for the Use of
-the C Language in Critical Systems: March 2013: Motor Industry Research
-Association, 2013.
+
+\noindent {[}3{]} MISRA Association, \textit{MISRA C:2012: Guidelines for the Use of the C Language in Critical Systems}. MIRA, 2013.
+
