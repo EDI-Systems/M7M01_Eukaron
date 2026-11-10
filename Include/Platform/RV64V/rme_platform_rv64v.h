@@ -383,7 +383,13 @@ while(0)
 /* The satp ASID field - [59:44] on RV64, 16 bits wide (ASIDLEN is
  * implementation-defined; software must still handle wrapping) */
 #define RME_RV64V_SATP_ASID_SHIFT                 (44U)
-#define RME_RV64V_SATP_ASID_MASK                  (0xFFFFUL)
+#define RME_RV64V_SATP_ASID_MAX                   (0xFFFFUL)
+#define RME_RV64V_SATP_ASID_MASK                  (RME_RV64V_SATP_ASID_MAX<<RME_RV64V_SATP_ASID_SHIFT)
+/* Pack/unpack the logical ASID value into/from the satp field */
+#define RME_RV64V_SATP_ASID_GET(X) \
+    ((((rme_ptr_t)(X))&RME_RV64V_SATP_ASID_MASK)>>RME_RV64V_SATP_ASID_SHIFT)
+#define RME_RV64V_SATP_ASID_SET(X) \
+    (((rme_ptr_t)(X))<<RME_RV64V_SATP_ASID_SHIFT)
 
 /* Sv39 page table entry layout (64-bit):
  * [63]    PBMT/N  - ignored in base Sv39
@@ -715,8 +721,6 @@ static struct RME_CPU_Local RME_RV64V_CPU_Local[RME_RV64V_CPU_NUM];
 static volatile rme_ptr_t RME_RV64V_CPU_Cnt;
 /* Number of CPUs that were actually brought up */
 static volatile rme_ptr_t RME_RV64V_Num_CPU;
-/* Monotonic ASID allocator; >0xFFFF means exhausted (fall back to 0). */
-static volatile rme_ptr_t RME_RV64V_ASID_Next;
 /* Per-CPU kernel stacks - every hart traps on its own */
 static rme_u8_t RME_RV64V_KStack[RME_RV64V_CPU_NUM][RME_RV64V_KSTACK_SIZE]
                                 __attribute__((aligned(4096)));
@@ -741,8 +745,11 @@ static rme_ret_t __RME_RV64V_Pgt_Entry_Mod(struct RME_Cap_Cpt* Cpt,
 static rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
                                           rme_cid_t Cap_Pgt,
                                           rme_ptr_t Asid);
-static rme_ret_t __RME_RV64V_Pgt_Line_Clear(rme_ptr_t Vaddr,
-                                            rme_ptr_t Asid);
+static rme_ret_t __RME_RV64V_Pgt_Cache_Clear(struct RME_Cap_Cpt* Cpt,
+                                             rme_cid_t Cap_Pgt);
+static rme_ret_t __RME_RV64V_Pgt_Line_Clear(struct RME_Cap_Cpt* Cpt,
+                                            rme_cid_t Cap_Pgt,
+                                            rme_ptr_t Vaddr);
 static rme_ret_t __RME_RV64V_Debug_Reg_Mod(struct RME_Cap_Cpt* Cpt,
                                            struct RME_Reg_Struct* Reg,
                                            rme_cid_t Cap_Thd,

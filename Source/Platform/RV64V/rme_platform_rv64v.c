@@ -678,9 +678,12 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
 /* End Function:__RME_RV64V_Cache_Maint **************************************/
 
 /* Function:__RME_RV64V_Pgt_Asid_Set *****************************************
-Description : Set the ASID of a top-level page table. The old and new ASID
-              TLB entries are flushed before the change, so an ASID can be
-              reused safely. ASID 0 is left untagged for the boot mapping.
+Description : Set the ASID of a top-level page table. ASID allocation and
+              lifetime management are the caller's responsibility; this call
+              only programs the value and makes it safe to use. The old and
+              new ASID TLB entries are flushed before the change, so an ASID
+              can be reused safely. ASID 0 is left untagged for the boot and
+              not-yet-configured mappings.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               rme_cid_t Cap_Pgt - The capability to the top-level page table.
               rme_ptr_t Asid - The new ASID (0..0xFFFF).
@@ -702,7 +705,7 @@ rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
     if((Pgt_Op->Base&RME_PGT_TOP)==0U)
         return RME_ERR_KFN_FAIL;
 
-    if(Asid>RME_RV64V_SATP_ASID_MASK)
+    if(Asid>RME_RV64V_SATP_ASID_MAX)
         return RME_ERR_KFN_FAIL;
 
     if(Pgt_Op->ASID==Asid)
@@ -722,18 +725,68 @@ rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
 }
 /* End Function:__RME_RV64V_Pgt_Asid_Set ************************************/
 
-/* Function:__RME_RV64V_Pgt_Line_Clear ***************************************
-Description : Invalidate one virtual address from the TLB. ASID 0 flushes all
-              ASIDs; otherwise only the given ASID is flushed.
-Input       : Vaddr - The virtual address.
-              Asid - The ASID, or 0 for all.
+/* Function:__RME_RV64V_Pgt_Cache_Clear **************************************
+Description : Invalidate all translations of a top-level page table's ASID on
+              the calling hart. ASID 0 is untagged and cannot be selected by
+              sfence.vma, so it falls back to a full local TLB flush.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
+              rme_cid_t Cap_Pgt - The capability to the top-level page table.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
 ******************************************************************************/
-rme_ret_t __RME_RV64V_Pgt_Line_Clear(rme_ptr_t Vaddr, rme_ptr_t Asid)
+rme_ret_t __RME_RV64V_Pgt_Cache_Clear(struct RME_Cap_Cpt* Cpt,
+                                      rme_cid_t Cap_Pgt)
 {
-    if(Asid>RME_RV64V_SATP_ASID_MASK)
+    struct RME_Cap_Pgt* Pgt_Op;
+    rme_ptr_t Type_Stat;
+    rme_ptr_t Asid;
+
+    /* Get the capability slot */
+    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,
+                   struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
+
+    /* Only a top-level table represents an address space */
+    if((Pgt_Op->Base&RME_PGT_TOP)==0U)
         return RME_ERR_KFN_FAIL;
+
+    Asid=Pgt_Op->ASID;
+
+    if(Asid==0U)
+        ___RME_RV64V_TLB_Flush();
+    else
+        ___RME_RV64V_TLB_Flush_Asid(Asid);
+
+    return 0;
+}
+/* End Function:__RME_RV64V_Pgt_Cache_Clear ********************************/
+
+/* Function:__RME_RV64V_Pgt_Line_Clear ***************************************
+Description : Invalidate one virtual address of a top-level page table's ASID
+              on the calling hart. ASID 0 flushes that address for every ASID,
+              because an untagged table cannot be selected by sfence.vma.
+Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
+              rme_cid_t Cap_Pgt - The capability to the top-level page table.
+              rme_ptr_t Vaddr - The virtual address.
+Output      : None.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KFN_FAIL.
+******************************************************************************/
+rme_ret_t __RME_RV64V_Pgt_Line_Clear(struct RME_Cap_Cpt* Cpt,
+                                     rme_cid_t Cap_Pgt,
+                                     rme_ptr_t Vaddr)
+{
+    struct RME_Cap_Pgt* Pgt_Op;
+    rme_ptr_t Type_Stat;
+    rme_ptr_t Asid;
+
+    /* Get the capability slot */
+    RME_CPT_GETCAP(Cpt,Cap_Pgt,RME_CAP_TYPE_PGT,
+                   struct RME_Cap_Pgt*,Pgt_Op,Type_Stat);
+
+    /* Only a top-level table represents an address space */
+    if((Pgt_Op->Base&RME_PGT_TOP)==0U)
+        return RME_ERR_KFN_FAIL;
+
+    Asid=Pgt_Op->ASID;
 
     if(Asid==0U)
         ___RME_RV64V_TLB_Flush_Vaddr(Vaddr);
@@ -770,13 +823,15 @@ rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt,
 /* Page table operations *****************************************************/
         case RME_KFN_PGT_CACHE_CLR:
         {
-            ___RME_RV64V_TLB_Flush();
-            Retval=0;
+            Retval=__RME_RV64V_Pgt_Cache_Clear(Cpt,
+                                               (rme_cid_t)Sub_ID);
             break;
         }
         case RME_KFN_PGT_LINE_CLR:
         {
-            Retval=__RME_RV64V_Pgt_Line_Clear(Param1,Param2);
+            Retval=__RME_RV64V_Pgt_Line_Clear(Cpt,
+                                              (rme_cid_t)Sub_ID,
+                                              Param1);
             break;
         }
         case RME_KFN_PGT_ASID_SET:
@@ -1924,7 +1979,11 @@ rme_ret_t __RME_Pgt_Kom_Init(void)
 /* End Function:__RME_Pgt_Kom_Init *******************************************/
 
 /* Function:__RME_Pgt_Set ***************************************************
-Description : Set the processor's page table.
+Description : Set the processor's page table. ASID allocation is owned by the
+              caller: it sets a top-level table's ASID through
+              RME_KFN_PGT_ASID_SET before the table is first used. ASID 0 is
+              the untagged fallback, so switching to an unassigned table still
+              works and simply flushes the whole TLB.
 Input       : struct RME_Cap_Pgt* Pgt - The capability to the root page table.
 Output      : None.
 Return      : None.
@@ -1933,46 +1992,21 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
 {
     rme_ptr_t Satp;
     rme_ptr_t Asid;
-    rme_ptr_t Old;
-    rme_ptr_t New;
 
-    Asid=Pgt->ASID&RME_RV64V_SATP_ASID_MASK;
-
-    /* First switch: take the next ASID; exhaustion falls back to 0. */
-    if(Asid==0U)
-    {
-        do
-        {
-            Old=RME_RV64V_ASID_Next;
-            New=(Old==0U)?2U:(Old+1U);
-        }
-        while(RME_COMP_SWAP(&RME_RV64V_ASID_Next,Old,New)==RME_CASFAIL);
-
-        Asid=(Old==0U)?1U:Old;
-
-        if(Asid<=RME_RV64V_SATP_ASID_MASK)
-        {
-            /* Make sure the reused ASID has no stale translations. */
-            ___RME_RV64V_TLB_Flush_Asid(Asid);
-            if(RME_COMP_SWAP((volatile rme_ptr_t*)&(Pgt->ASID),0U,Asid)==RME_CASFAIL)
-                Asid=Pgt->ASID&RME_RV64V_SATP_ASID_MASK;
-        }
-        else
-        {
-            Asid=0U;
-        }
-    }
+    Asid=Pgt->ASID;
 
     /* The page table object lives in the kernel object memory (high half), so
      * translate its VA to PA first. Build satp: [63:60] MODE = 8 (Sv39),
      * [59:44] ASID, [43:0] PPN = root_pa >> 12 (4KB aligned). Sv39 supports
      * a 56-bit physical address, so the PPN field is 44 bits. */
-    Satp=(8UL<<60)|(Asid<<RME_RV64V_SATP_ASID_SHIFT)|
+    Satp=(8UL<<60)|RME_RV64V_SATP_ASID_SET(Asid)|
          ((RME_RV64V_VA2PA(RME_CAP_GETOBJ(Pgt,rme_ptr_t))>>12)&RME_RV64V_SATP_PPN_MASK);
 
     ___RME_RV64V_SATP_Set(Satp);
 
-    /* Non-zero ASID was flushed at allocation; ASID 0 needs a full flush. */
+    /* The caller flushes an ASID before assigning it through the KFN, so a
+     * non-zero ASID is ready to use. ASID 0 is untagged and shared by every
+     * table that the caller has not configured yet, so it needs a full flush. */
     if(Asid==0U)
         ___RME_RV64V_TLB_Flush();
 }
