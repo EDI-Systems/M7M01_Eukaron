@@ -3,34 +3,33 @@
 
 /* It seemed that we cannot directly link kernel to that address as it forces a custom gcc. So what's the plot? */
 
-/* Map kernel to 0xFFFFFFFF80000000, with all its text segments. the Kot starts from there too. */
 /* OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386") */
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(_start)
 
+/*virtual address 0xFFFFFFFF80100000, load address 0x00100000.*/
 __RME_X64_Mboot_Load_Addr = 0x00100000;
+
 
 SECTIONS
 {
-/*
-    . = 0xFFFFFFFF20000000;
-    .rodata : AT(0x10000000) {
-               *UVM.o(.rodata .rodata.*)
-              }
-*/
-
 	/* Link the kernel at this address: "." means the current address */
     /* Must be equal to KERNLINK */
 	. = 0xFFFFFFFF80100000;
 
 	PROVIDE(begin = .);
 
-	.text : AT(__RME_X64_Mboot_Load_Addr) {
-	    *platform_x64_gcc.o(.multiboot_head .text .rela.text .stub .text.* .gnu.linkonce.t.*)
+	.multiboot2 ALIGN(8) : AT(__RME_X64_Mboot_Load_Addr) {
+		KEEP(*(.multiboot2))
+	}
+
+	/* The bootstrap page tables occupy seven pages starting at 0x101000. */
+	.text ALIGN(0x1000) : AT(__RME_X64_Mboot_Load_Addr + (ADDR(.text) - begin)) {
+	    *platform_x64_gcc.o(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
 		*(.text .rela.text .stub .text.* .gnu.linkonce.t.*)
 	}
-	
+
 	PROVIDE(etext = .);	/* Define the 'etext' symbol to this value */
 
 	.rodata : {
@@ -76,6 +75,6 @@ SECTIONS
 	}
 }
 
-__RME_X64_Mboot_Load_End = __RME_X64_Mboot_Load_Addr + (edata - begin);
-__RME_X64_Mboot_BSS_End = __RME_X64_Mboot_Load_Addr + (end - begin);
-__RME_X64_Mboot_Entry_Addr = __RME_X64_Mboot_Load_Addr + (__RME_X64_Mboot_Entry - begin);
+__RME_X64_Boot_Text_Load = LOADADDR(.text);
+ASSERT(SIZEOF(.multiboot2) > 0 && SIZEOF(.multiboot2) <= 0x1000, "Invalid Multiboot2 header size")
+ASSERT(__RME_X64_Boot_Text_Load == 0x101000, "Bootstrap page tables must start at 0x101000")

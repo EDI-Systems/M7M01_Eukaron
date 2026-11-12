@@ -55,7 +55,7 @@ Return      : int - This function never returns.
 ******************************************************************************/
 int main(rme_ptr_t MBInfo)
 {
-    RME_X64_MBInfo=(struct multiboot_info*)(MBInfo+RME_X64_VA_BASE);
+    RME_X64_MBInfo_Phys=MBInfo;
     /* The main function of the kernel - we will start our kernel boot here */
     _RME_Kmain(RME_KOM_STACK_ADDR);
     return 0;
@@ -63,66 +63,715 @@ int main(rme_ptr_t MBInfo)
 /* End Function:main *********************************************************/
 
 
+/* Multiboot2 tags used before switching to the kernel page tables. */
+struct RME_X64_Boot_Info
+{
+    const struct multiboot_tag_mmap* MMap;
+    const struct multiboot_tag_framebuffer* Framebuffer;
+    const struct multiboot_tag* ACPI_Old;
+    const struct multiboot_tag* ACPI_New;
+    rme_ptr_t EFI;
+};
+
+static rme_ret_t __RME_X64_Boot_Info_Read(struct RME_X64_Boot_Info* Boot)
+{
+    const struct multiboot_info* Info;
+    const struct multiboot_tag* Tag;
+    rme_ptr_t Base=RME_X64_MBInfo_Phys;
+    rme_ptr_t Offset;
+    rme_ptr_t Size;
+    rme_ptr_t Next;
+    const rme_ptr_t Limit=1ULL<<32;
+
+    if(Base==0 || (Base&(MULTIBOOT_TAG_ALIGN-1U))!=0 ||
+       Base>Limit-sizeof(*Info))
+        return -1;
+
+    Info=(const struct multiboot_info*)RME_X64_PA2VA(Base);
+    Size=Info->total_size;
+    if(Size<sizeof(*Info)+sizeof(*Tag) || Size>Limit-Base ||
+       (Size&(MULTIBOOT_TAG_ALIGN-1U))!=0)
+        return -1;
+
+    for(Offset=sizeof(*Info);Size-Offset>=sizeof(*Tag);Offset=Next)
+    {
+        Tag=(const struct multiboot_tag*)((rme_ptr_t)Info+Offset);
+        if(Tag->size<sizeof(*Tag) || Tag->size>Size-Offset)
+            return -1;
+        Next=Offset+RME_ROUND_UP((rme_ptr_t)Tag->size,3);
+        if(Next>Size)
+            return -1;
+        switch(Tag->type)
+        {
+            case MULTIBOOT_TAG_END:
+                return (Tag->size==sizeof(*Tag) && Next==Size && Boot->MMap!=0)?0:-1;
+            case MULTIBOOT_TAG_MMAP:
+                if(Tag->size<sizeof(*Boot->MMap))
+                    return -1;
+                Boot->MMap=(const struct multiboot_tag_mmap*)Tag;
+                break;
+            case MULTIBOOT_TAG_FRAMEBUFFER:
+                if(Tag->size>=sizeof(*Boot->Framebuffer))
+                    Boot->Framebuffer=(const struct multiboot_tag_framebuffer*)Tag;
+                break;
+            case MULTIBOOT_TAG_EFI64:
+                Boot->EFI=1;
+                break;
+            case MULTIBOOT_TAG_ACPI_OLD:
+                Boot->ACPI_Old=Tag;
+                break;
+            case MULTIBOOT_TAG_ACPI_NEW:
+                Boot->ACPI_New=Tag;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return -1;
+}
+
+#define RME_X64_GLYPH_SIZE 8U
+#define RME_X64_TEXT_LINE  12U
+
+/* Printable ASCII from font8x8_basic by Daniel Hepper, based on the
+ * public-domain VGA font by Marcel Sondaar and IBM. Each row is LSB-first.
+ * https://github.com/dhepper/font8x8/blob/master/font8x8_basic.h */
+static const rme_u8_t RME_X64_Font[95][RME_X64_GLYPH_SIZE]=
+{
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* 0x20 */
+    { 0x18, 0x3C, 0x3C, 0x18, 0x18, 0x00, 0x18, 0x00}, /* ! */
+    { 0x36, 0x36, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* " */
+    { 0x36, 0x36, 0x7F, 0x36, 0x7F, 0x36, 0x36, 0x00}, /* # */
+    { 0x0C, 0x3E, 0x03, 0x1E, 0x30, 0x1F, 0x0C, 0x00}, /* $ */
+    { 0x00, 0x63, 0x33, 0x18, 0x0C, 0x66, 0x63, 0x00}, /* % */
+    { 0x1C, 0x36, 0x1C, 0x6E, 0x3B, 0x33, 0x6E, 0x00}, /* & */
+    { 0x06, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}, /* ' */
+    { 0x18, 0x0C, 0x06, 0x06, 0x06, 0x0C, 0x18, 0x00}, /* ( */
+    { 0x06, 0x0C, 0x18, 0x18, 0x18, 0x0C, 0x06, 0x00}, /* ) */
+    { 0x00, 0x66, 0x3C, 0xFF, 0x3C, 0x66, 0x00, 0x00}, /* 0x2A */
+    { 0x00, 0x0C, 0x0C, 0x3F, 0x0C, 0x0C, 0x00, 0x00}, /* + */
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C, 0x06}, /* , */
+    { 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00}, /* - */
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C, 0x00}, /* . */
+    { 0x60, 0x30, 0x18, 0x0C, 0x06, 0x03, 0x01, 0x00}, /* 0x2F */
+    { 0x3E, 0x63, 0x73, 0x7B, 0x6F, 0x67, 0x3E, 0x00}, /* 0 */
+    { 0x0C, 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x3F, 0x00}, /* 1 */
+    { 0x1E, 0x33, 0x30, 0x1C, 0x06, 0x33, 0x3F, 0x00}, /* 2 */
+    { 0x1E, 0x33, 0x30, 0x1C, 0x30, 0x33, 0x1E, 0x00}, /* 3 */
+    { 0x38, 0x3C, 0x36, 0x33, 0x7F, 0x30, 0x78, 0x00}, /* 4 */
+    { 0x3F, 0x03, 0x1F, 0x30, 0x30, 0x33, 0x1E, 0x00}, /* 5 */
+    { 0x1C, 0x06, 0x03, 0x1F, 0x33, 0x33, 0x1E, 0x00}, /* 6 */
+    { 0x3F, 0x33, 0x30, 0x18, 0x0C, 0x0C, 0x0C, 0x00}, /* 7 */
+    { 0x1E, 0x33, 0x33, 0x1E, 0x33, 0x33, 0x1E, 0x00}, /* 8 */
+    { 0x1E, 0x33, 0x33, 0x3E, 0x30, 0x18, 0x0E, 0x00}, /* 9 */
+    { 0x00, 0x0C, 0x0C, 0x00, 0x00, 0x0C, 0x0C, 0x00}, /* : */
+    { 0x00, 0x0C, 0x0C, 0x00, 0x00, 0x0C, 0x0C, 0x06}, /* ; */
+    { 0x18, 0x0C, 0x06, 0x03, 0x06, 0x0C, 0x18, 0x00}, /* < */
+    { 0x00, 0x00, 0x3F, 0x00, 0x00, 0x3F, 0x00, 0x00}, /* = */
+    { 0x06, 0x0C, 0x18, 0x30, 0x18, 0x0C, 0x06, 0x00}, /* > */
+    { 0x1E, 0x33, 0x30, 0x18, 0x0C, 0x00, 0x0C, 0x00}, /* ? */
+    { 0x3E, 0x63, 0x7B, 0x7B, 0x7B, 0x03, 0x1E, 0x00}, /* @ */
+    { 0x0C, 0x1E, 0x33, 0x33, 0x3F, 0x33, 0x33, 0x00}, /* A */
+    { 0x3F, 0x66, 0x66, 0x3E, 0x66, 0x66, 0x3F, 0x00}, /* B */
+    { 0x3C, 0x66, 0x03, 0x03, 0x03, 0x66, 0x3C, 0x00}, /* C */
+    { 0x1F, 0x36, 0x66, 0x66, 0x66, 0x36, 0x1F, 0x00}, /* D */
+    { 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x46, 0x7F, 0x00}, /* E */
+    { 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x06, 0x0F, 0x00}, /* F */
+    { 0x3C, 0x66, 0x03, 0x03, 0x73, 0x66, 0x7C, 0x00}, /* G */
+    { 0x33, 0x33, 0x33, 0x3F, 0x33, 0x33, 0x33, 0x00}, /* H */
+    { 0x1E, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* I */
+    { 0x78, 0x30, 0x30, 0x30, 0x33, 0x33, 0x1E, 0x00}, /* J */
+    { 0x67, 0x66, 0x36, 0x1E, 0x36, 0x66, 0x67, 0x00}, /* K */
+    { 0x0F, 0x06, 0x06, 0x06, 0x46, 0x66, 0x7F, 0x00}, /* L */
+    { 0x63, 0x77, 0x7F, 0x7F, 0x6B, 0x63, 0x63, 0x00}, /* M */
+    { 0x63, 0x67, 0x6F, 0x7B, 0x73, 0x63, 0x63, 0x00}, /* N */
+    { 0x1C, 0x36, 0x63, 0x63, 0x63, 0x36, 0x1C, 0x00}, /* O */
+    { 0x3F, 0x66, 0x66, 0x3E, 0x06, 0x06, 0x0F, 0x00}, /* P */
+    { 0x1E, 0x33, 0x33, 0x33, 0x3B, 0x1E, 0x38, 0x00}, /* Q */
+    { 0x3F, 0x66, 0x66, 0x3E, 0x36, 0x66, 0x67, 0x00}, /* R */
+    { 0x1E, 0x33, 0x07, 0x0E, 0x38, 0x33, 0x1E, 0x00}, /* S */
+    { 0x3F, 0x2D, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* T */
+    { 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x3F, 0x00}, /* U */
+    { 0x33, 0x33, 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x00}, /* V */
+    { 0x63, 0x63, 0x63, 0x6B, 0x7F, 0x77, 0x63, 0x00}, /* W */
+    { 0x63, 0x63, 0x36, 0x1C, 0x1C, 0x36, 0x63, 0x00}, /* X */
+    { 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x0C, 0x1E, 0x00}, /* Y */
+    { 0x7F, 0x63, 0x31, 0x18, 0x4C, 0x66, 0x7F, 0x00}, /* Z */
+    { 0x1E, 0x06, 0x06, 0x06, 0x06, 0x06, 0x1E, 0x00}, /* [ */
+    { 0x03, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x40, 0x00}, /* 0x5C */
+    { 0x1E, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1E, 0x00}, /* ] */
+    { 0x08, 0x1C, 0x36, 0x63, 0x00, 0x00, 0x00, 0x00}, /* ^ */
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}, /* _ */
+    { 0x0C, 0x0C, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00}, /* ` */
+    { 0x00, 0x00, 0x1E, 0x30, 0x3E, 0x33, 0x6E, 0x00}, /* a */
+    { 0x07, 0x06, 0x06, 0x3E, 0x66, 0x66, 0x3B, 0x00}, /* b */
+    { 0x00, 0x00, 0x1E, 0x33, 0x03, 0x33, 0x1E, 0x00}, /* c */
+    { 0x38, 0x30, 0x30, 0x3e, 0x33, 0x33, 0x6E, 0x00}, /* d */
+    { 0x00, 0x00, 0x1E, 0x33, 0x3f, 0x03, 0x1E, 0x00}, /* e */
+    { 0x1C, 0x36, 0x06, 0x0f, 0x06, 0x06, 0x0F, 0x00}, /* f */
+    { 0x00, 0x00, 0x6E, 0x33, 0x33, 0x3E, 0x30, 0x1F}, /* g */
+    { 0x07, 0x06, 0x36, 0x6E, 0x66, 0x66, 0x67, 0x00}, /* h */
+    { 0x0C, 0x00, 0x0E, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* i */
+    { 0x30, 0x00, 0x30, 0x30, 0x30, 0x33, 0x33, 0x1E}, /* j */
+    { 0x07, 0x06, 0x66, 0x36, 0x1E, 0x36, 0x67, 0x00}, /* k */
+    { 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* l */
+    { 0x00, 0x00, 0x33, 0x7F, 0x7F, 0x6B, 0x63, 0x00}, /* m */
+    { 0x00, 0x00, 0x1F, 0x33, 0x33, 0x33, 0x33, 0x00}, /* n */
+    { 0x00, 0x00, 0x1E, 0x33, 0x33, 0x33, 0x1E, 0x00}, /* o */
+    { 0x00, 0x00, 0x3B, 0x66, 0x66, 0x3E, 0x06, 0x0F}, /* p */
+    { 0x00, 0x00, 0x6E, 0x33, 0x33, 0x3E, 0x30, 0x78}, /* q */
+    { 0x00, 0x00, 0x3B, 0x6E, 0x66, 0x06, 0x0F, 0x00}, /* r */
+    { 0x00, 0x00, 0x3E, 0x03, 0x1E, 0x30, 0x1F, 0x00}, /* s */
+    { 0x08, 0x0C, 0x3E, 0x0C, 0x0C, 0x2C, 0x18, 0x00}, /* t */
+    { 0x00, 0x00, 0x33, 0x33, 0x33, 0x33, 0x6E, 0x00}, /* u */
+    { 0x00, 0x00, 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x00}, /* v */
+    { 0x00, 0x00, 0x63, 0x6B, 0x7F, 0x7F, 0x36, 0x00}, /* w */
+    { 0x00, 0x00, 0x63, 0x36, 0x1C, 0x36, 0x63, 0x00}, /* x */
+    { 0x00, 0x00, 0x33, 0x33, 0x33, 0x3E, 0x30, 0x1F}, /* y */
+    { 0x00, 0x00, 0x3F, 0x19, 0x0C, 0x26, 0x3F, 0x00}, /* z */
+    { 0x38, 0x0C, 0x0C, 0x07, 0x0C, 0x0C, 0x38, 0x00}, /* { */
+    { 0x18, 0x18, 0x18, 0x00, 0x18, 0x18, 0x18, 0x00}, /* | */
+    { 0x07, 0x0C, 0x0C, 0x38, 0x0C, 0x0C, 0x07, 0x00}, /* } */
+    { 0x6E, 0x3B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* ~ */
+};
+
+enum RME_X64_Boot_Stage
+{
+    RME_X64_BOOT_GOP,
+    RME_X64_BOOT_ACPI,
+    RME_X64_BOOT_MMU,
+    RME_X64_BOOT_IRQ,
+    RME_X64_BOOT_SMP,
+    RME_X64_BOOT_UVM,
+    RME_X64_BOOT_DONE
+};
+
+enum RME_X64_Boot_Color
+{
+    RME_X64_BOOT_PANEL,
+    RME_X64_BOOT_DIM,
+    RME_X64_BOOT_LABEL,
+    RME_X64_BOOT_READY,
+    RME_X64_BOOT_ACTIVE,
+    RME_X64_BOOT_COLORS
+};
+
+#define RME_X64_BOOT_ROWS 6U
+
+static struct
+{
+    volatile rme_u32_t* Buffer;
+    rme_ptr_t Stride;
+    rme_ptr_t Scale;
+    rme_ptr_t Top;
+    rme_ptr_t Boot_Width;
+    rme_u32_t Boot_Color[RME_X64_BOOT_COLORS];
+    rme_ptr_t Cols;
+    rme_ptr_t Rows;
+    rme_ptr_t Col;
+    rme_ptr_t Row;
+    rme_u32_t Foreground;
+    rme_u32_t Background;
+} RME_X64_RGB_Console;
+
+/* Bootstrap PML4 slot 510 holds two temporary ACPI windows and one
+ * framebuffer window. Only the framebuffer window is kept in the final map. */
+#define RME_X64_BOOT_WINDOW_SLOT 510U
+#define RME_X64_BOOT_WINDOW_BASE 0xFFFFFF0000000000ULL
+#define RME_X64_RGB_WINDOW       2U
+
+static rme_ptr_t RME_X64_Boot_PDP[512] __attribute__((aligned(4096)));
+static rme_ptr_t RME_X64_Boot_PD[3][512] __attribute__((aligned(4096)));
+
+/* Function:__RME_X64_Boot_Window_Map *****************************************
+Description : Map a physical range in one of the reserved bootstrap windows.
+Input       : rme_ptr_t Phys - The physical address of the first byte.
+              rme_ptr_t Size - The length in bytes.
+              rme_ptr_t Window - The ACPI or framebuffer window index.
+              rme_ptr_t Flags - Additional leaf page permissions and cache flags.
+Output      : None.
+Return      : rme_ptr_t - The mapped virtual address, or zero on failure.
+******************************************************************************/
+rme_ptr_t __RME_X64_Boot_Window_Map(rme_ptr_t Phys, rme_ptr_t Size,
+                                  rme_ptr_t Window, rme_ptr_t Flags)
+{
+    const rme_ptr_t Page=1ULL<<21;
+    const rme_ptr_t Window_Size=1ULL<<30;
+    rme_ptr_t* PML4=(rme_ptr_t*)RME_X64_PA2VA(0x101000);
+    rme_ptr_t Phys_Bits=RME_X64_EXT(RME_X64_CPUID_E8_VA_PA_SIZE,0)&0xFFU;
+    rme_ptr_t Limit=1ULL<<((Phys_Bits>=32 && Phys_Bits<=52)?Phys_Bits:36);
+    rme_ptr_t Offset=Phys&(Page-1U);
+    rme_ptr_t VA=RME_X64_BOOT_WINDOW_BASE+Window*Window_Size;
+    rme_ptr_t* PD;
+
+    if(Window>=sizeof(RME_X64_Boot_PD)/sizeof(RME_X64_Boot_PD[0]) ||
+       Phys==0 || Size==0 || Phys>=Limit || Size>Limit-Phys ||
+       Size>Window_Size-Offset)
+        return 0;
+
+    PD=RME_X64_Boot_PD[Window];
+    RME_X64_Boot_PDP[Window]=RME_X64_TEXT_VA2PA(PD)|RME_X64_MMU_P|RME_X64_MMU_RW;
+    PML4[RME_X64_BOOT_WINDOW_SLOT]=RME_X64_TEXT_VA2PA(RME_X64_Boot_PDP)|
+                                   RME_X64_MMU_P|RME_X64_MMU_RW;
+    Phys-=Offset;
+    for(rme_ptr_t Index=0;Index*Page<Size+Offset;Index++)
+    {
+        PD[Index]=(Phys+Index*Page)|RME_X64_MMU_P|RME_X64_MMU_PDE_SUP|RME_X64_MMU_NX|Flags;
+        __asm__ volatile("invlpg (%0)"::"r"(VA+Index*Page):"memory");
+    }
+
+    return VA+Offset;
+}
+/* End Function:__RME_X64_Boot_Window_Map ************************************/
+
+/* Function:__RME_X64_RGB_Init ***********************************************
+Description : Map a 32-bit RGB framebuffer and initialize its ASCII console.
+Input       : const struct multiboot_tag_framebuffer* Framebuffer - The mode.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_RGB_Init(const struct multiboot_tag_framebuffer* Framebuffer)
+{
+    const struct multiboot_framebuffer_rgb* RGB=(const void*)(Framebuffer+1);
+    const rme_u32_t Palette[RME_X64_BOOT_COLORS]=
+    {
+        0x0C1927, 0x21384C, 0x9AB4CC, 0x52E4C4, 0xFFD28A
+    };
+    rme_u32_t Mask[3];
+    rme_ptr_t Scale=(Framebuffer->width>=1024U && Framebuffer->height>=768U)?2U:1U;
+    rme_ptr_t Cell_Width=RME_X64_GLYPH_SIZE*Scale;
+    rme_ptr_t Cell_Height=RME_X64_TEXT_LINE*Scale;
+    volatile rme_u32_t* Buffer;
+
+    if(Framebuffer->tag.size<sizeof(*Framebuffer)+sizeof(*RGB) ||
+       Framebuffer->bpp!=32U || ((Framebuffer->addr|Framebuffer->pitch)&3U)!=0 ||
+       Framebuffer->pitch<(rme_ptr_t)Framebuffer->width*sizeof(*Buffer) ||
+       Framebuffer->width<3U*Cell_Width || Framebuffer->height<3U*Cell_Height)
+        return;
+
+    const rme_u8_t Position[3]={RGB->red_position,RGB->green_position,RGB->blue_position};
+    const rme_u8_t Size[3]={RGB->red_size,RGB->green_size,RGB->blue_size};
+    rme_u32_t Used=0;
+    for(rme_ptr_t Index=0;Index<3U;Index++)
+    {
+        if(Size[Index]==0 || Position[Index]+Size[Index]>32U)
+            return;
+        Mask[Index]=(rme_u32_t)(((1ULL<<Size[Index])-1U)<<Position[Index]);
+        if((Used&Mask[Index])!=0)
+            return;
+        Used|=Mask[Index];
+    }
+
+    const rme_ptr_t Four_GiB=1ULL<<32;
+    rme_ptr_t Phys=Framebuffer->addr;
+    rme_ptr_t Length=(rme_ptr_t)Framebuffer->pitch*Framebuffer->height;
+    rme_ptr_t VA;
+
+    if(Phys<Four_GiB && Length<=Four_GiB-Phys)
+        VA=RME_X64_PA2VA(Phys);
+    else
+        VA=__RME_X64_Boot_Window_Map(Phys,Length,RME_X64_RGB_WINDOW,
+                                     RME_X64_MMU_RW|RME_X64_MMU_PCD|RME_X64_MMU_PWT);
+    if(VA==0)
+        return;
+
+    Buffer=(volatile rme_u32_t*)VA;
+    RME_X64_RGB_Console.Stride=Framebuffer->pitch/sizeof(*Buffer);
+    RME_X64_RGB_Console.Scale=Scale;
+    RME_X64_RGB_Console.Cols=Framebuffer->width/Cell_Width-2U;
+    RME_X64_RGB_Console.Rows=Framebuffer->height/Cell_Height-2U;
+    RME_X64_RGB_Console.Top=Cell_Height;
+    /* Keep the splash above the scrolling console. Leave small modes to text. */
+    if(Framebuffer->width/Scale>=480U && RME_X64_RGB_Console.Rows>=24U)
+    {
+        RME_X64_RGB_Console.Boot_Width=Framebuffer->width/Scale;
+        RME_X64_RGB_Console.Top+=RME_X64_BOOT_ROWS*Cell_Height;
+        RME_X64_RGB_Console.Rows-=RME_X64_BOOT_ROWS;
+        for(rme_ptr_t Color=0;Color<RME_X64_BOOT_COLORS;Color++)
+        {
+            rme_u32_t Pixel=0;
+            for(rme_ptr_t Index=0;Index<3U;Index++)
+            {
+                rme_ptr_t Channel=(Palette[Color]>>((2U-Index)*8U))&0xFFU;
+                rme_ptr_t Max=Mask[Index]>>Position[Index];
+                Pixel|=(rme_u32_t)(((Max*Channel+127U)/255U)<<Position[Index]);
+            }
+            RME_X64_RGB_Console.Boot_Color[Color]=Pixel;
+        }
+    }
+    RME_X64_RGB_Console.Foreground=Used;
+    RME_X64_RGB_Console.Background=((Mask[0]>>4)&Mask[0])|
+                                   ((Mask[1]>>4)&Mask[1])|
+                                   ((Mask[2]>>3)&Mask[2]);
+
+    for(rme_ptr_t Y=0;Y<Framebuffer->height;Y++)
+    {
+        for(rme_ptr_t X=0;X<Framebuffer->width;X++)
+            Buffer[X]=RME_X64_RGB_Console.Background;
+        Buffer+=RME_X64_RGB_Console.Stride;
+    }
+    RME_X64_RGB_Console.Buffer=(volatile rme_u32_t*)VA;
+    __RME_X64_Boot_Progress(RME_X64_BOOT_GOP);
+}
+/* End Function:__RME_X64_RGB_Init *******************************************/
+
+/* Function:__RME_X64_RGB_Glyph *********************************************
+Description : Draw a scaled glyph from the built-in font.
+Input       : volatile rme_u32_t* Pixel - The top left pixel of the glyph.
+              rme_u8_t Char - The printable ASCII character.
+              rme_ptr_t Scale - The pixel scale factor.
+              rme_u32_t Ink - The foreground color.
+              rme_u32_t Paper - The background color.
+Output      : None.
+Return      : None.
+******************************************************************************/
+static void __RME_X64_RGB_Glyph(volatile rme_u32_t* Pixel, rme_u8_t Char,
+                               rme_ptr_t Scale, rme_u32_t Ink, rme_u32_t Paper)
+{
+    rme_ptr_t Width=RME_X64_GLYPH_SIZE*Scale;
+
+    for(rme_ptr_t Y=0;Y<Width;Y++)
+    {
+        rme_u8_t Bits=RME_X64_Font[Char-' '][Y/Scale];
+        for(rme_ptr_t X=0;X<Width;X++)
+            Pixel[X]=((Bits>>(X/Scale))&1U)?Ink:Paper;
+        Pixel+=RME_X64_RGB_Console.Stride;
+    }
+}
+/* End Function:__RME_X64_RGB_Glyph ******************************************/
+
+/* Function:__RME_X64_RGB_Putchar ********************************************
+Description : Draw a debug character and scroll the console when it fills.
+Input       : rme_u8_t Char - The character to display.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_RGB_Putchar(rme_u8_t Char)
+{
+    rme_ptr_t Scale=RME_X64_RGB_Console.Scale;
+    rme_ptr_t Stride=RME_X64_RGB_Console.Stride;
+    rme_ptr_t Cell_Width=RME_X64_GLYPH_SIZE*Scale;
+    rme_ptr_t Cell_Height=RME_X64_TEXT_LINE*Scale;
+    volatile rme_u32_t* Origin=RME_X64_RGB_Console.Buffer+RME_X64_RGB_Console.Top*Stride+Cell_Width;
+    volatile rme_u32_t* Pixel;
+
+    if(Char=='\n')
+    {
+        RME_X64_RGB_Console.Col=0;
+        RME_X64_RGB_Console.Row++;
+    }
+    else if(Char>=' ')
+    {
+        if(Char>'~')
+            Char='?';
+
+        /* Center the glyph vertically in the cell. */
+        Pixel=Origin+(RME_X64_RGB_Console.Row*Cell_Height+2U*Scale)*Stride+
+              RME_X64_RGB_Console.Col*Cell_Width;
+        __RME_X64_RGB_Glyph(Pixel,Char,Scale,RME_X64_RGB_Console.Foreground,
+                            RME_X64_RGB_Console.Background);
+
+        RME_X64_RGB_Console.Col++;
+        if(RME_X64_RGB_Console.Col==RME_X64_RGB_Console.Cols)
+        {
+            RME_X64_RGB_Console.Col=0;
+            RME_X64_RGB_Console.Row++;
+        }
+    }
+
+    if(RME_X64_RGB_Console.Row==RME_X64_RGB_Console.Rows)
+    {
+        rme_ptr_t Width=RME_X64_RGB_Console.Cols*Cell_Width;
+        rme_ptr_t Height=(RME_X64_RGB_Console.Rows-1U)*Cell_Height;
+
+        for(rme_ptr_t Y=0;Y<Height;Y++)
+        {
+            for(rme_ptr_t X=0;X<Width;X++)
+                Origin[X]=Origin[Cell_Height*Stride+X];
+            Origin+=Stride;
+        }
+        for(rme_ptr_t Y=0;Y<Cell_Height;Y++)
+        {
+            for(rme_ptr_t X=0;X<Width;X++)
+                Origin[X]=RME_X64_RGB_Console.Background;
+            Origin+=Stride;
+        }
+        RME_X64_RGB_Console.Row--;
+    }
+}
+/* End Function:__RME_X64_RGB_Putchar ****************************************/
+
+/* Function:__RME_X64_Boot_Rect **********************************************
+Description : Fill a rectangle inside the splash.
+Input       : rme_ptr_t X, Y - The top left corner in unscaled pixels.
+              rme_ptr_t Width, Height - The size in unscaled pixels.
+              rme_ptr_t Color - The splash palette index.
+Output      : None.
+Return      : None.
+******************************************************************************/
+static void __RME_X64_Boot_Rect(rme_ptr_t X, rme_ptr_t Y, rme_ptr_t Width,
+                                rme_ptr_t Height, rme_ptr_t Color)
+{
+    rme_ptr_t Scale=RME_X64_RGB_Console.Scale;
+    rme_ptr_t Stride=RME_X64_RGB_Console.Stride;
+    rme_u32_t Ink=RME_X64_RGB_Console.Boot_Color[Color];
+    volatile rme_u32_t* Pixel=RME_X64_RGB_Console.Buffer+Y*Scale*Stride+X*Scale;
+
+    for(rme_ptr_t Row=0;Row<Height*Scale;Row++)
+    {
+        for(rme_ptr_t Col=0;Col<Width*Scale;Col++)
+            Pixel[Col]=Ink;
+        Pixel+=Stride;
+    }
+}
+/* End Function:__RME_X64_Boot_Rect ******************************************/
+
+/* Function:__RME_X64_Boot_Text **********************************************
+Description : Draw printable ASCII text inside the splash.
+Input       : rme_ptr_t X, Y - The top left corner in unscaled pixels.
+              rme_ptr_t Zoom - The glyph scale relative to the splash scale.
+              rme_ptr_t Color - The splash palette index.
+              const char* Text - The text to draw.
+Output      : None.
+Return      : None.
+******************************************************************************/
+static void __RME_X64_Boot_Text(rme_ptr_t X, rme_ptr_t Y, rme_ptr_t Zoom,
+                                rme_ptr_t Color, const char* Text)
+{
+    rme_ptr_t Scale=RME_X64_RGB_Console.Scale;
+    rme_ptr_t Glyph_Scale=Scale*Zoom;
+    volatile rme_u32_t* Pixel=RME_X64_RGB_Console.Buffer+
+                              Y*Scale*RME_X64_RGB_Console.Stride+X*Scale;
+
+    while(*Text!='\0')
+    {
+        __RME_X64_RGB_Glyph(Pixel,(rme_u8_t)*Text++,Glyph_Scale,
+                            RME_X64_RGB_Console.Boot_Color[Color],
+                            RME_X64_RGB_Console.Boot_Color[RME_X64_BOOT_PANEL]);
+        Pixel+=RME_X64_GLYPH_SIZE*Glyph_Scale;
+    }
+}
+/* End Function:__RME_X64_Boot_Text ******************************************/
+
+/* Function:__RME_X64_Boot_Progress ******************************************
+Description : Show the current initialization stage above the boot log.
+Input       : rme_ptr_t Stage - The current stage, or DONE before entering UVM.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_Boot_Progress(rme_ptr_t Stage)
+{
+    static const char* const Label[]={"GOP","ACPI","MMU","IRQ","SMP","UVM"};
+    static const char* const Status[]=
+    {
+        "Framebuffer ready", "Reading firmware tables", "Building kernel page tables",
+        "Setting up interrupts", "Starting secondary CPUs", "Preparing initial process",
+        "Entering user mode"
+    };
+    rme_ptr_t Width=RME_X64_RGB_Console.Boot_Width;
+    rme_ptr_t Segment;
+
+    if(Width==0)
+        return;
+
+    if(Stage==RME_X64_BOOT_GOP)
+    {
+        __RME_X64_Boot_Rect(0,0,Width,RME_X64_BOOT_ROWS*RME_X64_TEXT_LINE,RME_X64_BOOT_PANEL);
+        __RME_X64_Boot_Rect(0,0,3,RME_X64_BOOT_ROWS*RME_X64_TEXT_LINE,RME_X64_BOOT_READY);
+        __RME_X64_Boot_Text(12,10,3,RME_X64_BOOT_READY,"RME");
+        __RME_X64_Boot_Text(98,10,1,RME_X64_BOOT_LABEL,"X86-64 MICROKERNEL");
+    }
+
+    __RME_X64_Boot_Rect(98,26,Width-250U,8,RME_X64_BOOT_PANEL);
+    __RME_X64_Boot_Text(98,26,1,(Stage==RME_X64_BOOT_DONE)?RME_X64_BOOT_READY:
+                                                          RME_X64_BOOT_ACTIVE,Status[Stage]);
+    Segment=(Width-24U)/RME_X64_BOOT_DONE;
+    for(rme_ptr_t Index=0;Index<RME_X64_BOOT_DONE;Index++)
+    {
+        rme_ptr_t X=12U+Segment*Index;
+        rme_ptr_t Color=(Index<Stage)?RME_X64_BOOT_READY:RME_X64_BOOT_DIM;
+        if(Index==Stage)
+            Color=RME_X64_BOOT_ACTIVE;
+
+        __RME_X64_Boot_Text(X,55,1,(Index>Stage)?RME_X64_BOOT_LABEL:Color,Label[Index]);
+        __RME_X64_Boot_Rect(X,66,Segment-4U,3,Color);
+    }
+}
+/* End Function:__RME_X64_Boot_Progress *************************************/
+
+/* Function:__RME_X64_Boot_CPUs **********************************************
+Description : Show one pixel tile per logical CPU as the BSP starts the APs.
+Input       : rme_ptr_t Ready - The number of CPUs that finished initialization.
+              rme_ptr_t Total - The number of enabled CPUs in the MADT.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_Boot_CPUs(rme_ptr_t Ready, rme_ptr_t Total)
+{
+    char Text[]="CPU 000 / 000";
+    rme_ptr_t Width=RME_X64_RGB_Console.Boot_Width;
+    rme_ptr_t Cols=(Total<=32U)?16U:32U;
+    rme_ptr_t X=Width-140U;
+
+    if(Width==0)
+        return;
+
+    for(rme_ptr_t Digit=0,Place=100U;Digit<3U;Digit++,Place/=10U)
+    {
+        Text[4U+Digit]='0'+(Ready/Place)%10U;
+        Text[10U+Digit]='0'+(Total/Place)%10U;
+    }
+    __RME_X64_Boot_Text(X,10,1,RME_X64_BOOT_LABEL,Text);
+    for(rme_ptr_t Index=0;Index<Total;Index++)
+    {
+        rme_ptr_t Color=(Index<Ready)?RME_X64_BOOT_READY:RME_X64_BOOT_DIM;
+        if(Index==Ready)
+            Color=RME_X64_BOOT_ACTIVE;
+
+        __RME_X64_Boot_Rect(X+(Index%Cols)*4U,21U+(Index/Cols)*4U,3,3,Color);
+    }
+}
+/* End Function:__RME_X64_Boot_CPUs *****************************************/
+
+static void __RME_X64_Framebuffer_Init(const struct multiboot_tag_framebuffer* Framebuffer)
+{
+    const rme_ptr_t Four_GiB=1ULL<<32;
+    rme_ptr_t Size;
+
+    if(Framebuffer==0)
+        return;
+
+    RME_DBG_S("\r\nMultiboot2 framebuffer: PA 0x");
+    RME_DBG_H(Framebuffer->addr);
+    RME_DBG_S(", type ");
+    RME_DBG_I(Framebuffer->type);
+    RME_DBG_S(", width ");
+    RME_DBG_I(Framebuffer->width);
+    RME_DBG_S(", height ");
+    RME_DBG_I(Framebuffer->height);
+    RME_DBG_S(", pitch ");
+    RME_DBG_I(Framebuffer->pitch);
+    RME_DBG_S(", bpp ");
+    RME_DBG_I(Framebuffer->bpp);
+
+    Size=(rme_ptr_t)Framebuffer->pitch*Framebuffer->height;
+    if(Framebuffer->addr==0 || Size==0)
+        return;
+
+    if(Framebuffer->type==MULTIBOOT_FRAMEBUFFER_RGB)
+    {
+        const struct multiboot_framebuffer_rgb* RGB=(const void*)(Framebuffer+1);
+
+        if(Framebuffer->tag.size>=sizeof(*Framebuffer)+sizeof(*RGB))
+        {
+            RME_DBG_S(", RGB positions ");
+            RME_DBG_I(RGB->red_position);
+            RME_DBG_S("/");
+            RME_DBG_I(RGB->green_position);
+            RME_DBG_S("/");
+            RME_DBG_I(RGB->blue_position);
+            __RME_X64_RGB_Init(Framebuffer);
+        }
+        if(RME_X64_RGB_Console.Buffer==0)
+            RME_DBG_S("\r\nUnable to initialize RGB framebuffer");
+        return;
+    }
+
+    /* The debug character console writes EGA text cells. */
+    if(Framebuffer->addr>=Four_GiB || Size>Four_GiB-Framebuffer->addr ||
+       Framebuffer->type!=MULTIBOOT_FRAMEBUFFER_EGA_TEXT ||
+       Framebuffer->bpp!=16U || Framebuffer->width==0 ||
+       Framebuffer->pitch<(rme_ptr_t)Framebuffer->width*sizeof(*vga_buffer) ||
+       ((Framebuffer->addr|Framebuffer->pitch)&1U)!=0)
+        return;
+
+    vga_buffer=(volatile rme_u16_t*)RME_X64_PA2VA(Framebuffer->addr);
+    vga_width=Framebuffer->width;
+    vga_height=Framebuffer->height;
+    vga_stride=Framebuffer->pitch/sizeof(*vga_buffer);
+}
+
+/* Function:__RME_X64_Boot_Message *******************************************
+Description : Show a boot checkpoint on the RGB console.
+Input       : const char* Message - The text to display.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_Boot_Message(const char* Message)
+{
+    if(RME_X64_RGB_Console.Buffer==0)
+        return;
+
+    while(*Message!='\0')
+        __RME_X64_RGB_Putchar((rme_u8_t)*Message++);
+    __RME_X64_RGB_Putchar('\n');
+}
+/* End Function:__RME_X64_Boot_Message ***************************************/
+
 /* Function: __RME_Kfn_Handler ************************************************
-Description : Temporarily use it as a debug function，
-in this function , we output user-mode data to screen
+Description : Display a user-mode debug character. Sub-ID 1 also sends it to COM1.
 ******************************************************************************/
 rme_ret_t __RME_Kfn_Handler(struct RME_Cap_Cpt* Cpt, struct RME_Reg_Struct* Reg,rme_ptr_t FuncID, rme_ptr_t SubID,rme_ptr_t Param1, rme_ptr_t Param2)
 {
-    char Char = (char)Param1;
-    if (Char=='\n')
+    char Char=(char)Param1;
+    rme_ret_t Result=0;
+
+    if(RME_X64_RGB_Console.Buffer!=0)
+        __RME_X64_RGB_Putchar((rme_u8_t)Char);
+    else if(vga_buffer!=0 && Char!='\r')
     {
-        if (vga_row+1>=RME_X64_VGA_ROW_MAX)
+        if(vga_row>=vga_height)
+            Result=-1;
+        else
         {
-            RME_DBG_S("\r\nThe characters output to vga overflowed!");
-            return -1;
-        }
-        vga_col=0;
-        vga_row++;
-        return 0;
-    }
-    else if(Char=='\r')
-    {
-        return 0;
-    }
-    else
-    {
-        vga_buffer[vga_row*80+vga_col] = (0x1F << 8) | Char;
-        if (vga_col+1>=RME_X64_VGA_COL_MAX)
-        {
-            if (vga_row+1>=RME_X64_VGA_ROW_MAX)
+            if(Char!='\n')
             {
-                RME_DBG_S("\r\nThe characters output to vga overflowed!");
-                return -1;
+                vga_buffer[vga_row*vga_stride+vga_col]=(0x1F<<8)|(rme_u8_t)Char;
+                vga_col++;
             }
-            else
+
+            if(Char=='\n' || vga_col==vga_width)
             {
                 vga_col=0;
                 vga_row++;
-                return 0;
             }
         }
-        vga_col++;
     }
-    return 0;
+
+    /* Older UVM images using sub-ID 0 already write to COM1. */
+    if(SubID==1U)
+        __RME_Putchar(Char);
+
+    return Result;
 }
 /* End Function: __RME_Kfn_Handler ********************************************/
 
 /* Function:__RME_Putchar *****************************************************
-Description : Output a character to console. In Cortex-M, under most circumstances, 
-              we should use the ITM for such outputs.
+Description : Send a character to COM1 when the UART is ready.
 Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t __RME_Putchar(char Char)
 {
-    if(RME_X64_UART_Exist==0)
-       return 0;
-    /* Wait until we have transmitted */
+    rme_ptr_t Status;
 
-    while((__RME_X64_In(RME_X64_COM1+5)&0x20)==0);
-    __RME_X64_Out(RME_X64_COM1, Char);
+    if(RME_X64_UART_Exist==0)
+        return 0;
+
+    /* Bound the wait so a stalled UART cannot stop the kernel or the console. */
+    for(rme_ptr_t Try=0;Try<4096U;Try++)
+    {
+        Status=__RME_X64_In(RME_X64_COM1+5);
+        if(Status==0xFFU)
+            break;
+        if((Status&0x20U)!=0)
+        {
+            __RME_X64_Out(RME_X64_COM1,Char);
+            break;
+        }
+    }
 
     return 0;
 }
@@ -158,94 +807,205 @@ void __RME_X64_UART_Init(void)
 }
 /* End Function:__RME_X64_UART_Init ******************************************/
 
-/* Function:__RME_X64_RDSP_Scan ***********************************************
-Description : Scan for a valid RDSP structure in the given physical memory segment.
+/* The two RSDP formats share the first 20 bytes. */
+#define RME_X64_RSDP_V1_SIZE 20U
+
+/* Function:__RME_X64_ACPI_Checksum ********************************************
+Description : Calculate the sum of the bytes in an ACPI structure modulo 256.
+Input       : const void* Table - The address of the ACPI structure.
+              rme_ptr_t Size - The number of bytes to include in the sum.
+Output      : None.
+Return      : rme_ptr_t - The checksum. Zero indicates a valid checksum.
+******************************************************************************/
+
+static rme_ptr_t __RME_X64_ACPI_Checksum(const void* Table, rme_ptr_t Size)
+{
+    const rme_u8_t* Bytes=Table;
+    rme_u8_t Sum=0;
+
+    for(rme_ptr_t Index=0;Index<Size;Index++)
+        Sum+=Bytes[Index];
+
+    return Sum;
+}
+
+/* End Function:__RME_X64_ACPI_Checksum ******************************************/
+
+/* Function:__RME_X64_RSDP_Validate *******************************************
+Description : Validate the RSDP signature and the checksum of its first 20 bytes.
+              When requested, also check the ACPI revision, the declared length,
+              and the checksum of the full RSDP.
+Input       : const void* Data - The address of the RSDP data.
+              rme_ptr_t Size - The number of bytes available at Data.
+              rme_ptr_t Extended - Nonzero to require the ACPI 2.0 or later format.
+Output      : None.
+Return      : const struct RME_X64_ACPI_RDSP_Desc* - The RSDP pointer if valid, or null.
+******************************************************************************/
+
+static const struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RSDP_Validate(
+    const void* Data, rme_ptr_t Size, rme_ptr_t Extended)
+{
+    const struct RME_X64_ACPI_RDSP_Desc* RSDP=Data;
+
+    if(Size<RME_X64_RSDP_V1_SIZE || _RME_Memcmp(RSDP->Signature,"RSD PTR ",8)!=0 ||
+       __RME_X64_ACPI_Checksum(RSDP,RME_X64_RSDP_V1_SIZE)!=0)
+        return 0;
+
+    if(Extended!=0 &&
+       (Size<sizeof(*RSDP) || RSDP->Revision<2 || RSDP->Length<sizeof(*RSDP) ||
+        RSDP->Length>Size || __RME_X64_ACPI_Checksum(RSDP,RSDP->Length)!=0))
+        return 0;
+
+    return RSDP;
+}
+
+/* End Function:RME_X64_ACPI_RDSP_Desc ******************************************/
+
+/* Function:__RME_X64_RSDP_Scan ***********************************************
+Description : Scan for a valid RSDP structure in the given physical memory segment.
 Input       : rme_ptr_t Base - The base address of the physical memory segment.
               rme_ptr_t Base - The length of the memory segment.
 Output      : None.
-Return      : struct RME_X64_ACPI_RDSP_Desc* - The descriptor physical address.
+Return      : struct RME_X64_ACPI_RSDP_Desc* - The descriptor physical address.
 ******************************************************************************/
-struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(rme_ptr_t Base, rme_ptr_t Len)
+
+const struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RSDP_Scan(rme_ptr_t Base,
+                                                        rme_ptr_t Size)
 {
-    rme_u8_t* Pos;
-    rme_cnt_t Count;
-    rme_cnt_t Check_Cnt;
-    volatile rme_ptr_t Checksum;
-    Pos=(rme_u8_t*)RME_X64_PA2VA(Base);
-    /* Search a word at a time */
-    for(Count=0;Count<=Len-sizeof(struct RME_X64_ACPI_RDSP_Desc);Count+=16)
+    const struct RME_X64_ACPI_RDSP_Desc* RSDP;
+
+    for(rme_ptr_t Offset=0;Offset+RME_X64_RSDP_V1_SIZE<=Size;Offset+=16)
     {
-        /* It seemed that we have found one. See if the checksum is good */
-        if(_RME_Memcmp(&(Pos[Count]),"RSD PTR ",8)==0)
-        {
-            //RME_DBG_H((rme_ptr_t)(Pos[Count+15]));
-            Checksum=0;
-            /* 20 is the length of the first part of the table */
-            for(Check_Cnt=0;Check_Cnt<20;Check_Cnt++)
-            {
-                Checksum+=(rme_ptr_t)Pos[Count+Check_Cnt];
-            }
-            /* Is the checksum good? */
-            if((Checksum&0xFF)==0)
-            {
-                return (struct RME_X64_ACPI_RDSP_Desc*)&(Pos[Count]);
-            }
-        }
+        RSDP=__RME_X64_RSDP_Validate((const void*)RME_X64_PA2VA(Base+Offset),Size-Offset,0);
+        if(RSDP!=0)
+            return RSDP;
     }
+
     return 0;
 }
-/* End Function:__RME_X64_RDSP_Scan ******************************************/
+/* End Function:__RME_X64_RSDP_Scan ******************************************/
 
-/* Function:__RME_X64_RDSP_Find ***********************************************
-Description : Find a valid RDSP structure and return it.
+/* Function:__RME_X64_RSDP_Find ***********************************************
+Description : Find a valid RSDP structure and return it.
 Input       : None.
 Output      : None.
-Return      : struct RME_X64_ACPI_RDSP_Desc* - The descriptor address.
+Return      : struct RME_X64_ACPI_RSDP_Desc* - The descriptor address.
 ******************************************************************************/
-struct RME_X64_ACPI_RDSP_Desc*__RME_X64_RDSP_Find(void)
-{
-    struct RME_X64_ACPI_RDSP_Desc* RDSP;
-    rme_ptr_t Paddr;
-    /* 0x40E contains the address of Extended BIOS Data Area (EBDA). Let's try
-     * to find the RDSP there first */
-    Paddr=*((rme_u16_t*)RME_X64_PA2VA(0x40E))<<4;
 
-    if(Paddr!=0)
+const struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RSDP_Find(void)
+{
+    const struct RME_X64_ACPI_RDSP_Desc* RSDP;
+    /* The BIOS Data Area stores the EBDA segment at physical 0x40E. */
+    rme_ptr_t Base=(rme_ptr_t)*(const rme_u16_t*)RME_X64_PA2VA(0x40E)<<4;
+
+    if(Base!=0)
     {
-        RDSP=__RME_X64_RDSP_Scan(Paddr,1024);
-        /* Found */
-        if(RDSP!=0)
-            return RDSP;
+        RSDP=__RME_X64_RSDP_Scan(Base,1024);
+        if(RSDP!=0)
+            return RSDP;
     }
 
-    /* If that fails, the RDSP must be here */
-    return __RME_X64_RDSP_Scan(0xE0000, 0x20000);
+    return __RME_X64_RSDP_Scan(0xE0000,0x20000);
 }
-/* End Function:__RME_X64_RDSP_Find ******************************************/
+
+/* End Function:__RME_X64_RSDP_Find ******************************************/
+
+/* Function:__RME_X64_ACPI_Map ************************************************
+Description : Map a physical ACPI table range for early boot access. Reuse the
+              direct mapping if the entire range is below 4 GiB. Otherwise use
+              the selected temporary window.
+Input       : rme_ptr_t Phys - The physical address of the first byte.
+              rme_ptr_t Size - The number of bytes to map.
+              rme_ptr_t Window - The temporary window index, 0 or 1.
+Output      : None.
+Return      : const void* - The virtual address of the first byte, or null if
+              the range cannot be mapped. A temporary mapping is valid until
+              the window is remapped or the bootstrap page tables are replaced.
+******************************************************************************/
+
+static const void* __RME_X64_ACPI_Map(rme_ptr_t Phys, rme_ptr_t Size, rme_ptr_t Window)
+{
+    const rme_ptr_t Four_GiB=1ULL<<32;
+
+    if(Phys==0 || Size==0)
+        return 0;
+    if(Phys<Four_GiB && Size<=Four_GiB-Phys)
+        return (const void*)RME_X64_PA2VA(Phys);
+
+    return (const void*)__RME_X64_Boot_Window_Map(Phys,Size,Window,0);
+}
+
+/* Function:__RME_X64_ACPI_Table **********************************************
+Description : Map the ACPI table header to read its length, then map the full
+              table and validate its checksum.
+Input       : rme_ptr_t Phys - The physical address of the ACPI table.
+              rme_ptr_t Window - The temporary mapping window index, 0 or 1.
+Output      : None.
+Return      : const struct RME_X64_ACPI_Desc_Hdr* - The mapped table header,
+              or null if the mapping, table length, or checksum is invalid.
+******************************************************************************/
+
+static const struct RME_X64_ACPI_Desc_Hdr* __RME_X64_ACPI_Table(rme_ptr_t Phys,
+                                                               rme_ptr_t Window)
+{
+    const struct RME_X64_ACPI_Desc_Hdr* Header;
+    rme_ptr_t Size;
+
+    Header=__RME_X64_ACPI_Map(Phys,sizeof(*Header),Window);
+    if(Header==0 || Header->Length<sizeof(*Header))
+        return 0;
+
+    Size=Header->Length;
+    Header=__RME_X64_ACPI_Map(Phys,Size,Window);
+    if(Header==0 || __RME_X64_ACPI_Checksum(Header,Size)!=0)
+        return 0;
+
+    return Header;
+}
+
+/* End Function:__RME_X64_ACPI_Table  ******************************************/
+
+/* Function:__RME_X64_ACPI_Error *********************************************
+Description : Report an ACPI error on the boot console and debug port.
+Input       : const char* Message - The error message.
+Output      : None.
+Return      : rme_ret_t - Always -1.
+******************************************************************************/
+rme_ret_t __RME_X64_ACPI_Error(const char* Message)
+{
+    __RME_X64_Boot_Message(Message);
+    RME_DBG_S("\r\n");
+    RME_DBG_S(Message);
+    return -1;
+}
+/* End Function:__RME_X64_ACPI_Error *****************************************/
 
 /* Function:__RME_X64_SMP_Detect **********************************************
 Description : Detect the SMP configuration in the system and set up the per-CPU info.
-Input       : struct RME_X64_ACPI_MADT_Hdr* MADT - The pointer to the MADT header.
+Input       : const struct RME_X64_ACPI_MADT_Hdr* MADT - The pointer to the MADT header.
 Output      : None.
 Return      : rme_ret_t - If successful, 0; else -1.
 ******************************************************************************/
-rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
+rme_ret_t __RME_X64_SMP_Detect(const struct RME_X64_ACPI_MADT_Hdr* MADT)
 {
-    struct RME_X64_ACPI_MADT_LAPIC_Record* LAPIC;
-    struct RME_X64_ACPI_MADT_IOAPIC_Record* IOAPIC;
-    struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record* OVERRIDE;
+    const struct RME_X64_ACPI_MADT_LAPIC_Record* LAPIC;
+    const struct RME_X64_ACPI_MADT_X2APIC_Record* X2APIC;
+    const struct RME_X64_ACPI_MADT_IOAPIC_Record* IOAPIC;
+    const struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record* OVERRIDE;
     rme_ptr_t Length;
-    rme_u8_t* Ptr;
-    rme_u8_t* End;
+    rme_ptr_t Count;
+    rme_u32_t ID;
+    rme_u32_t Flags;
+    rme_ptr_t X2APIC_Count=0;
+    rme_ptr_t Need_X2APIC;
+    const rme_u8_t* Ptr;
+    const rme_u8_t* End;
 
-    /* Is there a MADT? */
-    if(MADT==0)
-        return -1;
-    /* Is the MADT valid? */
-    if(MADT->Header.Length<sizeof(struct RME_X64_ACPI_MADT_Hdr))
-        return -1;
+    if(MADT->Header.Length<sizeof(*MADT))
+        return __RME_X64_ACPI_Error("ACPI: Invalid MADT header");
 
     RME_X64_LAPIC_Addr=MADT->LAPIC_Addr_Phys;
+    Need_X2APIC=__RME_X64_Read_MSR(RME_X64_MSR_IA32_APIC_BASE)&RME_X64_APIC_BASE_X2APIC;
 
     /* Where does the actual table contents start? */
     Ptr=MADT->Table;
@@ -258,41 +1018,70 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
     {
         /* See if we have finished scanning the table */
         if((End-Ptr)<2)
-            break;
+            return __RME_X64_ACPI_Error("ACPI: Truncated MADT record");
         Length=Ptr[1];
-        if((End-Ptr)<Length)
-            break;
+        if(Length<2 || Length>(rme_ptr_t)(End-Ptr))
+            return __RME_X64_ACPI_Error("ACPI: Invalid MADT record length");
 
         /* See what is in the table */
         switch(Ptr[0])
         {
-            /* This is a LAPIC */
             case RME_X64_MADT_LAPIC:
+            case RME_X64_MADT_X2APIC:
             {
-                LAPIC=(struct RME_X64_ACPI_MADT_LAPIC_Record*)Ptr;
-                /* Is the length correct? */
-                if(Length<sizeof(struct RME_X64_ACPI_MADT_LAPIC_Record))
+                if(Ptr[0]==RME_X64_MADT_LAPIC)
+                {
+                    if(Length<sizeof(*LAPIC))
+                        return __RME_X64_ACPI_Error("ACPI: Invalid LAPIC record");
+                    LAPIC=(const struct RME_X64_ACPI_MADT_LAPIC_Record*)Ptr;
+                    ID=LAPIC->APIC_ID;
+                    Flags=LAPIC->Flags;
+                }
+                else
+                {
+                    if(Length<sizeof(*X2APIC))
+                        return __RME_X64_ACPI_Error("ACPI: Invalid x2APIC record");
+                    X2APIC=(const struct RME_X64_ACPI_MADT_X2APIC_Record*)Ptr;
+                    ID=X2APIC->APIC_ID;
+                    Flags=X2APIC->Flags;
+                }
+
+                if((Flags&RME_X64_APIC_LAPIC_ENABLED)==0)
                     break;
-                /* Is this LAPIC enabled? */
-                if((LAPIC->Flags&RME_X64_APIC_LAPIC_ENABLED)==0)
-                    break;
+
+                if(ID==0xFFFFFFFFU ||
+                   (Ptr[0]==RME_X64_MADT_LAPIC && ID==RME_X64_XAPIC_BCAST_ID))
+                    return __RME_X64_ACPI_Error("ACPI: Reserved APIC ID");
+                if(RME_X64_Num_CPU>=RME_X64_CPU_NUM)
+                    return __RME_X64_ACPI_Error("ACPI: Too many enabled CPUs");
+                for(Count=0;Count<RME_X64_Num_CPU;Count++)
+                {
+                    if(RME_X64_CPU_Info[Count].LAPIC_ID==ID)
+                        return __RME_X64_ACPI_Error("ACPI: Duplicate APIC ID");
+                }
+
+                if(Ptr[0]==RME_X64_MADT_X2APIC)
+                    X2APIC_Count++;
+                if(ID>=RME_X64_XAPIC_BCAST_ID)
+                    Need_X2APIC=1;
 
                 RME_DBG_S("\n\rACPI: CPU ");
                 RME_DBG_I((rme_cnt_t)RME_X64_Num_CPU);
-                RME_DBG_S(", LAPIC ID ");
-                RME_DBG_I(LAPIC->APIC_ID);
+                if(Ptr[0]==RME_X64_MADT_X2APIC)
+                    RME_DBG_S(", x2APIC ID ");
+                else
+                    RME_DBG_S(", LAPIC ID ");
+                RME_DBG_I(ID);
 
-                /* Log this CPU into our per-CPU data structure */
-                RME_X64_CPU_Info[RME_X64_Num_CPU].LAPIC_ID=LAPIC->APIC_ID;
+                RME_X64_CPU_Info[RME_X64_Num_CPU].LAPIC_ID=ID;
                 RME_X64_CPU_Info[RME_X64_Num_CPU].Boot_Done=0;
                 RME_X64_Num_CPU++;
-                RME_ASSERT(RME_X64_Num_CPU<=RME_X64_CPU_NUM);
                 break;
             }
             /* This is an IOAPIC */
             case RME_X64_MADT_IOAPIC:
             {
-                IOAPIC=(struct RME_X64_ACPI_MADT_IOAPIC_Record*)Ptr;
+                IOAPIC=(const struct RME_X64_ACPI_MADT_IOAPIC_Record*)Ptr;
                 /* Is the length correct? */
                 if(Length<sizeof(struct RME_X64_ACPI_MADT_IOAPIC_Record))
                     break;
@@ -316,14 +1105,15 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
                     RME_X64_IOAPIC_Info[RME_X64_Num_IOAPIC].IOAPIC_ID=IOAPIC->ID;
                 }
 
+                if(RME_X64_Num_IOAPIC>=RME_X64_IOAPIC_NUM)
+                    return __RME_X64_ACPI_Error("ACPI: Too many I/O APICs");
                 RME_X64_Num_IOAPIC++;
-                RME_ASSERT(RME_X64_Num_IOAPIC<=RME_X64_IOAPIC_NUM);
                 break;
             }
             /* This is interrupt override information */
             case RME_X64_MADT_INT_SRC_OVERRIDE:
             {
-                OVERRIDE=(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record*)Ptr;
+                OVERRIDE=(const struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record*)Ptr;
                 if(Length<sizeof(struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record))
                     break;
                 RME_DBG_S("\n\rACPI: OVERRIDE Bus ");
@@ -344,17 +1134,35 @@ rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT)
         Ptr+=Length;
     }
 
+    if(RME_X64_Num_CPU==0)
+        return __RME_X64_ACPI_Error("ACPI: MADT has no enabled CPU");
+    if(RME_X64_Num_IOAPIC==0)
+        return __RME_X64_ACPI_Error("ACPI: MADT has no I/O APIC");
+    if(Need_X2APIC!=0 &&
+       (RME_X64_FUNC(RME_X64_CPUID_1_INFO_FEATURE,2)&RME_X64_1_ECX_X2APIC)==0)
+        return __RME_X64_ACPI_Error("ACPI: CPU does not support x2APIC");
+    if(Need_X2APIC==0 && (RME_X64_LAPIC_Addr==0 || (RME_X64_LAPIC_Addr&0xFFFU)!=0))
+        return __RME_X64_ACPI_Error("ACPI: Invalid LAPIC address");
+
+    RME_X64_X2APIC=(Need_X2APIC!=0);
+    if(X2APIC_Count!=0)
+        __RME_X64_Boot_Message("ACPI: MADT has x2APIC CPUs");
+
+    RME_DBG_S("\r\nACPI: Enabled CPUs ");
+    RME_DBG_I(RME_X64_Num_CPU);
+    RME_DBG_S(", x2APIC entries ");
+    RME_DBG_I(X2APIC_Count);
     return 0;
 }
 /* End Function:__RME_X64_SMP_Detect *****************************************/
 
 /* Function:__RME_X64_ACPI_Debug **********************************************
 Description : Print the information about the ACPI table entry.
-Input       : struct RME_X64_ACPI_MADT_Hdr* MADT - The pointer to the MADT header.
+Input       : const struct RME_X64_ACPI_Desc_Hdr* Header - The table header.
 Output      : None.
-Return      : rme_ret_t - If successful, 0; else -1.
+Return      : None.
 ******************************************************************************/
-void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header)
+void __RME_X64_ACPI_Debug(const struct RME_X64_ACPI_Desc_Hdr* Header)
 {
     rme_u8_t Signature[5];
     rme_u8_t ID[7];
@@ -364,13 +1172,13 @@ void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header)
     rme_ptr_t Creator_Rev;
 
     /* Copy everything into our buffer */
-    _RME_Memcpy(Signature, Header->Signature, 4);
+    __builtin_memcpy(Signature, Header->Signature, 4);
     Signature[4]='\0';
-    _RME_Memcpy(ID, Header->OEM_ID, 6);
+    __builtin_memcpy(ID, Header->OEM_ID, 6);
     ID[6]='\0';
-    _RME_Memcpy(Table_ID, Header->OEM_Table_ID, 8); 
+    __builtin_memcpy(Table_ID, Header->OEM_Table_ID, 8);
     Table_ID[8]='\0';
-    _RME_Memcpy(Creator, Header->Creator_ID, 4);
+    __builtin_memcpy(Creator, Header->Creator_ID, 4);
     Creator[4]='\0';
 
     OEM_Rev=Header->OEM_Revision;
@@ -393,42 +1201,120 @@ void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header)
 }
 /* End Function:__RME_X64_ACPI_Debug *****************************************/
 
-/* Function:__RME_X64_ACPI_Init ***********************************************
-Description : Detect the SMP configuration in the system and set up the per-CPU info.
-Input       : struct RME_X64_ACPI_MADT_Hdr* MADT - The pointer to the MADT header.
+/* Function:__RME_X64_ACPI_Root ***********************************************
+Description : Validate the RSDT or XSDT and walk its table entries. Find the
+              MADT and use it to detect the CPU and APIC configuration.
+Input       : rme_ptr_t Phys - The physical address of the root table.
+              rme_ptr_t Entry_Size - The entry size in bytes, 4 for RSDT or
+                                    8 for XSDT.
+              const char* Signature - The expected root table signature,
+                                     "RSDT" or "XSDT".
 Output      : None.
-Return      : rme_ret_t - If successful, 0; else -1.
+Return      : rme_ret_t - 0 if MADT parsing succeeds, or -1 if the root table
+                          is invalid, no valid MADT is found, or parsing fails.
 ******************************************************************************/
-rme_ret_t __RME_X64_ACPI_Init(void)
+
+static rme_ret_t __RME_X64_ACPI_Root(rme_ptr_t Phys, rme_ptr_t Entry_Size,
+                                      const char* Signature)
 {
-    rme_cnt_t Count;
-    rme_cnt_t Table_Num;
-    struct RME_X64_ACPI_RDSP_Desc* RDSP;
-    struct RME_X64_ACPI_RSDT_Hdr* RSDT;
-    struct RME_X64_ACPI_Desc_Hdr* Header;
-    struct RME_X64_ACPI_MADT_Hdr* MADT=(void*)RME_NULL;
-    /* Try to find RDSP */
-    RDSP=__RME_X64_RDSP_Find();
-    RME_DBG_S("\r\nRDSP address: ");
-    RME_DBG_H((rme_ptr_t)RDSP);
-    /* Find the RSDT */
-    RSDT=(struct RME_X64_ACPI_RSDT_Hdr*)RME_X64_PA2VA(RDSP->RSDT_Addr_Phys);
-    RME_DBG_S("\r\nRSDT address: ");
-    RME_DBG_H((rme_ptr_t)RSDT);
-    Table_Num=(RSDT->Header.Length-sizeof(struct RME_X64_ACPI_RSDT_Hdr))>>2;
-    for(Count=0;Count<Table_Num;Count++)
+    const struct RME_X64_ACPI_Desc_Hdr* Root=__RME_X64_ACPI_Table(Phys,0);
+    const struct RME_X64_ACPI_Desc_Hdr* Header;
+    rme_ptr_t Child;
+
+    if(Phys==0)
+        return -1;
+    if(Root==0 || _RME_Memcmp(Root->Signature,Signature,4)!=0 ||
+       (Root->Length-sizeof(*Root))%Entry_Size!=0)
+        return __RME_X64_ACPI_Error((Entry_Size==8)?"ACPI: Invalid XSDT":"ACPI: Invalid RSDT");
+
+    RME_DBG_S("\r\nACPI root ");
+    RME_DBG_S(Signature);
+    RME_DBG_S(" PA 0x");
+    RME_DBG_H(Phys);
+
+    for(rme_ptr_t Offset=sizeof(*Root);Offset<Root->Length;Offset+=Entry_Size)
     {
-        /* See what did we find */
-        Header=(struct RME_X64_ACPI_Desc_Hdr*)RME_X64_PA2VA(RSDT->Entry[Count]);
+        if(Entry_Size==8)
+            __builtin_memcpy(&Child,(const rme_u8_t*)Root+Offset,8);
+        else
+        {
+            rme_u32_t Child32;
+            __builtin_memcpy(&Child32,(const rme_u8_t*)Root+Offset,4);
+            Child=Child32;
+        }
+        Header=__RME_X64_ACPI_Table(Child,1);
+        if(Header==0)
+            continue;
+
         __RME_X64_ACPI_Debug(Header);
-        /* See if this is the MADT */
-        if(_RME_Memcmp(Header->Signature, "APIC", 4)==0)
-            MADT=(struct RME_X64_ACPI_MADT_Hdr*)Header;
+        if(_RME_Memcmp(Header->Signature,"APIC",4)==0)
+            return __RME_X64_SMP_Detect((const struct RME_X64_ACPI_MADT_Hdr*)Header);
     }
 
-    return __RME_X64_SMP_Detect(MADT);
+    return __RME_X64_ACPI_Error("ACPI: No valid MADT in root table");
 }
-/* End Function:__RME_X64_ACPI_Init ******************************************/
+/* End Function:__RME_X64_ACPI_Root *****************************************/
+
+/* Function:__RME_X64_ACPI_Init ***********************************************
+Description : Find and validate the RSDP, then parse the MADT to detect the
+              CPU and APIC configuration. Try Multiboot2 tag 15 first,
+              using the XSDT and then the RSDT. If that fails, try tag 14
+              and its RSDT. On BIOS boots, fall back to scanning for the RSDP.
+Input       : const struct RME_X64_Boot_Info* Boot - The parsed boot information.
+Output      : None.
+Return      : rme_ret_t - 0 if MADT parsing succeeds, or -1 if all attempts fail.
+******************************************************************************/
+
+rme_ret_t __RME_X64_ACPI_Init(const struct RME_X64_Boot_Info* Boot)
+{
+    const struct RME_X64_ACPI_RDSP_Desc* RSDP;
+    const struct multiboot_tag* Tag=Boot->ACPI_New;
+
+    if(Tag!=0)
+    {
+        RSDP=__RME_X64_RSDP_Validate(Tag+1,Tag->size-sizeof(*Tag),1);
+        if(RSDP!=0)
+        {
+            RME_DBG_S("\r\nACPI RSDP from Multiboot2 tag 15");
+            if(__RME_X64_ACPI_Root(RSDP->XSDT_Addr_Phys,8,"XSDT")==0 ||
+               __RME_X64_ACPI_Root(RSDP->RSDT_Addr_Phys,4,"RSDT")==0)
+                return 0;
+        }
+        else
+            __RME_X64_ACPI_Error("ACPI: Invalid RSDP in tag 15");
+    }
+
+    Tag=Boot->ACPI_Old;
+    if(Tag!=0)
+    {
+        RSDP=__RME_X64_RSDP_Validate(Tag+1,Tag->size-sizeof(*Tag),0);
+        if(RSDP!=0)
+        {
+            RME_DBG_S("\r\nACPI RSDP from Multiboot2 tag 14");
+            if(__RME_X64_ACPI_Root(RSDP->RSDT_Addr_Phys,4,"RSDT")==0)
+                return 0;
+        }
+        else
+            __RME_X64_ACPI_Error("ACPI: Invalid RSDP in tag 14");
+    }
+
+    if(Boot->ACPI_New==0 && Boot->ACPI_Old==0)
+        __RME_X64_ACPI_Error("ACPI: No Multiboot2 ACPI tag");
+
+    if(Boot->EFI==0)
+    {
+        RSDP=__RME_X64_RSDP_Find();
+        if(RSDP!=0)
+        {
+            RME_DBG_S("\r\nACPI RSDP from BIOS scan");
+            return __RME_X64_ACPI_Root(RSDP->RSDT_Addr_Phys,4,"RSDT");
+        }
+    }
+
+    return -1;
+}
+
+/* End Function:__RME_X64_ACPI_Init  *****************************************/
 
 /* Function:__RME_X64_Feature_Get *********************************************
 Description : Use the CPUID instruction extensively to get all the processor
@@ -440,7 +1326,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_Feature_Get(void)
 {
-    rme_cnt_t Count;
+    rme_ptr_t Count;
 
     /* What's the maximum feature? */
     RME_X64_Feature.Max_Func=__RME_X64_CPUID_Get(RME_X64_CPUID_0_VENDOR_ID,
@@ -450,7 +1336,8 @@ void __RME_X64_Feature_Get(void)
     RME_X64_Feature.Func[0][0]=RME_X64_Feature.Max_Func;
 
     /* Get all the feature bits */
-    for(Count=1;Count<=RME_X64_Feature.Max_Func;Count++)
+    for(Count=1;Count<=RME_X64_Feature.Max_Func &&
+                Count<sizeof(RME_X64_Feature.Func)/sizeof(RME_X64_Feature.Func[0]);Count++)
     {
         RME_X64_Feature.Func[Count][0]=__RME_X64_CPUID_Get(Count,
                                                            (rme_ptr_t*)&(RME_X64_Feature.Func[Count][1]),
@@ -467,7 +1354,8 @@ void __RME_X64_Feature_Get(void)
 
 
     /* Get all the feature bits */
-    for(Count=1;Count<=RME_X64_Feature.Max_Ext-RME_X64_CPUID_E0_EXT_MAX;Count++)
+    for(Count=1;RME_X64_CPUID_E0_EXT_MAX+Count<=RME_X64_Feature.Max_Ext &&
+                Count<sizeof(RME_X64_Feature.Ext)/sizeof(RME_X64_Feature.Ext[0]);Count++)
     {
         RME_X64_Feature.Ext[Count][0]=__RME_X64_CPUID_Get(RME_X64_CPUID_E0_EXT_MAX|Count,
                                                           (rme_ptr_t*)&(RME_X64_Feature.Ext[Count][1]),
@@ -482,8 +1370,7 @@ void __RME_X64_Feature_Get(void)
 /* Function:__RME_X64_Mem_Init ************************************************
 Description : Initialize the memory map, and get the size of kernel object
               allocation registration table(Kot).
-Input       : rme_ptr_t MMap_Addr - The GRUB multiboot memory map data address.
-              rme_ptr_t MMap_Length - The GRUB multiboot memory map data length.
+Input       : const struct multiboot_tag_mmap* Map - Multiboot2 memory map tag.
 Output      : None.
 Return      : None.
 ******************************************************************************/
@@ -500,70 +1387,62 @@ volatile struct RME_List RME_X64_Phys_Mem;
 /* The BIOS wouldn't really report more than 1024 blocks of memory */
 struct __RME_X64_Mem RME_X64_Mem[1024];
 
-void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
+static rme_ret_t __RME_X64_Mem_Init(const struct multiboot_tag_mmap* Map)
 {
-    struct multiboot_mmap_entry* MMap;
+    const struct multiboot_mmap_entry* Entry;
     volatile struct RME_List* Trav_Ptr;
+    rme_ptr_t Size=Map->tag.size-sizeof(*Map);
     rme_ptr_t MMap_Cnt;
-    rme_ptr_t Info_Cnt;
-    MMap_Cnt=0;
-    Info_Cnt=0;
+    rme_ptr_t Info_Cnt=0;
+
+    if(Map->entry_size<sizeof(*Entry) || Map->entry_version!=0 ||
+       Size%Map->entry_size!=0)
+        return -1;
 
     __RME_List_Crt((struct RME_List*)&RME_X64_Phys_Mem);
 
-    while(MMap_Cnt<MMap_Length)
+    for(rme_ptr_t Offset=0;Offset<Size;Offset+=Map->entry_size)
     {
-        MMap=(struct multiboot_mmap_entry*)(MMap_Addr+MMap_Cnt);
-        MMap_Cnt+=MMap->size+4;
+        Entry=(const struct multiboot_mmap_entry*)((const rme_u8_t*)Map->entries+Offset);
+        RME_DBG_S("\n\rPhysical memory: 0x");
+        RME_DBG_H(Entry->addr);
+        RME_DBG_S(", 0x");
+        RME_DBG_H(Entry->len);
+        RME_DBG_S(", ");
+        RME_DBG_H(Entry->type);
 
-        if(RME_UNLIKELY(MMap->type!=1))
-        {
-            RME_DBG_S("\n\rPhysical memory: 0x");
-            RME_DBG_H(MMap->addr);
-            RME_DBG_S(", 0x");
-            RME_DBG_H(MMap->len);
-            RME_DBG_S(", ");
-            RME_DBG_H(MMap->type);
+        if(Entry->type!=MULTIBOOT_MEMORY_AVAILABLE || Entry->len==0)
             continue;
-        }
+        if(Entry->addr>~(rme_ptr_t)0-Entry->len ||
+           Info_Cnt>=sizeof(RME_X64_Mem)/sizeof(RME_X64_Mem[0]))
+            return -1;
 
         Trav_Ptr=RME_X64_Phys_Mem.Next;
         while(Trav_Ptr!=&RME_X64_Phys_Mem)
         {
-            if(((struct __RME_X64_Mem*)(Trav_Ptr))->Start_Addr>MMap->addr)
+            if(((struct __RME_X64_Mem*)Trav_Ptr)->Start_Addr>Entry->addr)
                 break;
             Trav_Ptr=Trav_Ptr->Next;
         }
-        RME_X64_Mem[Info_Cnt].Start_Addr=MMap->addr;
-        RME_X64_Mem[Info_Cnt].Length=MMap->len;
-        __RME_List_Ins(&(RME_X64_Mem[Info_Cnt].Head),Trav_Ptr->Prev,(struct RME_List*)Trav_Ptr);
-
-        /* Just print them then */
-        RME_DBG_S("\n\rPhysical memory: 0x");
-        RME_DBG_H(MMap->addr);
-        RME_DBG_S(", 0x");
-        RME_DBG_H(MMap->len);
-        RME_DBG_S(", ");
-        RME_DBG_H(MMap->type);
-
+        RME_X64_Mem[Info_Cnt].Start_Addr=Entry->addr;
+        RME_X64_Mem[Info_Cnt].Length=Entry->len;
+        __RME_List_Ins(&RME_X64_Mem[Info_Cnt].Head,Trav_Ptr->Prev,(struct RME_List*)Trav_Ptr);
         Info_Cnt++;
     }
 
-    /* Check if any memory segment overlaps. If yes, merge them into one,
-     * until there is no overlapping segments */
+    /* Merge overlapping or adjacent available ranges. */
     Trav_Ptr=RME_X64_Phys_Mem.Next;
-    while((Trav_Ptr!=&RME_X64_Phys_Mem)&&((Trav_Ptr->Next)!=&RME_X64_Phys_Mem))
+    while(Trav_Ptr!=&RME_X64_Phys_Mem && Trav_Ptr->Next!=&RME_X64_Phys_Mem)
     {
-        if((((struct __RME_X64_Mem*)(Trav_Ptr))->Start_Addr+
-            ((struct __RME_X64_Mem*)(Trav_Ptr))->Length)>
-            ((struct __RME_X64_Mem*)(Trav_Ptr->Next))->Start_Addr)
+        struct __RME_X64_Mem* Current=(struct __RME_X64_Mem*)Trav_Ptr;
+        struct __RME_X64_Mem* Next=(struct __RME_X64_Mem*)Trav_Ptr->Next;
+        rme_ptr_t Next_End=Next->Start_Addr+Next->Length;
+
+        if(Current->Start_Addr+Current->Length>=Next->Start_Addr)
         {
-            /* Merge these two blocks */
-            ((struct __RME_X64_Mem*)(Trav_Ptr))->Length=
-            ((struct __RME_X64_Mem*)(Trav_Ptr->Next))->Start_Addr+
-            ((struct __RME_X64_Mem*)(Trav_Ptr->Next))->Length-
-            ((struct __RME_X64_Mem*)(Trav_Ptr))->Start_Addr;
-            __RME_List_Del((struct RME_List*)Trav_Ptr,Trav_Ptr->Next->Next);
+            if(Next_End>Current->Start_Addr+Current->Length)
+                Current->Length=Next_End-Current->Start_Addr;
+            __RME_List_Del(&Current->Head,Next->Head.Next);
             continue;
         }
         Trav_Ptr=Trav_Ptr->Next;
@@ -581,7 +1460,8 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
     RME_DBG_H(MMap_Cnt);
 
     /* At least 256MB memory required on x64 architecture */
-    RME_ASSERT(MMap_Cnt>=RME_POW2(RME_PGT_SIZE_256M));
+    if(MMap_Cnt<RME_POW2(RME_PGT_SIZE_256M))
+        return -1;
 
     /* Kernel virtual memory layout */
     RME_X64_Layout.Kot_Start=(rme_ptr_t)RME_KOT_VA_BASE;
@@ -595,6 +1475,7 @@ void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length)
 
     /* Now decide the size of the stack */
     RME_X64_Layout.Stack_Size=RME_X64_Num_CPU<<RME_X64_KSTACK_ORDER;
+    return 0;
 }
 /* End Function:__RME_X64_Mem_Init *******************************************/
 
@@ -843,7 +1724,8 @@ void __RME_X64_CPU_Local_Init(void)
     __RME_X64_Write_MSR(RME_X64_MSR_IA32_EFER,__RME_X64_Read_MSR(RME_X64_MSR_IA32_EFER)|RME_X64_MSR_IA32_EFER_SCE);
     /* Set up SYSCALL/SYSRET parameters */
     __RME_X64_Write_MSR(RME_X64_MSR_IA32_LSTAR, (rme_ptr_t)SVC_Handler);
-    __RME_X64_Write_MSR(RME_X64_MSR_IA32_FMASK, ~RME_X64_RFLAGS_IF);
+    /* Clear IF, DF and TF on SYSCALL entry; leave the MSR's reserved bits zero. */
+    __RME_X64_Write_MSR(RME_X64_MSR_IA32_FMASK, RME_X64_RFLAGS_IF|RME_X64_RFLAGS_DF|RME_X64_RFLAGS_TF);
     /* The SYSRET, when returning to user mode in 64-bit, will load the SS from +8, and CS from +16.
      * The original place for CS is reserved for 32-bit usages and is thus not usable by 64-bit */
     __RME_X64_Write_MSR(RME_X64_MSR_IA32_STAR, (((rme_ptr_t)RME_X64_SEG_EMPTY)<<48)|(((rme_ptr_t)RME_X64_SEG_KERNEL_CODE)<<32));
@@ -864,6 +1746,61 @@ struct RME_CPU_Local* __RME_X64_CPU_Local_Get_By_CPUID(rme_ptr_t CPUID)
 }
 /* End Function:__RME_X64_CPU_Local_Get_By_CPUID *****************************/
 
+/* Function:__RME_X64_LAPIC_Read **********************************************
+Description : Read a 32-bit local APIC register in the selected mode.
+Input       : rme_ptr_t Reg - The register offset in 32-bit words.
+Output      : None.
+Return      : rme_u32_t - The register value.
+******************************************************************************/
+rme_u32_t __RME_X64_LAPIC_Read(rme_ptr_t Reg)
+{
+    if(RME_X64_X2APIC!=0)
+        return (rme_u32_t)__RME_X64_Read_MSR(RME_X64_MSR_X2APIC(Reg));
+    return RME_X64_LAPIC_READ(Reg);
+}
+/* End Function:__RME_X64_LAPIC_Read *****************************************/
+
+/* Function:__RME_X64_LAPIC_Write *********************************************
+Description : Write a 32-bit local APIC register in the selected mode.
+Input       : rme_ptr_t Reg - The register offset in 32-bit words.
+              rme_u32_t Value - The register value.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_LAPIC_Write(rme_ptr_t Reg, rme_u32_t Value)
+{
+    if(RME_X64_X2APIC!=0)
+        __RME_X64_Write_MSR(RME_X64_MSR_X2APIC(Reg), Value);
+    else
+        RME_X64_LAPIC_WRITE(Reg, Value);
+}
+/* End Function:__RME_X64_LAPIC_Write ****************************************/
+
+/* Function:__RME_X64_LAPIC_IPI ***********************************************
+Description : Send an interprocessor interrupt in the selected APIC mode.
+Input       : rme_u32_t ID - The destination APIC ID, ignored for shorthand.
+              rme_u32_t Command - The low half of the interrupt command.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_LAPIC_IPI(rme_u32_t ID, rme_u32_t Command)
+{
+    if(RME_X64_X2APIC!=0)
+    {
+        /* Publish shared data before the non-serializing ICR write. */
+        __asm__ volatile("mfence; lfence":::"memory");
+        __RME_X64_Write_MSR(RME_X64_MSR_X2APIC(RME_X64_LAPIC_ICRLO),
+                            ((rme_ptr_t)ID<<32)|Command);
+    }
+    else
+    {
+        while((RME_X64_LAPIC_READ(RME_X64_LAPIC_ICRLO)&RME_X64_LAPIC_ICRLO_DELIVS)!=0);
+        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, ID<<24);
+        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, Command);
+    }
+}
+/* End Function:__RME_X64_LAPIC_IPI ******************************************/
+
 /* Function:__RME_X64_LAPIC_Ack ***********************************************
 Description : Acknowledge the interrupt on LAPIC.
 Input       : None.
@@ -872,7 +1809,7 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_LAPIC_Ack(void)
 {
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_EOI, 0);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_EOI, 0);
 }
 /* End Function:__RME_X64_LAPIC_Ack ******************************************/
 
@@ -884,39 +1821,45 @@ Return      : None.
 ******************************************************************************/
 void __RME_X64_LAPIC_Init(void)
 {
-    /* LAPIC initialization - Check if there is any LAPIC */
-    RME_ASSERT(RME_X64_LAPIC_Addr!=0);
+    rme_ptr_t Base=__RME_X64_Read_MSR(RME_X64_MSR_IA32_APIC_BASE);
+
+    /* APs may start in xAPIC mode even if the boot processor uses x2APIC. */
+    if((Base&RME_X64_APIC_BASE_ENABLE)==0)
+    {
+        Base|=RME_X64_APIC_BASE_ENABLE;
+        __RME_X64_Write_MSR(RME_X64_MSR_IA32_APIC_BASE, Base);
+    }
+    if(RME_X64_X2APIC!=0 && (Base&RME_X64_APIC_BASE_X2APIC)==0)
+        __RME_X64_Write_MSR(RME_X64_MSR_IA32_APIC_BASE, Base|RME_X64_APIC_BASE_X2APIC);
 
     /* Enable local APIC; set spurious interrupt vector to 32 */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_SVR, RME_X64_LAPIC_SVR_ENABLE|RME_X64_INT_SPUR);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_SVR, RME_X64_LAPIC_SVR_ENABLE|RME_X64_INT_SPUR);
 
     /* Disable local interrupt lines */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT0, RME_X64_LAPIC_MASKED);
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_LINT1, RME_X64_LAPIC_MASKED);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_LINT0, RME_X64_LAPIC_MASKED);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_LINT1, RME_X64_LAPIC_MASKED);
 
     /* Disable performance counter overflow interrupts when there is one */
-    if(((RME_X64_LAPIC_READ(RME_X64_LAPIC_VER)>>16)&0xFF)>=4)
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_PCINT, RME_X64_LAPIC_MASKED);
+    if(((__RME_X64_LAPIC_Read(RME_X64_LAPIC_VER)>>16)&0xFF)>=4)
+        __RME_X64_LAPIC_Write(RME_X64_LAPIC_PCINT, RME_X64_LAPIC_MASKED);
 
     /* Map error interrupt to IRQ_ERROR */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ERROR, RME_X64_INT_ERROR);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_ERROR, RME_X64_INT_ERROR);
 
     /* Clear error status register (requires back-to-back writes) */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ESR, 0);
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ESR, 0);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_ESR, 0);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_ESR, 0);
 
     /* Acknowledge any outstanding interrupts */
     __RME_X64_LAPIC_Ack();
 
-    /* Send an Init Level De-Assert to synchronise arbitration IDs */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, 0);
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_BCAST|
-                                             RME_X64_LAPIC_ICRLO_INIT|
-                                             RME_X64_LAPIC_ICRLO_LEVEL);
-    while(RME_X64_LAPIC_READ(RME_X64_LAPIC_ICRLO)&RME_X64_LAPIC_ICRLO_DELIVS);
+    /* The legacy arbitration synchronization IPI is only for xAPIC. */
+    if(RME_X64_X2APIC==0)
+        __RME_X64_LAPIC_IPI(0, RME_X64_LAPIC_ICRLO_BCAST|RME_X64_LAPIC_ICRLO_INIT|
+                               RME_X64_LAPIC_ICRLO_LEVEL);
 
     /* Enable interrupts on the APIC */
-    RME_X64_LAPIC_WRITE(RME_X64_LAPIC_TPR, 0);
+    __RME_X64_LAPIC_Write(RME_X64_LAPIC_TPR, 0);
 }
 /* End Function:__RME_X64_LAPIC_Init *****************************************/
 
@@ -1016,6 +1959,52 @@ void __RME_X64_IOAPIC_Init(void)
 }
 /* End Function:__RME_X64_IOAPIC_Init ****************************************/
 
+/* Function:__RME_X64_SMP_Delay ***********************************************
+Description : Wait between startup IPIs before the scheduler timer is started.
+Input       : rme_ptr_t Microseconds - The delay, between 1 and 10000 us.
+              rme_ptr_t TSC_Hz - The TSC frequency, or 0 if not enumerated.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_X64_SMP_Delay(rme_ptr_t Microseconds, rme_ptr_t TSC_Hz)
+{
+    rme_ptr_t Start;
+    rme_ptr_t Port;
+    rme_ptr_t Count;
+    rme_ptr_t Retry;
+
+    if(TSC_Hz!=0)
+    {
+        Count=(TSC_Hz*Microseconds+999999U)/1000000U;
+        Start=RME_TIMESTAMP;
+        while(RME_TIMESTAMP-Start<Count)
+            __asm__ volatile("pause");
+        return;
+    }
+
+    /* Fall back to PIT channel 2 and keep the speaker off. */
+    Port=__RME_X64_In(0x61);
+    Count=(1193182U*Microseconds+999999U)/1000000U;
+    __RME_X64_Out(0x61, Port&~3U);
+    __RME_X64_Out(RME_X64_PIT_CMD, 0xB0);
+    __RME_X64_Out(RME_X64_PIT_CH2, Count&0xFFU);
+    __RME_X64_Out(RME_X64_PIT_CH2, Count>>8);
+    __RME_X64_Out(0x61, (Port&~2U)|1U);
+    for(Retry=0;Retry<1000000U;Retry++)
+    {
+        if((__RME_X64_In(0x61)&0x20U)!=0)
+            break;
+    }
+    __RME_X64_Out(0x61, Port);
+    if(Retry==1000000U)
+    {
+        __RME_X64_ACPI_Error("APIC: No working startup timer");
+        for(;;)
+            __RME_X64_Halt();
+    }
+}
+/* End Function:__RME_X64_SMP_Delay ******************************************/
+
 /* Function:__RME_X64_SMP_Init ************************************************
 Description : Start all other processors, one by one. We cannot start all of them
               at once because of the stupid self modifying code of X64!
@@ -1028,6 +2017,41 @@ void __RME_X64_SMP_Init(void)
     rme_u8_t* Code;
     rme_cnt_t Count;
     rme_u16_t* Warm_Reset;
+    rme_u32_t ID;
+    rme_ptr_t Retry;
+    rme_ptr_t Denominator;
+    rme_ptr_t Numerator=0;
+    rme_ptr_t Crystal_Hz=0;
+    rme_ptr_t Reserved=0;
+    rme_ptr_t TSC_Hz=0;
+    rme_u32_t BSP_ID=__RME_X64_LAPIC_Read(RME_X64_LAPIC_ID);
+
+    /* Keep the boot processor at index 0 regardless of MADT entry order. */
+    if(RME_X64_X2APIC==0)
+        BSP_ID>>=24;
+    for(Count=0;Count<RME_X64_Num_CPU;Count++)
+    {
+        if(RME_X64_CPU_Info[Count].LAPIC_ID==BSP_ID)
+            break;
+    }
+    if(Count==RME_X64_Num_CPU || BSP_ID>=RME_X64_XAPIC_BCAST_ID)
+    {
+        if(Count==RME_X64_Num_CPU)
+            __RME_X64_ACPI_Error("APIC: Boot CPU is missing from MADT");
+        else
+            __RME_X64_ACPI_Error("APIC: Boot CPU needs I/O interrupt remapping");
+        for(;;)
+            __RME_X64_Halt();
+    }
+    RME_X64_CPU_Info[Count].LAPIC_ID=RME_X64_CPU_Info[0].LAPIC_ID;
+    RME_X64_CPU_Info[0].LAPIC_ID=BSP_ID;
+
+    if(RME_X64_Num_CPU>1 && RME_X64_Feature.Max_Func>=RME_X64_CPUID_15_TSC_RATIO)
+    {
+        Denominator=__RME_X64_CPUID_Get(RME_X64_CPUID_15_TSC_RATIO,&Numerator,&Crystal_Hz,&Reserved);
+        if(Denominator!=0 && Numerator!=0 && Crystal_Hz!=0)
+            TSC_Hz=Crystal_Hz*Numerator/Denominator;
+    }
 
     /* Write entry code to unused memory at 0x7000 */
     Code=(rme_u8_t*)RME_X64_PA2VA(0x7000);
@@ -1036,6 +2060,7 @@ void __RME_X64_SMP_Init(void)
 
     /* Start the CPUs one by one - the first one is ourself */
     RME_X64_CPU_Cnt=1;
+    __RME_X64_Boot_CPUs(1,RME_X64_Num_CPU);
     for(Count=1;Count<RME_X64_Num_CPU;Count++)
     {
         RME_DBG_S("\n\rBooting CPU ");
@@ -1053,27 +2078,38 @@ void __RME_X64_SMP_Init(void)
         Warm_Reset[0]=0;
         Warm_Reset[1]=0x7000>>4;
 
+        ID=(rme_u32_t)RME_X64_CPU_Info[Count].LAPIC_ID;
         /* Send INIT (level-triggered) interrupt to reset other CPU */
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, RME_X64_CPU_Info[Count].LAPIC_ID<<24);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_INIT|
-                                                 RME_X64_LAPIC_ICRLO_LEVEL|
-                                                 RME_X64_LAPIC_ICRLO_ASSERT);
-        RME_X64_UDELAY(200);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_INIT|
-                                                 RME_X64_LAPIC_ICRLO_LEVEL);
-        RME_X64_UDELAY(10000);
+        __RME_X64_LAPIC_IPI(ID, RME_X64_LAPIC_ICRLO_INIT|
+                               RME_X64_LAPIC_ICRLO_LEVEL|RME_X64_LAPIC_ICRLO_ASSERT);
+        if(RME_X64_X2APIC==0)
+        {
+            __RME_X64_SMP_Delay(200,TSC_Hz);
+            __RME_X64_LAPIC_IPI(ID, RME_X64_LAPIC_ICRLO_INIT|RME_X64_LAPIC_ICRLO_LEVEL);
+        }
+        __RME_X64_SMP_Delay(10000,TSC_Hz);
 
         /* Send startup IPI twice according to Intel manuals */
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, RME_X64_CPU_Info[Count].LAPIC_ID<<24);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_STARTUP|(0x7000>>12));
-        RME_X64_UDELAY(200);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, RME_X64_CPU_Info[Count].LAPIC_ID<<24);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_STARTUP|(0x7000>>12));
-        RME_X64_UDELAY(200);
+        __RME_X64_LAPIC_IPI(ID, RME_X64_LAPIC_ICRLO_STARTUP|
+                               RME_X64_LAPIC_ICRLO_ASSERT|(0x7000>>12));
+        __RME_X64_SMP_Delay(200,TSC_Hz);
+        __RME_X64_LAPIC_IPI(ID, RME_X64_LAPIC_ICRLO_STARTUP|
+                               RME_X64_LAPIC_ICRLO_ASSERT|(0x7000>>12));
+        __RME_X64_SMP_Delay(200,TSC_Hz);
 
-        /* Wait for CPU to finish its own initialization */
-        while(RME_X64_CPU_Info[RME_X64_CPU_Cnt].Boot_Done==0);
+        /* Wait up to one second for the AP to finish its initialization. */
+        for(Retry=0;Retry<100 && RME_X64_CPU_Info[Count].Boot_Done==0;Retry++)
+            __RME_X64_SMP_Delay(10000,TSC_Hz);
+        if(RME_X64_CPU_Info[Count].Boot_Done==0)
+        {
+            RME_DBG_S("\r\nAPIC: Startup timeout, APIC ID ");
+            RME_DBG_I(ID);
+            __RME_X64_Boot_Message("APIC: Secondary CPU startup timed out");
+            for(;;)
+                __RME_X64_Halt();
+        }
         RME_X64_CPU_Cnt++;
+        __RME_X64_Boot_CPUs(RME_X64_CPU_Cnt,RME_X64_Num_CPU);
     }
 }
 /* End Function:__RME_X64_SMP_Init *******************************************/
@@ -1088,12 +2124,8 @@ void __RME_X64_SMP_Tick(void)
 {
     /* Is this a SMP? */
     if(RME_X64_Num_CPU>1)
-    {
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRHI, 0xFFULL<<24);
-        RME_X64_LAPIC_WRITE(RME_X64_LAPIC_ICRLO, RME_X64_LAPIC_ICRLO_EXC_SELF|
-                                                 RME_X64_LAPIC_ICRLO_FIXED|
-                                                 RME_X64_INT_SMP_SYSTICK);
-    }
+        __RME_X64_LAPIC_IPI(0, RME_X64_LAPIC_ICRLO_EXC_SELF|RME_X64_LAPIC_ICRLO_FIXED|
+                              RME_X64_LAPIC_ICRLO_ASSERT|RME_X64_INT_SMP_SYSTICK);
 }
 /* End Function:__RME_X64_SMP_Tick *******************************************/
 
@@ -1124,14 +2156,44 @@ Return      : rme_ptr_t - Always 0.
 ******************************************************************************/
 rme_ptr_t __RME_Lowlvl_Init(void)
 {
-    /* We are here now ! */
+    struct RME_X64_Boot_Info Boot={0};
+
     __RME_X64_UART_Init();
-    /* Read APIC tables and detect the configurations. Now we are not NUMA-aware */
-    RME_ASSERT(__RME_X64_ACPI_Init()==0);
-    /* Detect CPU features */
+    RME_DBG_S("\r\nRME_Kmain: Multiboot2");
+    if(__RME_X64_Boot_Info_Read(&Boot)!=0)
+    {
+        RME_DBG_S("\r\nInvalid Multiboot2 information or missing memory map");
+        for(;;)
+            __RME_X64_Halt();
+    }
+
     __RME_X64_Feature_Get();
-    /* Extract memory specifications */
-    __RME_X64_Mem_Init(RME_X64_MBInfo->mmap_addr,RME_X64_MBInfo->mmap_length);
+    __RME_X64_Framebuffer_Init(Boot.Framebuffer);
+    __RME_X64_Boot_Progress(RME_X64_BOOT_ACPI);
+    __RME_X64_Boot_Message("RME: GOP ready, initializing ACPI");
+    if(__RME_X64_ACPI_Init(&Boot)!=0)
+    {
+        __RME_X64_Boot_Message("RME: ACPI initialization failed");
+        RME_DBG_S("\r\nACPI initialization failed");
+        for(;;)
+            __RME_X64_Halt();
+    }
+    __RME_X64_Boot_Message((RME_X64_X2APIC!=0)?"APIC: x2APIC mode":"APIC: xAPIC mode");
+    __RME_X64_Boot_Progress(RME_X64_BOOT_MMU);
+    __RME_X64_Boot_Message("RME: ACPI ready, reading memory map");
+    RME_DBG_S("\r\nACPI initialization succeeded");
+    if(RME_X64_X2APIC!=0)
+        RME_DBG_S("\r\nAPIC: x2APIC mode");
+    else
+        RME_DBG_S("\r\nAPIC: xAPIC mode");
+
+    if(__RME_X64_Mem_Init(Boot.MMap)!=0)
+    {
+        __RME_X64_Boot_Message("RME: Invalid Multiboot2 memory map");
+        RME_DBG_S("\r\nInvalid Multiboot2 memory map");
+        for(;;)
+            __RME_X64_Halt();
+    }
 
     return 0;
 }
@@ -1152,6 +2214,35 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     rme_cnt_t PDE_Cnt;
     rme_cnt_t Addr_Cnt;
     volatile struct __RME_X64_Mem* Mem;
+    rme_ptr_t Start;
+    rme_ptr_t End;
+    rme_ptr_t First_End;
+    const rme_ptr_t Four_GiB=1ULL<<32;
+
+    __RME_X64_Boot_Message("RME: Setting up kernel page tables");
+
+    /* Find the contiguous low-memory range that holds the fixed KOT and Kom1. */
+    Mem=(struct __RME_X64_Mem*)RME_X64_Phys_Mem.Next;
+    while(Mem!=(struct __RME_X64_Mem*)&RME_X64_Phys_Mem &&
+          Mem->Start_Addr+Mem->Length<=RME_X64_KOT_OFFSET)
+        Mem=(struct __RME_X64_Mem*)Mem->Head.Next;
+
+    RME_X64_Layout.Kom1_Start[0]=RME_X64_Layout.PerCPU_Start+RME_X64_Layout.PerCPU_Size;
+    First_End=0;
+    if(Mem!=(struct __RME_X64_Mem*)&RME_X64_Phys_Mem && Mem->Start_Addr<=RME_X64_KOT_OFFSET)
+    {
+        End=Mem->Start_Addr+Mem->Length;
+        if(End>Four_GiB)
+            End=Four_GiB;
+        First_End=RME_ROUND_DOWN(End-RME_X64_KOT_OFFSET,RME_PGT_SIZE_2M);
+    }
+    if(First_End<=RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]))
+    {
+        __RME_X64_Boot_Message("RME: Insufficient contiguous low kernel memory");
+        RME_DBG_S("\r\nMultiboot2 memory map cannot accommodate the low kernel memory");
+        for(;;)
+            __RME_X64_Halt();
+    }
 
     /* Now initialize the kernel object allocation table */
     _RME_Kot_Init(RME_X64_Layout.Kot_Size/sizeof(rme_ptr_t));
@@ -1200,55 +2291,34 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
         RME_X64_Kpgt.PDP[255][511]|=0x105000|RME_X64_MMU_P;
     }
 
-    /* Ignore all memory below 4G, but we need to get the size of such memory above 16MB */
-    Mem=(struct __RME_X64_Mem*)RME_X64_Phys_Mem.Next;
-    while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
-    {
-        /* See if this memory segment passes 16MB limit */
-        if((Mem->Start_Addr+Mem->Length)<=RME_POW2(RME_PGT_SIZE_16M))
-            Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
-        else
-            break;
-    }
-
-    /* The first Kom1 trunk must start at smaller or equal to 16MB */
-    RME_ASSERT(Mem->Start_Addr<=RME_POW2(RME_PGT_SIZE_16M));
-    /* The raw sizes of kernel memory segment 1 - per CPU area is already aligned so no need to align again */
-    RME_X64_Layout.Kom1_Start[0]=RME_X64_Layout.PerCPU_Start+RME_X64_Layout.PerCPU_Size;
-    RME_X64_Layout.Kom1_Size[0]=Mem->Start_Addr+Mem->Length-RME_POW2(RME_PGT_SIZE_16M)-
-    		                     RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]);
-
-    /* Add the rest of Kom1 into the array */
+    /* Add complete 2 MiB pages from the remaining ranges below 4 GiB. */
     Addr_Cnt=1;
-    while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
+    while(Mem->Start_Addr+Mem->Length<=Four_GiB)
     {
-        /* Add all segments under 4GB to Kom1 */
-        Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
-        /* If detected anything above 4GB, then this is not Kom1, exiting */
-        if(Mem->Start_Addr>=RME_POW2(RME_PGT_SIZE_4G))
+        Mem=(struct __RME_X64_Mem*)Mem->Head.Next;
+        if(Mem==(struct __RME_X64_Mem*)&RME_X64_Phys_Mem || Mem->Start_Addr>=Four_GiB)
             break;
-        /* If this memory trunk have less than 4MB, drop it */
-        if(Mem->Length<RME_POW2(RME_PGT_SIZE_4M))
-        {
-            RME_DBG_S("\n\rAbandoning physical memory below 4G: addr 0x");
-            RME_DBG_H(Mem->Start_Addr);
-            RME_DBG_S(", length 0x");
-            RME_DBG_H(Mem->Length);
+
+        Start=RME_ROUND_UP(Mem->Start_Addr,RME_PGT_SIZE_2M);
+        End=Mem->Start_Addr+Mem->Length;
+        End=RME_ROUND_DOWN((End<Four_GiB)?End:Four_GiB,RME_PGT_SIZE_2M);
+        if(Start>=End || End-Start<RME_POW2(RME_PGT_SIZE_4M))
             continue;
-        }
         if(Addr_Cnt>=RME_X64_KOM1_MAXSEGS)
         {
             RME_DBG_S("\r\nThe memory under 4G is too fragmented. Aborting.");
-            RME_ASSERT(0);
+            for(;;)
+                __RME_X64_Halt();
         }
-        RME_X64_Layout.Kom1_Start[Addr_Cnt]=RME_X64_PA2VA(RME_ROUND_UP(Mem->Start_Addr,RME_PGT_SIZE_2M));
-        RME_X64_Layout.Kom1_Size[Addr_Cnt]=RME_ROUND_DOWN(Mem->Length,RME_PGT_SIZE_2M);
+        RME_X64_Layout.Kom1_Start[Addr_Cnt]=RME_X64_PA2VA(Start);
+        RME_X64_Layout.Kom1_Size[Addr_Cnt]=End-Start;
         Addr_Cnt++;
     }
     RME_X64_Layout.Kom1_Trunks=Addr_Cnt;
 
     /* This is the hole */
-    RME_X64_Layout.Hole_Start=RME_X64_Layout.Kom1_Start[Addr_Cnt-1]+RME_X64_Layout.Kom1_Size[Addr_Cnt-1];
+    RME_X64_Layout.Hole_Start=(Addr_Cnt==1)?RME_X64_PA2VA(First_End):
+        RME_X64_Layout.Kom1_Start[Addr_Cnt-1]+RME_X64_Layout.Kom1_Size[Addr_Cnt-1];
     RME_X64_Layout.Hole_Size=RME_POW2(RME_PGT_SIZE_4G)-RME_X64_VA2PA(RME_X64_Layout.Hole_Start);
 
     /* Create kernel page mappings for memory above 4GB - we assume only one segment below 4GB */
@@ -1262,23 +2332,17 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
     PDE_Cnt=511;
     while(Mem!=(struct __RME_X64_Mem*)(&RME_X64_Phys_Mem))
     {
-        /* Throw away small segments */
-        if(Mem->Length<2*RME_POW2(RME_PGT_SIZE_2M))
+        Start=(Mem->Start_Addr<Four_GiB)?Four_GiB:Mem->Start_Addr;
+        Start=RME_ROUND_UP(Start,RME_PGT_SIZE_2M);
+        End=RME_ROUND_DOWN(Mem->Start_Addr+Mem->Length,RME_PGT_SIZE_2M);
+        if(Start>=End || End-Start<RME_POW2(RME_PGT_SIZE_4M))
         {
-            RME_DBG_S("\n\rAbandoning physical memory above 4G: addr 0x");
-            RME_DBG_H(Mem->Start_Addr);
-            RME_DBG_S(", length 0x");
-            RME_DBG_H(Mem->Length);
-            Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
+            Mem=(struct __RME_X64_Mem*)Mem->Head.Next;
             continue;
         }
 
-        /* Align the memory segment to 2MB */
-        Mem->Start_Addr=RME_ROUND_UP(Mem->Start_Addr,RME_PGT_SIZE_2M);
-        Mem->Length=RME_ROUND_DOWN(Mem->Length-1,RME_PGT_SIZE_2M);
-
-        /* Add these pages into the kernel at addresses above 4GB offset as 2MB pages */
-        for(Addr_Cnt=0;Addr_Cnt<Mem->Length;Addr_Cnt+=RME_POW2(RME_PGT_SIZE_2M))
+        /* Pack RAM above 4 GiB into the existing Kom2 virtual range. */
+        for(rme_ptr_t Phys=Start;Phys<End;Phys+=RME_POW2(RME_PGT_SIZE_2M))
         {
             PDE_Cnt++;
             if(PDE_Cnt==512)
@@ -1294,14 +2358,18 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
                 RME_X64_Kpgt.PDP[PML4_Cnt][PDP_Cnt]|=RME_X64_MMU_ADDR(RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]))|RME_X64_MMU_P;
             }
 
-            ((rme_ptr_t*)(RME_X64_Layout.Kom1_Start[0]))[0]=RME_X64_MMU_ADDR(Mem->Start_Addr+Addr_Cnt)|RME_X64_MMU_KERN_PDE;
+            ((rme_ptr_t*)(RME_X64_Layout.Kom1_Start[0]))[0]=RME_X64_MMU_ADDR(Phys)|RME_X64_MMU_KERN_PDE;
             RME_X64_Layout.Kom1_Start[0]+=sizeof(rme_ptr_t);
-            RME_X64_Layout.Kom1_Size[0]-=sizeof(rme_ptr_t);
             RME_X64_Layout.Kom2_Size+=RME_POW2(RME_PGT_SIZE_2M);
         }
 
         Mem=(struct __RME_X64_Mem*)(Mem->Head.Next);
     }
+
+    /* Preserve the RGB MMIO window in every kernel page table. */
+    if(RME_X64_Boot_PDP[RME_X64_RGB_WINDOW]!=0)
+        RME_X64_Kpgt.PDP[RME_X64_BOOT_WINDOW_SLOT-256U][RME_X64_RGB_WINDOW]=
+            RME_X64_Boot_PDP[RME_X64_RGB_WINDOW];
 
     /* Copy the new page tables to the temporary entries, so that we can boot SMP */
     for(PML4_Cnt=0;PML4_Cnt<256;PML4_Cnt++)
@@ -1309,7 +2377,7 @@ rme_ptr_t __RME_Pgt_Kom_Init(void)
 
     /* Page table allocation finished. Now need to align Kom1 to 2MB page boundary */
     RME_X64_Layout.Kom1_Start[0]=RME_ROUND_UP(RME_X64_Layout.Kom1_Start[0],RME_PGT_SIZE_2M);
-    RME_X64_Layout.Kom1_Size[0]=RME_ROUND_DOWN(RME_X64_Layout.Kom1_Size[0]-1,RME_PGT_SIZE_2M);
+    RME_X64_Layout.Kom1_Size[0]=First_End-RME_X64_VA2PA(RME_X64_Layout.Kom1_Start[0]);
 
     /* All memory is mapped. Now figure out the size of kernel stacks */
     RME_X64_Layout.Kpgtbl_Size=RME_X64_Layout.Kom1_Start[0]-RME_X64_Layout.Kpgtbl_Start;
@@ -1404,7 +2472,8 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
     /* Change page tables */
     __RME_Pgt_Set((CPU_Local->Thd_Cur)->Sched.Prc->Pgt);
     /* Boot into the init thread - never returns */
-    __RME_Enter_User_Mode(0, RME_X64_USTACK(CPU_Local->CPUID), CPU_Local->CPUID);
+    __RME_Enter_User_Mode(RME_X64_UVM_BASE, RME_X64_UVM_BASE+RME_X64_USTACK(CPU_Local->CPUID),
+                          CPU_Local->CPUID);
 
     return 0;
 }
@@ -1425,6 +2494,9 @@ rme_ptr_t __RME_Boot(void)
     rme_ptr_t Page_Ptr;
     struct RME_Cap_Cpt* Cpt;
     struct RME_CPU_Local* CPU_Local;
+    __RME_X64_Boot_Progress(RME_X64_BOOT_IRQ);
+    __RME_X64_Boot_Message("RME: Initializing interrupt controllers");
+
     /* Initialize our own CPU-local data structures */
     RME_X64_CPU_Cnt = 0;
     RME_DBG_S("\r\nCPU 0 local IDT/GDT init");
@@ -1438,7 +2510,11 @@ rme_ptr_t __RME_Boot(void)
     __RME_X64_IOAPIC_Init();
     /* Start other processors, if there are any. They will keep spinning until
      * the booting processor finish all its work. */
+    __RME_X64_Boot_Progress(RME_X64_BOOT_SMP);
+    __RME_X64_Boot_Message("RME: Starting secondary CPUs");
     __RME_X64_SMP_Init();
+    __RME_X64_Boot_Progress(RME_X64_BOOT_UVM);
+    __RME_X64_Boot_Message("RME: Preparing the initial process");
 
     /* Create all initial tables in Kom1, which is sure to be present */
     Cur_Addr=RME_X64_Layout.Kom1_Start[0]+16*RME_POW2(RME_PGT_SIZE_2M);
@@ -1588,24 +2664,21 @@ rme_ptr_t __RME_Boot(void)
     /* Initialize the timer and start its interrupt routing */
     RME_DBG_S("\r\nTimer init");
     __RME_X64_Timer_Init();
-    __RME_X64_IOAPIC_Int_Enable(2,0);
+    __RME_X64_IOAPIC_Int_Enable(2,RME_X64_CPU_Info[0].LAPIC_ID);
     /* Change page tables */
     RME_DBG_S("\r\nInit page table address:");
     RME_DBG_H(RME_CAP_GETOBJ((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prc->Pgt,rme_ptr_t));
     __RME_Pgt_Set((RME_CPU_LOCAL()->Thd_Cur)->Sched.Prc->Pgt);
 
-    /* Load the init process to address 0x2000000ULL*/
+    /* Load the init process at its linked virtual address. */
     extern const unsigned char UVM_Init[];
-    _RME_Memcpy((void*)0x20000000ULL,(void*)UVM_Init,RME_POW2(RME_PGT_SIZE_2M));
+    _RME_Memcpy((void*)RME_X64_UVM_BASE,(void*)UVM_Init,RME_POW2(RME_PGT_SIZE_2M));
 
-    /* Now other non-booting processors may proceed and go into their threads */
+    __RME_X64_Boot_Progress(RME_X64_BOOT_DONE);
+    __RME_X64_Boot_Message("RME: Entering UVM");
+    /* Release secondary processors after the init image is ready. */
     RME_X64_CPU_Cnt=0;
-    /*Set VGA buffer so we can output on screen*/
-    vga_row=0;
-    vga_col=0;
-    vga_buffer=RME_X64_VGA_BASE;
-    /* Boot into the init thread */
-    __RME_Enter_User_Mode(0x20000000ULL, RME_X64_USTACK(0)+0x20000000ULL, 0);
+    __RME_Enter_User_Mode(RME_X64_UVM_BASE, RME_X64_UVM_BASE+RME_X64_USTACK(0), 0);
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/

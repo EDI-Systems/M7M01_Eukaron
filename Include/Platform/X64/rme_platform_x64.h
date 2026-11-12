@@ -147,12 +147,6 @@ typedef rme_s64_t rme_ret_t;
 #define RME_CAPID_2L						  (((rme_cid_t)1)<<(sizeof(rme_ptr_t)*2-1))
 /* Get 2-level capid */
 #define RME_CAPID(X,Y)						  (((X)<<(sizeof(rme_ptr_t)*2))|(Y)|RME_CAPID_2L)
-/* VGA text area address - this is a paddr */
-#define RME_X64_VGA_BASE					  ((volatile rme_u16_t*)(RME_X64_PA2VA(0xB8000)))
-/* VGA text area settings , we create a 80*25 area */
-#define RME_X64_VGA_ROW_MAX					  (25U)
-#define RME_X64_VGA_COL_MAX					  (80U)
-
 /* Atomic instructions - The oficial release replaces all these with inline
  * assembly to boost speed. Sometimes this can harm compiler compatibility. If
  * you need normal assembly version, consider uncommenting the macro below. */
@@ -317,6 +311,7 @@ static INLINE rme_ptr_t __RME_Get_timestamp()
 #define RME_X64_MADT_INT_SRC_OVERRIDE        2
 #define RME_X64_MADT_NMI_INT_SRC             3
 #define RME_X64_MADT_LAPIC_NMI               4
+#define RME_X64_MADT_X2APIC                  9
 
 #define RME_X64_APIC_LAPIC_ENABLED           1
 
@@ -381,6 +376,7 @@ static INLINE rme_ptr_t __RME_Get_timestamp()
 #define RME_X64_CPUID_0_VENDOR_ID            (0x0)
 /* Processor info and feature bits */
 #define RME_X64_CPUID_1_INFO_FEATURE         (0x1)
+#define RME_X64_1_ECX_X2APIC                 (1U<<21)
 /* Cache and TLB descriptor information */
 #define RME_X64_CPUID_2_CACHE_TLB            (0x2)
 /* Processor serial number */
@@ -391,6 +387,7 @@ static INLINE rme_ptr_t __RME_Get_timestamp()
 #define RME_X64_CPUID_7_ECX0_INTEL_EXT       (0x7)
 /* Intel thread/core and cache topology 2 */
 #define RME_X64_CPUID_B_INTEL_TOPO2          (0xB)
+#define RME_X64_CPUID_15_TSC_RATIO          (0x15)
 
 /* Get highest extenbded function supported */
 #define RME_X64_CPUID_E0_EXT_MAX             (0x80000000)
@@ -560,8 +557,8 @@ while(0)
 #define RME_X64_LAPIC_TDCR                   (0x03E0/4)
 
 /* LAPIC R/W */
-#define RME_X64_LAPIC_READ(REG)              (((rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG])
-#define RME_X64_LAPIC_WRITE(REG,VAL)         (((rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG]=(VAL))
+#define RME_X64_LAPIC_READ(REG)              (((volatile rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG])
+#define RME_X64_LAPIC_WRITE(REG,VAL)         (((volatile rme_u32_t*)RME_X64_PA2VA(RME_X64_LAPIC_Addr))[REG]=(VAL))
 
 /* IOAPIC address - consider supporting multiple ones */
 #define RME_X64_IOAPIC_ADDR                 (RME_X64_PA2VA(0xFEC00000))
@@ -593,9 +590,16 @@ do \
 while(0)
 
 /* Processor RFLAGS register bits */
-#define RME_X64_RFLAGS_IF                  (1<<9)
+#define RME_X64_RFLAGS_TF                  (1U<<8)
+#define RME_X64_RFLAGS_IF                  (1U<<9)
+#define RME_X64_RFLAGS_DF                  (1U<<10)
 
 /* MSR addresses */
+#define RME_X64_MSR_IA32_APIC_BASE         (0x1B)
+#define RME_X64_APIC_BASE_X2APIC           (1U<<10)
+#define RME_X64_APIC_BASE_ENABLE           (1U<<11)
+#define RME_X64_MSR_X2APIC(REG)            (0x800U+((REG)>>2))
+#define RME_X64_XAPIC_BCAST_ID             (0xFFU)
 #define RME_X64_MSR_IA32_EFER              (0xC0000080)
 #define RME_X64_MSR_IA32_GS_BASE           (0xC0000101)
 #define RME_X64_MSR_IA32_KERNEL_GS_BASE    (0xC0000102)
@@ -616,11 +620,10 @@ while(0)
 /* Get kernel stack addresses */
 #define RME_X64_KSTACK(CPU)                (RME_X64_Layout.Stack_Start+((1+(CPU))<<RME_X64_KSTACK_ORDER))
 /* Get boot-time user stack addresses */
+#define RME_X64_UVM_BASE                    (0x20000000ULL)
 #define RME_X64_USTACK(CPU)                (RME_POW2(RME_PGT_SIZE_2M)+((CPU)+1)*RME_POW2(RME_PGT_SIZE_2K))
 /* The base of CPU-local data area */
 #define RME_X64_CPU_LOCAL_BASE(CPU)        (RME_X64_Layout.PerCPU_Start+(CPU)*2*RME_POW2(RME_PGT_SIZE_4K))
-/* Microsecond delay function - not needed in most cases */
-#define RME_X64_UDELAY(US)
 /*****************************************************************************/
 /* __RME_PLATFORM_X64_DEF__ */
 #endif
@@ -648,7 +651,7 @@ struct RME_X64_ACPI_RDSP_Desc
 	rme_u8_t Revision;
 	rme_u32_t RSDT_Addr_Phys;
 
-	/* These are the extended parts that we do not use now */
+	/* Extended fields present since ACPI 2.0 */
 	rme_u32_t Length;
 	rme_u64_t XSDT_Addr_Phys;
 	rme_u8_t Xchecksum;
@@ -667,14 +670,6 @@ struct RME_X64_ACPI_Desc_Hdr
 	rme_u32_t OEM_Revision;
 	rme_u8_t Creator_ID[4];
 	rme_u32_t Creator_Revision;
-} __attribute__((__packed__));
-
-/* Root System Description Table header */
-struct RME_X64_ACPI_RSDT_Hdr
-{
-	struct RME_X64_ACPI_Desc_Hdr Header;
-    /* This is fine; GCC can take this */
-	rme_u32_t Entry[0];
 } __attribute__((__packed__));
 
 /* Multiple APIC Description Table header */
@@ -697,6 +692,17 @@ struct RME_X64_ACPI_MADT_LAPIC_Record
 	rme_u32_t Flags;
 } __attribute__((__packed__));
 
+/* MADT's processor local x2APIC record */
+struct RME_X64_ACPI_MADT_X2APIC_Record
+{
+    rme_u8_t Type;
+    rme_u8_t Length;
+    rme_u16_t Reserved;
+    rme_u32_t APIC_ID;
+    rme_u32_t Flags;
+    rme_u32_t ACPI_UID;
+} __attribute__((__packed__));
+
 /* MADT's IOAPIC record */
 struct RME_X64_ACPI_MADT_IOAPIC_Record
 {
@@ -715,7 +721,7 @@ struct RME_X64_ACPI_MADT_SRC_OVERRIDE_Record
 	rme_u8_t Length;
     rme_u8_t Bus;
     rme_u8_t Source;
-    rme_u8_t GS_Interrupt;
+    rme_u32_t GS_Interrupt;
     rme_u16_t MPS_Int_Flags;
 }  __attribute__((__packed__));
 
@@ -1007,8 +1013,8 @@ struct __RME_X64_Kern_Pgt
 /*****************************************************************************/
 /* Is there a UART in the system? */
 static volatile rme_ptr_t RME_X64_UART_Exist;
-/* Where is the multiboot information located? */
-static volatile struct multiboot_info* RME_X64_MBInfo;
+/* Physical address of the Multiboot2 information block */
+static rme_ptr_t RME_X64_MBInfo_Phys;
 /* The layout of the memory structure */
 static volatile struct RME_X64_Layout RME_X64_Layout;
 /* We currently support 256 CPUs max */
@@ -1021,12 +1027,15 @@ static volatile rme_ptr_t RME_X64_Num_IOAPIC;
 static volatile struct RME_X64_IOAPIC_Info RME_X64_IOAPIC_Info[RME_X64_IOAPIC_NUM];
 /* The LAPIC address */
 static volatile rme_ptr_t RME_X64_LAPIC_Addr;
+/* Local APIC register interface selected by the boot processor. */
+static rme_ptr_t RME_X64_X2APIC;
 /* The processor features */
 static volatile struct RME_X64_Features RME_X64_Feature;
 /* The PCID counter */
 static volatile rme_ptr_t RME_X64_PCID_Inc;
 /* The VGA buffer pointer */
 static volatile rme_u16_t* vga_buffer;
+static rme_ptr_t vga_width, vga_height, vga_stride;
 /* The VGA text cursor row */
 static volatile rme_ptr_t vga_row;
 /* The VGA text cursor col */
@@ -1195,30 +1204,42 @@ static const rme_u8_t RME_X64_Boot_Code[]=
 /* Private Function **********************************************************/ 
 /*****************************************************************************/
 static void __RME_X64_UART_Init(void);
-/* Find the RDSP */
-static struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Scan(rme_ptr_t Base, rme_ptr_t Len);
-static struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RDSP_Find(void);
-static rme_ret_t __RME_X64_SMP_Detect(struct RME_X64_ACPI_MADT_Hdr* MADT);
+/* RGB debug console */
+static rme_ptr_t __RME_X64_Boot_Window_Map(rme_ptr_t Phys, rme_ptr_t Size,
+                                         rme_ptr_t Window, rme_ptr_t Flags);
+static void __RME_X64_Boot_Message(const char* Message);
+static void __RME_X64_Boot_Progress(rme_ptr_t Stage);
+static void __RME_X64_Boot_CPUs(rme_ptr_t Ready, rme_ptr_t Total);
+static void __RME_X64_RGB_Init(const struct multiboot_tag_framebuffer* Framebuffer);
+static void __RME_X64_RGB_Putchar(rme_u8_t Char);
+/* Find the RSDP */
+static const struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RSDP_Scan(rme_ptr_t Base, rme_ptr_t Size);
+static const struct RME_X64_ACPI_RDSP_Desc* __RME_X64_RSDP_Find(void);
+static rme_ret_t __RME_X64_ACPI_Error(const char* Message);
+static rme_ret_t __RME_X64_SMP_Detect(const struct RME_X64_ACPI_MADT_Hdr* MADT);
 /* Debug output helper */
-static void __RME_X64_ACPI_Debug(struct RME_X64_ACPI_Desc_Hdr *Header);
-/* Initialize the ACPI */
-static rme_ret_t __RME_X64_ACPI_Init(void);
+static void __RME_X64_ACPI_Debug(const struct RME_X64_ACPI_Desc_Hdr* Header);
+/* Initialize ACPI */
+struct RME_X64_Boot_Info;
+static rme_ret_t __RME_X64_ACPI_Init(const struct RME_X64_Boot_Info* Boot);
 /* Get processor feature bits */
 static void __RME_X64_Feature_Get(void);
-/* Initialize memory according to GRUB multiboot specification */
-static void __RME_X64_Mem_Init(rme_ptr_t MMap_Addr, rme_ptr_t MMap_Length);
 /* Initialize CPU-local tables */
 static void __RME_X64_CPU_Local_Init(void);
 /* Get the RME CPU-local data structure given its CPUID */
 static struct RME_CPU_Local* __RME_X64_CPU_Local_Get_By_CPUID(rme_ptr_t CPUID);
 /* Initialize interrupt controllers */
 static void __RME_X64_PIC_Init(void);
+static rme_u32_t __RME_X64_LAPIC_Read(rme_ptr_t Reg);
+static void __RME_X64_LAPIC_Write(rme_ptr_t Reg, rme_u32_t Value);
+static void __RME_X64_LAPIC_IPI(rme_u32_t ID, rme_u32_t Command);
 static void __RME_X64_LAPIC_Init(void);
 static void __RME_X64_IOAPIC_Init(void);
 /* Enable/disable a vector in IOAPIC */
 static void __RME_X64_IOAPIC_Int_Enable(rme_ptr_t IRQ, rme_ptr_t CPUID);
 static void __RME_X64_IOAPIC_Int_Disable(rme_ptr_t IRQ);
 /* Initialize timers */
+static void __RME_X64_SMP_Delay(rme_ptr_t Microseconds, rme_ptr_t TSC_Hz);
 static void __RME_X64_Timer_Init(void);
 /*****************************************************************************/
 #define __EXTERN__
