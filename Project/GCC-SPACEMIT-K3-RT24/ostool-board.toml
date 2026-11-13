@@ -1,0 +1,13 @@
+board_type = "BananaPi"
+kernel_load_addr = "0x102200000"
+fit_load_addr = "0x140000000"
+bootm_addr = "0x140000000"
+timeout = 120
+uboot_cmd = [
+    'setenv netretry no && setenv autoload no && dhcp && setenv autoload yes',
+]
+
+[[shell_check_steps]]
+# Use the final U-mode benchmark marker, not the boot handshake.
+success_regex = ["RME BENCH REPORT OK"]
+fail_regex = ["LOADER FAIL", "RT24M FAIL", "(?i)panic", "ASSERT"]

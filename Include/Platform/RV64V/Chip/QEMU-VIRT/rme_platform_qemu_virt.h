@@ -48,6 +48,8 @@ Description : The configuration file for the QEMU virt platform.
 #define RME_RV64V_OSTIM_VAL                             (100000U)
 /* Zicbom operates on one cache block; QEMU virt uses 64-byte blocks. */
 #define RME_RV64V_CACHE_BLOCK_SIZE                      (64U)
+/* Are Zicbom data-cache maintenance operations supported? */
+#define RME_RV64V_ZICBOM_ENABLE                         (1U)
 /* What is the FPU type? QEMU virt is rv64imafdch, so enable F and D. */
 #define RME_COP_NUM                                     (1U)
 #define RME_RV64V_COP_RVF                               (1U)
@@ -102,4 +104,3 @@ while(0)
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/
-

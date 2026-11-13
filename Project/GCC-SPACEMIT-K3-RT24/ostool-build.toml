@@ -1,0 +1,4 @@
+[system.Custom]
+build_cmd = "true"
+elf_path = "../../../M7M04_RT24Loader/Object/Loader.elf"
+to_bin = true

@@ -1,0 +1,8 @@
+[package]
+name = "rme-spacemit-k3-rt24"
+version = "0.1.0"
+edition = "2021"
+
+# Project metadata for ostool only; the Makefile builds the firmware.
+[lib]
+path = "src/lib.rs"

@@ -611,9 +611,11 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
                                   rme_ptr_t Operation,
                                   rme_ptr_t Param)
 {
+#if(RME_RV64V_ZICBOM_ENABLE!=0U)
     rme_ptr_t Addr;
     rme_ptr_t Sstatus;
     rme_ret_t Retval;
+#endif
 
     if(Cache_ID==RME_RV64V_KFN_CACHE_ICACHE)
     {
@@ -630,6 +632,7 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
 
     if(Cache_ID==RME_RV64V_KFN_CACHE_DCACHE)
     {
+#if(RME_RV64V_ZICBOM_ENABLE!=0U)
         /* Zicbom operates on one cache block (64B on QEMU virt and K3). */
         Addr=Param&(~((rme_ptr_t)RME_RV64V_CACHE_BLOCK_SIZE-1U));
 
@@ -671,6 +674,11 @@ rme_ret_t __RME_RV64V_Cache_Maint(rme_ptr_t Cache_ID,
         ___RME_RV64V_Fence();
         ___RME_RV64V_SSTATUS_Set(Sstatus);
         return Retval;
+#else
+        /* Do not execute optional instructions or report success without Zicbom. */
+        (void)Param;
+        return RME_ERR_KFN_FAIL;
+#endif
     }
 
     return RME_ERR_KFN_FAIL;
@@ -1004,7 +1012,12 @@ void __RME_RV64V_Pgt_Boot_Init(void)
 
     /* Build the bootstrap root page table. The MMU is still off, so the
        PC-relative address of the table is its physical address. */
+    #ifdef RME_RV64V_BOOT_PGT_PA
+    /* SRAM provides storage only; this S-mode function still builds the table. */
+    Root=(rme_ptr_t*)RME_RV64V_BOOT_PGT_PA;
+    #else
     Root=(rme_ptr_t*)__RME_Boot_Root;
+    #endif
     for(Count=0;Count<RME_POW2(RME_PGT_NUM_512);Count++)
         Root[Count]=0;
     /* The leaf PTE: PPN|V|R|W|X|A|D. The A (accessed) and D (dirty) bits are
@@ -1019,6 +1032,8 @@ void __RME_RV64V_Pgt_Boot_Init(void)
     Root[(RME_RV64V_KPGT_PA)>>RME_PGT_SIZE_1G]=Pte;
     Root[256U+((RME_RV64V_KPGT_PA)>>RME_PGT_SIZE_1G)]=Pte;
 
+    /* Publish PTEs before enabling hardware walks; sfence.vma is not a memory fence. */
+    ___RME_RV64V_Fence();
     /* satp = MODE(Sv39=8)<<60 | PPN(root) */
     Satp=(8UL<<60)|(((rme_ptr_t)Root)>>12);
 
@@ -1069,6 +1084,9 @@ void __RME_Lowlvl_Init(void)
 
     _RME_CPU_Local_Init(&RME_RV64V_CPU_Local[0],0U);
     ___RME_RV64V_CPU_Set(0U);
+
+    /* Install the generic trap entry only after tp/sscratch are initialized. */
+    __asm__ __volatile__("la t0,__RME_RV64V_Handler\n\tcsrw stvec,t0" ::: "t0","memory");
 
     RME_RV64V_CPU_Cnt=0U;
     RME_RV64V_Num_CPU=1U;

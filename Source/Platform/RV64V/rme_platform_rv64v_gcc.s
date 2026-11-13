@@ -169,6 +169,10 @@ _start:
     .option             pop
     LA                  sp,__RME_Stack
 
+    /* Catch delegated early S-mode exceptions before the first C call. */
+    LA                  t0,__RME_RV64V_Boot_Fault
+    CSRW                stvec,t0
+
     /* Keep the boot hart ID in a callee-saved register: the .bss clear below
      * must not erase it, and a0 is reused as the clear pointer. */
     MV                  s0,a0
@@ -207,13 +211,20 @@ __RME_RV64V_Boot_High:
     LA                  gp,__RME_Global
     .option             pop
     LA                  sp,__RME_Stack
-    LA                  t0,__RME_RV64V_Handler
+    LA                  t0,__RME_RV64V_Boot_Fault
     CSRW                stvec,t0
 
     /* Preinitialize the devices before any initialization */
     CALL                __RME_RV64V_Lowlvl_Preinit
     /* Branch to main function */
     J                   main
+
+/* Halt on early exceptions without accessing uninitialized tp/sscratch. */
+    .section            .text.__rme_rv64v_boot_fault
+    .align              3
+__RME_RV64V_Boot_Fault:
+1:
+    J                   1b
 
 /* Secondary-hart physical entry **********************************************
  * SBI HSM starts a hart with satp=0 and a0=hartid, a1=opaque. The opaque
@@ -1301,4 +1312,3 @@ ___RME_RV64V_Sie_Timer_Enable:
 /* End Of File ***************************************************************/
 
 /* Copyright (C) Evo-Devo Instrum. All rights reserved ***********************/
-

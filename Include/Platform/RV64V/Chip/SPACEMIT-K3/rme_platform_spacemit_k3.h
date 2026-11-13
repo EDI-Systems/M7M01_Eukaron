@@ -65,6 +65,8 @@ Description : The configuration file for the SpacemiT K3 platform
 
 /* Zicbom operates on one cache block; K3 uses 64-byte blocks. */
 #define RME_RV64V_CACHE_BLOCK_SIZE                      (64U)
+/* Are Zicbom data-cache maintenance operations supported? */
+#define RME_RV64V_ZICBOM_ENABLE                         (1U)
 
 /* What is the FPU type? K3 is rv64imafdcvh - it has both F and D, so
  * enable the double-precision context. */
