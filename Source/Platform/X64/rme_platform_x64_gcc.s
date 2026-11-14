@@ -148,33 +148,132 @@ AVX-512 registers:
     .global             __RME_X64_SMP_Tick
 /* End Import ****************************************************************/
 
+/*
+ * Multiboot2 Header Layout
+ * ================================================================
+ *
+ * Offset   Size    Type    Field                 Description
+ * ----------------------------------------------------------------
+ * 0x00     4       u32     magic                 0xE85250D6
+ * 0x04     4       u32     architecture          0 = i386 protected mode
+ * 0x08     4       u32     header_length         Total header size
+ * 0x0C     4       u32     checksum              32-bit checksum
+ * ----------------------------------------------------------------
+ * 0x10     2       u16     framebuffer.type      5 = Framebuffer
+ * 0x12     2       u16     framebuffer.flags     1 = Optional
+ * 0x14     4       u32     framebuffer.size      20 bytes
+ * 0x18     4       u32     framebuffer.width     0 = No preference
+ * 0x1C     4       u32     framebuffer.height    0 = No preference
+ * 0x20     4       u32     framebuffer.depth     0 = No preference
+ * 0x24     4       ---     padding               8-byte alignment
+ * ----------------------------------------------------------------
+ * 0x28     2       u16     end.type              0 = End
+ * 0x2A     2       u16     end.flags             0
+ * 0x2C     4       u32     end.size              8 bytes
+ * ----------------------------------------------------------------
+ * 0x30                     END                   Total = 48 bytes
+ * ================================================================
+ *
+ * Header Requirements:
+ *
+ * 1. Header must be 8-byte aligned.
+ * 2. Header must be entirely within the first 32768 image bytes.
+ * 3. Header length includes all fields, tags and padding.
+ * 4. Checksum must satisfy:
+ *      (magic + architecture + header_length + checksum)
+ *          mod 2^32 == 0
+ * 5. Each header tag must start at an 8-byte aligned address.
+ * 6. Tag size includes its 8-byte tag header but not padding.
+ * 7. The final tag must be type = 0, size = 8.
+ *
+ * Generic Header Tag:
+ *
+ * Offset   Size    Type    Field
+ * ----------------------------------------------------------------
+ * +0x00    2       u16     type
+ * +0x02    2       u16     flags
+ * +0x04    4       u32     size
+ * +0x08    N       ---     tag-specific data
+ *
+ * Flags:
+ *   bit 0 = 0 : Required
+ *   bit 0 = 1 : Optional
+ *
+ * Header Tag Types:
+ *
+ * Type     Name                    Description
+ * ----------------------------------------------------------------
+ * 0        END                     End of header
+ * 1        INFORMATION_REQUEST     Request boot information tags
+ * 2        ADDRESS                 Kernel physical load addresses
+ * 3        ENTRY_ADDRESS           Kernel entry address
+ * 4        CONSOLE_FLAGS           Console requirements
+ * 5        FRAMEBUFFER             Preferred video mode
+ * 6        MODULE_ALIGN            Page-align loaded modules
+ * 7        EFI_BS                  Preserve EFI boot services
+ * 8        ENTRY_ADDRESS_EFI32     EFI i386 entry point
+ * 9        ENTRY_ADDRESS_EFI64     EFI amd64 entry point
+ * 10       RELOCATABLE             Kernel relocation constraints
+ *
+ * Important:
+ *   Multiboot2 Header Tags are NOT Boot Information Tags.
+ *
+ *   Header Tag:
+ *       u16 type, u16 flags, u32 size
+ *       Provided by kernel, parsed by GRUB.
+ *
+ *   Boot Information Tag:
+ *       u32 type, u32 size
+ *       Provided by GRUB, parsed by kernel.
+ *
+ * References:
+ *   GNU Multiboot2 Specification 2.0, Section 3.1
+ * ================================================================
+ */
+
 /* Memory Init ***************************************************************/
-/* Multiboot header that will be located at 0x100000 *************************/
+/* Multiboot2 header ********************************************************/
+    .section            .multiboot2,"a",@progbits
+    .balign             8
+__RME_X64_Mboot_Header:
+    .long               0xE85250D6                  /* Magic number*/
+    .long               0                           /* i386 protected-mode entry */
+    .long               Mboot_Header_End-__RME_X64_Mboot_Header /* Header length */
+    .long               -(0xE85250D6+Mboot_Header_End-__RME_X64_Mboot_Header) /* Checksum */
+
+    /* Optional framebuffer request. Let GRUB pick the resolution and depth. */
+    .short              5,1
+    .long               20
+    .long               0,0,0
+    .balign             8
+
+    .short              0,0                         /* End tag */
+    .long               8
+Mboot_Header_End:
+
     .section            .text
     .code32
-    .align              16
-__RME_X64_Mboot_Header:
-    .long               0x1BADB002                  /* Magic number */
-    .long               0x00010000                  /* Boot flags */
-    .long               (-0x1BADB002-0x00010000)    /* Checksum */
-    .long               __RME_X64_Mboot_Load_Addr   /* header_addr */
-    .long               __RME_X64_Mboot_Load_Addr   /* .text addr */
-    .long               __RME_X64_Mboot_Load_End    /* .data end addr */
-    .long               __RME_X64_Mboot_BSS_End     /* .bss end addr */
-    .long               __RME_X64_Mboot_Entry_Addr  /* Entry of the kernel */
-
 /* Initial page table ********************************************************/
     /* 7 pages that start from 0x101000. We can't use 1GB pages here
      * because we do not know whether the CPU supports that or not.
      * We will detect these later when we are making the kernel pages */
     .align              4096
+Boot_Page_Tables:
     .space              7*4096
 
 /* The entry point after the bootloader finishes *****************************/
     .code32
     .align              16
+_start:
 __RME_X64_Mboot_Entry:
-     /* EBX contains Multiboot data structure, let's relocate it to some other places */
+     CLI
+     CMP                $0x36D76289,%EAX
+     JE                 Mboot_Entry_Valid
+Mboot_Entry_Invalid:
+     HLT
+     JMP                Mboot_Entry_Invalid
+Mboot_Entry_Valid:
+     /* Save the physical address of the Multiboot2 information in EBX. */
      MOV                %EBX,%ESI
      /* Zero 7 pages for our bootstrap page tables, PML4 @ 0x101000 */
      CLD
@@ -230,7 +329,7 @@ __RME_X64_SMP_Boot_32:
      MOV                $0x101000,%EAX
      MOV                %EAX,%CR3
      /* Load GDT */
-     LGDT               (Boot_GDT_Desc-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
+     LGDT               (Boot_GDT_Desc-Boot_Page_Tables+__RME_X64_Boot_Text_Load)
      /* Enable PAE - CR4.PAE=1 */
      MOV                %CR4,%EAX
      BTS                $5,%EAX
@@ -250,7 +349,7 @@ __RME_X64_SMP_Boot_32:
      BTS                $17,%EAX
      MOV                %EAX,%CR4 */
      /* shift to 64bit segment */
-     LJMP               $8,$(Boot_Low_64-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr)
+     LJMP               $8,$(Boot_Low_64-Boot_Page_Tables+__RME_X64_Boot_Text_Load)
 
 /* Now we are in 64-bit mode *************************************************/
     .align              16
@@ -258,7 +357,6 @@ __RME_X64_SMP_Boot_32:
 Boot_Low_64:
     movq                $Boot_High_64,%RAX
     jmp                 *%RAX
-_start:
 Boot_High_64:
     /* ensure data segment registers are sane - zero out all of them */
     XOR                 %RAX,%RAX
@@ -274,13 +372,18 @@ Boot_High_64:
     /* Setup initial stack - this is hard-coded at low memory */
     MOV                 $__RME_X64_Kern_Boot_Stack,%RAX
     MOV                 %RAX,%RSP
-    /* Pass the physical address of RSI to it */
-    MOV                 %RSI,%RDI
-    JMP                 main
+    /* Zero-extend the 32-bit physical address and enter C with ABI stack alignment. */
+    MOV                 %ESI,%EDI
+    CALL                main
+Boot_Stopped:
+    CLI
+    HLT
+    JMP                 Boot_Stopped
 Boot_SMP_64:
     MOV                 $0x7000,%RAX
     MOV                 -16(%RAX),%RSP
-    JMP                 __RME_SMP_Low_Level_Init
+    CALL                __RME_SMP_Low_Level_Init
+    JMP                 Boot_Stopped
 
     /* The initial gdt. Later we will have one GDT per CPU */
     .align              16
@@ -296,7 +399,7 @@ Boot_GDT:
     .long               0x00009000
 Boot_GDT_Desc:
     .word               Boot_GDT_Desc-Boot_GDT-1;
-    .quad               Boot_GDT-__RME_X64_Mboot_Header+__RME_X64_Mboot_Load_Addr;
+    .quad               Boot_GDT-Boot_Page_Tables+__RME_X64_Boot_Text_Load;
     .align              16
 
     /* The kernel page table */
@@ -318,8 +421,8 @@ Return      : ptr_t - The data received from that port.
 __RME_X64_In:
     PUSHQ               %RDX
     MOVQ                %RDI,%RDX
-    MOVQ                %RAX,%RAX
     INB                 (%DX),%AL
+    MOVZBL              %AL,%EAX
     POPQ                %RDX
     RETQ
 /* End Function:__RME_X64_In *************************************************/
@@ -585,7 +688,8 @@ Return      : None.
 ******************************************************************************/
 _RME_Kmain:
     MOVQ                %RDI,%RSP
-    JMP                 RME_Kmain
+    CALL                RME_Kmain
+    JMP                 Boot_Stopped
 /* End Function:_RME_Kmain ***************************************************/
 
 /* Function:__RME_X64_MSB_Get *************************************************
