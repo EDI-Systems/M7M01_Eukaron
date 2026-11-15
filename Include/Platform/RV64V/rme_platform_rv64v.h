@@ -151,7 +151,7 @@ static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
 #endif
 /* CPU-local data structure location macro - tp points at the per-hart
  * RME_RV64V_CPU_Data record while the kernel is running */
-#define RME_CPU_LOCAL()                         __RME_RV64V_CPU_Local_Get()
+#define RME_CPU_LOCAL()                         (((struct RME_RV64V_CPU_Data*)__RME_RV64V_CPU_Data_Get_Raw())->Local)
 /* The order of bits in one CPU machine word */
 #define RME_WORD_ORDER                          (6U)
 /* Quiescence timeslice value */
@@ -251,7 +251,7 @@ while(0)
 #define RME_RV64V_SBI_ERR_DENIED                (-4)
 #define RME_RV64V_SBI_ERR_INVALID_ADDRESS       (-5)
 #define RME_RV64V_SBI_ERR_ALREADY_AVAILABLE     (-6)
-#define RME_RV64V_SBI_ERR_NOT_READY              (-7)
+#define RME_RV64V_SBI_ERR_NOT_READY             (-7)
 
 /* FPU save/restore veneer choice */
 #if(RME_COP_NUM!=0U)
@@ -374,26 +374,24 @@ while(0)
  * half while physical memory (kernel image, KOM, stacks) stays low, so the
  * kernel is reached at PA+VA_BASE and user processes map the low half. This is
  * the single VA<->PA translation point for the whole port. */
-#define RME_RV64V_VA_BASE                         (0xFFFFFFC000000000UL)
+#define RME_RV64V_VA_BASE                       (0xFFFFFFC000000000UL)
 /* Convert PA->VA and VA->PA */
-#define RME_RV64V_PA2VA(PA)                       (((rme_ptr_t)(PA))+RME_RV64V_VA_BASE)
-#define RME_RV64V_VA2PA(VA)                       (((rme_ptr_t)(VA))-RME_RV64V_VA_BASE)
+#define RME_RV64V_PA2VA(PA)                     (((rme_ptr_t)(PA))+RME_RV64V_VA_BASE)
+#define RME_RV64V_VA2PA(VA)                     (((rme_ptr_t)(VA))-RME_RV64V_VA_BASE)
 /* The satp PPN field - Sv39 uses PPN[43:0], i.e. a 56-bit physical address */
-#define RME_RV64V_SATP_PPN_MASK                   (0xFFFFFFFFFFFUL)
+#define RME_RV64V_SATP_PPN_MASK                 (0xFFFFFFFFFFFUL)
 /* The satp ASID field - [59:44] on RV64. The field is WARL: a value that does
  * not fit is truncated, and two address spaces would then share one ASID.
  * Measured 14/11/2026: QEMU, K3 and RT24 all implement the full 16 bits. */
-#define RME_RV64V_SATP_ASID_SHIFT                 (44U)
-#define RME_RV64V_SATP_ASID_MAX                   (0xFFFFUL)
-#define RME_RV64V_SATP_ASID_MASK                  (RME_RV64V_SATP_ASID_MAX<<RME_RV64V_SATP_ASID_SHIFT)
+#define RME_RV64V_SATP_ASID_SHIFT               (44U)
+#define RME_RV64V_SATP_ASID_MAX                 (0xFFFFUL)
+#define RME_RV64V_SATP_ASID_MASK                (RME_RV64V_SATP_ASID_MAX<<RME_RV64V_SATP_ASID_SHIFT)
 /* The ASID of the init address space. The kernel programs it, and the KFN
  * refuses it, so the caller cannot collide with the init address space. */
-#define RME_RV64V_INIT_ASID                        (1UL)
+#define RME_RV64V_INIT_ASID                     (1UL)
 /* Pack/unpack the logical ASID value into/from the satp field */
-#define RME_RV64V_SATP_ASID_GET(X) \
-    ((((rme_ptr_t)(X))&RME_RV64V_SATP_ASID_MASK)>>RME_RV64V_SATP_ASID_SHIFT)
-#define RME_RV64V_SATP_ASID_SET(X) \
-    (((rme_ptr_t)(X))<<RME_RV64V_SATP_ASID_SHIFT)
+#define RME_RV64V_SATP_ASID_GET(X)              ((((rme_ptr_t)(X))&RME_RV64V_SATP_ASID_MASK)>>RME_RV64V_SATP_ASID_SHIFT)
+#define RME_RV64V_SATP_ASID_SET(X)              (((rme_ptr_t)(X))<<RME_RV64V_SATP_ASID_SHIFT)
 
 /* Sv39 page table entry layout (64-bit):
  * [63]    PBMT/N  - ignored in base Sv39
@@ -408,27 +406,27 @@ while(0)
  * [1]     R       - read
  * [0]     V       - valid
  */
-#define RME_RV64V_MMU_V                           (((rme_ptr_t)1)<<0)
-#define RME_RV64V_MMU_R                           (((rme_ptr_t)1)<<1)
-#define RME_RV64V_MMU_W                           (((rme_ptr_t)1)<<2)
-#define RME_RV64V_MMU_X                           (((rme_ptr_t)1)<<3)
-#define RME_RV64V_MMU_U                           (((rme_ptr_t)1)<<4)
-#define RME_RV64V_MMU_G                           (((rme_ptr_t)1)<<5)
-#define RME_RV64V_MMU_A                           (((rme_ptr_t)1)<<6)
-#define RME_RV64V_MMU_D                           (((rme_ptr_t)1)<<7)
+#define RME_RV64V_MMU_V                         (((rme_ptr_t)1)<<0)
+#define RME_RV64V_MMU_R                         (((rme_ptr_t)1)<<1)
+#define RME_RV64V_MMU_W                         (((rme_ptr_t)1)<<2)
+#define RME_RV64V_MMU_X                         (((rme_ptr_t)1)<<3)
+#define RME_RV64V_MMU_U                         (((rme_ptr_t)1)<<4)
+#define RME_RV64V_MMU_G                         (((rme_ptr_t)1)<<5)
+#define RME_RV64V_MMU_A                         (((rme_ptr_t)1)<<6)
+#define RME_RV64V_MMU_D                         (((rme_ptr_t)1)<<7)
 /* A valid entry is a leaf when at least one of R/W/X is set; otherwise it is
  * a non-leaf entry pointing at the next level table. */
-#define RME_RV64V_MMU_LEAF                        (RME_RV64V_MMU_R|RME_RV64V_MMU_W|RME_RV64V_MMU_X)
+#define RME_RV64V_MMU_LEAF                      (RME_RV64V_MMU_R|RME_RV64V_MMU_W|RME_RV64V_MMU_X)
 /* The PPN field occupies PTE[53:10] */
-#define RME_RV64V_MMU_PPN_MASK                    (0x003FFFFFFFFFFC00UL)
+#define RME_RV64V_MMU_PPN_MASK                  (0x003FFFFFFFFFFC00UL)
 /* Physical address -> PTE PPN field (PA[55:12] placed at bit 10) */
-#define RME_RV64V_MMU_PPN(X)                      ((((rme_ptr_t)(X))>>12)<<10)
+#define RME_RV64V_MMU_PPN(X)                    ((((rme_ptr_t)(X))>>12)<<10)
 /* PTE -> physical address (PPN<<12) */
-#define RME_RV64V_MMU_ADDR(X)                     ((((rme_ptr_t)(X))&RME_RV64V_MMU_PPN_MASK)>>10<<12)
+#define RME_RV64V_MMU_ADDR(X)                   ((((rme_ptr_t)(X))&RME_RV64V_MMU_PPN_MASK)>>10<<12)
 
 /* Get the actual table positions - the object memory IS the table */
-#define RME_RV64V_PGT_TBL_NOM(X)                  (X)
-#define RME_RV64V_PGT_TBL_TOP(X)                  (X)
+#define RME_RV64V_PGT_TBL_NOM(X)                (X)
+#define RME_RV64V_PGT_TBL_TOP(X)                (X)
 
 /* Convert the RME page flags into a Sv39 leaf PTE flag field. The RME R/W/X
  * bits happen to line up with the Sv39 bits, but W must imply R. A (accessed)
@@ -837,11 +835,16 @@ RME_EXTERN void ___RME_RV64V_Cbo_Clean(rme_ptr_t Addr);
 RME_EXTERN void ___RME_RV64V_Cbo_Inval(rme_ptr_t Addr);
 RME_EXTERN void ___RME_RV64V_Cbo_Flush(rme_ptr_t Addr);
 /* OpenSBI (SBI) service helpers. The raw call implements the SBI v0.2+
- * calling convention: EID in a7, FID in a6, parameters in a0-a5. */
-RME_EXTERN struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(
-    rme_ptr_t Ext_ID, rme_ptr_t Func_ID,
-    rme_ptr_t Param0, rme_ptr_t Param1, rme_ptr_t Param2,
-    rme_ptr_t Param3, rme_ptr_t Param4, rme_ptr_t Param5);
+ * calling convention: EID in a7, FID in a6, parameters in a0-a5. The C ABI
+ * only has eight argument registers, so all of them are used up here. */
+RME_EXTERN struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(rme_ptr_t Ext_ID,
+                                                          rme_ptr_t Func_ID,
+                                                          rme_ptr_t Param0,
+                                                          rme_ptr_t Param1,
+                                                          rme_ptr_t Param2,
+                                                          rme_ptr_t Param3,
+                                                          rme_ptr_t Param4,
+                                                          rme_ptr_t Param5);
 RME_EXTERN rme_ptr_t ___RME_RV64V_Time_Get(void);
 RME_EXTERN void ___RME_RV64V_Sie_Timer_Enable(void);
 __RME_EXTERN__ rme_ret_t ___RME_RV64V_Sbi_Console_Putchar(rme_ptr_t Char);
@@ -854,7 +857,6 @@ __RME_EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 #endif
 /* Getting CPUID and CPU-local data */
 __RME_EXTERN__ rme_ptr_t __RME_CPUID_Get(void);
-__RME_EXTERN__ struct RME_CPU_Local* __RME_RV64V_CPU_Local_Get(void);
 
 /* Trap dispatcher called from the assembly trap entry */
 __RME_EXTERN__ void _RME_RV64V_Handler(struct RME_Reg_Struct* Reg);

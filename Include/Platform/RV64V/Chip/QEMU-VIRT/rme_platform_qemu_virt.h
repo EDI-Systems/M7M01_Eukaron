@@ -76,7 +76,7 @@ do \
 { \
     /* Enable the S-mode timer interrupt (sie.STIE) */ \
     ___RME_RV64V_Sie_Timer_Enable(); \
-    /* Arm the first timer event via OpenSBI - no auto-reload, re-armed on \
+    /* Arm the first timer event via OpenSBI - no auto-reload, re-armed on
      * every tick inside the timer handler */ \
     (void)___RME_RV64V_Sbi_Timer_Set(___RME_RV64V_Time_Get()+RME_RV64V_OSTIM_VAL); \
 } \

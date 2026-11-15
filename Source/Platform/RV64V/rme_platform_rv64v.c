@@ -140,21 +140,6 @@ rme_ret_t ___RME_RV64V_Sbi_Shutdown(void)
 }
 /* End Function:___RME_RV64V_Sbi_Shutdown ************************************/
 
-/* Function:__RME_RV64V_CPU_Local_Get ****************************************
-Description : Get the CPU-local data structure of the running hart. The tp
-              register points at this hart's RME_RV64V_CPU_Data record while
-              the kernel is executing. This must only be called after
-              __RME_Lowlvl_Init() has installed tp for this hart.
-Input       : None.
-Output      : None.
-Return      : struct RME_CPU_Local* - The CPU-local data structure.
-******************************************************************************/
-struct RME_CPU_Local* __RME_RV64V_CPU_Local_Get(void)
-{
-    return ((struct RME_RV64V_CPU_Data*)__RME_RV64V_CPU_Data_Get_Raw())->Local;
-}
-/* End Function:__RME_RV64V_CPU_Local_Get ************************************/
-
 /* Function:__RME_CPUID_Get ***************************************************
 Description : Get the CPUID. This is to identify where we are executing.
               CPUID is the logical (dense) CPU index, not the hardware hart ID;
@@ -2067,7 +2052,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Check(rme_ptr_t Base_Addr, rme_ptr_t Is_Top,
-                            rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
+                          rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     /* Is the table address aligned to 4kB? Sv39 finds the table through a PPN */
     if((Vaddr&0xFFF)!=0)
@@ -2248,7 +2233,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Pgdir_Map(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
-                                struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
+                              struct RME_Cap_Pgt* Pgt_Child, rme_ptr_t Flags)
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
@@ -2296,7 +2281,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Pgdir_Unmap(struct RME_Cap_Pgt* Pgt_Parent, rme_ptr_t Pos,
-                                  struct RME_Cap_Pgt* Pgt_Child)
+                                struct RME_Cap_Pgt* Pgt_Child)
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t Temp;
@@ -2396,7 +2381,7 @@ Output      : rme_ptr_t* Pgt - The pointer to the page table level.
 Return      : rme_ret_t - If successful, 0; else RME_ERR_HAL_FAIL.
 ******************************************************************************/
 rme_ret_t __RME_Pgt_Walk(struct RME_Cap_Pgt* Pgt_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgt,
-                           rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags)
+                         rme_ptr_t* Map_Vaddr, rme_ptr_t* Paddr, rme_ptr_t* Size_Order, rme_ptr_t* Num_Order, rme_ptr_t* Flags)
 {
     rme_ptr_t* Table;
     rme_ptr_t Pos;

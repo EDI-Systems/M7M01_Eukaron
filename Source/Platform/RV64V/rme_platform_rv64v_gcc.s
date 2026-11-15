@@ -1261,16 +1261,12 @@ ___RME_RV64V_Thd_Cop_Load_RVD:
 /* Function:___RME_RV64V_Sbi_Call *********************************************
 Description : The single SBI v0.2+ ecall entry. All platform SBI wrappers go
               through this function.
-              C signature:
-                struct RME_RV64V_SBI_Ret ___RME_RV64V_Sbi_Call(
-                    Ext_ID, Func_ID, Param0, Param1,
-                    Param2, Param3, Param4, Param5)
-              On entry (C ABI):
-                a0=Ext_ID, a1=Func_ID, a2=Param0, a3=Param1,
-                a4=Param2, a5=Param3, a6=Param4, a7=Param5.
-Input       : Ext_ID - SBI extension ID, loaded into a7.
-              Func_ID - SBI function ID, loaded into a6.
-              Param0..Param5 - SBI arguments, loaded into a0-a5.
+              The C arguments arrive in a0-a7 and are moved to the SBI
+              registers.
+Input       : Ext_ID - SBI extension ID, a0 on entry, loaded into a7.
+              Func_ID - SBI function ID, a1 on entry, loaded into a6.
+              Param0..Param5 - SBI arguments, a2-a7 on entry, loaded into
+              a0-a5.
 Output      : None.
 Return      : struct RME_RV64V_SBI_Ret - SBI error in a0, value in a1.
 ******************************************************************************/
@@ -1278,7 +1274,8 @@ Return      : struct RME_RV64V_SBI_Ret - SBI error in a0, value in a1.
     .align              3
 
 ___RME_RV64V_Sbi_Call:
-    /* Preserve the two arguments that overlap with the SBI result registers */
+    /* Park the two arguments that overlap with the SBI argument registers.
+     * They are consumed before the ecall, so temporaries are enough. */
     MV                  t0,a7        /* t0 = Param5 */
     MV                  t1,a6        /* t1 = Param4 */
 
