@@ -1880,7 +1880,7 @@ Return      : None.
 void __RME_Thd_Reg_Init(rme_ptr_t Attr,
                         rme_ptr_t Entry,
                         rme_ptr_t Stack,
-                        rme_ptr_t Param, 
+                        rme_ptr_t Param,
                         struct RME_Reg_Struct* Reg)
 {
     /* We have not used FPU yet in this new context */
@@ -1891,6 +1891,17 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
     Reg->SP=Stack;
     /* Set the parameter */
     Reg->R5=Param;
+    /* Zero the rest - a fresh execution context must not inherit whatever
+     * the register block happened to hold from a previous life; leaving
+     * stale values here lets a recovered thread resume carrying the
+     * registers of the context that was executing when it was last
+     * switched out. */
+    Reg->R6=0U;
+    Reg->R7=0U;
+    Reg->R8=0U;
+    Reg->R9=0U;
+    Reg->R10=0U;
+    Reg->R11=0U;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 

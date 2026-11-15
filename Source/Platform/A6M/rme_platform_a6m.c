@@ -1204,6 +1204,14 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
     Reg->SP=Stack;
     /* Set the parameter */
     Reg->R5=Param;
+    /* Zero the rest - a fresh execution context must not inherit whatever
+     * the register block happened to hold from a previous life. */
+    Reg->R6=0U;
+    Reg->R7=0U;
+    Reg->R8=0U;
+    Reg->R9=0U;
+    Reg->R10=0U;
+    Reg->R11=0U;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 

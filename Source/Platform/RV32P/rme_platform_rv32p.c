@@ -1222,6 +1222,40 @@ void __RME_Thd_Reg_Init(rme_ptr_t Attr,
     Reg->X2_SP=Stack;
     /* Set the parameter */
     Reg->X10_A0=Param;
+    /* Zero the rest - a fresh execution context must not inherit whatever
+     * the register block happened to hold from a previous life; leaving
+     * stale values here lets a recovered thread resume carrying the
+     * registers of the context that was executing when it was last
+     * switched out. */
+    Reg->X1_RA=0U;
+    Reg->X3_GP=0U;
+    Reg->X4_TP=0U;
+    Reg->X5_T0=0U;
+    Reg->X6_T1=0U;
+    Reg->X7_T2=0U;
+    Reg->X8_S0_FP=0U;
+    Reg->X9_S1=0U;
+    Reg->X11_A1=0U;
+    Reg->X12_A2=0U;
+    Reg->X13_A3=0U;
+    Reg->X14_A4=0U;
+    Reg->X15_A5=0U;
+    Reg->X16_A6=0U;
+    Reg->X17_A7=0U;
+    Reg->X18_S2=0U;
+    Reg->X19_S3=0U;
+    Reg->X20_S4=0U;
+    Reg->X21_S5=0U;
+    Reg->X22_S6=0U;
+    Reg->X23_S7=0U;
+    Reg->X24_S8=0U;
+    Reg->X25_S9=0U;
+    Reg->X26_S10=0U;
+    Reg->X27_S11=0U;
+    Reg->X28_T3=0U;
+    Reg->X29_T4=0U;
+    Reg->X30_T5=0U;
+    Reg->X31_T6=0U;
 }
 /* End Function:__RME_Thd_Reg_Init *******************************************/
 

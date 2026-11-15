@@ -59,7 +59,7 @@ Description: The boot stub source file for all WCH QingKe cores. It claims to
               execute the offending instruction again (which is what we want
               to have), the instruction following that offending instruction
               is already commited, causing it to be executed again on exception
-              return. The Nuclei N300 series just seem to have the same issue.
+              return. Some other manufacturers just seem to have the same issue.
               A general workaround for these processors are:
               (1) In any init boot code, insert enough number of NOPs after any
                   potentially dynamic accesses.
@@ -73,12 +73,12 @@ Description: The boot stub source file for all WCH QingKe cores. It claims to
               -----------------------------------------------------------------
               5. Nonstandard PMP access control behavior
               The WCH PMP has a hidden "background range" that allow all U-mode
-              accesses by default. That said, when all PMP regions are "OFF", 
-              the processor does not block any U-mode accesses. This is a clear
-              deviation from the RISC-V standard, which require all such accesses
-              to fail. The workaround is that we will have to declare the chip as
-              having 3 MPU regions, and the last region will always be programmed
-              to block all accesses.
+              accesses by default. That said, when all PMP regions are "OFF" (or
+              a match is not recorded), the processor does not block any U-mode
+              accesses. This is a clear deviation from the RISC-V standard, which
+              requires all such accesses to fail. The workaround is that we will
+              have to declare the chip as having 3 PMP regions, and the last
+              region will always be preprogrammed to block all accesses.
               -----------------------------------------------------------------
               6. Lack of RISC-V standard timer
               The WCH core uses an ARM-style SysTick instead of the RISC-V
