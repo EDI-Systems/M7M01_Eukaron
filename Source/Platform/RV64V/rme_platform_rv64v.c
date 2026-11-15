@@ -692,6 +692,9 @@ Description : Set the ASID of a top-level page table. ASID allocation and
               new ASID TLB entries are flushed before the change, so an ASID
               can be reused safely. ASID 0 is left untagged for the boot and
               not-yet-configured mappings.
+              An ASID that the hardware cannot represent is refused (the
+              field is WARL and would truncate it), and so is the init
+              address space's own ASID.
 Input       : struct RME_Cap_Cpt* Cpt - The current capability table.
               rme_cid_t Cap_Pgt - The capability to the top-level page table.
               rme_ptr_t Asid - The new ASID (0..0xFFFF).
@@ -713,7 +716,12 @@ rme_ret_t __RME_RV64V_Pgt_Asid_Set(struct RME_Cap_Cpt* Cpt,
     if((Pgt_Op->Base&RME_PGT_TOP)==0U)
         return RME_ERR_KFN_FAIL;
 
+    /* The ASID must fit into the field that the hardware implements */
     if(Asid>RME_RV64V_SATP_ASID_MAX)
+        return RME_ERR_KFN_FAIL;
+
+    /* The init address space owns this ASID */
+    if((Asid!=0U)&&(Asid==RME_RV64V_INIT_ASID))
         return RME_ERR_KFN_FAIL;
 
     if(Pgt_Op->ASID==Asid)
@@ -1282,6 +1290,18 @@ void __RME_Boot(void)
                                  RME_PGT_SIZE_1G,
                                  RME_PGT_NUM_512)==0);
     Cur_Addr+=RME_KOM_ROUND(RME_PGT_SIZE_TOP(RME_PGT_NUM_512));
+
+    /* Give the init address space a real ASID: an untagged table shares its
+     * translations with every other untagged table, so every switch back to
+     * it costs a full TLB flush. */
+    if(RME_RV64V_INIT_ASID!=0U)
+    {
+        struct RME_Cap_Pgt* Pgt_Op;
+
+        Pgt_Op=(struct RME_Cap_Pgt*)&RME_CAP_GETOBJ(
+            &RME_RV64V_CPT[RME_BOOT_INIT_CPT],struct RME_Cap_Struct*)[RME_BOOT_INIT_PGT];
+        Pgt_Op->ASID=RME_RV64V_INIT_ASID;
+    }
 
     /* The second-level page table for the init process's user address space.
      * It covers [0, 1GB); only the user window below is populated, the rest of
@@ -2019,6 +2039,11 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
      * a 56-bit physical address, so the PPN field is 44 bits. */
     Satp=(8UL<<60)|RME_RV64V_SATP_ASID_SET(Asid)|
          ((RME_RV64V_VA2PA(RME_CAP_GETOBJ(Pgt,rme_ptr_t))>>12)&RME_RV64V_SATP_PPN_MASK);
+
+    /* The table is already active: the satp value does not change and the
+     * cached translations stay valid, so there is nothing to do. */
+    if(___RME_RV64V_SATP_Get()==Satp)
+        return;
 
     ___RME_RV64V_SATP_Set(Satp);
 

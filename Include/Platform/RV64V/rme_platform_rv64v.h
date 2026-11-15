@@ -380,11 +380,15 @@ while(0)
 #define RME_RV64V_VA2PA(VA)                       (((rme_ptr_t)(VA))-RME_RV64V_VA_BASE)
 /* The satp PPN field - Sv39 uses PPN[43:0], i.e. a 56-bit physical address */
 #define RME_RV64V_SATP_PPN_MASK                   (0xFFFFFFFFFFFUL)
-/* The satp ASID field - [59:44] on RV64, 16 bits wide (ASIDLEN is
- * implementation-defined; software must still handle wrapping) */
+/* The satp ASID field - [59:44] on RV64. The field is WARL: a value that does
+ * not fit is truncated, and two address spaces would then share one ASID.
+ * Measured 14/11/2026: QEMU, K3 and RT24 all implement the full 16 bits. */
 #define RME_RV64V_SATP_ASID_SHIFT                 (44U)
 #define RME_RV64V_SATP_ASID_MAX                   (0xFFFFUL)
 #define RME_RV64V_SATP_ASID_MASK                  (RME_RV64V_SATP_ASID_MAX<<RME_RV64V_SATP_ASID_SHIFT)
+/* The ASID of the init address space. The kernel programs it, and the KFN
+ * refuses it, so the caller cannot collide with the init address space. */
+#define RME_RV64V_INIT_ASID                        (1UL)
 /* Pack/unpack the logical ASID value into/from the satp field */
 #define RME_RV64V_SATP_ASID_GET(X) \
     ((((rme_ptr_t)(X))&RME_RV64V_SATP_ASID_MASK)>>RME_RV64V_SATP_ASID_SHIFT)
@@ -821,6 +825,7 @@ RME_EXTERN void ___RME_RV64V_SSTATUS_Set(rme_ptr_t Value);
 RME_EXTERN void ___RME_RV64V_SCOUNTEREN_Set(rme_ptr_t Value);
 /* MMU (satp) manipulations */
 RME_EXTERN void ___RME_RV64V_SATP_Set(rme_ptr_t Value);
+RME_EXTERN rme_ptr_t ___RME_RV64V_SATP_Get(void);
 RME_EXTERN void ___RME_RV64V_TLB_Flush(void);
 RME_EXTERN void ___RME_RV64V_TLB_Flush_Asid(rme_ptr_t Asid);
 RME_EXTERN void ___RME_RV64V_TLB_Flush_Vaddr(rme_ptr_t Vaddr);
