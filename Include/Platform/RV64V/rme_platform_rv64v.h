@@ -823,7 +823,6 @@ RME_EXTERN void ___RME_RV64V_SSTATUS_Set(rme_ptr_t Value);
 RME_EXTERN void ___RME_RV64V_SCOUNTEREN_Set(rme_ptr_t Value);
 /* MMU (satp) manipulations */
 RME_EXTERN void ___RME_RV64V_SATP_Set(rme_ptr_t Value);
-RME_EXTERN rme_ptr_t ___RME_RV64V_SATP_Get(void);
 RME_EXTERN void ___RME_RV64V_TLB_Flush(void);
 RME_EXTERN void ___RME_RV64V_TLB_Flush_Asid(rme_ptr_t Asid);
 RME_EXTERN void ___RME_RV64V_TLB_Flush_Vaddr(rme_ptr_t Vaddr);

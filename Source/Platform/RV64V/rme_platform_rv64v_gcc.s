@@ -131,7 +131,6 @@ F31    $ft11      temporary (caller-save)
     .global             ___RME_RV64V_SCOUNTEREN_Set
     /* MMU (satp) manipulations */
     .global             ___RME_RV64V_SATP_Set
-    .global             ___RME_RV64V_SATP_Get
     .global             ___RME_RV64V_TLB_Flush
     .global             ___RME_RV64V_TLB_Flush_Asid
     .global             ___RME_RV64V_TLB_Flush_Vaddr
@@ -462,21 +461,6 @@ ___RME_RV64V_SATP_Set:
     CSRW                satp,a0
     RET
 /* End Function:___RME_RV64V_SATP_Set ****************************************/
-
-/* Function:___RME_RV64V_SATP_Get *********************************************
-Description : Read the satp register. __RME_Pgt_Set uses it to check whether
-              the table to activate is already the active one.
-Input       : None.
-Output      : None.
-Return      : a0 - The satp value.
-******************************************************************************/
-    .section            .text.___rme_rv64v_satp_get
-    .align              3
-
-___RME_RV64V_SATP_Get:
-    CSRRS               a0,satp,zero
-    RET
-/* End Function:___RME_RV64V_SATP_Get ****************************************/
 
 /* Function:___RME_RV64V_TLB_Flush ********************************************
 Description : Flush all address-translation cache (TLB) entries.

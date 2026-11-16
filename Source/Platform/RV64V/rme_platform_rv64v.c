@@ -2024,12 +2024,7 @@ void __RME_Pgt_Set(struct RME_Cap_Pgt* Pgt)
      * a 56-bit physical address, so the PPN field is 44 bits. */
     Satp=(8UL<<60)|RME_RV64V_SATP_ASID_SET(Asid)|
          ((RME_RV64V_VA2PA(RME_CAP_GETOBJ(Pgt,rme_ptr_t))>>12)&RME_RV64V_SATP_PPN_MASK);
-
-    /* The table is already active: the satp value does not change and the
-     * cached translations stay valid, so there is nothing to do. */
-    if(___RME_RV64V_SATP_Get()==Satp)
-        return;
-
+         
     ___RME_RV64V_SATP_Set(Satp);
 
     /* The caller flushes an ASID before assigning it through the KFN, so a
