@@ -42,11 +42,11 @@ Description : The configuration file for the QEMU virt platform.
 
 /* Init process's first thread - user virtual addresses, decoupled from the
  * physical pages, matching X64 (first user program at 0x20000000). The code
- * is loaded physically at 0x81030000; each CPU's user stack is a 64KB block
+ * is embedded in the kernel image; each CPU's user stack is a 64KB block
  * in the kernel .bss mapped below 0x20200000 (see RME_RV64V_INIT_STACK). */
 #define RME_RV64V_INIT_ENTRY                            (0x20000000U)
-/* Physical backing of the init image (QEMU loader) */
-#define RME_RV64V_INIT_PA                               (0x81030000U)
+/* The linker places the embedded init image before the kernel .bss. */
+#define RME_RV64V_INIT_PA                               RME_RV64V_VA2PA((rme_ptr_t)__RME_Init_Image)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_RV64V_OSTIM_VAL                             (100000U)
 /* Zicbom operates on one cache block; QEMU virt uses 64-byte blocks. */

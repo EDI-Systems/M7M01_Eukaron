@@ -31,10 +31,8 @@ ASRCS+=../../Source/Platform/RV64V/rme_platform_rv64v_gcc.s
 # End Source ##################################################################
 
 # User init program ############################################################
-# The init program is written in Rust and lives in M7M03_Anomalocaris. On the
-# K3 board there is no QEMU -device loader, so init.bin is converted into an
-# ELF object (.init_image section) and embedded in the kernel image at the
-# fixed physical address 0x102300000 by the linker script.
+# The init program is written in Rust and lives in M7M03_Anomalocaris. The
+# kernel embeds the resulting init.bin as an ELF object before the BSS.
 RUST_INIT_DIR=../../../M7M03_Anomalocaris
 RUST_INIT_BUILD=$(RUST_INIT_DIR)/build.sh
 RUST_ORIG_INIT_BIN=$(RUST_INIT_DIR)/build/init.bin
@@ -51,7 +49,7 @@ DEP=$(OBJDIR)/$(notdir $(@:%.o=%.d))
 OBJ=$(OBJDIR)/$(notdir $@)
 
 # Build all
-all: mkdir $(COBJS) $(INIT_OBJ) $(TARGET) $(TARGET).bin
+all: mkdir $(COBJS) $(TARGET) $(TARGET).bin
 
 # Create output folder
 mkdir:
@@ -69,7 +67,7 @@ mkdir:
 	@echo "    AS      $(notdir $<)"
 	@$(CC) -c $(CPU) $(INCS) $(CFLAGS) $(DFLAGS) $(ASFLAGS) $(WFLAGS) -MMD -MP -MF "$(DEP)" "$<" -o "$(OBJ)"
 
-$(TARGET): $(COBJS) $(INIT_OBJ)
+$(TARGET): $(COBJS) $(INIT_OBJ) rme_platform_spacemit_k3.ld
 	@echo "    ELF     $(notdir $@)"
 	@$(CC) $(OBJDIR)/*.o $(CPU) $(LIBS) $(LDFLAGS) -o $(OBJ)
 
@@ -86,13 +84,9 @@ $(INIT_BIN):
 	@$(RUST_INIT_BUILD)
 	@cp $(RUST_ORIG_INIT_BIN) $(INIT_BIN)
 
-# Convert init.bin into an ELF object whose .init_image section the linker
-# places at 0x102600000 (see rme_platform_spacemit_k3.ld). NOTE: objcopy
-# must NOT be given --rename-section flags here - passing alloc/load/etc.
-# zeroes the section content.
 $(INIT_OBJ): $(INIT_BIN)
-	@echo "    OBJCOPY $(notdir $(INIT_OBJ)) (embed init image)"
-	@$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv --rename-section .data=.init_image $(INIT_BIN) $(INIT_OBJ)
+	@echo "    OBJCOPY $(notdir $@) (embed init image)"
+	@$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv --rename-section .data=.init_image "$<" "$@"
 # End User init program ########################################################
 
 # Clean up

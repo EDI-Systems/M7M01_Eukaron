@@ -25,12 +25,7 @@ Description : The configuration file for the SpacemiT K3 platform
  * half: VA = RME_RV64V_VA_BASE + physical. K3 DRAM starts at 0x102000000;
  * U-Boot enters the kernel in S-mode at 0x102200000; we keep everything
  * below one 1GB window so a single direct-map leaf suffices.
- *   - KOM      : PA 0x103000000 -> VA 0xFFFFFFC103000000
- *   - init image: PA 0x102600000 -> VA 0xFFFFFFC102600000 (embedded)
- * NOTE: the kernel .bss holds the KOM bitmap (RME_RV64V_Kot), the per-CPU
- * kernel stacks and the per-CPU user stacks (the latter are mapped into
- * the user window [0x20180000, 0x20200000) below), and ends around
- * PA 0x102302000, so the embedded init image must stay above that. */
+ * KOM starts at PA 0x103000000 -> VA 0xFFFFFFC103000000. */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC103000000UL)
 /* Kernel object virtual memory size */
 #define RME_KOM_VA_SIZE                                 (0x1F000000U)
@@ -53,14 +48,12 @@ Description : The configuration file for the SpacemiT K3 platform
 
 /* Init process's first thread - user virtual addresses, decoupled from the
  * physical pages, matching X64 (first user program at 0x20000000). The code
- * is embedded in the kernel image at physical 0x102600000; each CPU's user
+ * is embedded in the kernel image; each CPU's user
  * stack is a 64KB block in the kernel .bss mapped below 0x20200000 (see
  * RME_RV64V_INIT_STACK). */
 #define RME_RV64V_INIT_ENTRY                            (0x20000000U)
-/* Physical backing of the embedded init image. The image is placed 4MB above
- * the kernel load address so the kernel .bss (KOT bitmap + per-CPU
- * kernel/user stacks) has enough room. */
-#define RME_RV64V_INIT_PA                               (0x102600000U)
+/* The linker places the embedded init image before the kernel .bss. */
+#define RME_RV64V_INIT_PA                               RME_RV64V_VA2PA((rme_ptr_t)__RME_Init_Image)
 
 /* What is the Systick value? The K3 time CSR ticks at 24MHz (DTB
  * timebase-frequency = 0x16e3600); 10ms per tick = 240000. */

@@ -1328,8 +1328,7 @@ void __RME_Boot(void)
                                  RME_PGT_ALL_PERM)==0);
 
     /* The init thread's user code at VA 0x20000000, backed by physical
-     * RME_RV64V_INIT_PA where the loader (QEMU -device loader) placed the
-     * image or the linker embedded it (SpacemiT K3). Map 32 pages (128KB) so
+     * RME_RV64V_INIT_PA where the linker embedded the image. Map 32 pages (128KB) so
      * the init program's .data/.bss has headroom for future benchmark code.
      * This still ends at 0x20020000, far below the user stack at
      * 0x201F0000..0x20200000. */

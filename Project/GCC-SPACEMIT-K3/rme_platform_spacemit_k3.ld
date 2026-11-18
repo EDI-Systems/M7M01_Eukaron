@@ -10,8 +10,7 @@ Description : The linker script for the RV64V platform on SpacemiT K3
               0x102200000 (LMA). A small assembly trampoline builds the
               bootstrap tables and switches to the high VA.
               The user init program (init.bin) is embedded in the kernel
-              image as a .init_image section at the fixed physical address
-              0x102600000, which __RME_Boot maps to the user VA 0x20000000.
+              image before .bss. __RME_Boot maps it to user VA 0x20000000.
 ******************************************************************************/
 
 OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
@@ -21,12 +20,6 @@ ENTRY(_start)
 /* Kernel high-half virtual base and physical load address */
 __RME_VA_BASE = 0xFFFFFFC000000000;
 __RME_PA_BASE = 0x102200000;
-
-/* Physical address where the user init program is embedded - must match
- * RME_RV64V_INIT_PA in rme_platform_spacemit_k3.h. It is kept 4MB above the
- * kernel load address so the kernel .bss (KOT bitmap and per-CPU stacks) does
- * not overlap it. */
-__RME_INIT_PA_BASE = 0x102600000;
 
 SECTIONS
 {
@@ -68,8 +61,21 @@ SECTIONS
 
   . = ALIGN(0x1000);
 
+  /* Put init next to the loaded sections so the flat binary has no large gap. */
+  .init_image : AT(ADDR(.init_image) - __RME_VA_BASE) {
+    __RME_Init_Image = .;
+    KEEP(*(.init_image))
+    . = ALIGN(8);
+  }
+  /* Reserve the rest of the 128 KiB user mapping for startup to clear. */
+  .init_reserve (NOLOAD) : {
+    . += MAX(0x20000, SIZEOF(.init_image)) - SIZEOF(.init_image);
+  }
+
+  . = ALIGN(0x1000);
+
   .bss (NOLOAD) : {
-    *(.bss .bss.* COMMON)
+    *(.bss .bss.* .sbss .sbss.* COMMON)
   }
 
   . = ALIGN(0x1000);
@@ -88,17 +94,6 @@ SECTIONS
   . += 0x10000;
   __RME_Stack = .;
 
-  /* Embedded user init program - placed at the fixed physical address
-   * __RME_INIT_PA_BASE (see chip header). U-Boot loads the whole kernel
-   * image including this blob, so no external loader is needed on the
-   * board; __RME_Boot maps PA 0x102600000 to the user VA 0x20000000. */
-  . = __RME_VA_BASE + __RME_INIT_PA_BASE;
-  .init_image : AT(ADDR(.init_image) - __RME_VA_BASE) {
-    __RME_Init_Image = .;
-    *(.init_image)
-    __RME_Init_Image_End = .;
-  }
-
   /DISCARD/ : {
     *(.eh_frame .rela.eh_frame .note.*)
   }
@@ -107,7 +102,7 @@ SECTIONS
 /* Symbols referenced by rme_platform_rv64v_gcc.s. There is no .data copy: the
  * high-half mapping points straight at the physical load address. */
 __RME_Global     = ADDR(.data);
-__RME_Zero_Start = ADDR(.bss);
+__RME_Zero_Start = ADDR(.init_image) + SIZEOF(.init_image);
 __RME_Zero_End   = ADDR(.bss) + SIZEOF(.bss);
 
 /* End Of File ***************************************************************/

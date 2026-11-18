@@ -60,8 +60,21 @@ SECTIONS
 
   . = ALIGN(0x1000);
 
+  /* Embed init before the sections that are not present in the flat image. */
+  .init_image : AT(ADDR(.init_image) - __RME_VA_BASE) {
+    __RME_Init_Image = .;
+    KEEP(*(.init_image))
+    . = ALIGN(8);
+  }
+  /* Reserve the rest of the 128 KiB user mapping for startup to clear. */
+  .init_reserve (NOLOAD) : {
+    . += MAX(0x20000, SIZEOF(.init_image)) - SIZEOF(.init_image);
+  }
+
+  . = ALIGN(0x1000);
+
   .bss (NOLOAD) : {
-    *(.bss .bss.* COMMON)
+    *(.bss .bss.* .sbss .sbss.* COMMON)
   }
 
   . = ALIGN(0x1000);
@@ -88,7 +101,7 @@ SECTIONS
 /* Symbols referenced by rme_platform_rv64v_gcc.s. There is no .data copy: the
  * high-half mapping points straight at the physical load address. */
 __RME_Global     = ADDR(.data);
-__RME_Zero_Start = ADDR(.bss);
+__RME_Zero_Start = ADDR(.init_image) + SIZEOF(.init_image);
 __RME_Zero_End   = ADDR(.bss) + SIZEOF(.bss);
 
 /* End Of File ***************************************************************/

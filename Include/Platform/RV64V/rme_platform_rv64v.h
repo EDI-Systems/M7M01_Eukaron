@@ -799,6 +799,8 @@ __RME_EXTERN__ rme_ptr_t RME_RV64V_Kot[RME_KOT_WORD_NUM];
  * RME_X64_Kpgt). It must stay outside the .bss: it is still the active root
  * table while the .bss is being cleared. */
 RME_EXTERN rme_ptr_t __RME_Boot_Root[512];
+/* Linker symbol used by platforms that embed the user init image. */
+RME_EXTERN rme_u8_t __RME_Init_Image[];
 /*****************************************************************************/
 
 /* End Public Variable *******************************************************/

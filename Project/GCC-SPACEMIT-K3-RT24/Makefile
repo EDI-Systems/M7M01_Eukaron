@@ -31,12 +31,12 @@ ASRCS+=../../Source/Platform/RV64V/rme_platform_rv64v_gcc.s
 
 # User init program ############################################################
 # The init program is written in Rust and lives in M7M03_Anomalocaris. The
-# kernel references that project: this build invokes its build script and
-# copies the emitted init.bin into our Object/ folder.
+# kernel embeds the resulting init.bin as an ELF object before the BSS.
 RUST_INIT_DIR=../../../M7M03_Anomalocaris
 RUST_INIT_BUILD=$(RUST_INIT_DIR)/build.sh
 RUST_ORIG_INIT_BIN=$(RUST_INIT_DIR)/build/init.bin
 INIT_BIN=$(OBJDIR)/init.bin
+INIT_OBJ=$(OBJDIR)/init_image.o
 # End User init program ########################################################
 
 # Loader ######################################################################
@@ -70,12 +70,6 @@ mkdir:
 	@echo "    AS      $(notdir $<)"
 	@$(CC) -c $(CPU) $(INCS) $(CFLAGS) $(DFLAGS) $(WFLAGS) -MMD -MP -MF "$(DEP)" "$<" -o "$(OBJ)"
 
-# Build the user init program and embed it into the kernel image
-$(OBJDIR)/init_image.o: $(INIT_BIN)
-	@echo "    OBJCOPY $(notdir $@)"
-	@$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv \
-	    --rename-section .data=.init_image $(INIT_BIN) $@
-
 # User init program ############################################################
 # Built by M7M03_Anomalocaris (Rust). Marked phony so the kernel always pulls
 # the freshly built init.bin from the init project's build script.
@@ -84,9 +78,13 @@ $(INIT_BIN):
 	@echo "    RUST    $(notdir $(INIT_BIN)) via M7M03_Anomalocaris"
 	@$(RUST_INIT_BUILD)
 	@cp $(RUST_ORIG_INIT_BIN) $(INIT_BIN)
+
+$(INIT_OBJ): $(INIT_BIN)
+	@echo "    OBJCOPY $(notdir $@) (embed init image)"
+	@$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv --rename-section .data=.init_image "$<" "$@"
 # End User init program ########################################################
 
-$(TARGET): $(COBJS) $(OBJDIR)/init_image.o rme_platform_spacemit_k3_rt24.ld
+$(TARGET): $(COBJS) $(INIT_OBJ) rme_platform_spacemit_k3_rt24.ld
 	@echo "    ELF     $(notdir $@)"
 	@$(CC) $(OBJDIR)/*.o $(CPU) $(LDFLAGS) -o $(OBJ)
 

@@ -27,12 +27,12 @@ ASRCS+=../../Source/Platform/RV64V/rme_platform_rv64v_gcc.s
 
 # User init program ############################################################
 # The init program is written in Rust and lives in M7M03_Anomalocaris. The
-# kernel references that project: this build invokes its build script and
-# copies the emitted init.bin into our Object/ folder.
+# kernel embeds the resulting init.bin as an ELF object before the BSS.
 RUST_INIT_DIR=../../../M7M03_Anomalocaris
 RUST_INIT_BUILD=$(RUST_INIT_DIR)/build.sh
 RUST_ORIG_INIT_BIN=$(RUST_INIT_DIR)/build/init.bin
 INIT_BIN=$(OBJDIR)/init.bin
+INIT_OBJ=$(OBJDIR)/init_image.o
 # End User init program ########################################################
 
 # Build #######################################################################
@@ -44,7 +44,7 @@ DEP=$(OBJDIR)/$(notdir $(@:%.o=%.d))
 OBJ=$(OBJDIR)/$(notdir $@)
 
 # Build all
-all: mkdir $(COBJS) $(TARGET) $(TARGET).bin $(INIT_BIN)
+all: mkdir $(COBJS) $(TARGET) $(TARGET).bin
 
 # Create output folder
 mkdir:
@@ -60,7 +60,7 @@ mkdir:
 	@echo "    AS      $(notdir $<)"
 	@$(CC) -c $(CPU) $(INCS) $(CFLAGS) $(DFLAGS) $(WFLAGS) -MMD -MP -MF "$(DEP)" "$<" -o "$(OBJ)"
 
-$(TARGET): $(COBJS)
+$(TARGET): $(COBJS) $(INIT_OBJ) rme_platform_qemu_virt.ld
 	@echo "    ELF     $(notdir $@)"
 	@$(CC) $(OBJDIR)/*.o $(CPU) $(LIBS) $(LDFLAGS) -o $(OBJ)
 
@@ -76,6 +76,10 @@ $(INIT_BIN):
 	@echo "    RUST    $(notdir $(INIT_BIN)) via M7M03_Anomalocaris"
 	@$(RUST_INIT_BUILD)
 	@cp $(RUST_ORIG_INIT_BIN) $(INIT_BIN)
+
+$(INIT_OBJ): $(INIT_BIN)
+	@echo "    OBJCOPY $(notdir $@) (embed init image)"
+	@$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv --rename-section .data=.init_image "$<" "$@"
 # End User init program ########################################################
 	
 # Clean up

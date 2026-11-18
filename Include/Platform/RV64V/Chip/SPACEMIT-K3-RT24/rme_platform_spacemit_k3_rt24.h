@@ -25,10 +25,8 @@ Description : The configuration file for the SpacemiT K3 RT24 platform
 /* Kernel object virtual memory base - the kernel lives in the Sv39 high
  * half: VA = RME_RV64V_VA_BASE + physical. The AP loader places the kernel
  * at PA 0x110000000; the M-mode firmware enters it in S-mode with satp=0.
- *   - KOM       : PA 0x111000000 -> VA 0xFFFFFFC111000000
- *   - init image: PA 0x110400000 -> VA 0xFFFFFFC110400000 (embedded)
- * The linker keeps the kernel .bss (KOT bitmap and per-CPU stacks) below
- * the embedded init image. All backing memory fits in one 1GB window. */
+ * KOM starts at PA 0x111000000 -> VA 0xFFFFFFC111000000.
+ * All backing memory fits in one 1GB window. */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC111000000UL)
 /* Kernel object virtual memory size */
 #define RME_KOM_VA_SIZE                                 (0x01000000U)
@@ -54,14 +52,12 @@ Description : The configuration file for the SpacemiT K3 RT24 platform
 
 /* Init process's first thread - user virtual addresses, decoupled from the
  * physical pages, matching X64 (first user program at 0x20000000). The code
- * is embedded in the kernel image at physical 0x110400000; each CPU's user
+ * is embedded in the kernel image; each CPU's user
  * stack is a 64KB block in the kernel .bss mapped below 0x20200000 (see
  * RME_RV64V_INIT_STACK). */
 #define RME_RV64V_INIT_ENTRY                            (0x20000000UL)
-/* Physical backing of the embedded init image. The image is placed 4MB above
- * the kernel load address so the kernel .bss (KOT bitmap + per-CPU
- * kernel/user stacks) has enough room. */
-#define RME_RV64V_INIT_PA                               (0x110400000UL)
+/* The linker places the embedded init image before the kernel .bss. */
+#define RME_RV64V_INIT_PA                               RME_RV64V_VA2PA((rme_ptr_t)__RME_Init_Image)
 
 /* What is the Systick value? RT24 SysTimer ticks at 24MHz; the M-mode
  * firmware emulates the time CSR from mtime. 10ms per tick = 240000. */
