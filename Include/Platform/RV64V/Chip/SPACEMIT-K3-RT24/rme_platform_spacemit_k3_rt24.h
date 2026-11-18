@@ -18,6 +18,10 @@ Description : The configuration file for the SpacemiT K3 RT24 platform
 /* Number of harts to bring up. This configuration is single-core: RT24 core0
  * is the only CPU and no secondary hart is started. */
 #define RME_RV64V_CPU_NUM                               (1U)
+/* Plain accesses - only one hart runs */
+#define RME_READ_ACQUIRE(X)                             (*(X))
+#define RME_WRITE_RELEASE(X,V)                          ((*(X))=(V))
+
 /* Kernel object virtual memory base - the kernel lives in the Sv39 high
  * half: VA = RME_RV64V_VA_BASE + physical. The AP loader places the kernel
  * at PA 0x110000000; the M-mode firmware enters it in S-mode with satp=0.

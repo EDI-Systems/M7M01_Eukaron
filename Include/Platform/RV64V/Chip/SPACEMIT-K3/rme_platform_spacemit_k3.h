@@ -18,6 +18,9 @@ Description : The configuration file for the SpacemiT K3 platform
 /* Number of harts to bring up. This configuration is single-core: the boot
  * hart is the only CPU and no secondary hart is started. */
 #define RME_RV64V_CPU_NUM                               (1U)
+/* Acquire/release atomics - required when more than one hart runs. */
+#define RME_READ_ACQUIRE(X)                             __atomic_load_n((X),__ATOMIC_ACQUIRE)
+#define RME_WRITE_RELEASE(X,V)                          __atomic_store_n((X),(V),__ATOMIC_RELEASE)
 /* Kernel object virtual memory base - the kernel lives in the Sv39 high
  * half: VA = RME_RV64V_VA_BASE + physical. K3 DRAM starts at 0x102000000;
  * U-Boot enters the kernel in S-mode at 0x102200000; we keep everything

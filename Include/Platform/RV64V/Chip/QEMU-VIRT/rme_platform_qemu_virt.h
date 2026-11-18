@@ -16,6 +16,9 @@ Description : The configuration file for the QEMU virt platform.
 /* Number of harts to bring up. This configuration is single-core: the boot
  * hart is the only CPU and no secondary hart is started. */
 #define RME_RV64V_CPU_NUM                               (1U)
+/* Acquire/release atomics - required when more than one hart runs. */
+#define RME_READ_ACQUIRE(X)                             __atomic_load_n((X),__ATOMIC_ACQUIRE)
+#define RME_WRITE_RELEASE(X,V)                          __atomic_store_n((X),(V),__ATOMIC_RELEASE)
 /* Kernel object virtual memory base - kernel lives in the Sv39 high half:
  * VA = 0xFFFFFFC000000000 + physical 0x81000000 (see RME_RV64V_VA_BASE) */
 #define RME_KOM_VA_BASE                                 (0xFFFFFFC081000000UL)

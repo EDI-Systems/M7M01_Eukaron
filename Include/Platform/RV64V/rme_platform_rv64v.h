@@ -182,9 +182,6 @@ static inline rme_ptr_t __RME_RV64V_CPU_Data_Get_Raw(void)
 #define RME_FETCH_AND(PTR,OPERAND)              _RME_RV64V_Fetch_And(PTR,OPERAND)
 /* Get most significant bit */
 #define RME_MSB_GET(VAL)                        _RME_MSB_Generic(VAL)
-/* Multi-core processor: acquire/release ordering */
-#define RME_READ_ACQUIRE(X)                     __atomic_load_n((X),__ATOMIC_ACQUIRE)
-#define RME_WRITE_RELEASE(X,V)                  __atomic_store_n((X),(V),__ATOMIC_RELEASE)
 /* Reboot the processor if the assert fails in this port */
 #define RME_ASSERT_FAILED(F,L,D,T)              __RME_RV64V_Reboot()
 
